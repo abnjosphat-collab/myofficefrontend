@@ -1,13 +1,10 @@
-// app/employees/useEmployeesData.ts — the employees page's data-fetching layer: the raw
-// API calls plus a hook that owns the roster/loading/error state and reload cycle. Split
-// out of page.tsx as part of the standing "decompose on touch" convention. One resource,
-// one loading flag — the simplest shape of the "unified load cycle" the rule calls for.
+// app/employees/useEmployeesData.ts — the personnel register's reads and writes. The read keeps its 20 s limit (a stalled request ends
+// with a retryable error); the writes throw, so a dialog can show the reason and keep what was typed.
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { API_BASE } from '@/lib/config';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
 import { invalidateEmployeesCache } from '@/hooks/useLookups';
 import { normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
@@ -88,31 +85,6 @@ export async function removeEmployee(id: number) {
   invalidateEmployeesCache();
 }
 
-export function useEmployeesData() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const latestLoad = useRef(0);
-
-  const reload = useCallback(async (quiet = false) => {
-    const loadId = ++latestLoad.current;
-    if (quiet) setRefreshing(true); else setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await loadEmployees();
-      if (loadId === latestLoad.current) setEmployees(rows);
-    } catch (e) {
-      if (loadId === latestLoad.current) {
-        const m = e instanceof Error ? e.message : 'Failed to load';
-        setError(m); toast.error(m);
-      }
-    } finally {
-      if (loadId === latestLoad.current) { setIsLoading(false); setRefreshing(false); }
-    }
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  return { employees, setEmployees, isLoading, refreshing, error, setError, reload };
-}
+const fetchRoster = () => loadEmployees();
+/** The roster, with honest load state: a failed load is an error with the people already shown kept, never an empty roster. */
+export const useRoster = () => useApiList<Employee>('/api/employees', undefined, { fetcher: fetchRoster });

@@ -1,0 +1,421 @@
+{
+  "_comment": "Hand-maintained wireframe review per route. \"current\" is measured by scripts/wireframe-audit.mjs; the stage fields are edited only after the work is done. scripts/wireframe-ledger.mjs generates docs/WIREFRAME_LEDGER.md.",
+  "routes": {
+    "/": {
+      "pattern": "H",
+      "current": "Home; 0 tabs; 0 tables; 119 cards; 0 inputs, 0 selects",
+      "recommended": "Home hub: modules, favourites, quick actions.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: customise, quick-view opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/admin": {
+      "pattern": "A",
+      "current": "Admin panel; 0 tabs; 1 tables; 11 cards; 1 inputs, 1 selects",
+      "recommended": "Header, role tiles, table, manage dialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-reset, create, manage opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/admin/lists": {
+      "pattern": "A",
+      "current": "Shared lists; 2 tabs; 0 tables; 0 cards; 1 inputs, 0 selects",
+      "recommended": "Header, role tiles, table, manage dialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-delete opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/artisan-timesheets": {
+      "pattern": "G",
+      "current": "Artisan timesheets; selection row, Timesheet and Saved tabs, the day grid with frozen panes and copy-down, signature and comment dialogs",
+      "recommended": "Replace the hero and inline stats with the standard header; period toolbar; grid with a sticky first column.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop and phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: the discard and delete confirmations exercised by the route spec at desktop; the signature and comment dialogs open from the grid but were not exercised (the signature pad is the shared legacy component)"
+    },
+    "/av": {
+      "pattern": "X",
+      "current": "Equipment Availability; 0 tabs; 0 tables; 0 cards; 0 inputs, 0 selects",
+      "recommended": "Retired (owner decision 4 Oct 2026); redirects to /availabilities.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: redirect verified",
+      "overlaysReviewed": "n/a (no overlays)"
+    },
+    "/availabilities": {
+      "pattern": "R",
+      "current": "Availability records; 4 tabs; 1 tables; 6 cards; 3 inputs, 3 selects",
+      "recommended": "Register with Overview, By period, Analytics and Records tabs.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-delete, create, edit opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/availability": {
+      "pattern": "D",
+      "current": "Equipment availability; 3 tabs; 1 tables; 6 cards; 1 inputs, 2 selects",
+      "recommended": "Dashboard for the records page; linked from the navigation as Availability Overview (owner decision 4 Oct 2026).",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/breakdowns": {
+      "pattern": "R",
+      "current": "Equipment breakdowns; tiles as filters, toolbar, cards and table, Records and Analytics tabs, detail and one-page form",
+      "recommended": "Register of breakdowns with Records and Analytics; filters behind the toolbar; log a breakdown is the primary action.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop and phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, the form, the confirmation and the analytics views exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/breakdowns/analytics": {
+      "pattern": "D",
+      "current": "Breakdown analytics; filter bar with explicit Apply, five views of chart panels and ranked tables",
+      "recommended": "Range filter in the header, tiles, chart panels each with its own error; drop the generic \"No data available\".",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: no overlays on this route"
+    },
+    "/competency": {
+      "pattern": "G",
+      "current": "Competency matrix; 0 tabs; 0 tables; 5 cards; 0 inputs, 1 selects",
+      "recommended": "Skill matrix grid (people by skills) with a trade filter.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (the page has no dialogs)"
+    },
+    "/compliance-register": {
+      "pattern": "R",
+      "current": "Statutory compliance register; 0 tabs; 0 tables; 4 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: add dialog opened at desktop and phone; fit, focus and Escape checked"
+    },
+    "/compressors": {
+      "pattern": "W",
+      "current": "Compressor tracking; 4 tabs; 0 tables; 11 cards; 17 inputs, 2 selects",
+      "recommended": "Daily entry first (cards or table) with Services, Analytics and Management tabs.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-service, create, reading, status opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/condition-monitoring": {
+      "pattern": "R",
+      "current": "Condition monitoring; 0 tabs; 1 tables; 5 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/contractors": {
+      "pattern": "R",
+      "current": "Contractors; 0 tabs; 0 tables; 5 cards; 0 inputs, 1 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: add dialog opened at desktop and phone; fit, focus and Escape checked"
+    },
+    "/documents": {
+      "pattern": "H",
+      "current": "Document hub; search, 7 category cards, folder cards, files as cards or table",
+      "recommended": "Search across categories, then the category groups; remove the centred hero.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: preview, edit details, new folder, upload (with a refused file) and the delete confirmations exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/drivers": {
+      "pattern": "R",
+      "current": "Authorised drivers; 0 tabs; 0 tables; 10 cards; 1 inputs, 1 selects",
+      "recommended": "Register grouped by department.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/employees": {
+      "pattern": "R",
+      "current": "Personnel register; tiles, filters, cards grouped by section and trade, table",
+      "recommended": "Cards, table and section views; replace the hero and inline stats; the largest register.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, the add/edit form, the roster export, the clean-up and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/employees-preview": {
+      "pattern": "X",
+      "current": "Personnel; 0 tabs; 1 tables; 0 cards; 1 inputs, 3 selects",
+      "recommended": "Retired (owner decision 4 Oct 2026); redirects to /employees.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: redirect verified",
+      "overlaysReviewed": "n/a (no overlays)"
+    },
+    "/engineering_report": {
+      "pattern": "Rp",
+      "current": "Engineering monthly report; 0 tabs; 0 tables; 18 cards; 0 inputs, 1 selects",
+      "recommended": "Header with period and print; ordered panels.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (no dialogs or menus on this page)"
+    },
+    "/engineering-dashboard": {
+      "pattern": "D",
+      "current": "Engineering dashboard; 0 tabs; 1 tables; 7 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles, tabs or panels; each section reports its own failure.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (no dialogs or menus on this page)"
+    },
+    "/equipment": {
+      "pattern": "R",
+      "current": "Equipment Management; 0 tabs; 0 tables; 0 cards; 1 inputs, 0 selects",
+      "recommended": "Register of equipment; replace the hero, filters panel and inline stats.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, add and edit dialogs and the delete confirmation exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/inventory": {
+      "pattern": "R",
+      "current": "Inventory; 0 tabs; 0 tables; 7 cards; 1 inputs, 0 selects",
+      "recommended": "The browser-only notice stays until a backend table exists (owner decision).",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: add opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/issues": {
+      "pattern": "W",
+      "current": "Stock Issues; 2 tabs; 0 tables; 0 cards; 12 inputs, 3 selects",
+      "recommended": "Issue form first (one issue, many items); the issue register and analytics in tabs.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop and phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail dialog, delete confirmation and the stock-code picker exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/job-cards": {
+      "pattern": "R",
+      "current": "Job cards; 0 tabs; 1 tables; 1 cards; 1 inputs, 0 selects",
+      "recommended": "Narrower than the other registers: use the full content width and add status tiles as filters.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/leave-management": {
+      "pattern": "X",
+      "current": "Leave Management; 4 tabs; 0 tables; 0 cards; 7 inputs, 0 selects",
+      "recommended": "Retired (owner decision 4 Oct 2026); redirects to /leaves.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: redirect verified",
+      "overlaysReviewed": "n/a (no overlays)"
+    },
+    "/leaves": {
+      "pattern": "R",
+      "current": "Leave Management; 0 tabs; 0 tables; 0 cards; 1 inputs, 0 selects",
+      "recommended": "Register of leave requests; duplicate of /leave-management (owner decision).",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, edit/apply, delete confirmation, bulk signature step (opened and dismissed) exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/login": {
+      "pattern": "X",
+      "current": "Home; 0 tabs; 0 tables; 119 cards; 0 inputs, 0 selects",
+      "recommended": "Own chrome; redirects to Home when signed in.",
+      "implemented": false,
+      "layoutVerified": null,
+      "overlaysReviewed": null
+    },
+    "/maintenance": {
+      "pattern": "R",
+      "current": "Work orders; 3 tabs (work orders, schedules, analytics); tiles, filters, cards and table",
+      "recommended": "Work-order register with Schedules and Analytics tabs; its header is smaller than every other page.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: the detail with its three steps, the work order and schedule forms and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/near_miss": {
+      "pattern": "R",
+      "current": "Near miss reporting; 0 tabs; 1 tables; 6 cards; 3 inputs, 1 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/noticeboard": {
+      "pattern": "R",
+      "current": "Noticeboard; 0 tabs; 0 tables; 12 cards; 1 inputs, 5 selects",
+      "recommended": "Register with a priority distribution and a pinned section.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-archive, create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/overtime": {
+      "pattern": "R",
+      "current": "Overtime; 3 tabs (records, insights, weekly summary); tiles, filters, cards and table",
+      "recommended": "Register with approvals, bulk entry and a weekly summary; the largest legacy page.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, request and bulk forms, the signature step and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/pachedu": {
+      "pattern": "R",
+      "current": "Pachedu care observations; 0 tabs; 0 tables; 11 cards; 3 inputs, 2 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/ppe": {
+      "pattern": "R",
+      "current": "PPE management; employees as cards, due items table, order list, summary, replacement matrix dialog, issue form",
+      "recommended": "Register with Employees, Due items, Order list and Summary tabs, tiles as filters, and an issue flow.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected (employees, due items, matrix, summary); phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: employee detail, the issue form, the matrix dialog and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/pto": {
+      "pattern": "R",
+      "current": "Planned task observation; 0 tabs; 0 tables; 11 cards; 3 inputs, 2 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/quotations": {
+      "pattern": "W",
+      "current": "Quotation generator; tiles, edit, preview and saved tabs, company, client, details and line item panels",
+      "recommended": "Document composer (edit, preview, saved); nothing pre-filled.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop and phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: the new-quotation and delete confirmations exercised by the route spec at desktop; no other overlays"
+    },
+    "/reliability": {
+      "pattern": "D",
+      "current": "MTBF and MTTR analytics; 0 tabs; 1 tables; 7 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles, tabs or panels; each section reports its own failure.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (no dialogs or menus on this page)"
+    },
+    "/requisitions": {
+      "pattern": "R",
+      "current": "Purchase requisitions; 2 tabs; 1 tables; 6 cards; 3 inputs, 3 selects",
+      "recommended": "Register with Requisitions and Analytics tabs.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/safety_complaints": {
+      "pattern": "R",
+      "current": "Safety complaints; 2 tabs; 1 tables; 6 cards; 3 inputs, 6 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/services": {
+      "pattern": "R",
+      "current": "Third party services; tiles, filters, cards, table and sheet views",
+      "recommended": "Register with scan, import and the PR/PO/GRV pipeline.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail with stage editors, edit/create, import or scan, attachments and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/sheq": {
+      "pattern": "D",
+      "current": "SHEQ safety dashboard; 6 tabs; 1 tables; 13 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles, tabs or panels; each section reports its own failure.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (no dialogs or menus on this page)"
+    },
+    "/sheq_inspection": {
+      "pattern": "R",
+      "current": "SHEQ inspections; 0 tabs; 0 tables; 9 cards; 3 inputs, 2 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/shifts": {
+      "pattern": "G",
+      "current": "Shifts; 0 tabs; 0 tables; 0 cards; 1 inputs, 0 selects",
+      "recommended": "Shift patterns, roster and holidays: pattern cards, then the roster grid.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, assign/edit, event dialog and the remove confirmation exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/sop-library": {
+      "pattern": "R",
+      "current": "SOP library; 0 tabs; 0 tables; 10 cards; 1 inputs, 4 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: detail, new opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/spares": {
+      "pattern": "R",
+      "current": "Spare parts; tiles, filters, cards and table, category panel, requisition drawer",
+      "recommended": "Register with a stock matrix and requisition shortcuts.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: detail, the part form, the requisition drawer and the confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/spares/import": {
+      "pattern": "W",
+      "current": "Import Spares from Excel; 0 tabs; 0 tables; 0 cards; 0 inputs, 0 selects",
+      "recommended": "Upload, review the column mapping, import.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop inspected; phone and tablet by the no-overflow checks (upload step only)",
+      "overlaysReviewed": "4 Oct 2026: the import confirmation was exercised by the route spec; not yet in the geometric overlay audit"
+    },
+    "/tasks-events": {
+      "pattern": "R",
+      "current": "Events and tasks; 0 tabs; 1 tables; 7 cards; 1 inputs, 3 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: confirm-delete, create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/timesheets": {
+      "pattern": "G",
+      "current": "Maintenance timesheets; period and roster controls, tiles, selection bar, the roster grid with sticky person column, entry, bulk, add-people, download and scan-import dialogs",
+      "recommended": "Same grid pattern as artisan timesheets; period and roster controls in one toolbar.",
+      "implemented": true,
+      "layoutVerified": "4 Oct 2026: desktop and phone inspected; tablet by the no-overflow checks",
+      "overlaysReviewed": "4 Oct 2026: entry, bulk assign, add employees, download, scan import and the copy-previous and delete confirmations exercised by the route spec; geometric overlay audit 4 Oct 2026 (docs/overlays/after-migration and after-migration-extras): every overlay fits at desktop and phone and Escape closes it"
+    },
+    "/tools": {
+      "pattern": "X",
+      "current": "Equipment E-System; 0 tabs; 0 tables; 0 cards; 0 inputs, 0 selects",
+      "recommended": "Own chrome (the reference workspace).",
+      "implemented": false,
+      "layoutVerified": null,
+      "overlaysReviewed": null
+    },
+    "/training": {
+      "pattern": "R",
+      "current": "Training and certification; 3 tabs; 1 tables; 6 cards; 1 inputs, 2 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/usage-analyzer": {
+      "pattern": "D",
+      "current": "Usage analyzer; 0 tabs; 0 tables; 15 cards; 0 inputs, 0 selects",
+      "recommended": "Header, tiles, tabs or panels; each section reports its own failure.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: none to open (no dialogs or menus on this page)"
+    },
+    "/vfl": {
+      "pattern": "R",
+      "current": "Visible felt leadership; 0 tabs; 0 tables; 11 cards; 3 inputs, 1 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    },
+    "/work_stoppage": {
+      "pattern": "R",
+      "current": "Work stoppages; 0 tabs; 0 tables; 11 cards; 3 inputs, 2 selects",
+      "recommended": "Header, tiles as filters, toolbar, records as cards or table; detail Dialog and FormDialog.",
+      "implemented": true,
+      "layoutVerified": "3 Oct 2026: desktop and phone inspected after the shared header, toolbar and tile changes (tablet spot-checked)",
+      "overlaysReviewed": "4 Oct 2026: create, detail, download menu opened at desktop and phone; fit, focus, Escape and reachability of the action checked; representative screenshots inspected"
+    }
+  }
+}

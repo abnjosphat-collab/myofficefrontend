@@ -4,8 +4,8 @@
 // standing "decompose on touch" convention.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { useApiList } from '@/lib/useApiList';
 import type { Contractor, CStatus } from './types';
 
 export const fromContAPI = (d: any): Contractor => ({
@@ -21,16 +21,6 @@ export async function createContractor(body: Record<string, unknown>) {
 }
 
 export function useContractorsData() {
-  const [contractors, setContractors] = useState<Contractor[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchContractors = useCallback(async () => {
-    setLoading(true);
-    try { setContractors((await api.get<any[]>('/api/contractors')).map(fromContAPI)); }
-    catch { /* network */ } finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchContractors(); }, [fetchContractors]);
-
-  return { contractors, loading, fetchContractors };
+  const list = useApiList<any, Contractor>('/api/contractors', fromContAPI);
+  return { contractors: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, fetchContractors: list.refetch };
 }

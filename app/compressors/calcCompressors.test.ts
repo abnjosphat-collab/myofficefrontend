@@ -82,3 +82,33 @@ describe('calculateNextService', () => {
     expect(notUrgent?.isUrgent).toBe(false);
   });
 });
+
+import { efficiencyTone, localDateString, readingProblems } from './calcCompressors';
+
+describe('readingProblems', () => {
+  const prev = { total_running_hours: 100, total_loaded_hours: 60 };
+  it('accepts a reading that only goes up with loaded within running', () => {
+    expect(readingProblems(prev, 108, 66)).toEqual({});
+  });
+  it('rejects totals below the previous reading, field by field', () => {
+    expect(readingProblems(prev, 90, 66).running).toMatch(/previous total of 100\.0 h/);
+    expect(readingProblems(prev, 108, 50).loaded).toMatch(/previous total of 60\.0 h/);
+  });
+  it('rejects loaded above running and a daily loaded above daily running', () => {
+    expect(readingProblems(prev, 108, 109).loaded).toMatch(/cannot exceed running/);
+    expect(readingProblems(prev, 105, 70).loaded).toMatch(/since the previous reading/);
+  });
+  it('without a previous reading only checks loaded against running', () => {
+    expect(readingProblems(undefined, 10, 4)).toEqual({});
+    expect(readingProblems(undefined, 10, 11).loaded).toMatch(/cannot exceed running/);
+  });
+});
+
+describe('efficiencyTone and localDateString', () => {
+  it('maps efficiency to the shared tones at the same boundaries as the labels', () => {
+    expect([80, 79.9, 60, 59.9, 40, 39.9].map(efficiencyTone)).toEqual(['success', 'info', 'info', 'warning', 'warning', 'danger']);
+  });
+  it('formats the local calendar day with zero padding', () => {
+    expect(localDateString(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+  });
+});

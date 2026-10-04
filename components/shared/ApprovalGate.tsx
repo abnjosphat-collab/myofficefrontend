@@ -1,8 +1,9 @@
 // components/shared/ApprovalGate.tsx
-// Full approval flow: auth check → role check → signature capture → confirm
+// Full approval flow: auth check → role check → signature capture → confirm. The shell is the design system's Dialog, so it
+// has a dialog role, traps focus, closes on Escape and the close button, and cannot be dismissed while the approval is applying.
 'use client';
 import { useState } from 'react';
-import { Lock, ShieldAlert, LogIn, CheckCircle2, XCircle, Loader2, useTheme, accentText, PrimaryButton, Button } from '@/components/shared/theme';
+import { Button, Dialog, Icon, Spinner } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { SignaturePad, type SignatureResult } from './SignaturePad';
 import type { UserRole } from '@/lib/auth-context';
@@ -22,7 +23,7 @@ interface ApprovalGateProps {
   onConfirm: (sig: SignatureResult) => Promise<void> | void;
   /** Called when the user dismisses the modal without approving */
   onCancel: () => void;
-  /** Optional accent — 'approve' (emerald) | 'reject' (rose) */
+  /** 'approve' | 'reject' | 'sign': the wording of the sign-in message follows it */
   variant?: 'approve' | 'reject' | 'sign';
   /** Open straight into "Use saved signature" instead of "Draw now" — only
    *  takes effect if the signer actually has one on file. See SignaturePad. */
@@ -38,119 +39,77 @@ export function ApprovalGate({
   title, description, actionLabel = 'Sign & Approve',
   requiredRole = 'manager',
   onConfirm, onCancel,
-  variant = 'approve',
   preferSavedSignature = false,
 }: ApprovalGateProps) {
   const { user, profile, isAtLeast, loading } = useAuth();
-  const t = useTheme();
   const [saving, setSaving] = useState(false);
-  const [done,   setDone]   = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isLoggedIn   = !!user && !loading;
+  const isLoggedIn = !!user && !loading;
   const isAuthorized = isLoggedIn && isAtLeast(requiredRole);
-  const displayName  = profile?.full_name || user?.email?.split('@')[0] || '';
-
-  const accentClass = variant === 'reject'
-    ? 'border-rose-500/30 bg-rose-500/10'
-    : variant === 'sign'
-    ? 'border-brand-500/30 bg-brand-500/10'
-    : 'border-emerald-500/30 bg-emerald-500/10';
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || '';
 
   const handleSign = async (sig: SignatureResult) => {
-    setSaving(true);
+    setSaving(true); setError(null);
     try {
       await onConfirm(sig);
       setDone(true);
       setTimeout(onCancel, 450);
+    } catch (e) {
+      // The caller has already said why; keep the gate open so the signature is not lost.
+      setError((e as Error).message || 'The approval was not applied.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
-      <button type="button" aria-label="Dismiss approval dialog" onClick={onCancel} className={`absolute inset-0 ${t.scrim} backdrop-blur-sm cursor-default`} />
-      <div className={`relative ${t.glass} ${t.shadow} rounded-2xl w-full max-w-md z-10 overflow-hidden border ${t.border}`}>
-        <div className={`px-6 py-4 border-b ${t.border} ${t.design === 'dallaglio' ? 'bg-[var(--d-surface)]' : accentClass}`}>
-          <div className="flex items-center gap-3">
-            {variant === 'reject'
-              ? <XCircle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
-              : variant === 'sign'
-              ? <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-500" />
-              : <CheckCircle2 className={`h-5 w-5 shrink-0 ${accentText('emerald', t.light)}`} />}
-            <div>
-              <h3 className={`text-base ${t.design === 'dallaglio' ? 'font-semibold tracking-[-0.025em]' : 'font-bold'} ${t.textPrimary}`}>{title}</h3>
-              {description && <p className={`text-xs mt-0.5 ${t.textMuted}`}>{description}</p>}
-            </div>
+    <Dialog open onOpenChange={o => { if (!o && !saving) onCancel(); }} title={title} description={description} size="sm">
+      {!isLoggedIn && (
+        <div className="flex flex-col items-center gap-4 py-2 text-center">
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-warning-soft text-warning"><Icon name="lock" size="xl" /></span>
+          <div>
+            <p className="font-sans text-body font-semibold text-ink">Sign in required</p>
+            <p className="mt-1 font-sans text-body-sm text-ink-muted">You must be signed in as a {ROLE_LABELS[requiredRole]} or above to {actionLabel.toLowerCase().replace('sign & ', '').replace('sign and ', '')}.</p>
           </div>
+          <Button variant="primary" icon="sign-in" onClick={onCancel}>Sign in to continue</Button>
         </div>
+      )}
 
-        <div className="p-6">
-          {!isLoggedIn && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="h-14 w-14 rounded-full bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-                <Lock className={`h-6 w-6 ${accentText('amber', t.light)}`} />
-              </div>
-              <div className="text-center">
-                <p className={`font-semibold ${t.textPrimary}`}>Sign in required</p>
-                <p className={`text-sm mt-1 ${t.textMuted}`}>
-                  You must be signed in as a <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above to {actionLabel.toLowerCase().replace('sign & ', '')}.
-                </p>
-              </div>
-              <PrimaryButton icon={LogIn} size="md" onClick={onCancel}>Sign in to continue</PrimaryButton>
-            </div>
-          )}
-
-          {isLoggedIn && !isAuthorized && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="h-14 w-14 rounded-full bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
-                <ShieldAlert className={`h-6 w-6 ${accentText('rose', t.light)}`} />
-              </div>
-              <div className="text-center">
-                <p className={`font-semibold ${t.textPrimary}`}>Insufficient permissions</p>
-                <p className={`text-sm mt-1 ${t.textMuted}`}>
-                  Your role (<span className={`font-medium ${t.textSecondary}`}>{ROLE_LABELS[profile?.role ?? 'user']}</span>) cannot approve.
-                  A <span className="text-brand-500 font-medium">{ROLE_LABELS[requiredRole]}</span> or above is required.
-                </p>
-              </div>
-              {t.design === 'dallaglio'
-                ? <Button variant="secondary" size="sm" onClick={onCancel}>Close</Button>
-                : <button type="button" onClick={onCancel}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${t.chipBg} ${t.textMuted} ${t.hoverText} border ${t.border}`}>
-                    Close
-                  </button>}
-            </div>
-          )}
-
-          {isLoggedIn && isAuthorized && !done && saving && (
-            <div className="flex flex-col items-center gap-3 py-8">
-              <Loader2 className={`h-8 w-8 animate-spin ${accentText('brand', t.light)}`} />
-              <p className={`text-sm font-medium ${t.textPrimary}`}>Applying approval…</p>
-              <p className={`text-xs ${t.textMuted}`}>This may take a moment for large selections.</p>
-            </div>
-          )}
-
-          {isLoggedIn && isAuthorized && !done && !saving && (
-            <SignaturePad
-              signerName={displayName}
-              userEmail={user?.email}
-              actionLabel={actionLabel}
-              onSign={handleSign}
-              onCancel={onCancel}
-              preferSaved={preferSavedSignature}
-            />
-          )}
-
-          {done && (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <div className="h-14 w-14 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-                <CheckCircle2 className={`h-7 w-7 ${accentText('emerald', t.light)}`} />
-              </div>
-              <p className={`font-semibold ${t.textPrimary}`}>Done</p>
-            </div>
-          )}
+      {isLoggedIn && !isAuthorized && (
+        <div className="flex flex-col items-center gap-4 py-2 text-center">
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-danger-soft text-danger"><Icon name="shield" size="xl" /></span>
+          <div>
+            <p className="font-sans text-body font-semibold text-ink">Insufficient permissions</p>
+            <p className="mt-1 font-sans text-body-sm text-ink-muted">Your role ({ROLE_LABELS[profile?.role ?? 'user']}) cannot approve. A {ROLE_LABELS[requiredRole]} or above is required.</p>
+          </div>
+          <Button onClick={onCancel}>Close</Button>
         </div>
-      </div>
-    </div>
+      )}
+
+      {isLoggedIn && isAuthorized && !done && saving && (
+        <div className="flex flex-col items-center gap-3 py-8" role="status">
+          <Spinner className="size-8 text-action" />
+          <p className="font-sans text-body font-medium text-ink">Applying the approval…</p>
+          <p className="font-sans text-body-sm text-ink-muted">This may take a moment for a large selection.</p>
+        </div>
+      )}
+
+      {/* Stays mounted while the approval applies (hidden), so a refused approval leaves the signature as drawn. */}
+      {isLoggedIn && isAuthorized && !done && (
+        <div className={saving ? 'hidden' : 'flex flex-col gap-3'}>
+          {error && <p role="alert" className="rounded-control border border-danger-line bg-danger-soft px-3 py-2 font-sans text-body-sm text-danger">{error}</p>}
+          <SignaturePad signerName={displayName} userEmail={user?.email} actionLabel={actionLabel} onSign={handleSign} onCancel={onCancel} preferSaved={preferSavedSignature} />
+        </div>
+      )}
+
+      {done && (
+        <div className="flex flex-col items-center gap-3 py-6" role="status">
+          <span className="inline-flex size-12 items-center justify-center rounded-full bg-success-soft text-success"><Icon name="success" size="xl" weight="emphasis" /></span>
+          <p className="font-sans text-body font-semibold text-ink">Done</p>
+        </div>
+      )}
+    </Dialog>
   );
 }

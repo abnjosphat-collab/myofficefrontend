@@ -2,6 +2,8 @@
 import { normalizeTimesheetEmployeeCode, timesheetEmployeeCodesMatch } from './employeeCode';
 import { approvedOvertimeHours, OT_TYPE_TO_BUCKET } from './mergeEffectiveTimesheets';
 import type { ApprovedOvertimeRecord, HourTotals, StatusKey, TimesheetEntry } from './types';
+import { isNightRosterTail } from './nightRosterOvertime';
+import { moduleRecordIncluded } from './moduleApproval';
 
 /** Full 18:00–06:00 night allowance window (12h). */
 export const FULL_NIGHT_ALLOWANCE_HOURS = 12;
@@ -90,9 +92,9 @@ export function buildEarlyMorningOtDatesForEmployee(
   const out = new Set<string>();
   approved.forEach(ot => {
     if (!timesheetEmployeeCodesMatch(ot.employee_id, humanEmpId)) return;
-    if (ot.status === 'rejected') return;
+    if (!moduleRecordIncluded(ot.status)) return;
     if (OT_TYPE_TO_BUCKET[ot.overtime_type] !== 'ot15') return;
-    if (!isEarlyMorningOvertimeStart(ot.start_time)) return;
+    if (!isNightRosterTail(ot)) return;
     if (approvedOvertimeHours(ot) <= 0) return;
     out.add(ot.date);
   });
@@ -124,7 +126,7 @@ export function buildModuleOt15ByDateForEmployee(
 ): Record<string, number> {
   const out: Record<string, number> = {};
   approved.forEach(ot => {
-    if (!timesheetEmployeeCodesMatch(ot.employee_id, humanEmpId) || ot.status === 'rejected') return;
+    if (!timesheetEmployeeCodesMatch(ot.employee_id, humanEmpId) || !moduleRecordIncluded(ot.status)) return;
     if (OT_TYPE_TO_BUCKET[ot.overtime_type] !== 'ot15') return;
     const h = approvedOvertimeHours(ot);
     if (h <= 0) return;
@@ -170,7 +172,8 @@ export function rosterNightAllowanceHours(
       best = Math.max(best, calcNightHours(st, endTimeFromStartAndHours(st, reg + ot)));
     }
   }
-  if (opts?.earlyMorningModuleOt && best < FULL_NIGHT_ALLOWANCE_HOURS - 0.01) {
+  const rosterStartsBeforeDawn = !!st && isEarlyMorningOvertimeStart(st);
+  if (opts?.earlyMorningModuleOt && !rosterStartsBeforeDawn && best < FULL_NIGHT_ALLOWANCE_HOURS - 0.01) {
     best = Math.max(best, FULL_NIGHT_ALLOWANCE_HOURS);
   }
   if (best > 0) return best;
@@ -308,6 +311,7 @@ export function moduleOt15FormulaAddends(
 
   approvedOvertime
     .filter(ot => {
+      if (!moduleRecordIncluded(ot.status)) return false;
       if (!periodSet.has(ot.date)) return false;
       if (normalizeTimesheetEmployeeCode(ot.employee_id) !== humanKey) return false;
       return OT_TYPE_TO_BUCKET[ot.overtime_type] === 'ot15';

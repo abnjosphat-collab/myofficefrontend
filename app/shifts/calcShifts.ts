@@ -59,10 +59,7 @@ export function computeDayStatus(a: ShiftAssignment, date: Date): DayStatus {
 
 export function todayStatus(a: ShiftAssignment): DayStatus { return computeDayStatus(a, new Date()); }
 
-// Both % of the way through the current on/off cycle (0 = just started, near 100 =
-// about to flip) — daysUntilNextOn and cycleProgress were identical duplicate
-// implementations; kept as two names since call sites read more clearly with the name
-// matching what they're displaying, but there's only one calculation now.
+// % of the way through the current on/off cycle (0 = just started, near 100 = about to flip).
 export function cycleProgress(a: ShiftAssignment): number {
   if (a.shift_type === 'standby') return 0;
   const cycleLen = (a.on_days || 0) + (a.off_days || 0);
@@ -74,7 +71,19 @@ export function cycleProgress(a: ShiftAssignment): number {
   const diff = Math.round((stripTime(new Date()).getTime() - stripTime(new Date(a.cycle_start_date)).getTime()) / 86400000);
   return Math.round(((((diff % cycleLen) + cycleLen) % cycleLen) / cycleLen) * 100);
 }
-export const daysUntilNextOn = cycleProgress;
+/**
+ * Whole days from `from` until the assignment is next on duty (0 when it is on duty that day), following the real cycle and
+ * any scheduled events; null when it is never on duty within a year (a standby assignment, or a cycle with no on days).
+ * This used to be a second name for cycleProgress, so "back on in 71 days" was really "71% through the cycle".
+ */
+export function daysUntilNextOn(a: ShiftAssignment, from: Date = new Date()): number | null {
+  for (let i = 0; i <= 366; i += 1) {
+    const d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
+    const s = computeDayStatus(a, d);
+    if (s === 'on' || s === 'on+standby') return i;
+  }
+  return null;
+}
 
 export function buildHolidayMap(days: Date[]): Map<string, string> {
   const map = new Map<string, string>();

@@ -91,3 +91,25 @@ describe('findBestWorstPeriod', () => {
     expect(findBestWorstPeriod([])).toEqual({ best: 0, worst: 0, bestLabel: undefined, worstLabel: undefined });
   });
 });
+
+describe('computePeriodRows ordering', () => {
+  it('orders months chronologically, not alphabetically', () => {
+    const rows = computePeriodRows([record({ date: '2026-08-10' }), record({ date: '2026-01-05' }), record({ date: '2026-04-02' })], 'month');
+    expect(rows.map(r => r.label.slice(0, 3))).toEqual(['Jan', 'Apr', 'Aug']);
+  });
+  it('orders weeks across a year boundary by year first', () => {
+    const rows = computePeriodRows([record({ date: '2026-01-06' }), record({ date: '2025-12-10' })], 'week');
+    expect(rows.map(r => r.label.slice(-4))).toEqual(['2025', '2026']);
+  });
+});
+
+import { availabilityPercent, availabilityTone } from './calcAvailabilities';
+describe('availabilityPercent and availabilityTone', () => {
+  it('is the share of operating time not lost to downtime, held to 0-100', () => {
+    expect(availabilityPercent(24, 2.4)).toBeCloseTo(90);
+    expect(availabilityPercent(24, 30)).toBe(0);
+  });
+  it('bands at 95 and 90', () => {
+    expect([95, 94.9, 90, 89.9].map(availabilityTone)).toEqual(['success', 'warning', 'warning', 'danger']);
+  });
+});

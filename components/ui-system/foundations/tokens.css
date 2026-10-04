@@ -1,0 +1,161 @@
+/* MyOffice UI system — foundation tokens.
+ *
+ * The ONE source of visual values for the whole ERP (Tools included). Values
+ * derive from the Tools workspace: near-white canvas, pale-sage surfaces,
+ * charcoal-green action. One light appearance; there is no dark or alternate
+ * design branch. See components/ui-system/README.md for the rules.
+ *
+ * Everything lives on :root so body-portalled content (Radix dialogs, menus,
+ * selects, tooltips, toasts) inherits the same tokens, fonts and text scale
+ * as the trigger that opened it — no per-portal copying.
+ *
+ * Imported once from app/globals.css. Tailwind utilities that expose these
+ * tokens are declared in ./theme.css.
+ */
+
+:root {
+  /* ── Appearance (written by AppearanceProvider + the pre-paint bootstrap) ── */
+  --mo-text-scale: 1;
+  --mo-font-body: var(--font-body), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mo-font-display: var(--font-jakarta), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Surfaces ────────────────────────────────────────────────────────────── */
+  --mo-canvas: #f4f6f5;            /* page ground */
+  --mo-surface: #fbfcfb;           /* cards, panels, dialogs, menus */
+  --mo-surface-raised: #ffffff;    /* inputs and controls sitting on a surface */
+  --mo-surface-subtle: #f7f9f8;    /* table header, hovered row, quiet wells */
+  --mo-soft: #e2e9e5;              /* hover and quiet fills in the shell, the Tools `--soft` */
+  --mo-surface-muted: #e8eeeb;     /* icon wells, segmented-control track */
+  --mo-surface-interactive: #dce6e1;
+  --mo-surface-interactive-hover: #cfddd6;
+  --mo-surface-inverse: #182620;   /* tooltips, image stage */
+
+  /* ── Text ────────────────────────────────────────────────────────────────── */
+  --mo-ink: #1b2923;               /* primary text — 14.7:1 on surface */
+  --mo-ink-muted: #5b6d64;         /* supporting text — 8.4:1 on surface */
+  --mo-ink-subtle: #66776f;        /* placeholders, disabled labels — 7.3:1 on raised */
+  --mo-ink-inverse: #f8fbf9;
+
+  /* ── Lines ───────────────────────────────────────────────────────────────── */
+  --mo-line: #ccd7d1;              /* card and panel borders */
+  --mo-line-subtle: #e2e9e5;       /* row dividers, inner separators */
+  --mo-line-control: #87978f;      /* input/select/checkbox boundary — 6.5:1 on raised (WCAG 1.4.11 needs 3:1) */
+  --mo-line-strong: #6f887c;       /* emphasis rules */
+
+  /* ── Action (brand) ──────────────────────────────────────────────────────── */
+  --mo-action: #233b31;
+  --mo-action-hover: #2c4d40;
+  --mo-action-pressed: #182820;
+  --mo-action-ink: #f8fbf9;
+  --mo-action-soft: #e0ebe5;       /* selected row / selected nav item */
+  --mo-action-soft-hover: #d3e2da;
+  --mo-focus: #4f806a;             /* 4.4:1 on surface (3:1 needed) — visible focus ring */
+
+  /* ── Status (operational meaning only — always paired with a label or icon) ─ */
+  --mo-success: #27705a;  --mo-success-soft: #e3f1ea;  --mo-success-line: #b8d9c9;
+  --mo-warning: #8a5d18;  --mo-warning-soft: #f8eedc;  --mo-warning-line: #e6cfa3;
+  --mo-danger:  #a13f47;  --mo-danger-soft:  #f8e6e7;  --mo-danger-line:  #e7bfc3;
+  --mo-info:    #2f5f8a;  --mo-info-soft:    #e4edf6;  --mo-info-line:    #bed2e6;
+  --mo-neutral: #5b6d64;  --mo-neutral-soft: #eaefec;  --mo-neutral-line: #d3ddd8;
+
+  /* ── Data visualisation (categorical, fixed order — never cycled) ───────────
+     Validated with the dataviz six-checks on #fbfcfb: all hard gates pass.
+     Slots 3–5 are below 3:1 contrast: charts that use them must show direct
+     labels or offer a table view. Never reuse status colours as series. */
+  --mo-chart-1: #2a78d6;
+  --mo-chart-2: #eb6834;
+  --mo-chart-3: #1baf7a;
+  --mo-chart-4: #eda100;
+  --mo-chart-5: #e87ba4;
+  --mo-chart-6: #008300;
+  --mo-chart-7: #4a3aa7;
+  --mo-chart-8: #e34948;
+  --mo-chart-grid: #e2e9e5;
+  --mo-chart-axis: #5b6d64;
+
+  /* ── Geometry ───────────────────────────────────────────────────────────── */
+  --mo-radius-xs: 4px;
+  --mo-radius-control: 7px;
+  --mo-radius-card: 12px;
+  --mo-radius-panel: 16px;
+  --mo-control-sm: 32px;
+  --mo-control-md: 36px;
+  --mo-control-lg: 40px;
+  --mo-touch-min: 44px;
+  --mo-page-gutter: clamp(16px, 3vw, 40px);
+  --mo-page-max: 1480px;
+  /* Device safe areas (notch, rounded corners, home indicator). Non-zero only with viewport-fit=cover on a notched
+     device, in a browser or an installed window. The shell pads the strip, top bar, drawer and page bottom with them. */
+  --mo-safe-top: env(safe-area-inset-top, 0px);
+  --mo-safe-right: env(safe-area-inset-right, 0px);
+  --mo-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --mo-safe-left: env(safe-area-inset-left, 0px);
+  --mo-sidebar-width: 216px;
+  --mo-sidebar-collapsed: 68px;
+  --mo-topbar-height: 56px;
+
+  /* ── Elevation ──────────────────────────────────────────────────────────── */
+  --mo-shadow-xs: 0 1px 2px rgb(27 41 35 / 0.05);
+  --mo-shadow-card: 0 1px 2px rgb(27 41 35 / 0.04), 0 8px 18px -16px rgb(27 41 35 / 0.25);
+  --mo-shadow-card-hover: 0 1px 2px rgb(27 41 35 / 0.05), 0 16px 32px -22px rgb(27 41 35 / 0.42);
+  --mo-shadow-popover: 0 2px 6px rgb(16 31 25 / 0.06), 0 16px 36px -14px rgb(16 31 25 / 0.3);
+  --mo-shadow-dialog: 0 8px 24px -12px rgb(16 31 25 / 0.18), 0 32px 80px -32px rgb(16 31 25 / 0.45);
+  --mo-overlay: rgb(16 31 25 / 0.42);
+  --mo-ring: 0 0 0 2px var(--mo-surface), 0 0 0 4px var(--mo-focus);
+
+  /* ── Motion ─────────────────────────────────────────────────────────────── */
+  --mo-duration-fast: 120ms;
+  --mo-duration-base: 180ms;
+  --mo-duration-slow: 260ms;
+  --mo-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --mo-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --mo-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ── Stacking layers (popover sits above dialog: menus open inside dialogs) ─ */
+  --mo-z-sticky: 20;
+  --mo-z-header: 30;
+  --mo-z-sidebar: 35;
+  --mo-z-overlay: 60;
+  --mo-z-dialog: 61;
+  --mo-z-popover: 70;
+  --mo-z-toast: 80;
+  --mo-z-tooltip: 90;
+
+  color-scheme: light;
+}
+
+/* Alternative body typefaces (the display face stays Plus Jakarta Sans). */
+:root[data-font='manrope'] { --mo-font-body: var(--font-manrope), var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+:root[data-font='jakarta'] { --mo-font-body: var(--font-jakarta), var(--font-body), ui-sans-serif, system-ui, sans-serif; }
+
+/* Increased contrast: stronger structure and text, thicker focus. */
+@media (prefers-contrast: more) {
+  :root {
+    --mo-ink-muted: #3f4f48;
+    --mo-ink-subtle: #4a5a53;
+    --mo-line: #8a9a93;
+    --mo-line-subtle: #b3c1ba;
+    --mo-line-control: #4f6259;
+    --mo-ring: 0 0 0 2px var(--mo-surface), 0 0 0 5px var(--mo-action);
+  }
+}
+
+/* Reduced motion: transitions become instant; layout never animates. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mo-duration-fast: 1ms;
+    --mo-duration-base: 1ms;
+    --mo-duration-slow: 1ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Windows high-contrast / forced colours: keep focus and boundaries visible. */
+@media (forced-colors: active) {
+  :root { --mo-ring: 0 0 0 3px CanvasText; }
+}

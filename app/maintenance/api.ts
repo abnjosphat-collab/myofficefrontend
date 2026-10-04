@@ -14,18 +14,14 @@ const LEGACY_UPLOAD_DONE = 'maint_local_fields_uploaded_v1';
 // for them (supabase_migration_work_orders_classification.sql).
 const LOCAL_FIELDS: (keyof WorkOrder)[] = ['classification', 'classification_custom', 'failure_mode', 'discipline', 'trade', 'spares_used'];
 
-export async function getWorkOrders(): Promise<WorkOrder[]> {
-  const data = await api.get<WorkOrder[]>('/api/maintenance/work-orders');
-  return Array.isArray(data) ? data : [];
-}
-
 export async function createWorkOrder(data: Record<string, unknown>): Promise<WorkOrder> {
   const result = await api.post<Partial<WorkOrder>>('/api/maintenance/work-orders', data);
   return { ...data, ...result } as WorkOrder;
 }
 
-export async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<void> {
-  await api.patch(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: new Date().toISOString() });
+/** Save changes to one work order and return it as the server now has it. */
+export async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<WorkOrder> {
+  return api.patch<WorkOrder>(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: new Date().toISOString() });
 }
 
 export async function deleteWorkOrder(id: string): Promise<void> {
@@ -90,14 +86,10 @@ export async function uploadStrandedLocalFields(server: WorkOrder[]): Promise<nu
 const SCHED_KEY = 'maint_schedules';
 const SCHED_UPLOAD_DONE = 'maint_schedules_uploaded_v1';
 
-export async function fetchSchedules(): Promise<MaintenanceSchedule[]> {
-  const data = await api.get<MaintenanceSchedule[]>('/api/schedules');
-  return Array.isArray(data) ? data : [];
-}
-export async function createSchedule(s: Partial<MaintenanceSchedule>): Promise<MaintenanceSchedule> {
+export async function createSchedule(s: Record<string, unknown>): Promise<MaintenanceSchedule> {
   return api.post<MaintenanceSchedule>('/api/schedules', s);
 }
-export async function updateSchedule(id: string | number, updates: Partial<MaintenanceSchedule>): Promise<MaintenanceSchedule> {
+export async function updateSchedule(id: string | number, updates: Record<string, unknown>): Promise<MaintenanceSchedule> {
   return api.patch<MaintenanceSchedule>(`/api/schedules/${id}`, updates);
 }
 export async function deleteSchedule(id: string | number): Promise<void> {

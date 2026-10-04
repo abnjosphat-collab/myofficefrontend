@@ -1,646 +1,413 @@
+// app/work_stoppage/page.tsx — Work Stoppage register
 'use client';
 
-import React, { useState, useEffect, useMemo, ElementType } from 'react';
-import { formatDate } from '@/lib/format';
-import {
-  Octagon, Plus, Trash2, Eye, Pencil,
-  AlertTriangle, Target, UserCircle, Building2,
-  LayoutGrid, Table as TableIcon, Maximize2, Minimize2, RefreshCw,
-  Wrench, Zap, ChevronDown, ChevronUp, X,
-} from '@/components/shared/theme';
-import { AppShell } from '@/components/app-shell';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { AppShell } from '@/components/app-shell';
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, useConfirm, TYPE_WEIGHT, Button,
-  IconAction, ViewToggle, DisclosureButton, RecordActions, DetailActions,
-} from '@/components/shared/theme';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
+  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
+  Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { useEmployees } from '@/hooks/useLookups';
 import { summarizeActions } from '@/lib/actionPlan';
-import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
-import type { SectionType, ActionStatus, CorrectiveAction, WorkStoppageReport } from './types';
-import { useWorkStoppageData, createReport, updateReport, deleteReport } from './useWorkStoppageData';
-
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
+import type { ActionStatus, CorrectiveAction, SectionType, WorkStoppageReport } from './types';
+import { createReport, deleteReport, updateReport, useWorkStoppageData } from './useWorkStoppageData';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
-const SECTION_ICON: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap, General: Building2 };
+const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = {
+  Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' }, General: { tone: 'neutral', icon: 'general' },
+};
+const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = {
+  Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' },
+};
 const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#86BBD8', Electrical: '#f59e0b', General: '#a78bfa' };
-const STATUS_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#60a5fa', Completed: '#34d399' };
+const ALL = '__all__';
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
+const today = () => new Date().toISOString().slice(0, 10);
 const uid = () => Math.random().toString(36).slice(2, 11);
 const fmtDate = (d: string) => (d ? formatDate(d) : '');
 const newAction = (): CorrectiveAction => ({ id: uid(), finding: '', action: '', byWho: '', byWhen: '', status: 'Pending' });
-const blankForm = (): Partial<WorkStoppageReport> => ({
-  date: new Date().toISOString().split('T')[0], department: 'Engineering', section: 'General', description: '',
-  investigationFindings: '', stoppageBy: '', stoppagePosition: '', acceptedBy: '', sheqCheckedBy: '', correctiveActions: [],
+const isOverdue = (a: CorrectiveAction) => a.status !== 'Completed' && !!a.byWhen && a.byWhen < today();
+const overdueCount = (r: WorkStoppageReport) => (r.correctiveActions || []).filter(isOverdue).length;
+
+// An unrecognised section (legacy or malformed data) must not crash the page.
+const SectionBadge = ({ section }: { section: SectionType }) => {
+  const m = SECTION_META[section];
+  return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>;
+};
+const ActionBadge = ({ status }: { status: ActionStatus }) => {
+  const m = ACTION_META[status];
+  return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>;
+};
+
+type Form = Omit<WorkStoppageReport, 'id' | 'submittedAt'>;
+const emptyForm = (): Form => ({
+  date: today(), department: 'Engineering', section: 'General', description: '', investigationFindings: '', stoppageBy: '', stoppagePosition: '',
+  acceptedBy: '', sheqCheckedBy: '', correctiveActions: [],
 });
 
-// ─── CORRECTIVE ACTION EDITOR ─────────────────────────────────────────────────
-
-function CorrectiveActionCard({ action, index, onChange, onRemove }: {
-  action: CorrectiveAction; index: number; onChange: (id: string, patch: Partial<CorrectiveAction>) => void; onRemove: (id: string) => void;
-}) {
-  const t = useTheme();
-  const color = STATUS_HEX[action.status];
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
-
+function ActionFields({ action, index, touched, onChange, onRemove }: { action: CorrectiveAction; index: number; touched: boolean; onChange: (id: string, patch: Partial<CorrectiveAction>) => void; onRemove: (id: string) => void }) {
+  const n = index + 1;
+  const err = (bad: boolean, text: string) => (touched && bad ? text : undefined);
   return (
-    <div className={`rounded-xl overflow-hidden ${t.chipBg}`}>
-      <div className="h-0.5 w-full" style={{ background: color }} />
-      <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Action #{index + 1}</span>
-          <div className="flex items-center gap-2">
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} value={action.status} title="Action status"
-              onChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: new Date().toISOString().split('T')[0] } : {}) })}
-              options={ACTION_STATUSES.map(s => ({ value: s, label: s }))} />
-            {t.design === 'dallaglio'
-              ? <IconAction meaning="danger" title="Remove action" tone="danger" onClick={() => onRemove(action.id)} />
-              : <button type="button" title="Remove action" onClick={() => onRemove(action.id)} className={`h-5 w-5 flex items-center justify-center rounded hover:bg-rose-500/20 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-all`}><Trash2 className="h-3 w-3" /></button>}
-          </div>
+    <fieldset className="flex flex-col gap-3 rounded-card border border-line p-4">
+      <legend className="px-1 font-sans text-label font-medium text-ink">Action {n}</legend>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field label="Status">
+            <Select aria-label={`Action ${n} status`} value={action.status} options={ACTION_STATUSES.map(s => ({ value: s, label: s }))}
+              onValueChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: today() } : {}) })} />
+          </Field>
         </div>
-        <FormField label="Finding / Issue" required><textarea value={action.finding} rows={2} placeholder="Describe the finding or unsafe condition…" onChange={e => onChange(action.id, { finding: e.target.value })} aria-label="Finding / Issue" className={`${inputCls} resize-none`} /></FormField>
-        <FormField label="Corrective Action" required><textarea value={action.action} rows={2} placeholder="What action needs to be taken?" onChange={e => onChange(action.id, { action: e.target.value })} aria-label="Corrective Action" className={`${inputCls} resize-none`} /></FormField>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Assigned To" required><input value={action.byWho} placeholder="Person responsible" onChange={e => onChange(action.id, { byWho: e.target.value })} aria-label="Assigned To" className={inputCls} /></FormField>
-          <FormField label="Due Date" required><input type="date" value={action.byWhen} title="Due date" aria-label="Due date" onChange={e => onChange(action.id, { byWhen: e.target.value })} className={inputCls} /></FormField>
-          {action.status === 'Completed' && <FormField label="Completed Date"><input type="date" value={action.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(action.id, { completedDate: e.target.value })} className={inputCls} /></FormField>}
-        </div>
-        <FormField label="Remarks"><textarea value={action.remarks || ''} rows={2} placeholder="Additional notes…" onChange={e => onChange(action.id, { remarks: e.target.value })} aria-label="Remarks" className={`${inputCls} resize-none`} /></FormField>
+        <IconButton icon="delete" variant="danger" label={`Remove action ${n}`} onClick={() => onRemove(action.id)} />
       </div>
-    </div>
+      <Field label={`Finding or issue (action ${n})`} required error={err(!action.finding.trim(), 'Describe the finding.')}><Textarea rows={2} value={action.finding} onChange={e => onChange(action.id, { finding: e.target.value })} placeholder="Describe the finding or unsafe condition" /></Field>
+      <Field label={`Corrective action (action ${n})`} required error={err(!action.action.trim(), 'Say what action is needed.')}><Textarea rows={2} value={action.action} onChange={e => onChange(action.id, { action: e.target.value })} placeholder="What action needs to be taken?" /></Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={`Assigned to (action ${n})`} required error={err(!action.byWho.trim(), 'Enter who is responsible.')}><Input value={action.byWho} onChange={e => onChange(action.id, { byWho: e.target.value })} placeholder="Person responsible" /></Field>
+        <Field label={`Due date (action ${n})`} required error={err(!action.byWhen, 'Enter the due date.')}><Input type="date" value={action.byWhen} onChange={e => onChange(action.id, { byWhen: e.target.value })} /></Field>
+        {action.status === 'Completed' && <Field label={`Completed date (action ${n})`} optional><Input type="date" value={action.completedDate || ''} onChange={e => onChange(action.id, { completedDate: e.target.value })} /></Field>}
+      </div>
+      <Field label={`Remarks (action ${n})`} optional><Textarea rows={2} value={action.remarks || ''} onChange={e => onChange(action.id, { remarks: e.target.value })} placeholder="Additional notes" /></Field>
+    </fieldset>
   );
 }
 
-// ─── REPORT FORM MODAL ────────────────────────────────────────────────────────
-
-function ReportFormModal({ open, onClose, onSave, report }: {
-  open: boolean; onClose: () => void; onSave: (data: Partial<WorkStoppageReport>) => Promise<void>; report?: WorkStoppageReport | null;
-}) {
-  const t = useTheme();
-  const [form, setForm] = useState<Partial<WorkStoppageReport>>(blankForm());
-  const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState('details');
-
-  useEffect(() => { setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : blankForm()); setTab('details'); }, [report, open]);
-
-  const set = (patch: Partial<WorkStoppageReport>) => setForm(prev => ({ ...prev, ...patch }));
-  const addAction = () => set({ correctiveActions: [...(form.correctiveActions || []), newAction()] });
-  const updateAction = (id: string, patch: Partial<CorrectiveAction>) => set({ correctiveActions: form.correctiveActions?.map(a => a.id === id ? { ...a, ...patch } : a) });
-  const removeAction = (id: string) => set({ correctiveActions: form.correctiveActions?.filter(a => a.id !== id) });
-
-  const validate = () => {
-    if (!form.department?.trim()) { toast.error('Department is required'); setTab('details'); return false; }
-    if (!form.description?.trim()) { toast.error('Description is required'); setTab('details'); return false; }
-    if (!form.stoppageBy?.trim()) { toast.error('Stoppage issued by is required'); setTab('details'); return false; }
-    if (!form.date) { toast.error('Date is required'); setTab('details'); return false; }
-    for (let i = 0; i < (form.correctiveActions?.length || 0); i++) {
-      const a = form.correctiveActions![i];
-      if (!a.finding?.trim()) { toast.error(`Action #${i + 1}: Finding required`); setTab('actions'); return false; }
-      if (!a.action?.trim()) { toast.error(`Action #${i + 1}: Corrective action required`); setTab('actions'); return false; }
-      if (!a.byWho?.trim()) { toast.error(`Action #${i + 1}: Assigned person required`); setTab('actions'); return false; }
-      if (!a.byWhen) { toast.error(`Action #${i + 1}: Due date required`); setTab('actions'); return false; }
+function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkStoppageReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const employees = useEmployees();
+  const [form, setForm] = useState<Form>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(report?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
+      setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : emptyForm());
     }
-    return true;
+  }
+  const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
+  const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), designation: e.designation, department: e.department })), [employees]);
+  const setIssuer = (name: string) => {
+    const m = people.find(p => p.name === name);
+    setForm(p => ({ ...p, stoppageBy: name, stoppagePosition: m?.designation || p.stoppagePosition, department: m?.department && !p.department.trim() ? m.department : p.department }));
   };
+  const updateAction = (id: string, patch: Partial<CorrectiveAction>) => set({ correctiveActions: form.correctiveActions.map(a => (a.id === id ? { ...a, ...patch } : a)) });
+  const progress = summarizeActions(form.correctiveActions);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setSaving(true);
-    try { await onSave(form); onClose(); } catch { /* toast in parent */ } finally { setSaving(false); }
+  const actionsValid = form.correctiveActions.every(a => a.finding.trim() && a.action.trim() && a.byWho.trim() && a.byWhen);
+  const submit = async () => {
+    setTouched(true);
+    if (!form.department.trim() || !form.description.trim() || !form.stoppageBy.trim() || !form.date || !actionsValid) return false;
+    if (report) await updateReport(report.id, form); else await createReport(form);
+    toast.success(report ? 'Work stoppage updated.' : 'Work stoppage issued.');
+    onSaved();
   };
-
-  const actions = form.correctiveActions || [];
-  const progress = summarizeActions(actions);
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
-
-  const TABS = [{ id: 'details', label: 'Incident Details' }, { id: 'actions', label: `Action Plan (${actions.length})` }, { id: 'summary', label: 'Summary' }];
 
   return (
-    <CenterModal open={open} onClose={onClose} title={report ? 'Edit Work Stoppage' : 'New Work Stoppage'} accent="amber" width="max-w-3xl">
-      <form onSubmit={handleSubmit}>
-        <UnderlineTabs tabs={TABS} value={tab} onChange={setTab} accent="rose" />
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit work stoppage' : 'New work stoppage'} description="Date, department, description and who issued it are required." submitLabel={report ? 'Save changes' : 'Issue work stoppage'} onSubmit={submit} size="lg">
+      <div className="flex flex-col gap-5">
+        <section aria-labelledby="ws-incident" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <h3 id="ws-incident" className="font-display text-section font-semibold text-ink sm:col-span-2">Incident</h3>
+          <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
+          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          <div className="sm:col-span-2"><Field label="Department" required error={touched && !form.department.trim() ? 'Enter the department.' : undefined}><SuggestField historyKey="ws_department" placeholder="For example, Engineering" value={form.department} onChange={v => set({ department: v })} /></Field></div>
+          <div className="sm:col-span-2"><Field label="Description of unsafe act or potential impact" required error={touched && !form.description.trim() ? 'Describe the unsafe act.' : undefined}><Textarea rows={4} value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Describe the unsafe condition, what happened and what could have happened" /></Field></div>
+          <div className="sm:col-span-2"><Field label="Investigation findings" optional><Textarea rows={3} value={form.investigationFindings} onChange={e => set({ investigationFindings: e.target.value })} placeholder="Initial findings from the investigation" /></Field></div>
+        </section>
 
-        <div className="px-5 py-4 space-y-4">
-          {tab === 'details' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FormField label="Date" required><input type="date" value={form.date || ''} title="Incident date" aria-label="Incident date" onChange={e => set({ date: e.target.value })} className={inputCls} /></FormField>
-                <FormField label="Section" required>
-                  <SelectField size="form" value={form.section || 'General'} title="Section" onChange={v => set({ section: v as SectionType })}
-                    options={SECTIONS.map(s => ({ value: s, label: s }))} />
-                </FormField>
-                <div className="md:col-span-2">
-                  <FormField label="Department" required>
-                    <PredictiveInput historyKey="ws_department" value={form.department || ''} onChange={v => set({ department: v })} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']} />
-                  </FormField>
-                </div>
-                <div className="md:col-span-2">
-                  <FormField label="Description of Unsafe Act / Potential Impact" required>
-                    <PredictiveInput historyKey="ws_description" value={form.description || ''} onChange={v => set({ description: v })} multiline rows={4} placeholder="Describe the unsafe condition, what happened, and what could have happened…" hints={['Unsafe working conditions observed at', 'Equipment operating without safety guards', 'Worker exposed to electrical hazard', 'Improper chemical storage detected', 'Slip/trip hazard identified at']} />
-                  </FormField>
-                </div>
-                <div className="md:col-span-2">
-                  <FormField label="Investigation Findings">
-                    <PredictiveInput historyKey="ws_findings" value={form.investigationFindings || ''} onChange={v => set({ investigationFindings: v })} multiline rows={3} placeholder="Initial findings from the investigation…" hints={['Root cause identified as', 'Contributing factors include', 'Immediate corrective action taken', 'Further investigation required']} />
-                  </FormField>
-                </div>
-              </div>
+        <section aria-labelledby="ws-people" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <h3 id="ws-people" className="font-display text-section font-semibold text-ink sm:col-span-2">Personnel</h3>
+          <Field label="Stoppage issued by" required error={touched && !form.stoppageBy.trim() ? 'Enter who issued the stoppage.' : undefined}>
+            <Input list="ws-people-list" value={form.stoppageBy} onChange={e => setIssuer(e.target.value)} autoComplete="off" placeholder="Select or type a name" />
+          </Field>
+          <Field label="Position" optional><SuggestField historyKey="ws_position" placeholder="For example, Safety Officer" value={form.stoppagePosition} onChange={v => set({ stoppagePosition: v })} /></Field>
+          <Field label="Accepted by" optional><Input list="ws-people-list" value={form.acceptedBy} onChange={e => set({ acceptedBy: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
+          <Field label="SHEQ checked by" optional><Input list="ws-people-list" value={form.sheqCheckedBy} onChange={e => set({ sheqCheckedBy: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
+          <datalist id="ws-people-list">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+        </section>
 
-              <div className={`border-t ${t.border} pt-3`}>
-                <p className={`text-[10px] uppercase tracking-wider mb-3 ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>Personnel</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField label="Stoppage Issued By" required>
-                    <EmployeeNameInput value={form.stoppageBy || ''} onChange={(name, emp) => { set({ stoppageBy: name }); if (emp?.designation) set({ stoppagePosition: emp.designation }); if (emp?.department && !form.department?.trim()) set({ department: emp.department }); }} placeholder="Select or type name…" />
-                  </FormField>
-                  <FormField label="Position">
-                    <PredictiveInput historyKey="ws_position" value={form.stoppagePosition || ''} onChange={v => set({ stoppagePosition: v })} placeholder="e.g. Safety Officer, Supervisor" hints={['Safety Officer', 'Supervisor', 'Foreman', 'SHEQ Manager', 'Section Engineer', 'Shift Boss']} />
-                  </FormField>
-                  <FormField label="Accepted By"><EmployeeNameInput value={form.acceptedBy || ''} onChange={name => set({ acceptedBy: name })} placeholder="Select or type name…" /></FormField>
-                  <FormField label="SHEQ Checked By"><EmployeeNameInput value={form.sheqCheckedBy || ''} onChange={name => set({ sheqCheckedBy: name })} placeholder="Select or type SHEQ representative…" /></FormField>
+        <section aria-labelledby="ws-actions" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="ws-actions" className="font-display text-section font-semibold text-ink">Corrective actions ({form.correctiveActions.length})</h3>
+            <Button size="sm" icon="plus" onClick={() => set({ correctiveActions: [...form.correctiveActions, newAction()] })}>Add action</Button>
+          </div>
+          {form.correctiveActions.length === 0
+            ? <p className="font-sans text-body-sm text-ink-muted">No corrective actions yet. Add one for each finding that needs follow-up.</p>
+            : (
+              <>
+                <div>
+                  <p className="mb-1 font-sans text-caption text-ink-muted">{progress.completed} of {progress.total} completed · {progress.inProgress} in progress · {progress.pending} pending</p>
+                  <Progress value={progress.pct} label="Corrective action progress" />
                 </div>
-              </div>
-            </div>
-          )}
-
-          {tab === 'actions' && (
-            <div className="space-y-3">
-              {actions.length === 0 ? (
-                <div className={`text-center py-10 ${t.textFaint}`}>
-                  <Target className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">No corrective actions added yet</p>
-                  <PrimaryButton icon={Plus} size="md" className="mt-3" onClick={addAction}>Add First Action</PrimaryButton>
-                </div>
-              ) : (
-                <>
-                  {actions.map((a, i) => <CorrectiveActionCard key={a.id} action={a} index={i} onChange={updateAction} onRemove={removeAction} />)}
-                  <Button type="button" variant="ghost" size="xs" fullWidth icon={Plus} iconPosition="end" onClick={addAction}>Add Another Action</Button>
-                </>
-              )}
-            </div>
-          )}
-
-          {tab === 'summary' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                {[{ label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'In Progress', value: progress.inProgress, color: '#60a5fa' }, { label: 'Completed', value: progress.completed, color: '#34d399' }].map(s => (
-                  <div key={s.label} className={`text-center rounded-xl p-3 ${t.chipBg}`}>
-                    <div className={`text-2xl ${TYPE_WEIGHT.bold}`} style={{ color: s.color }}>{s.value}</div>
-                    <div className={`text-[11px] mt-0.5 ${t.textFaint}`}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div className={`flex justify-between text-xs mb-1.5 ${t.textFaint}`}><span>Overall Progress</span><span>{progress.pct}%</span></div>
-                <ProgressBar value={progress.pct} color="#34d399" showValue={false} />
-              </div>
-              {actions.length > 0 && (
-                <div className="space-y-2">
-                  <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Action Items</p>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {actions.map((a, idx) => (
-                      <div key={a.id} className={`flex items-center gap-3 py-1.5 border-b ${t.border} last:border-0`}>
-                        <span className={`text-[10px] w-4 ${t.textFaint}`}>{idx + 1}</span>
-                        <div className="flex-1 min-w-0"><p className={`text-xs truncate ${t.textMuted}`}>{a.finding || 'No finding'}</p><p className={`text-[10px] ${t.textFaint}`}>Due: {fmtDate(a.byWhen)}</p></div>
-                        <StatusBadge color={STATUS_HEX[a.status]} label={a.status} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <FormActions onCancel={onClose} submitLabel={report ? 'Update Stoppage' : 'Issue Work Stoppage'} submitting={saving} accent="amber" />
-      </form>
-    </CenterModal>
+                {form.correctiveActions.map((a, i) => <ActionFields key={a.id} action={a} index={i} touched={touched} onChange={updateAction} onRemove={id => set({ correctiveActions: form.correctiveActions.filter(x => x.id !== id) })} />)}
+              </>
+            )}
+        </section>
+      </div>
+    </FormDialog>
   );
 }
 
-// ─── REPORT DETAIL MODAL ──────────────────────────────────────────────────────
-
-function ReportDetailModal({ report, open, onClose, onEdit }: {
-  report: WorkStoppageReport | null; open: boolean; onClose: () => void; onEdit: (r: WorkStoppageReport) => void;
-}) {
-  const t = useTheme();
-  if (!report) return null;
-  const actions = report.correctiveActions || [];
-  const progress = summarizeActions(actions);
-
-  return (
-    <CenterModal open={open} onClose={onClose} title="Work Stoppage Report" accent="amber" width="max-w-2xl">
-      <div className="px-5 py-4 space-y-5">
-        <div className="flex items-center gap-3">
-          <StatusBadge color={SECTION_HEX[report.section]} label={report.section} />
-          <span className={`text-xs ${t.textFaint}`}>{fmtDate(report.date)}</span>
-          <span className={`text-xs ml-auto ${t.textFaint}`}>ID: {report.id.slice(0, 8)}</span>
-        </div>
-
-        {actions.length > 0 && (
-          <div>
-            <div className={`flex justify-between text-xs mb-1 ${t.textFaint}`}><span>Corrective Action Progress</span><span>{progress.completed}/{progress.total} completed ({progress.pct}%)</span></div>
-            <ProgressBar value={progress.pct} color="#34d399" showValue={false} />
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
-            { label: 'Department', value: report.department }, { label: 'Section', value: report.section },
-            { label: 'Issued By', value: report.stoppageBy }, { label: 'Position', value: report.stoppagePosition || 'N/A' },
-            { label: 'Accepted By', value: report.acceptedBy || 'N/A' }, { label: 'SHEQ Checked By', value: report.sheqCheckedBy || 'N/A' },
-          ].map(({ label, value }) => (
-            <div key={label}><p className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</p><p className={`text-xs ${t.textMuted}`}>{value}</p></div>
-          ))}
-        </div>
-
-        <div className={`border-t ${t.border}`} />
-
-        <div><p className={`text-[10px] uppercase tracking-wide mb-1.5 ${t.textFaint}`}>Description</p><p className={`text-xs leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</p></div>
-        {report.investigationFindings && <div><p className={`text-[10px] uppercase tracking-wide mb-1.5 ${t.textFaint}`}>Investigation Findings</p><p className={`text-xs leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.investigationFindings}</p></div>}
-
-        {actions.length > 0 && (
-          <div>
-            <p className={`text-[10px] uppercase tracking-wide mb-2 ${t.textFaint}`}>Corrective Actions ({actions.length})</p>
-            <div className="space-y-2">
-              {actions.map((a, idx) => (
-                <div key={a.id} className={`rounded-xl p-3 ${t.chipBg}`}>
-                  <div className="flex items-start justify-between gap-2 mb-1.5"><p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>#{idx + 1} {a.finding}</p><StatusBadge color={STATUS_HEX[a.status]} label={a.status} /></div>
-                  <p className={`text-xs mb-2 ${t.textFaint}`}>{a.action}</p>
-                  <div className={`grid grid-cols-2 gap-2 text-[10px] ${t.textFaint}`}><span>By: {a.byWho}</span><span>Due: {fmtDate(a.byWhen)}</span>{a.completedDate && <span className="col-span-2">Completed: {fmtDate(a.completedDate)}</span>}</div>
-                  {a.remarks && <p className={`text-[11px] italic mt-1 ${t.textFaint}`}>&ldquo;{a.remarks}&rdquo;</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
-        {t.design === 'dallaglio'
-          ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} />
-          : <>
-              <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-              <PrimaryButton icon={Pencil} size="md" onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-            </>}
-      </div>
-    </CenterModal>
-  );
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
 }
 
-// ─── REPORT CARD (grid) ───────────────────────────────────────────────────────
-
-function ReportCard({ report, expanded, onToggle, onView, onEdit, onDelete }: {
-  report: WorkStoppageReport; expanded: boolean; onToggle: () => void; onView: () => void; onEdit: () => void; onDelete: () => void;
-}) {
-  const t = useTheme();
-  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
-  // makes SIcon undefined and crashes the page — same bug class found and fixed
-  // on overtime.tsx's TypeBadge (2026-08-29 UI audit,
-  // audit/07-ui-polish-findings.md).
-  const SIcon = SECTION_ICON[report.section] ?? Wrench;
-  const sColor = SECTION_HEX[report.section];
-  const actions = report.correctiveActions || [];
+function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStoppageReport | null; onClose: () => void; onEdit: (r: WorkStoppageReport) => void; onDelete: (r: WorkStoppageReport) => void }) {
+  const actions = report?.correctiveActions || [];
   const progress = summarizeActions(actions);
-  const today = new Date().toISOString().split('T')[0];
-  const overdueCount = actions.filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today).length;
-
   return (
-    <GlowCard onClick={onView} color="#f43f5e" surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between gap-2`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <SIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
-          <div className="min-w-0"><p className={`text-[10px] ${t.textFaint}`}>{report.section} • {fmtDate(report.date)}</p><p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{report.department}</p></div>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {t.design === 'dallaglio'
-            ? <DisclosureButton open={expanded} onClick={event => { event.stopPropagation(); onToggle(); }} label="work stoppage details" />
-            : <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={e => { e.stopPropagation(); onToggle(); }} className={`h-6 w-6 flex items-center justify-center rounded ${t.textFaint} ${t.hoverText} transition-all`}>{expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>}
-        </div>
-      </div>
-
-      <div className={`px-4 py-2 grid grid-cols-4 gap-1 border-b ${t.border}`}>
-        {[{ label: 'Actions', value: progress.total, color: ACCENT_HEX.blue }, { label: 'Pending', value: progress.pending, color: '#f59e0b' }, { label: 'Closed', value: progress.completed, color: '#34d399' }, { label: 'Overdue', value: overdueCount, color: '#f43f5e' }].map(s => (
-          <div key={s.label} className="text-center"><div className={`text-base ${TYPE_WEIGHT.bold} leading-none`} style={{ color: s.color }}>{s.value}</div><div className={`text-[9px] mt-0.5 ${t.textFaint}`}>{s.label}</div></div>
-        ))}
-      </div>
-
-      <div className="px-4 py-3 space-y-1.5">
-        <div className={`flex items-center gap-1.5 text-xs ${t.textFaint}`}><UserCircle className="h-3.5 w-3.5 flex-shrink-0" /><span className="truncate">{report.stoppageBy}{report.stoppagePosition ? ` — ${report.stoppagePosition}` : ''}</span></div>
-        <div className={`flex items-start gap-1.5 text-xs ${t.textFaint}`}><AlertTriangle className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${t.light ? 'text-amber-600/60' : 'text-amber-400/60'}`} /><span className="line-clamp-2">{report.description}</span></div>
-      </div>
-
-      {expanded && (
-        <div className={`border-t ${t.border} px-4 py-3 space-y-3`}>
-          {report.investigationFindings && <div><p className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Investigation</p><p className={`text-xs line-clamp-3 ${t.textFaint}`}>{report.investigationFindings}</p></div>}
+    <Dialog
+      open={!!report}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title="Work stoppage report"
+      description={report ? `${report.department}, ${fmtDate(report.date)}` : undefined}
+      size="lg"
+      footer={report && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
+        </>
+      )}
+    >
+      {report && (
+        <div className="flex flex-col gap-5">
           {actions.length > 0 && (
             <div>
-              <p className={`text-[10px] uppercase tracking-wide mb-1.5 ${t.textFaint}`}>Actions</p>
-              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                {actions.map((a, idx) => (
-                  <div key={a.id} className={`rounded-lg p-2 ${t.chipBg}`}>
-                    <div className="flex items-start justify-between gap-2"><p className={`text-xs ${t.textMuted}`}>#{idx + 1} {a.finding}</p><StatusBadge color={STATUS_HEX[a.status]} label={a.status} /></div>
-                    <p className={`text-[10px] mt-0.5 ${t.textFaint}`}>By: {a.byWho} · Due: {fmtDate(a.byWhen)}</p>
-                  </div>
-                ))}
-              </div>
+              <p className="mb-1 font-sans text-caption text-ink-muted">Corrective action progress: {progress.completed} of {progress.total} completed</p>
+              <Progress value={progress.pct} label="Corrective action progress" />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div><p className={`text-[10px] ${t.textFaint}`}>Accepted By</p><p className={t.textFaint}>{report.acceptedBy || 'Not specified'}</p></div>
-            <div><p className={`text-[10px] ${t.textFaint}`}>SHEQ Checked</p><p className={t.textFaint}>{report.sheqCheckedBy || 'Not specified'}</p></div>
-          </div>
-          <div className="flex gap-1.5 pt-1">
-            {t.design === 'dallaglio'
-              ? <RecordActions onView={onView} onEdit={onEdit} onDelete={onDelete} />
-              : <>
-                  <button type="button" title="View" onClick={e => { e.stopPropagation(); onView(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Eye className="h-3 w-3" /> View</button>
-                  <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-brand-500/10 text-brand-400 transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Pencil className="h-3 w-3" /> Edit</button>
-                  <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDelete(); }} className={`flex-1 py-1.5 rounded-lg text-[11px] ${TYPE_WEIGHT.medium} bg-rose-500/10 ${accentText('rose', t.light)} transition-all hover:-translate-y-0.5 inline-flex items-center justify-center gap-1`}><Trash2 className="h-3 w-3" /> Delete</button>
-                </>}
-          </div>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Fact label="Department">{report.department}</Fact>
+            <Fact label="Section"><SectionBadge section={report.section} /></Fact>
+            <Fact label="Issued by">{report.stoppageBy}</Fact>
+            <Fact label="Position">{report.stoppagePosition || 'Not specified'}</Fact>
+            <Fact label="Accepted by">{report.acceptedBy || 'Not specified'}</Fact>
+            <Fact label="SHEQ checked by">{report.sheqCheckedBy || 'Not specified'}</Fact>
+          </dl>
+          <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.description}</p></div>
+          {report.investigationFindings && <div><h3 className="font-sans text-caption text-ink-muted">Investigation findings</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.investigationFindings}</p></div>}
+          {actions.length > 0 && (
+            <section aria-labelledby="ws-detail-actions">
+              <h3 id="ws-detail-actions" className="mb-2 font-sans text-caption text-ink-muted">Corrective actions ({actions.length})</h3>
+              <ol className="flex flex-col gap-2">
+                {actions.map((a, i) => (
+                  <li key={a.id} className="rounded-card border border-line p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-sans text-body font-medium text-ink">{i + 1}. {a.finding}</p>
+                      <span className="inline-flex gap-1.5">{isOverdue(a) && <StatusBadge tone="danger" icon="overdue">Overdue</StatusBadge>}<ActionBadge status={a.status} /></span>
+                    </div>
+                    <p className="mt-1 font-sans text-body-sm text-ink-muted">{a.action}</p>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWho} · due {fmtDate(a.byWhen)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
         </div>
       )}
-    </GlowCard>
+    </Dialog>
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'department', label: 'Department', width: 18 },
+  { key: 'section', label: 'Section', width: 14 },
+  { key: 'stoppageBy', label: 'Issued By', width: 18 },
+  { key: 'stoppagePosition', label: 'Position', width: 18 },
+  { key: 'description', label: 'Description', width: 30 },
+  { key: 'investigationFindings', label: 'Investigation Findings', width: 30 },
+  { key: 'acceptedBy', label: 'Accepted By', width: 18 },
+  { key: 'sheqCheckedBy', label: 'SHEQ Checked By', width: 18 },
+  {
+    key: 'correctiveActions', label: 'Actions', width: 14,
+    format: (_v, row) => {
+      const actions = (row.correctiveActions as CorrectiveAction[]) ?? [];
+      return `${actions.filter(a => a.status === 'Completed').length}/${actions.length} done`;
+    },
+  },
+];
+
+const STATUS_FILTERS = [
+  { value: ALL, label: 'All statuses' }, { value: 'pending', label: 'Pending actions' }, { value: 'in-progress', label: 'Actions in progress' },
+  { value: 'completed', label: 'All actions completed' }, { value: 'overdue', label: 'Overdue actions' },
+];
 
 function WorkStoppageContent() {
-  const t = useTheme();
   const confirm = useConfirm();
-  const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, refreshing, loadError, load } = useWorkStoppageData();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [selectedReport, setSelectedReport] = useState<WorkStoppageReport | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingReport, setEditingReport] = useState<WorkStoppageReport | null>(null);
-
+  const { reports, loading, loaded, error, errorStatus, refetch } = useWorkStoppageData();
+  const [view, setView] = useViewPreference('work-stoppage', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [sectionF, setSectionF] = useState(ALL);
+  const [statusF, setStatusF] = useState(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  useEffect(() => { load(); }, []);
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<WorkStoppageReport | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewing, setViewing] = useState<WorkStoppageReport | null>(null);
 
   const stats = useMemo(() => {
-    const allActions = reports.flatMap(r => r.correctiveActions || []);
-    const today = new Date().toISOString().split('T')[0];
+    const all = reports.flatMap(r => r.correctiveActions || []);
     return {
       total: reports.length,
-      pending: allActions.filter(a => a.status === 'Pending').length,
-      inProgress: allActions.filter(a => a.status === 'In Progress').length,
-      completed: allActions.filter(a => a.status === 'Completed').length,
-      overdue: allActions.filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today).length,
-      mechanical: reports.filter(r => r.section === 'Mechanical').length,
-      electrical: reports.filter(r => r.section === 'Electrical').length,
-      general: reports.filter(r => r.section === 'General').length,
+      pending: all.filter(a => a.status === 'Pending').length,
+      inProgress: all.filter(a => a.status === 'In Progress').length,
+      completed: all.filter(a => a.status === 'Completed').length,
+      overdue: all.filter(isOverdue).length,
     };
   }, [reports]);
 
   const filtered = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const s = search.trim().toLowerCase();
     return reports.filter(r => {
-      const s = search.toLowerCase();
       if (s && !r.department?.toLowerCase().includes(s) && !r.description?.toLowerCase().includes(s) && !r.stoppageBy?.toLowerCase().includes(s)) return false;
-      if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
-      if (statusFilter !== 'all') {
-        const actions = r.correctiveActions || [];
-        if (statusFilter === 'pending' && !actions.some(a => a.status === 'Pending')) return false;
-        if (statusFilter === 'in-progress' && !actions.some(a => a.status === 'In Progress')) return false;
-        if (statusFilter === 'completed' && !actions.every(a => a.status === 'Completed')) return false;
-        if (statusFilter === 'overdue' && !actions.some(a => a.status !== 'Completed' && a.byWhen && a.byWhen < today)) return false;
-      }
+      if (sectionF !== ALL && r.section !== sectionF) return false;
+      const actions = r.correctiveActions || [];
+      if (statusF === 'pending' && !actions.some(a => a.status === 'Pending')) return false;
+      if (statusF === 'in-progress' && !actions.some(a => a.status === 'In Progress')) return false;
+      if (statusF === 'completed' && !actions.every(a => a.status === 'Completed')) return false;
+      if (statusF === 'overdue' && !actions.some(isOverdue)) return false;
       if (dateFrom && r.date < dateFrom) return false;
       if (dateTo && r.date > dateTo) return false;
       return true;
     });
-  }, [reports, search, sectionFilter, statusFilter, dateFrom, dateTo]);
+  }, [reports, search, sectionF, statusF, dateFrom, dateTo]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'actions' ? String((r.correctiveActions || []).length).padStart(4, '0') : String(r[id as keyof WorkStoppageReport] ?? '').toLowerCase())), [filtered, sort]);
 
-  const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || dateFrom || dateTo);
-  const statsUnavailable = loading || (!!loadError && reports.length === 0);
-  const toggle = (id: string) => setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || sectionF !== ALL || statusF !== ALL || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(''); setSectionF(ALL); setStatusF(ALL); setDateFrom(''); setDateTo(''); };
+  const tile = (s: string) => ({ selected: statusF === s, onClick: () => setStatusF(statusF === s ? ALL : s) });
 
-  const exportColumns: DLColumn[] = [
-    { key: 'date', label: 'Date', width: 14, format: v => v ? fmtDate(v as string) : '' },
-    { key: 'department', label: 'Department', width: 18 },
-    { key: 'section', label: 'Section', width: 14 },
-    { key: 'stoppageBy', label: 'Issued By', width: 18 },
-    { key: 'stoppagePosition', label: 'Position', width: 18 },
-    { key: 'description', label: 'Description', width: 30 },
-    { key: 'investigationFindings', label: 'Investigation Findings', width: 30 },
-    { key: 'acceptedBy', label: 'Accepted By', width: 18 },
-    { key: 'sheqCheckedBy', label: 'SHEQ Checked By', width: 18 },
+  const openEditor = (r?: WorkStoppageReport) => { setViewing(null); setEditing(r); setDialogOpen(true); };
+  const remove = async (r: WorkStoppageReport) => {
+    if (!await confirm({ title: 'Delete this work stoppage report?', message: `${r.department}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteReport(r.id); setViewing(null); toast.success('Report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+  };
+
+  const COLUMNS: Column<WorkStoppageReport>[] = [
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'department', header: 'Department', sortable: true, cell: r => r.department },
+    { id: 'section', header: 'Section', sortable: true, cell: r => <SectionBadge section={r.section} /> },
+    { id: 'stoppageBy', header: 'Issued by', sortable: true, hideBelow: 'md', cell: r => r.stoppageBy },
     {
-      key: 'correctiveActions', label: 'Actions', width: 14,
-      format: (_v, row) => {
-        const actions = (row.correctiveActions as CorrectiveAction[]) ?? [];
-        const done = actions.filter(a => a.status === 'Completed').length;
-        return `${done}/${actions.length} done`;
-      },
+      id: 'actions', header: 'Actions', sortable: true, hideBelow: 'md',
+      cell: r => { const p = summarizeActions(r.correctiveActions); const o = overdueCount(r); return <span className="inline-flex flex-wrap items-center gap-2">{p.total ? <span className="tabular">{p.completed} of {p.total} done</span> : <span className="text-ink-muted">None added</span>}{o > 0 && <StatusBadge tone="danger" icon="overdue">{o} overdue</StatusBadge>}</span>; },
     },
   ];
 
-  const handleSave = async (data: Partial<WorkStoppageReport>) => {
-    try {
-      if (editingReport) {
-        const updated = await updateReport(editingReport.id, data);
-        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
-        toast.success('Work stoppage updated');
-      } else {
-        const created = await createReport(data);
-        setReports(prev => [created, ...prev]);
-        toast.success('Work stoppage issued');
-      }
-      setFormOpen(false); setEditingReport(null);
-    } catch (e) { toast.error((e as Error)?.message || 'Failed to save'); throw e; }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!await confirm({ title: 'Delete this work stoppage report?', destructive: true })) return;
-    try { await deleteReport(id); setReports(prev => prev.filter(r => r.id !== id)); toast.success('Report deleted'); }
-    catch { toast.error('Failed to delete report'); }
-  };
-
-  const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
-
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Octagon}
-        accent="violet"
-        crumbs={['Safety & Compliance', 'Work Stoppage']}
-        title="Work Stoppages"
-        description="Document and track unsafe acts, practices, and SHEQ compliance issues"
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Work stoppage' }]}
+        title="Work stoppages"
+        description="Document and track unsafe acts, unsafe practices and SHEQ compliance issues."
+        actions={(
           <>
-            {t.design === 'dallaglio'
-              ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} onClick={() => load(true)} />
-              : <button type="button" onClick={() => load(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+            <IconButton icon="refresh" label="Refresh work stoppages" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('Work_Stoppage_Reports')}
                 title="Work Stoppages"
                 statusColumn="section"
                 statusColor={(_v, row) => SECTION_HEX[row.section as SectionType]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Octagon} accent="amber" onClick={() => { setEditingReport(null); setFormOpen(true); }}>Issue Stoppage</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>
           </>
-        }
+        )}
+      />
+
+      <MetricGrid columns={5}>
+        <MetricTile label="Reports" detail="issued" icon="flag" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Pending" detail="actions" icon="pending" tone="warning" value={stats.pending} loading={pending} unavailable={unavailable} {...tile('pending')} />
+        <MetricTile label="In progress" detail="actions" icon="clock" value={stats.inProgress} loading={pending} unavailable={unavailable} {...tile('in-progress')} />
+        <MetricTile label="Completed" detail="actions" icon="closed" tone="success" value={stats.completed} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Overdue" detail="actions" icon="overdue" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} {...tile('overdue')} />
+      </MetricGrid>
+
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, description or issuer" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        <Select className="w-52" aria-label="Filter by action status" value={statusF} onValueChange={setStatusF} options={STATUS_FILTERS} />
+        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="work stoppages"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="flag" title="No work stoppages issued" description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} />}
       >
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={Octagon} color="#fb7185" label="Total Reports" value={statsUnavailable ? '—' : stats.total} />
-          <StatTile icon={Octagon} color="#f59e0b" label="Pending" value={statsUnavailable ? '—' : stats.pending} />
-          <StatTile icon={Octagon} color="#60a5fa" label="In Progress" value={statsUnavailable ? '—' : stats.inProgress} />
-          <StatTile icon={Octagon} color="#34d399" label="Completed" value={statsUnavailable ? '—' : stats.completed} />
-          <StatTile icon={Octagon} color="#f43f5e" label="Overdue" value={statsUnavailable ? '—' : stats.overdue} />
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} label="Mechanical" value={statsUnavailable ? '—' : stats.mechanical} />
-          <StatTile icon={Zap} color="#f59e0b" label="Electrical" value={statsUnavailable ? '—' : stats.electrical} />
-          <StatTile icon={Building2} color="#a78bfa" label="General" value={statsUnavailable ? '—' : stats.general} />
-        </div>
-      </PageHero>
-
-      {loadError && (
-        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
-          <AlertTriangle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
-          <div className="min-w-0 flex-1">
-            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load work stoppages</p>
-            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => load()}>Try again</Button>
-        </div>
-      )}
-
-      {sections.expanded.records && <>
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search by department, description, issued by…" className="w-full sm:w-72" />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'pending', label: 'Pending' }, { value: 'in-progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }, { value: 'overdue', label: 'Overdue' }]} />
-            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && (t.design === 'dallaglio'
-              ? <Button variant="ghost" size="sm" icon={X} onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }}>Clear</Button>
-              : <button type="button" onClick={() => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
-            <div className="ml-auto flex items-center gap-1.5">
-              {t.design === 'dallaglio' ? <>
-                <Button variant="ghost" size="sm" icon={Maximize2} onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))}>Expand all</Button>
-                <Button variant="ghost" size="sm" icon={Minimize2} title="Collapse all" onClick={() => setExpandedIds(new Set())}>Collapse all</Button>
-                <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: TableIcon, label: 'List view' }]} />
-              </> : <>
-                <button type="button" title="Expand all" onClick={() => setExpandedIds(new Set(reports.map(r => r.id)))} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Maximize2 className="h-3 w-3" /> Expand all</button>
-                <button type="button" title="Collapse all" onClick={() => setExpandedIds(new Set())} className={`h-8 px-2.5 flex items-center gap-1 text-[11px] rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText} transition-all`}><Minimize2 className="h-3 w-3" /></button>
-                <button type="button" title="Grid view" onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-                <button type="button" title="List view" onClick={() => setViewMode('list')} className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'list' ? `bg-rose-500/20 ${accentText('rose', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
-              </>}
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-        ) : loadError && reports.length === 0 ? null : filtered.length === 0 ? (
-          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
-            <EmptyState icon={Octagon} title={hasFilters ? 'No reports match your filters' : 'No work stoppages issued'}
-              message={hasFilters ? 'Try adjusting your filters' : 'Issue a work stoppage to document unsafe acts or practices'}
-              action={{ label: 'Issue Work Stoppage', onClick: () => { setEditingReport(null); setFormOpen(true); } }} />
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(report => (
-              <ReportCard key={report.id} report={report} expanded={expandedIds.has(report.id)} onToggle={() => toggle(report.id)}
-                onView={() => { setSelectedReport(report); setDetailOpen(true); }} onEdit={() => { setEditingReport(report); setFormOpen(true); }} onDelete={() => handleDelete(report.id)} />
-            ))}
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}</p>
+        {view === 'cards' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map(r => {
+              const p = summarizeActions(r.correctiveActions);
+              const o = overdueCount(r);
+              return (
+                <RecordCard
+                  key={r.id}
+                  eyebrow={fmtDate(r.date)}
+                  title={r.department}
+                  status={<span className="inline-flex flex-wrap gap-1.5"><SectionBadge section={r.section} />{o > 0 && <StatusBadge tone="danger" icon="overdue">{o} overdue</StatusBadge>}</span>}
+                  facts={[
+                    { label: 'Issued by', value: `${r.stoppageBy}${r.stoppagePosition ? `, ${r.stoppagePosition}` : ''}` },
+                    { label: 'What happened', value: <span className="line-clamp-2">{r.description}</span> },
+                    { label: 'Corrective actions', value: p.total ? <><span className="tabular">{p.completed} of {p.total} completed</span><Progress value={p.pct} label={`${r.department} corrective action progress`} className="mt-1" /></> : 'None added' },
+                  ]}
+                  action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${fmtDate(r.date)}`} onClick={() => remove(r)} />}
+                  onOpen={() => setViewing(r)}
+                  openLabel={`View ${r.department} report of ${fmtDate(r.date)}`}
+                />
+              );
+            })}
           </div>
         ) : (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}><tr><th className={thCls}><span className="sr-only">Expand row</span></th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Issued By</th><th className={thCls}>Date</th><th className={thCls}>Actions</th><th className={thCls}><span className="sr-only">Row actions</span></th></tr></thead>
-                <tbody>
-                  {filtered.map(report => {
-                    const actions = report.correctiveActions || [];
-                    const completedCount = actions.filter(a => a.status === 'Completed').length;
-                    return (
-                      <React.Fragment key={report.id}>
-                        <tr className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer transition-colors`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
-                          <td className="pl-3 pr-1 py-3 w-6">
-                            {t.design === 'dallaglio'
-                              ? <DisclosureButton open={expandedIds.has(report.id)} onClick={event => { event.stopPropagation(); toggle(report.id); }} label={`${report.department} report details`} />
-                              : <button type="button" title="Toggle" onClick={e => { e.stopPropagation(); toggle(report.id); }} className={`h-5 w-5 flex items-center justify-center ${t.textFaint} ${t.hoverText} transition-all`}>{expandedIds.has(report.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>}
-                          </td>
-                          <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} max-w-[160px] truncate ${t.textPrimary}`}>{report.department}</td>
-                          <td className="px-3 py-3"><StatusBadge color={SECTION_HEX[report.section]} label={report.section} /></td>
-                          <td className={`px-3 py-3 text-xs max-w-[140px] truncate ${t.textMuted}`}>{report.stoppageBy}</td>
-                          <td className={`px-3 py-3 text-xs whitespace-nowrap ${t.textFaint}`}>{fmtDate(report.date)}</td>
-                          <td className="px-3 py-3 text-xs"><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{actions.length}</span><span className={`ml-1 ${t.textFaint}`}>({completedCount} done)</span></td>
-                          <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                            <div className="flex gap-1 justify-end">
-                              {t.design === 'dallaglio' ? <>
-                                <IconAction meaning="edit" title={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} />
-                                <IconAction meaning="danger" title={`Delete ${report.department} report`} tone="danger" onClick={() => handleDelete(report.id)} />
-                              </> : <>
-                                <button type="button" title="Edit" aria-label={`Edit ${report.department} report`} onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                                <button type="button" title="Delete" aria-label={`Delete ${report.department} report`} onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
-                              </>}
-                            </div>
-                          </td>
-                        </tr>
-                        {expandedIds.has(report.id) && (
-                          <tr className={`border-b ${t.border} ${t.chipBg}`}>
-                            <td colSpan={7} className="px-5 py-3">
-                              <p className={`text-xs mb-2 line-clamp-2 ${t.textFaint}`}>{report.description}</p>
-                              {actions.length > 0 && (
-                                <div className="space-y-1.5">
-                                  {actions.map((a, idx) => (
-                                    <div key={a.id} className="flex items-center gap-3">
-                                      <span className={`text-[10px] w-4 ${t.textFaint}`}>#{idx + 1}</span>
-                                      <span className={`text-xs flex-1 truncate ${t.textFaint}`}>{a.finding}</span>
-                                      <span className={`text-[10px] ${t.textFaint}`}>Due: {fmtDate(a.byWhen)}</span>
-                                      <StatusBadge color={STATUS_HEX[a.status]} label={a.status} />
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <DataTable
+            caption="Work stoppages"
+            rows={rows}
+            columns={COLUMNS}
+            getRowId={r => r.id}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={setViewing}
+            rowActions={r => (
+              <span className="inline-flex gap-1">
+                <IconButton icon="edit" size="sm" label={`Edit ${r.department} report of ${fmtDate(r.date)}`} onClick={() => openEditor(r)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${fmtDate(r.date)}`} onClick={() => remove(r)} />
+              </span>
+            )}
+          />
         )}
-      </>}
+      </DataRegion>
 
-      <ReportFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditingReport(null); }} onSave={handleSave} report={editingReport} />
-      <ReportDetailModal report={selectedReport} open={detailOpen} onClose={() => setDetailOpen(false)} onEdit={r => { setEditingReport(r); setFormOpen(true); }} />
-    </main>
+      <DetailDialog report={viewing} onClose={() => setViewing(null)} onEdit={openEditor} onDelete={remove} />
+      <ReportDialog report={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
 export default function WorkStoppagePage() {
-  return (
-    <AppShell>
-      <WorkStoppageContent />
-    </AppShell>
-  );
+  return <AppShell migrated><WorkStoppageContent /></AppShell>;
 }

@@ -27,6 +27,10 @@ export const ICON_MEANINGS = [
   'draft', 'safe', 'unsafe',
   'high-risk', 'mechanical', 'electrical', 'general',
   'operational',
+  'home', 'chat', 'bell', 'history', 'pin', 'back', 'swap',
+  'undo', 'redo', 'attachment', 'image', 'pdf', 'upload',
+  'show', 'hide', 'department', 'font', 'grip',
+  'zoom-in', 'zoom-out', 'accounts', 'app',
 ] as const;
 
 export type IconMeaning = (typeof ICON_MEANINGS)[number];

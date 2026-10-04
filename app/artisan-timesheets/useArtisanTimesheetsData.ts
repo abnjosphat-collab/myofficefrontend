@@ -1,116 +1,48 @@
+// app/artisan-timesheets/useArtisanTimesheetsData.ts — the artisan timesheet page's data layer: the personnel list (artisans and the
+// people who can sign are both read from it), the saved timesheets, the approved leave, overtime and standby the month is filled
+// from, and the writes. Every read reports its own failure: a source that could not be loaded is named, never treated as "no leave".
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
-import { isArtisanClass1Designation } from '@/lib/employeeCatalog';
+import { useApiList } from '@/lib/useApiList';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord } from '@/app/timesheets/types';
-import type { ArtisanEmployeeOption, ArtisanTimesheetRecord, EmployeeRegisterOption } from './types';
+import { staffFrom, type Sources, type Staff } from './artisanLogic';
+import type { ArtisanTimesheetRecord, ArtisanTimesheetSummary } from './types';
 
-export interface ArtisanTimesheetFilters {
-  employee_id?: string;
-  year?: number;
-  month?: number;
+export interface ArtisanTimesheetFilters { employee_id?: string; year?: number; month?: number }
+
+export const useStaff = () => useApiList<unknown, Staff>('/api/employees', staffFrom);
+
+export function useSavedTimesheets(filters: ArtisanTimesheetFilters) {
+  const q = new URLSearchParams({ summary: 'true' });
+  if (filters.employee_id) q.set('employee_id', filters.employee_id);
+  if (filters.year != null) q.set('year', String(filters.year));
+  if (filters.month != null) q.set('month', String(filters.month));
+  return useApiList<ArtisanTimesheetSummary>(`/api/artisan-timesheets?${q.toString()}`);
 }
 
-export interface ReferenceData {
-  leaves: ApprovedLeaveRecord[];
-  overtime: ApprovedOvertimeRecord[];
-  standbyAssignments: ShiftAssignment[];
-  employeeRegister: EmployeeRegisterOption[];
-}
+/** One saved timesheet in full (days and signatures), for opening it from the list. */
+export const fetchTimesheet = (id: number) => api.get<ArtisanTimesheetRecord>(`/api/artisan-timesheets/${id}`);
 
-export async function fetchArtisanEmployees(): Promise<ArtisanEmployeeOption[]> {
-  const data = await api.get<Record<string, unknown>[]>('/api/employees');
-  return (data || [])
-    .filter(e => e.archived !== true && e.is_active !== false)
-    .filter(e => isArtisanClass1Designation(String(e.designation || '')))
-    .map(e => ({
-      id: Number(e.id),
-      employee_id: String(e.employee_id || '').trim(),
-      name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Employee',
-      id_number: String(e.id_number || ''),
-      designation: String(e.designation || ''),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
+/** The saved timesheet for one artisan and month, read fresh (the list on screen may be filtered). */
+export const fetchMonth = (employeeId: string, year: number, month: number) => api.get<ArtisanTimesheetRecord[]>(`/api/artisan-timesheets?employee_id=${encodeURIComponent(employeeId)}&year=${year}&month=${month}`);
 
-export async function fetchEmployeeRegister(): Promise<EmployeeRegisterOption[]> {
-  const data = await api.get<Record<string, unknown>[]>('/api/employees');
-  return (data || [])
-    .filter(e => e.archived !== true && e.is_active !== false)
-    .map(e => {
-      const name = `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Employee';
-      const mine = String(e.employee_id || '').trim();
-      return { value: name, label: mine ? `${name} (${mine})` : name };
-    })
-    .sort((a, b) => a.label.localeCompare(b.label));
-}
-
-export async function fetchReferenceData(): Promise<ReferenceData> {
-  const [leaves, overtime, standby, register] = await Promise.all([
-    api.get<ApprovedLeaveRecord[]>('/api/leaves?status=approved').catch(() => []),
-    api.get<ApprovedOvertimeRecord[]>('/api/overtime?status=approved').catch(() => []),
-    api.get<ShiftAssignment[]>('/api/standby').catch(() => []),
-    fetchEmployeeRegister(),
-  ]);
+export interface Reference { sources: Sources; settled: boolean; failed: string[]; refetch: () => void }
+/** The approved leave, overtime and standby a blank month is filled from. `settled` is true once each has answered, successfully or not. */
+export function useReference(): Reference {
+  const leaves = useApiList<ApprovedLeaveRecord>('/api/leaves?status=approved');
+  const overtime = useApiList<ApprovedOvertimeRecord>('/api/overtime?status=approved');
+  const standby = useApiList<ShiftAssignment>('/api/standby');
+  const all = [['approved leave', leaves], ['approved overtime', overtime], ['standby', standby]] as const;
   return {
-    leaves: leaves || [],
-    overtime: overtime || [],
-    standbyAssignments: standby || [],
-    employeeRegister: register,
+    sources: { leaves: leaves.items, overtime: overtime.items, standbyAssignments: standby.items },
+    settled: all.every(([, r]) => r.loaded || !!r.error),
+    failed: all.filter(([, r]) => !!r.error).map(([name]) => name),
+    refetch: () => { void leaves.refetch(); void overtime.refetch(); void standby.refetch(); },
   };
 }
 
-export async function listArtisanTimesheets(filters: ArtisanTimesheetFilters = {}): Promise<ArtisanTimesheetRecord[]> {
-  const params = new URLSearchParams();
-  if (filters.employee_id) params.set('employee_id', filters.employee_id);
-  if (filters.year != null) params.set('year', String(filters.year));
-  if (filters.month != null) params.set('month', String(filters.month));
-  const qs = params.toString();
-  return api.get<ArtisanTimesheetRecord[]>(`/api/artisan-timesheets${qs ? `?${qs}` : ''}`);
-}
-
-export async function createArtisanTimesheet(body: Omit<ArtisanTimesheetRecord, 'id' | 'created_at' | 'updated_at'>): Promise<ArtisanTimesheetRecord> {
-  return api.post<ArtisanTimesheetRecord>('/api/artisan-timesheets', body);
-}
-
-export async function updateArtisanTimesheet(id: number, body: Partial<ArtisanTimesheetRecord>): Promise<ArtisanTimesheetRecord> {
-  return api.patch<ArtisanTimesheetRecord>(`/api/artisan-timesheets/${id}`, body);
-}
-
-export async function deleteArtisanTimesheet(id: number): Promise<void> {
-  await api.delete(`/api/artisan-timesheets/${id}`);
-}
-
-export function useArtisanTimesheetsData(filters: ArtisanTimesheetFilters) {
-  const [artisans, setArtisans] = useState<ArtisanEmployeeOption[]>([]);
-  const [saved, setSaved] = useState<ArtisanTimesheetRecord[]>([]);
-  const [reference, setReference] = useState<ReferenceData>({
-    leaves: [], overtime: [], standbyAssignments: [], employeeRegister: [],
-  });
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [emps, sheets, ref] = await Promise.all([
-        fetchArtisanEmployees(),
-        listArtisanTimesheets(filters),
-        fetchReferenceData(),
-      ]);
-      setArtisans(emps);
-      setSaved(sheets);
-      setReference(ref);
-    } catch (e) {
-      toast.error('Failed to load artisan timesheets: ' + (e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters.employee_id, filters.year, filters.month]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { artisans, saved, reference, loading, reload: load };
-}
+export const createArtisanTimesheet = (body: Omit<ArtisanTimesheetRecord, 'id' | 'created_at' | 'updated_at'>) => api.post<ArtisanTimesheetRecord>('/api/artisan-timesheets', body);
+export const updateArtisanTimesheet = (id: number, body: Partial<ArtisanTimesheetRecord>) => api.patch<ArtisanTimesheetRecord>(`/api/artisan-timesheets/${id}`, body);
+export const deleteArtisanTimesheet = (id: number) => api.delete(`/api/artisan-timesheets/${id}`);

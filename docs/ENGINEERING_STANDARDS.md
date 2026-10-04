@@ -117,3 +117,20 @@ invite/reset flow. Read auth state through `useAuth()` (`lib/auth-context.tsx`)
 everywhere else — this is now lint-enforced (`eslint.config.mjs`'s
 `no-restricted-syntax`, `warn`) rather than tribal knowledge in two files'
 comments, unlike rules 1-4 above.
+
+## 6. Capped list routes are paged, and mocks mirror the real response
+
+Several backend list routes return only a fixed number of rows unless `limit` and `offset` are passed: near miss,
+VFL, PTO, work stoppage and Pachedu (100), safety complaints (200), breakdowns at `/get-breakdowns` (100) and
+production (30). A page that calls them plainly shows the newest rows as if they were the whole register, with no
+sign that anything is missing. This is the same silent-failure family as showing a failed load as an empty list.
+
+- Load such routes with `getAllPages` (`lib/paged.ts`) or `useApiList(path, map, { paged: true })`. It keeps asking
+  until a short page arrives and throws, instead of returning a partial list, if a page fails or the safety cap
+  (50,000 rows) is hit. Routes that wrap rows in `{ data: [...] }` pass `pick: unwrapRows`.
+- Check the router before assuming a path returns rows. `GET /api/breakdowns` returns an info object; the list is
+  `GET /api/breakdowns/get-breakdowns`. Three migrated pages called the wrong path and their route specs mocked the
+  same wrong path, so a green spec hid it. Mock the response shape the backend really returns, and where a similar
+  path returns something different, add that as a trap entry (see `scripts/route-specs/reliability.mjs`).
+- A passing route spec proves the page against its mock only. It says nothing about whether the endpoint exists or
+  what it returns. That needs a read of the router or a run against real data.

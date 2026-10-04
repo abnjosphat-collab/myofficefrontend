@@ -71,6 +71,7 @@ export function useNoticeAlerts() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [alerts, setAlerts] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(!!user);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!user) { setNotices([]); setAlerts([]); setLoading(false); return; }
@@ -83,8 +84,9 @@ export function useNoticeAlerts() {
         const built = buildNoticeAlerts(all, isManager);
         setNotices(built.notices);
         setAlerts(built.alerts);
+        setFailed(false);
       } catch {
-        if (!cancelled) { setNotices([]); setAlerts([]); }
+        if (!cancelled) { setNotices([]); setAlerts([]); setFailed(true); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -94,5 +96,5 @@ export function useNoticeAlerts() {
     return () => { cancelled = true; };
   }, [user, isManager]);
 
-  return { notices, alerts, loading };
+  return { notices, alerts, loading, failed };
 }

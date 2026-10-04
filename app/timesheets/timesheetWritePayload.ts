@@ -9,6 +9,7 @@ export function timesheetWritePayload(
   const {
     id: _id,
     _auto: _autoFlag,
+    _moduleApproval: _moduleApproval,
     ...rest
   } = synced as TimesheetEntry;
   return {

@@ -39,7 +39,7 @@ export function enrichPPERecord(record: PPERecord, register: Map<string, Employe
   }
   return {
     ...record,
-    employee_name: live.employee_name,
+    employee_name: live.employee_name || sanitizeDisplayName(record.employee_name),
     position: live.position || record.position,
     mine_section: live.section || record.mine_section,
     department: live.department || record.department,

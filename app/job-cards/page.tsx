@@ -1,139 +1,139 @@
 'use client';
-import { useState } from 'react';
-import { ClipboardCheck, Plus, Search, X, Check, Clock, User, Calendar, Package, Save, PenLine, RefreshCw } from '@/components/shared/theme';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
 import {
-  useTheme, PageHero, StatusBadge, ProgressBar, FormField, SearchInput, CenterModal,
-  PrimaryButton, EmptyState, SelectField, TYPE_WEIGHT,
-} from '@/components/shared/theme';
+  Button, Checkbox, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, PageHeader, Progress, Segmented, SearchField, Select,
+  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, type Column, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { JobCard, JCStatus, Priority } from './types';
 
-const P_HEX: Record<Priority, string> = { critical: '#f43f5e', high: '#f59e0b', medium: '#86BBD8', low: '#94a3b8' };
-const S_HEX: Record<JCStatus, string> = { open: '#94a3b8', in_progress: '#86BBD8', on_hold: '#f59e0b', completed: '#34d399', cancelled: '#64748b' };
-const S_LABEL: Record<JCStatus, string> = { open: 'Open', in_progress: 'In Progress', on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled' };
+const PRIORITY: Record<Priority, { tone: Tone; label: string }> = {
+  critical: { tone: 'danger', label: 'Critical' }, high: { tone: 'warning', label: 'High' }, medium: { tone: 'info', label: 'Medium' }, low: { tone: 'neutral', label: 'Low' },
+};
+const STATUS: Record<JCStatus, { tone: Tone; label: string; hex: string }> = {
+  open: { tone: 'neutral', label: 'Open', hex: '94a3b8' }, in_progress: { tone: 'info', label: 'In progress', hex: '86bbd8' }, on_hold: { tone: 'warning', label: 'On hold', hex: 'f59e0b' },
+  completed: { tone: 'success', label: 'Completed', hex: '34d399' }, cancelled: { tone: 'neutral', label: 'Cancelled', hex: '64748b' },
+};
+// Legacy or malformed values must still render a labelled badge, never a blank one.
+const priorityMeta = (p: string) => PRIORITY[p as Priority] ?? { tone: 'neutral' as Tone, label: p || 'Unknown' };
+const statusMeta = (s: string) => STATUS[s as JCStatus] ?? { tone: 'neutral' as Tone, label: s || 'Unknown', hex: '94a3b8' };
+const PriorityBadge = ({ value }: { value: string }) => <StatusBadge tone={priorityMeta(value).tone}>{priorityMeta(value).label}</StatusBadge>;
+const StatusTag = ({ value }: { value: string }) => <StatusBadge tone={statusMeta(value).tone}>{statusMeta(value).label}</StatusBadge>;
+const taskProgress = (jc: JobCard) => { const tasks = jc.tasks ?? []; return tasks.length ? Math.round((tasks.filter(x => x.done).length / tasks.length) * 100) : 0; };
 
-// Unguarded map lookups on a legacy/malformed status or priority value otherwise
-// rendered a blank StatusBadge (undefined color + undefined label) instead of
-// crashing — a quieter but still real instance of the map-lookup class of bug
-// found across this audit (found live, 2026-08-29 UI audit).
-const priorityColor = (p: Priority) => P_HEX[p] ?? P_HEX.low;
-const statusColor = (s: JCStatus) => S_HEX[s] ?? S_HEX.open;
-const statusLabel = (s: JCStatus) => S_LABEL[s] ?? s;
+const exportColumns: DLColumn[] = [
+  { key: 'job_no', label: 'Job #', width: 14 },
+  { key: 'title', label: 'Title', width: 26 },
+  { key: 'equipment_name', label: 'Equipment', width: 22 },
+  { key: 'type', label: 'Type', width: 14 },
+  { key: 'priority', label: 'Priority', width: 12 },
+  { key: 'status', label: 'Status', width: 14, format: v => statusMeta(v as string).label },
+  { key: 'section', label: 'Section', width: 16 },
+  { key: 'assigned_to', label: 'Assigned To', width: 18 },
+  { key: 'supervisor', label: 'Supervisor', width: 18 },
+  { key: 'scheduled_date', label: 'Scheduled Date', width: 16, format: v => (v ? formatDate(v as string) : '') },
+  { key: 'labour_hours', label: 'Labour Hrs', width: 12 },
+  { key: 'notes', label: 'Notes', width: 26 },
+];
 
-function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => void; onSave: (j: JobCard) => void }) {
-  const t = useTheme();
-  // tasks ?? [] guard: a job card missing its tasks array (legacy/malformed data)
-  // otherwise crashed here immediately on mount — every downstream read of
-  // data.tasks in this component assumes it's always an array (found live,
-  // 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
-  const [data, setData] = useState<JobCard>({ ...jc, tasks: (jc.tasks ?? []).map(x => ({ ...x })) });
+const COLUMNS: Column<JobCard>[] = [
+  { id: 'job_no', header: 'Job card', sortable: false, sticky: true, cell: jc => <span className="font-mono text-caption">{jc.job_no}</span> },
+  { id: 'title', header: 'Title', cell: jc => <span className="font-medium">{jc.title}<span className="block text-caption font-normal text-ink-muted">{[jc.equipment_name, jc.section].filter(Boolean).join(' · ')}</span></span> },
+  { id: 'priority', header: 'Priority', cell: jc => <PriorityBadge value={jc.priority} /> },
+  { id: 'status', header: 'Status', cell: jc => <StatusTag value={jc.status} /> },
+  { id: 'assigned_to', header: 'Assigned to', hideBelow: 'lg', cell: jc => jc.assigned_to },
+  { id: 'progress', header: 'Tasks', hideBelow: 'md', width: '9rem', cell: jc => ((jc.tasks ?? []).length ? <Progress value={taskProgress(jc)} label={`${jc.job_no} tasks done`} /> : <span className="text-ink-muted">No tasks</span>) },
+  { id: 'scheduled_date', header: 'Scheduled', hideBelow: 'md', cell: jc => <span className="tabular whitespace-nowrap">{jc.scheduled_date ? formatDate(jc.scheduled_date) : 'Not set'}</span> },
+];
+
+function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => void; onSave: (j: JobCard) => Promise<void> }) {
+  // tasks / parts_used guards: legacy or malformed records may lack the arrays.
+  const [data, setData] = useState<JobCard>({ ...jc, tasks: (jc.tasks ?? []).map(x => ({ ...x })), parts_used: jc.parts_used ?? [] });
   const [signOffOpen, setSignOffOpen] = useState(false);
   const progress = data.tasks.length ? Math.round((data.tasks.filter(x => x.done).length / data.tasks.length) * 100) : 0;
   const allDone = data.tasks.length > 0 && data.tasks.every(x => x.done);
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
-
-  const toggleTask = (id: string) => setData(prev => ({ ...prev, tasks: prev.tasks.map(x => x.id === id ? { ...x, done: !x.done } : x) }));
+  const toggleTask = (id: string) => setData(prev => ({ ...prev, tasks: prev.tasks.map(x => (x.id === id ? { ...x, done: !x.done } : x)) }));
 
   return (
     <>
-      <CenterModal open onClose={onClose} title={data.title} subtitle={`${data.equipment_name} · ${data.section}`} width="max-w-2xl">
-        <div className="px-5 pt-1 pb-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono text-[#86BBD8]/80">{data.job_no}</span>
-            <StatusBadge color={priorityColor(data.priority)} label={data.priority} />
-            <StatusBadge color={statusColor(data.status)} label={statusLabel(data.status)} />
-          </div>
-        </div>
-        <div className="px-5 pb-4 space-y-5 max-h-[65vh] overflow-y-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            {[{ icon: User, label: 'Assigned', val: data.assigned_to }, { icon: User, label: 'Supervisor', val: data.supervisor }, { icon: Calendar, label: 'Scheduled', val: data.scheduled_date }, { icon: Clock, label: 'Labour Hrs', val: `${data.labour_hours}h` }].map(({ icon: Icon, label, val }) => (
-              <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
-                <div className={`flex items-center gap-1.5 mb-1 ${t.textFaint}`}><Icon className="h-3 w-3" />{label}</div>
-                <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</p>
-              </div>
-            ))}
-          </div>
+      <FormDialog
+        // The sign-off gate is a separate modal; step aside while it is open so only one trap is active.
+        open={!signOffOpen}
+        onOpenChange={open => { if (!open) onClose(); }}
+        title={data.title}
+        description={`${data.job_no} · ${[data.equipment_name, data.section].filter(Boolean).join(' · ')}`}
+        size="lg"
+        submitLabel="Save changes"
+        onSubmit={async () => { await onSave(data); toast.success(`${data.job_no} was saved.`); }}
+        secondaryAction={allDone && data.status !== 'completed' ? <Button icon="check" onClick={() => setSignOffOpen(true)}>Supervisor sign-off</Button> : undefined}
+      >
+        <div className="flex flex-wrap items-center gap-2"><PriorityBadge value={data.priority} /><StatusTag value={data.status} /></div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 font-sans text-body-sm sm:grid-cols-4">
+          {[['Assigned to', data.assigned_to], ['Supervisor', data.supervisor], ['Scheduled', data.scheduled_date ? formatDate(data.scheduled_date) : 'Not set'], ['Labour hours', `${data.labour_hours ?? 0} h`]].map(([label, value]) => (
+            <div key={label}><dt className="text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-medium text-ink">{value || 'Not set'}</dd></div>
+          ))}
+        </dl>
+        {data.description && <p className="font-sans text-body text-ink-muted">{data.description}</p>}
 
-          {data.description && <p className={`text-sm leading-relaxed ${t.textMuted}`}>{data.description}</p>}
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Tasks</p>
-              <div className="flex items-center gap-2 w-40">
-                <ProgressBar value={progress} color="#34d399" showValue={false} />
-                <span className={`text-xs ${t.textFaint}`}>{progress}%</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {data.tasks.map((tk, i) => (
-                <button type="button" key={tk.id} onClick={() => toggleTask(tk.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${tk.done ? 'bg-emerald-500/10 border-emerald-500/25' : `${t.chipBg} ${t.border} ${t.hoverBg}`}`}>
-                  <div className={`h-5 w-5 rounded-lg flex items-center justify-center shrink-0 border transition-all ${tk.done ? 'bg-emerald-500/30 border-emerald-500/50' : t.border}`}>
-                    {tk.done && <Check className="h-3 w-3 text-emerald-500" />}
-                  </div>
-                  <span className={`text-xs ${tk.done ? `line-through ${t.textFaint}` : t.textMuted}`}>{i + 1}. {tk.description}</span>
-                </button>
+        <section aria-labelledby="jc-tasks">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 id="jc-tasks" className="font-display text-title font-semibold text-ink">Tasks</h3>
+            {data.tasks.length > 0 && <Progress value={progress} label="Tasks done" className="w-40" />}
+          </div>
+          {data.tasks.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">This job card has no tasks.</p> : (
+            <ul className="flex flex-col gap-1.5">
+              {data.tasks.map((task, index) => (
+                <li key={task.id} className="rounded-control border border-line-subtle bg-surface px-3 py-2">
+                  <Checkbox checked={task.done} onChange={() => toggleTask(task.id)} label={<span className={task.done ? 'text-ink-muted line-through' : ''}>{index + 1}. {task.description}</span>} />
+                </li>
               ))}
-            </div>
-          </div>
-
-          {data.parts_used.length > 0 && (
-            <div>
-              <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Parts Used</p>
-              <div className="space-y-1.5">
-                {data.parts_used.map(p => (
-                  <div key={p.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl ${t.chipBg} border ${t.border}`}>
-                    <Package className={`h-3.5 w-3.5 shrink-0 ${t.textFaint}`} />
-                    <span className={`text-xs font-mono w-20 shrink-0 ${t.textFaint}`}>{p.part_no}</span>
-                    <span className={`text-xs flex-1 ${t.textPrimary}`}>{p.description}</span>
-                    <span className={`text-xs ${t.textFaint}`}>×{p.qty}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </ul>
           )}
+        </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField label="Status">
-              <SelectField size="form" value={data.status} title="Job card status" onChange={v => setData(prev => ({ ...prev, status: v as JCStatus }))}
-                options={(Object.keys(S_LABEL) as JCStatus[]).map(s => ({ value: s, label: S_LABEL[s] }))} />
-            </FormField>
-            <FormField label="Labour Hours">
-              <input type="number" step="0.5" placeholder="0" title="Labour hours" aria-label="Labour hours" value={data.labour_hours}
-                onChange={e => setData(prev => ({ ...prev, labour_hours: +e.target.value }))} className={inputCls} />
-            </FormField>
-          </div>
-          {data.notes !== undefined && (
-            <FormField label="Notes">
-              <textarea placeholder="Additional notes…" aria-label="Notes" value={data.notes} onChange={e => setData(prev => ({ ...prev, notes: e.target.value }))} rows={2}
-                className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
-            </FormField>
-          )}
+        {data.parts_used.length > 0 && (
+          <section aria-labelledby="jc-parts">
+            <h3 id="jc-parts" className="mb-2 font-display text-title font-semibold text-ink">Parts used</h3>
+            <ul className="flex flex-col gap-1.5">
+              {data.parts_used.map(part => (
+                <li key={part.id} className="flex items-center gap-3 rounded-control border border-line-subtle bg-surface-subtle px-3 py-2 font-sans text-body-sm">
+                  <span className="w-24 shrink-0 font-mono text-caption text-ink-muted">{part.part_no}</span>
+                  <span className="min-w-0 flex-1 text-ink">{part.description}</span>
+                  <span className="tabular text-ink-muted">×{part.qty}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Status">
+            <Select aria-label="Job card status" value={data.status} onValueChange={status => setData(prev => ({ ...prev, status: status as JCStatus }))} options={(Object.keys(STATUS) as JCStatus[]).map(s => ({ value: s, label: STATUS[s].label }))} />
+          </Field>
+          <Field label="Labour hours">
+            <Input type="number" step="0.5" min="0" inputMode="decimal" value={data.labour_hours ?? 0} onChange={event => setData(prev => ({ ...prev, labour_hours: Number(event.target.value) }))} />
+          </Field>
         </div>
-
-        <div className={`p-5 border-t ${t.border} flex flex-wrap justify-end gap-2`}>
-          <button type="button" onClick={onClose} className={`px-4 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>Cancel</button>
-          <PrimaryButton icon={Save} accent="violet" size="md" onClick={() => { onSave(data); onClose(); }}>Save</PrimaryButton>
-          {allDone && data.status !== 'completed' && (
-            <PrimaryButton icon={PenLine} accent="emerald" size="md" onClick={() => setSignOffOpen(true)}>Supervisor Sign-Off</PrimaryButton>
-          )}
-        </div>
-      </CenterModal>
+        {data.notes !== undefined && (
+          <Field label="Notes" optional><Textarea rows={3} value={data.notes} onChange={event => setData(prev => ({ ...prev, notes: event.target.value }))} /></Field>
+        )}
+      </FormDialog>
       {signOffOpen && (
         <ApprovalGate
-          title="Supervisor Sign-Off"
+          title="Supervisor sign-off"
           description={`${data.job_no} — ${data.title}`}
-          actionLabel="Sign & Close Job Card"
+          actionLabel="Sign and close job card"
           requiredRole="manager"
           variant="sign"
-          onConfirm={async (sig) => {
-            const closed = { ...data, status: 'completed' as const, sign_off_by: sig.signerName };
-            onSave(closed);
+          onConfirm={async sig => {
+            await onSave({ ...data, status: 'completed' as const, sign_off_by: sig.signerName } as JobCard);
+            toast.success(`${data.job_no} was signed off and closed.`);
             onClose();
           }}
           onCancel={() => setSignOffOpen(false)}
@@ -143,61 +143,43 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
   );
 }
 
+type Filter = JCStatus | 'all';
+
 function JobCardsContent() {
-  const t = useTheme();
   const { data: records, loading, error, refetch, update } = useModuleData<JobCard>('job-cards');
   const [selected, setSelected] = useState<JobCard | null>(null);
-  const [filter, setFilter] = useState<JCStatus | 'all'>('all');
+  const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
 
-  const counts: Record<JCStatus | 'all', number> = { all: records.length, open: 0, in_progress: 0, on_hold: 0, completed: 0, cancelled: 0 };
-  records.forEach(c => counts[c.status]++);
+  // useModuleData reports failures as "<HTTP status>: <body>"; recover the status so access problems and
+  // transient failures are told apart. A failed request must never read as "no job cards".
+  const errorStatus = error ? Number(error.match(/^(\d{3})\b/)?.[1]) || null : null;
+  const loaded = records.length > 0 || (!loading && !error);
 
-  const filtered = records.filter(c => {
-    const ms = filter === 'all' || c.status === filter;
-    const mq = !search || c.title.toLowerCase().includes(search.toLowerCase()) || c.equipment_name?.toLowerCase().includes(search.toLowerCase()) || c.job_no.includes(search);
-    return ms && mq;
-  });
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: records.length, open: 0, in_progress: 0, on_hold: 0, completed: 0, cancelled: 0 };
+    records.forEach(r => { if (r.status in c) c[r.status] += 1; });
+    return c;
+  }, [records]);
 
-  const exportColumns: DLColumn[] = [
-    { key: 'job_no', label: 'Job #', width: 14 },
-    { key: 'title', label: 'Title', width: 26 },
-    { key: 'equipment_name', label: 'Equipment', width: 22 },
-    { key: 'type', label: 'Type', width: 14 },
-    { key: 'priority', label: 'Priority', width: 12 },
-    { key: 'status', label: 'Status', width: 14, format: v => statusLabel(v as JCStatus) },
-    { key: 'section', label: 'Section', width: 16 },
-    { key: 'assigned_to', label: 'Assigned To', width: 18 },
-    { key: 'supervisor', label: 'Supervisor', width: 18 },
-    { key: 'scheduled_date', label: 'Scheduled Date', width: 16, format: v => v ? formatDate(v as string) : '' },
-    { key: 'labour_hours', label: 'Labour Hrs', width: 12 },
-    { key: 'notes', label: 'Notes', width: 26 },
-  ];
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return records.filter(c => (filter === 'all' || c.status === filter)
+      && (!q || c.title?.toLowerCase().includes(q) || c.equipment_name?.toLowerCase().includes(q) || c.job_no?.toLowerCase().includes(q)));
+  }, [records, filter, search]);
 
-  if (loading) return (
-      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8`}>
-      <div className={`flex flex-col items-center justify-center py-32 gap-3 ${t.textFaint}`}>
-        <RefreshCw className="h-5 w-5 animate-spin" /><span className="text-sm">Loading…</span>
-      </div>
-    </main>
-  );
-
-  if (error) return (
-      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8`}>
-      <div className="rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 px-5 py-4 text-sm">{error}</div>
-    </main>
-  );
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const options = (['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => ({ value: s, label: `${s === 'all' ? 'All' : STATUS[s].label} (${counts[s]})` }));
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={ClipboardCheck}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Job Cards']}
-        title="Job Cards"
-        description="Work order & job card management"
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Job cards' }]}
+        title="Job cards"
+        description="Work order and job card management."
+        actions={(
           <>
+            <IconButton icon="refresh" label="Refresh job cards" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -205,68 +187,35 @@ function JobCardsContent() {
                 filename={exportFilename('Job_Cards')}
                 title="Job Cards"
                 statusColumn="status"
-                statusColor={(_v, row) => statusColor(row.status as JCStatus).replace('#', '')}
+                statusColor={(_v, row) => statusMeta(row.status as string).hex}
               />
             )}
-            <PrimaryButton icon={Plus} accent="amber">New Job Card</PrimaryButton>
           </>
-        }
-      >
-        <div className="flex flex-wrap gap-1.5">
-          {(['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => (
-            <button type="button" key={s} onClick={() => setFilter(s)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-all ${filter === s ? 'bg-amber-500/15 text-amber-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-              {s === 'all' ? 'All' : S_LABEL[s]}
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${filter === s ? 'bg-amber-500/25' : t.chipBg}`}>{counts[s]}</span>
-            </button>
-          ))}
-        </div>
-      </PageHero>
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`px-5 py-3 border-b ${t.border}`}>
-          <SearchInput value={search} onChange={setSearch} placeholder="Search job number, title, equipment…" className="max-w-sm" />
-        </div>
-
-        {filtered.length === 0 ? (
-          <EmptyState icon={ClipboardCheck} title="No job cards match" />
-        ) : (
-          <div>
-            {filtered.map(jc => {
-              const jcTasks = jc.tasks ?? [];
-              const progress = jcTasks.length ? Math.round((jcTasks.filter(x => x.done).length / jcTasks.length) * 100) : 0;
-              return (
-                <button key={jc.id} type="button" onClick={() => setSelected(jc)}
-                  aria-label={`View job card ${jc.job_no}: ${jc.title}`}
-                  className={`w-full flex items-center gap-4 px-5 py-4 border-b ${t.border} last:border-0 ${t.hoverBg} cursor-pointer transition-colors text-left`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className={`text-xs font-mono ${t.textFaint}`}>{jc.job_no}</span>
-                      <StatusBadge color={priorityColor(jc.priority)} label={jc.priority} />
-                      <StatusBadge color={statusColor(jc.status)} label={statusLabel(jc.status)} />
-                    </div>
-                    <p className={`text-sm ${TYPE_WEIGHT.semibold} truncate ${t.textPrimary}`}>{jc.title}</p>
-                    <p className={`text-xs mt-0.5 ${t.textFaint}`}>{jc.equipment_name} · {jc.section} · {jc.assigned_to}</p>
-                  </div>
-                  {jcTasks.length > 0 && (
-                    <div className="hidden sm:flex flex-col items-end gap-1 shrink-0 w-24">
-                      <ProgressBar value={progress} color="#34d399" showValue={false} />
-                      <span className={`text-[10px] ${t.textFaint}`}>{progress}% tasks done</span>
-                    </div>
-                  )}
-                  <span className={`text-xs shrink-0 ${t.textFaint}`}>{jc.scheduled_date}</span>
-                </button>
-              );
-            })}
-          </div>
         )}
-      </div>
+      />
 
-      {selected && <JobCardDetail jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, updated); refetch(); }} />}
-    </main>
+      <Toolbar>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search job number, title or equipment" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Segmented label="Status" value={filter} onValueChange={setFilter} options={options} />
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="job cards"
+        error={error}
+        onRetry={() => refetch()}
+        empty={filter !== 'all' || search
+          ? <EmptyState icon="search" title="No job cards match" description="Try a different search or status." action={<Button onClick={() => { setFilter('all'); setSearch(''); }}>Clear filters</Button>} />
+          : <EmptyState icon="task" title="No job cards yet" description="Job cards will appear here once they are created." />}
+      >
+        <DataTable caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
+      </DataRegion>
+
+      {selected && <JobCardDetail key={selected.id} jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, updated); refetch(); }} />}
+    </div>
   );
 }
 
 export default function JobCardsPage() {
-  return <AppShell><JobCardsContent /></AppShell>;
+  return <AppShell migrated><JobCardsContent /></AppShell>;
 }

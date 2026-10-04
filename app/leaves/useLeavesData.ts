@@ -1,162 +1,47 @@
-// app/leaves/useLeavesData.ts — the leave-management page's data-fetching layer: the
-// record CRUD calls, the employee-search lookup, and a hook that owns the leave list +
-// derived stats + 30s visibility-aware polling cycle. Split out of page.tsx as part of
-// the standing "decompose on touch" convention. Single resource (the leave list) with
-// stats computed client-side from it — the polling/visibility logic moved in with the
-// load cycle since it's inherently about *when* this same fetch re-runs, not a UI concern.
+// app/leaves/useLeavesData.ts — the leave register's data layer. The list is loaded honestly (a failed load is an error,
+// not an empty register; rows already loaded stay through a failed refresh) and refreshed every 30 seconds while the page
+// is visible. Writes throw so the dialog can show the reason and keep what was typed. The server returns every page.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
-import { normalizeDesignation } from '@/lib/employeeCatalog';
-import { primaryContactPhone } from '@/lib/phone';
+import { useApiList } from '@/lib/useApiList';
 import { calcLeaveDays } from '@/lib/calcLeaveDays';
-import type { EmployeeSearchResult, Leave, Stats } from './types';
+import type { Leave } from './types';
 
-export { calcLeaveDays as calcDays } from '@/lib/calcLeaveDays';
+const POLL_MS = 30_000;
+// The API returns a numeric id; the page keys, selects and merges by string.
+const normalise = (l: Leave): Leave => ({ ...l, id: String(l.id) });
 
-export const fetchLeaves = async (): Promise<Leave[]> => {
-  try {
-    const data = await api.get<Leave[]>('/api/leaves');
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error fetching leaves:', error);
-    toast.error('Could not load leave requests');
-    return [];
-  }
-};
-
-export const createLeave = async (leaveData: Partial<Leave>): Promise<Leave> => {
-  const exclude = leaveData.exclude_weekends_holidays ?? false;
-  return api.post<Leave>('/api/leaves', {
-    ...leaveData,
-    applied_date: new Date().toISOString(),
-    status: 'pending',
-    exclude_weekends_holidays: exclude,
-    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
-  });
-};
-
-export const updateLeave = async (leaveId: string, leaveData: Partial<Leave>): Promise<Leave> => {
-  const exclude = leaveData.exclude_weekends_holidays ?? false;
-  const saved = await api.patch<Leave>(`/api/leaves/${leaveId}`, {
-    ...leaveData,
-    exclude_weekends_holidays: exclude,
-    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
-  });
-  return saved ?? ({
-    ...leaveData,
-    id: leaveId,
-    total_days: calcLeaveDays(leaveData.start_date, leaveData.end_date, { excludeWeekendsAndHolidays: exclude }),
-  } as Leave);
-};
-
-export const updateLeaveStatus = async (leaveId: string, status: Leave['status'], notes?: string): Promise<Leave> => {
-  return api.patch<Leave>(`/api/leaves/${leaveId}`, { status, ...(notes ? { notes } : {}) });
-};
-
-export type BulkLeaveStatusResult = {
-  succeeded: number;
-  failed: number;
-  updated: Leave[];
-};
-
-/** Approve or reject many pending leave requests in one API call. */
-export async function bulkUpdateLeaveStatus(body: {
-  ids: (number | string)[];
-  status: 'approved' | 'rejected';
-}): Promise<BulkLeaveStatusResult> {
-  return api.post<BulkLeaveStatusResult>('/api/leaves/bulk-status', {
-    status: body.status,
-    ids: body.ids.map(id => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter(n => !Number.isNaN(n)),
-  });
-}
-
-export const deleteLeave = async (leaveId: string): Promise<{ success: boolean; message: string }> => {
-  return (await api.delete<{ success: boolean; message: string }>(`/api/leaves/${leaveId}`)) ?? { success: true, message: 'Deleted' };
-};
-
-export const fetchEmployeeSearchResults = async (): Promise<EmployeeSearchResult[]> => {
-  const data = await api.get<Record<string, unknown>[]>('/api/employees');
-  const employeeList = Array.isArray(data) ? data : [];
-  return employeeList.map((emp: Record<string, unknown>) => {
-    const id = typeof emp.id === 'number' ? emp.id : parseInt(String(emp.id)) || 0;
-    const employeeId = String(emp.employee_id || '');
-    let fullName = '';
-    if (emp.first_name && emp.last_name) fullName = `${emp.first_name} ${emp.last_name}`;
-    else fullName = String(emp.name || emp.employee_name || emp.full_name || emp.Name || '');
-    return {
-      id, employee_id: employeeId, name: fullName,
-      designation: normalizeDesignation(String(emp.designation || emp.position || emp.job_title || '')),
-      phone: primaryContactPhone(String(emp.phone || emp.contact_number || emp.mobile || '')),
-      supervisor: String(emp.supervisor || emp.manager_name || emp.manager || ''),
-      department: String(emp.department || emp.dept || ''),
-    };
-  });
-};
-
-function statsFromLeaves(leavesData: Leave[]): Stats {
-  const today = new Date().toISOString().split('T')[0];
-  const approvedLeaves = leavesData.filter(l => l.status === 'approved');
-  const rejectedLeaves = leavesData.filter(l => l.status === 'rejected');
-  const decided = approvedLeaves.length + rejectedLeaves.length;
-  const approvalRate = decided > 0 ? Math.round((approvedLeaves.length / decided) * 100) : 0;
-  const totalDays = leavesData.reduce((sum, l) => sum + (l.total_days || 0), 0);
-  const avgDays = leavesData.length > 0 ? Math.round(totalDays / leavesData.length) : 0;
-  return {
-    total: leavesData.length,
-    pending: leavesData.filter(l => l.status === 'pending').length,
-    approved: approvedLeaves.length,
-    rejected: rejectedLeaves.length,
-    on_leave_now: approvedLeaves.filter(l => l.start_date <= today && l.end_date >= today).length,
-    approvalRate,
-    total_days_requested: totalDays,
-    average_days: avgDays,
-  };
-}
-
-export function useLeavesData() {
-  const [leaves, setLeaves] = useState<Leave[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, approved: 0, rejected: 0, on_leave_now: 0, approvalRate: 0, total_days_requested: 0, average_days: 0 });
-
-  const mergeUpdatedLeaves = useCallback((updated: Leave[]) => {
-    setLeaves(prev => {
-      const map = new Map(prev.map(l => [l.id, l]));
-      updated.forEach(row => {
-        const id = String(row.id);
-        const existing = map.get(id);
-        map.set(id, { ...(existing ?? row), ...row, id });
-      });
-      const next = [...map.values()];
-      setStats(statsFromLeaves(next));
-      return next;
-    });
-  }, []);
-
-  const fetchAllData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const leavesData = await fetchLeaves();
-      setLeaves(leavesData);
-      setStats(statsFromLeaves(leavesData));
-      setLoading(false);
-    } catch (err) { toast.error((err as Error).message || 'Failed to fetch data'); setLoading(false); }
-  }, []);
-
+export function useLeaves() {
+  const list = useApiList<Leave>('/api/leaves', normalise);
+  const refetch = useRef(list.refetch);
+  useEffect(() => { refetch.current = list.refetch; });
   useEffect(() => {
-    fetchAllData();
-    let interval: ReturnType<typeof setInterval> | null = null;
-    function startPolling() { interval = setInterval(() => { if (document.visibilityState === 'visible') fetchAllData(); }, 30000); }
-    function handleVisibility() {
-      if (document.visibilityState === 'visible') { fetchAllData(); if (!interval) startPolling(); }
-      else if (interval) { clearInterval(interval); interval = null; }
-    }
-    startPolling();
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => { if (interval) clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
-  }, [fetchAllData]);
-
-  return { leaves, stats, loading, refresh: fetchAllData, mergeUpdatedLeaves };
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => { if (!timer) timer = setInterval(() => { if (document.visibilityState === 'visible') refetch.current(); }, POLL_MS); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') { refetch.current(); start(); }
+      else if (timer) { clearInterval(timer); timer = null; }
+    };
+    start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { if (timer) clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
+  }, []);
+  return list;
 }
+
+const days = (d: Partial<Leave>) => {
+  const exclude = d.exclude_weekends_holidays ?? false;
+  return { exclude_weekends_holidays: exclude, total_days: calcLeaveDays(d.start_date, d.end_date, { excludeWeekendsAndHolidays: exclude }) };
+};
+
+export const createLeave = (data: Partial<Leave>) => api.post<Leave>('/api/leaves', { ...data, applied_date: new Date().toISOString(), status: 'pending', ...days(data) });
+export const updateLeave = (id: string, data: Partial<Leave>) => api.patch<Leave>(`/api/leaves/${id}`, { ...data, ...days(data) });
+export const setLeaveStatus = (id: string, status: Leave['status']) => api.patch<Leave>(`/api/leaves/${id}`, { status });
+export const deleteLeave = async (id: string) => { await api.delete(`/api/leaves/${id}`); };
+
+export interface BulkResult { succeeded: number; failed: number; updated: Array<Record<string, unknown>> }
+/** Approve or reject many pending requests in one call (manager only, enforced by the server). */
+export const bulkSetLeaveStatus = (ids: string[], status: 'approved' | 'rejected') =>
+  api.post<BulkResult>('/api/leaves/bulk-status', { status, ids: ids.map(i => parseInt(i, 10)).filter(n => !Number.isNaN(n)) });

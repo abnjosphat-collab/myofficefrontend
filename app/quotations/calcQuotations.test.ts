@@ -1,9 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { calculateTotals } from './calcQuotations';
-import type { QuotationItem } from './types';
 
-function item(over: Partial<QuotationItem> = {}): QuotationItem {
-  return { id: 1, description: 'Item', quantity: 1, rate: 100, amount: 100, category: 'General', ...over };
+function item(over: { amount?: number } = {}): { amount: number } {
+  return { amount: 100, ...over };
 }
 
 describe('calculateTotals', () => {

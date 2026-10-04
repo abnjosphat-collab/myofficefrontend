@@ -1,15 +1,15 @@
 # Design system migration — inventory & phases
 
-**Purpose:** Track ERP-wide UI consistency work. Visual reference: homepage module tiles (`app/page.tsx` → `InfoCard` → `GlowCard`). Colour rules: [`COLOR_HARMONY.md`](COLOR_HARMONY.md).
+**Purpose:** Track ERP-wide UI consistency work. Visual reference: the Tools workspace (`/tools`) — near-white/mineral-green, stationary cards, calm motion. Colour rules: [`COLOR_HARMONY.md`](COLOR_HARMONY.md). Canonical tokens: `components/shared/design-system/tools-theme.css` (`--mo-*`); see the design-system README for the theme + appearance contracts.
 
-## Reference tile chain (homepage)
+## Reference tile chain (Tools standard — supersedes the old glowing homepage tiles)
 
 ```
-ModuleCard / QuickActionCard
-  → InfoCard (iconTone default neutral, brand hover glow)
-    → GlowCard (BRAND_GLOW_HEX, lift + coloured shadow on hover)
-      → motion: tileIconItem, tileTextContainer, tileTextItem, fadeTextVariant
-      → tokens: TILE_SURFACE, TILE_BORDER, TILE_ASPECT, SPACING, RADIUS
+Register/dashboard cards anywhere
+  → InfoCard (iconTone default neutral, calm hover)
+    → GlowCard → DallaglioCard (stationary; shadow-only hover, no lift/glow)
+      → motion: emergeContainer / emergeItem / emergeProps (180ms, capped stagger)
+      → tokens: --mo-* canonical; --d-* / --brand-* aliases
 ```
 
 List pages should prefer **`RecordCard`** + **`GroupSection`** + **`PageHero`** rather than raw `GlowCard` or page-local card markup.
@@ -61,6 +61,7 @@ Do not add new `.oz-*` visual classes.
 | 9 | `/homepage` trial | **Removed** |
 | 10 | `STATUS_TONE` on maintenance / spares / shifts | **Done** |
 | 11 | Visual regression baselines | Run `npm run test:visual -- --update-snapshots` when dev server on `:3000`; commit `-win32.png` locally; CI uses `-linux.png` |
+| 12 | Tools-standard rollout (Stages A–D) | **Done** (Oct 2026, uncommitted): `--mo-*` canonical tokens, `myoffice_appearance_v1` prefs, calm motion everywhere, forest accent system, icon barrel + 22 meanings, metadata fixed. Deferred: Linux visual baselines + `continue-on-error` removal (needs CI run + human commit); signed-in live verification; Timesheets (separate ChatGPT track). |
 
 ## Verification
 
@@ -79,3 +80,6 @@ npm run test:visual   # requires app on localhost:3000 (e.g. npm run dev)
 - [x] All module routes on `AppShell`; legacy shell deleted
 - [ ] Remaining pages: stray status hex (incremental)
 - [ ] Trim unused `.oz-*` rules from `globals.css` once grep-clean
+- [x] Tools-standard rollout: one `--mo-*` token source, one appearance contract, calm motion, forest accents (Oct 2026)
+- [ ] Linux visual baselines committed; visual `continue-on-error` removed
+- [ ] Signed-in live verification pass with real credentials

@@ -1,15 +1,24 @@
-// components/app-shell/ServiceWorkerRegistrar.tsx — invisible client component
-// mounted once in AppShell, same "one mount-once effect, works on every page" pattern
-// as UsageTracker.tsx. Registers public/sw.js on first mount; the browser handles
-// dedup on subsequent mounts (AppShell remounts on every navigation — see
-// ActiveNoticesPopup.tsx's note on that — so this runs its effect often, but
-// navigator.serviceWorker.register() on an already-registered scope is a cheap no-op).
+// components/app-shell/ServiceWorkerRegistrar.tsx — invisible client component mounted at the root (Providers) and in
+// AppShell. Registers the service worker and, when a newer version is waiting, offers a persistent "Reload" toast.
+// It never reloads the page by itself: an open app is only refreshed when the user chooses to (see
+// lib/registerServiceWorker.ts for the full update path). The fixed toast id keeps a second mount from stacking toasts.
 'use client';
 
 import { useEffect } from 'react';
-import { registerServiceWorker } from '@/lib/registerServiceWorker';
+import { toast } from 'sonner';
+import { UPDATE_READY_EVENT, applyServiceWorkerUpdate, registerServiceWorker } from '@/lib/registerServiceWorker';
 
 export function ServiceWorkerRegistrar() {
-  useEffect(() => { registerServiceWorker(); }, []);
+  useEffect(() => {
+    registerServiceWorker();
+    const offer = () => toast('A new version of MyOffice is ready', {
+      id: 'update-ready',
+      description: 'Reload when you are ready. Nothing changes until you do.',
+      duration: Infinity,
+      action: { label: 'Reload', onClick: applyServiceWorkerUpdate },
+    });
+    window.addEventListener(UPDATE_READY_EVENT, offer);
+    return () => window.removeEventListener(UPDATE_READY_EVENT, offer);
+  }, []);
   return null;
 }

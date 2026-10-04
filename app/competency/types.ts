@@ -5,4 +5,5 @@
 
 export type SkillLevel = 0 | 1 | 2 | 3 | 4;
 
-export interface Employee { id: number; name: string; trade: string; department: string; skills: Record<string, SkillLevel>; }
+/** `id` is the first competency row's primary key (a stable React key); `employeeId` is the real employee_id every read/write must use. */
+export interface Employee { id: number; employeeId: string; name: string; trade: string; department: string; skills: Record<string, SkillLevel>; }

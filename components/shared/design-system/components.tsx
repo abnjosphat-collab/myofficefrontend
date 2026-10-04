@@ -195,8 +195,8 @@ export function CardIconButton({
       type="button"
       title={title}
       aria-label={title}
-      whileHover={disableLift ? undefined : { y: -1.5 }}
-      whileTap={{ scale: 0.88 }}
+      whileHover={undefined}
+      whileTap={undefined}
       transition={{ type: 'spring', stiffness: 420, damping: 26 }}
       className={`${dim} flex items-center justify-center rounded-lg border transition-colors duration-200 ${
         t.design === 'dallaglio'
@@ -534,7 +534,7 @@ export function GroupSection({
         type="button"
       >
         {Icon && (
-          <div className={`h-8 w-8 flex items-center justify-center shrink-0 rounded-lg group-hover:scale-105 transition-transform ${
+          <div className={`h-8 w-8 flex items-center justify-center shrink-0 rounded-lg ${
             groupHex ? '' : t.chipBg
           }`}
             style={groupHex ? { background: `${groupHex}1a` } : undefined}>

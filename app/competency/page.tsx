@@ -1,193 +1,182 @@
 // FILE: app/competency/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { GraduationCap, X, RefreshCw } from '@/components/shared/theme';
-import { useTheme, PageHero, StatTile, TYPE_WEIGHT } from '@/components/shared/theme';
+import {
+  Button, Card, DataRegion, DataTable, EmptyState, MetricGrid, MetricTile, PageHeader, Popover, PopoverContent, PopoverTrigger, Select,
+  Toolbar, cn, deriveDataStatus, isTransientStatus, type Column,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Employee, SkillLevel } from './types';
 import { useCompetencyData, updateSkillLevel, createSkillLevel } from './useCompetencyData';
 
 const SKILL_AREAS = ['SAG Mill Ops', 'Ball Mill Ops', 'Jaw Crusher', 'Compressor', 'Dewatering', 'Electrical MV', 'Slurry Pumps', 'Rigging & Lifting'];
-
 const TRADES_STATIC = ['Millwright', 'Electrician', 'Fitter', 'Instrumentation'];
-const DEPTS_STATIC = ['Milling', 'Crushing', 'Electrical', 'Dewatering', 'Compressors'];
+const LEVELS: SkillLevel[] = [0, 1, 2, 3, 4];
 
-const LEVEL_HEX: Record<SkillLevel, string> = { 0: '#94a3b8', 1: '#f43f5e', 2: '#f59e0b', 3: '#38bdf8', 4: '#34d399' };
-const LEVEL_LABEL: Record<SkillLevel, string> = { 0: 'Not Assessed', 1: 'Awareness', 2: 'Assisted', 3: 'Independent', 4: 'Trainer' };
+const LEVEL_LABEL: Record<SkillLevel, string> = { 0: 'Not assessed', 1: 'Awareness', 2: 'Assisted', 3: 'Independent', 4: 'Trainer' };
+// The digit is always visible; colour reinforces it and never carries the meaning alone.
+const LEVEL_TONE: Record<SkillLevel, string> = {
+  0: 'border-line bg-surface-muted text-ink-muted',
+  1: 'border-danger-line bg-danger-soft text-danger',
+  2: 'border-warning-line bg-warning-soft text-warning',
+  3: 'border-info-line bg-info-soft text-info',
+  4: 'border-success-line bg-success-soft text-success',
+};
 
-interface Popover { empId: number; skill: string; x: number; y: number; }
+const LevelChip = ({ level, className }: { level: SkillLevel; className?: string }) => (
+  <span aria-hidden="true" className={cn('inline-flex size-8 items-center justify-center rounded-control border font-sans text-label font-semibold tabular', LEVEL_TONE[level], className)}>
+    {level === 0 ? '–' : level}
+  </span>
+);
 
-function CompetencyContent() {
-  const t = useTheme();
-  const { employees, setEmployees, rawRows, loading, fetchEmployees } = useCompetencyData();
-  const [tradeFilter, setTradeFilter] = useState('all');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [popover, setPopover] = useState<Popover | null>(null);
+function SkillCell({ employee, skill, level, onChange }: { employee: Employee; skill: string; level: SkillLevel; onChange: (level: SkillLevel) => Promise<boolean> }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const displayed = employees.filter(e => tradeFilter === 'all' || e.trade === tradeFilter).filter(e => deptFilter === 'all' || e.department === deptFilter);
-
-  const exportColumns: DLColumn[] = [
-    { key: 'name', label: 'Employee', width: 22 },
-    { key: 'trade', label: 'Trade', width: 16 },
-    { key: 'department', label: 'Department', width: 16 },
-    ...SKILL_AREAS.map((skill, i): DLColumn => ({
-      key: `skill_${i}`,
-      label: skill,
-      width: 14,
-      format: (_v, row) => LEVEL_LABEL[((row.skills as Record<string, SkillLevel> | undefined)?.[skill] ?? 0)],
-    })),
-  ];
-  const fullyQualified = employees.filter(e => Object.values(e.skills).every(v => v >= 3)).length;
-  const needsRenewal = employees.filter(e => Object.values(e.skills).some(v => v === 1)).length;
-
-  const handleCellClick = (empId: number, skill: string, event: React.MouseEvent) => {
-    const rect = (event.target as HTMLElement).getBoundingClientRect();
-    setPopover({ empId, skill, x: rect.left + rect.width / 2, y: rect.bottom + 8 });
-  };
-
-  const setSkill = async (level: SkillLevel) => {
-    if (!popover) return;
-    const existing = rawRows.find((r: any) => r.employee_id === String(popover.empId) && (r.skill_area === popover.skill || r.equipment_type === popover.skill));
-    const emp = employees.find(e => e.id === popover.empId);
-    try {
-      if (existing) {
-        await updateSkillLevel(existing.id, level);
-      } else if (emp) {
-        await createSkillLevel(emp, popover.skill, level);
-      }
-      fetchEmployees();
-    } catch { /* ignore */ }
-    setEmployees(prev => prev.map(e => e.id === popover.empId ? { ...e, skills: { ...e.skills, [popover.skill]: level } } : e));
-    setPopover(null);
+  const choose = async (next: SkillLevel) => {
+    setSaving(true);
+    const ok = await onChange(next);
+    setSaving(false);
+    if (ok) setOpen(false);
   };
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      {popover && (
-        <>
-          <button type="button" aria-label="Dismiss skill level picker" onClick={() => setPopover(null)}
-            className="fixed inset-0 z-50 border-0 bg-transparent p-0 cursor-default appearance-none" />
-          <div className={`fixed z-50 rounded-xl p-2 ${t.glassPopover} ${t.shadow}`} style={{ left: Math.min(popover.x - 80, window.innerWidth - 200), top: popover.y }}>
-            <div className="flex items-center justify-between mb-2 px-1">
-              <span className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{popover.skill}</span>
-              <button type="button" onClick={() => setPopover(null)} className={`${t.textFaint} ${t.hoverText}`}><X className="w-3.5 h-3.5" /></button>
-            </div>
-            <div className="space-y-1">
-              {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
-                <button key={l} type="button" onClick={() => setSkill(l)} className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg ${t.hoverBg} transition-colors text-left`}>
-                  <span className="w-4 h-4 rounded flex-shrink-0" style={{ background: LEVEL_HEX[l] }} />
-                  <span className={`text-xs ${t.textMuted}`}>{l} — {LEVEL_LABEL[l]}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      <PageHero
-        icon={GraduationCap}
-        accent="violet"
-        crumbs={['Core Management', 'Competency Matrix']}
-        title="Competency Matrix"
-        description="Employee skills and equipment qualification tracking"
-        statsOpen
-        actions={
-          displayed.length > 0 && (
-            <DownloadButton
-              data={displayed as unknown as Record<string, unknown>[]}
-              columns={exportColumns}
-              filename={exportFilename('Competency_Matrix')}
-              title="Competency Matrix"
-            />
-          )
-        }
-      >
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile icon={GraduationCap} color="#86BBD8" label="Total Assessed" value={employees.length} />
-          <StatTile icon={GraduationCap} color="#34d399" label="Fully Certified" value={fullyQualified} />
-          <StatTile icon={GraduationCap} color="#f59e0b" label="Need Renewal" value={needsRenewal} />
-        </div>
-      </PageHero>
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
-        <div className="flex gap-2 flex-wrap">
-          <div>
-            <span className={`text-xs mr-2 ${t.textFaint}`}>Trade:</span>
-            {['all', ...TRADES_STATIC].map(tr => (
-              <button key={tr} type="button" onClick={() => setTradeFilter(tr)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${tradeFilter === tr ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                {tr === 'all' ? 'All' : tr}
-              </button>
-            ))}
-          </div>
-          <div>
-            <span className={`text-xs mr-2 ${t.textFaint}`}>Dept:</span>
-            {['all', ...DEPTS_STATIC].map(d => (
-              <button key={d} type="button" onClick={() => setDeptFilter(d)}
-                className={`mr-1 px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${deptFilter === d ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                {d === 'all' ? 'All' : d}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className={`border-b ${t.border}`}>
-              <th className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} sticky left-0 ${t.textFaint}`}>Employee</th>
-              {SKILL_AREAS.map(s => <th key={s} className={`px-3 py-3 text-center text-xs ${TYPE_WEIGHT.medium} whitespace-nowrap ${t.textFaint}`}>{s}</th>)}
-            </tr></thead>
-            <tbody className={`divide-y ${t.divide}`}>
-              {loading ? (
-                <tr><td colSpan={20} className="text-center py-10"><RefreshCw className={`h-5 w-5 animate-spin mx-auto ${t.textFaint}`} /></td></tr>
-              ) : displayed.map(emp => (
-                <tr key={emp.id} className={`${t.hoverBg} transition-colors`}>
-                  <td className="px-4 py-3 sticky left-0">
-                    <div className={`${TYPE_WEIGHT.medium} text-sm ${t.textPrimary}`}>{emp.name}</div>
-                    <div className={`text-xs ${t.textFaint}`}>{emp.trade} · {emp.department}</div>
-                  </td>
-                  {SKILL_AREAS.map(skill => {
-                    const level = emp.skills[skill] as SkillLevel ?? 0;
-                    const hex = LEVEL_HEX[level];
-                    return (
-                      <td key={skill} className="px-3 py-3 text-center">
-                        <button type="button" title={`${emp.name} — ${skill}: ${LEVEL_LABEL[level]}. Click to edit.`} onClick={e => handleCellClick(emp.id, skill, e)}
-                          className="w-8 h-8 rounded-lg hover:ring-2 hover:ring-brand-400/40 transition-all mx-auto flex items-center justify-center" style={{ background: `${hex}${level === 0 ? '20' : 'cc'}` }}>
-                          {level > 0 && <span className={`text-[10px] ${TYPE_WEIGHT.bold} text-white`}>{level}</span>}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4`}>
-        <div className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-3 ${t.textFaint}`}>Skill Level Legend</div>
-        <div className="flex flex-wrap gap-4">
-          {([0, 1, 2, 3, 4] as SkillLevel[]).map(l => (
-            <div key={l} className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded flex items-center justify-center" style={{ background: `${LEVEL_HEX[l]}${l === 0 ? '20' : 'cc'}` }}>
-                {l > 0 && <span className={`text-[10px] ${TYPE_WEIGHT.bold} text-white`}>{l}</span>}
-              </span>
-              <span className={`text-xs ${t.textMuted}`}>{l} — {LEVEL_LABEL[l]}</span>
-            </div>
+    <Popover open={open} onOpenChange={next => { if (!saving) setOpen(next); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${employee.name}, ${skill}: ${LEVEL_LABEL[level]}. Change level`}
+          title={`${LEVEL_LABEL[level]}. Click to change.`}
+          className="focus-ring touch-target rounded-control transition-shadow hover:shadow-card-hover"
+        >
+          <LevelChip level={level} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-60 p-1.5">
+        <p className="px-2 pb-1.5 pt-1 font-sans text-caption text-ink-muted">{employee.name} · {skill}</p>
+        <div role="group" aria-label="Skill level" className="flex flex-col gap-0.5">
+          {LEVELS.map(option => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={option === level}
+              disabled={saving}
+              onClick={() => choose(option)}
+              className="focus-ring flex items-center gap-3 rounded-control px-2 py-1.5 text-left font-sans text-body hover:bg-surface-muted disabled:opacity-60 aria-pressed:bg-action-soft"
+            >
+              <LevelChip level={option} className="size-7" />
+              <span className="flex-1 text-ink">{option} · {LEVEL_LABEL[option]}</span>
+            </button>
           ))}
         </div>
-        <p className={`text-xs mt-3 ${t.textFaint}`}>Click any cell to update the skill level for that employee and skill area.</p>
-      </div>
-    </main>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const exportColumns: DLColumn[] = [
+  { key: 'name', label: 'Employee', width: 22 },
+  { key: 'trade', label: 'Trade', width: 16 },
+  { key: 'department', label: 'Department', width: 16 },
+  ...SKILL_AREAS.map((skill, i): DLColumn => ({
+    key: `skill_${i}`,
+    label: skill,
+    width: 14,
+    format: (_v, row) => LEVEL_LABEL[((row.skills as Record<string, SkillLevel> | undefined)?.[skill] ?? 0)],
+  })),
+];
+
+function CompetencyContent() {
+  const { employees, setEmployees, rawRows, loading, loaded, error, errorStatus, fetchEmployees } = useCompetencyData();
+  const [tradeFilter, setTradeFilter] = useState('all');
+
+  const displayed = useMemo(
+    () => employees.filter(e => tradeFilter === 'all' || e.trade === tradeFilter),
+    [employees, tradeFilter],
+  );
+  const fullyQualified = employees.filter(e => Object.values(e.skills).every(v => v >= 3)).length;
+  const needsRenewal = employees.filter(e => Object.values(e.skills).some(v => v === 1)).length;
+
+  /** Save one level. Returns true on success. On failure nothing on screen changes and the user is told. */
+  const saveLevel = async (employee: Employee, skill: string, level: SkillLevel): Promise<boolean> => {
+    const existing = rawRows.find((r: any) => r.employee_id === employee.employeeId && (r.skill_area === skill || r.equipment_type === skill));
+    try {
+      if (existing) await updateSkillLevel(existing.id, level);
+      else await createSkillLevel(employee, skill, level);
+    } catch (e) {
+      toast.error(`${employee.name}: ${skill} was not saved. ${e instanceof Error ? e.message : ''}`.trim());
+      return false;
+    }
+    setEmployees(prev => prev.map(e => (e.id === employee.id ? { ...e, skills: { ...e.skills, [skill]: level } } : e)));
+    fetchEmployees(); // re-sync row ids (a new row may have been created)
+    return true;
+  };
+
+  const columns: Column<Employee>[] = [
+    { id: 'name', header: 'Employee', sticky: true, cell: e => <span>{e.name}<span className="block text-caption font-normal text-ink-muted">{[...new Set([e.trade, e.department].filter(Boolean))].join(' · ')}</span></span> },
+    ...SKILL_AREAS.map((skill): Column<Employee> => ({
+      id: skill,
+      header: skill,
+      className: 'text-center',
+      cell: e => <SkillCell employee={e} skill={skill} level={(e.skills[skill] ?? 0) as SkillLevel} onChange={level => saveLevel(e, skill, level)} />,
+    })),
+  ];
+
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
+  const filtered = tradeFilter !== 'all';
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Core management' }, { label: 'Competency matrix' }]}
+        title="Competency matrix"
+        description="Employee skills and equipment qualification tracking."
+        actions={displayed.length > 0 && (
+          <DownloadButton data={displayed as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Competency_Matrix')} title="Competency Matrix" />
+        )}
+      />
+
+      <MetricGrid columns={3}>
+        <MetricTile label="Total assessed" icon="training" value={employees.length} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Fully certified" icon="valid" tone="success" value={fullyQualified} detail="All skills at level 3 or above" loading={pending} unavailable={unavailable} />
+        <MetricTile label="Need renewal" icon="due-soon" tone="warning" value={needsRenewal} detail="At least one skill at level 1" loading={pending} unavailable={unavailable} />
+      </MetricGrid>
+
+      <Toolbar>
+        <Select className="w-52" aria-label="Filter by trade" value={tradeFilter} onValueChange={setTradeFilter} options={[{ value: 'all', label: 'All trades' }, ...TRADES_STATIC.map(trade => ({ value: trade, label: trade }))]} />
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="the competency matrix"
+        error={error}
+        onRetry={fetchEmployees}
+        empty={filtered
+          ? <EmptyState icon="search" title="No employees match these filters" description="Try a different trade." action={<Button onClick={() => setTradeFilter('all')}>Clear filter</Button>} />
+          : <EmptyState icon="training" title="No skill assessments yet" description="Assessments appear here once competency records exist." />}
+      >
+        <DataTable caption="Competency matrix: skill level by employee" rows={displayed} columns={columns} getRowId={e => String(e.id)} density="compact" />
+      </DataRegion>
+
+      <Card padding="md">
+        <h2 className="mb-3 font-display text-title font-semibold text-ink">Skill levels</h2>
+        <ul className="flex flex-wrap gap-x-6 gap-y-2">
+          {LEVELS.map(level => (
+            <li key={level} className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><LevelChip level={level} className="size-7" />{level} · {LEVEL_LABEL[level]}</li>
+          ))}
+        </ul>
+        <p className="mt-3 font-sans text-caption text-ink-muted">Select any cell to change the skill level for that employee and skill area.</p>
+      </Card>
+    </div>
   );
 }
 
 export default function CompetencyPage() {
-  return <AppShell><CompetencyContent /></AppShell>;
+  return <AppShell migrated><CompetencyContent /></AppShell>;
 }

@@ -1,103 +1,51 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/apiClient';
-import type { Breakdown, Filters, HeatmapData } from './types';
-import { fetchBreakdowns, useBreakdownAnalytics, useBreakdownsData } from './useBreakdownsData';
+import { createBreakdown, insightQuery, updateBreakdown, useBreakdownInsights } from './useBreakdownsData';
+import { emptyForm } from './breakdownLogic';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn() } }));
+vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn(), patch: vi.fn(), post: vi.fn(), delete: vi.fn() }, ApiError: class extends Error { status = 0; } }));
 
-const filters: Filters = { status: 'all', breakdown_type: 'all', priority: 'all', department: 'all', location: 'all' };
-const analytics = (name: string) => ({ success: true, marker: name }) as unknown as HeatmapData;
-
-describe('breakdown register loading', () => {
-  beforeEach(() => vi.resetAllMocks());
-
-  it('loads every API page with the active filters before returning records', async () => {
-    const firstPage = Array.from({ length: 1000 }, (_, id) => ({ id })) as Breakdown[];
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({ data: firstPage })
-      .mockResolvedValueOnce({ data: [{ id: 1000 }] });
-
-    const records = await fetchBreakdowns({ priority: 'critical', location: 'Plant' });
-    expect(records).toHaveLength(1001);
-    expect(vi.mocked(api.get)).toHaveBeenCalledTimes(2);
-    const urls = vi.mocked(api.get).mock.calls.map(([url]) => new URL(String(url), 'http://local'));
-    expect(urls.map(url => url.searchParams.get('offset'))).toEqual(['0', '1000']);
-    expect(urls.every(url => url.searchParams.get('limit') === '1000' && url.searchParams.get('priority') === 'critical' && url.searchParams.get('location') === 'Plant')).toBe(true);
-  });
-
-  it('does not show an older register response after a filter change', async () => {
-    let resolveOld: (value: unknown) => void = () => {};
-    const loggedFilters = { ...filters, status: 'logged' };
-    const resolvedFilters = { ...filters, status: 'resolved' };
-    vi.mocked(api.get)
-      .mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }))
-      .mockResolvedValueOnce({ data: [{ id: 2 }] });
-
-    const { result, rerender } = renderHook(
-      ({ activeFilters }) => useBreakdownsData(activeFilters, '', '', false),
-      { initialProps: { activeFilters: loggedFilters } },
-    );
-    rerender({ activeFilters: resolvedFilters });
-    await waitFor(() => expect(result.current.breakdowns[0]?.id).toBe(2));
-
-    await act(async () => resolveOld({ data: [{ id: 1 }] }));
-    expect(result.current.breakdowns[0]?.id).toBe(2);
+describe('insightQuery', () => {
+  it('leaves out empty and "all" values, and never sends the "open" pseudo-status', () => {
+    expect(insightQuery({ from: '2026-09-01', department: 'all', status: 'open', priority: 'critical', location: '' })).toBe('date_from=2026-09-01&priority=critical');
+    expect(insightQuery({ status: 'resolved', type: 'electrical', machineId: 'M1' })).toBe('machine_id=M1&status=resolved&breakdown_type=electrical');
   });
 });
 
-describe('breakdown analytics loading', () => {
+describe('writes', () => {
   beforeEach(() => vi.resetAllMocks());
+  it('sends the machine ID and nature on create and edit', async () => {
+    const form = { ...emptyForm('2026-09-10'), machine_name: 'Winder', machine_id: 'W1', breakdown_nature: 'Seal leak', breakdown_description: 'Leak', artisan_name: 'Ann', location: 'Shaft' };
+    await createBreakdown(form); await updateBreakdown(7, form);
+    expect(api.post).toHaveBeenCalledWith('/api/breakdowns/', expect.objectContaining({ machine_id: 'W1', breakdown_nature: 'Seal leak' }));
+    expect(api.patch).toHaveBeenCalledWith('/api/breakdowns/7', expect.objectContaining({ breakdown_nature: 'Seal leak' }));
+  });
+});
 
-  it('shows a failed request and can retry without treating it as empty data', async () => {
-    vi.mocked(api.get)
-      .mockRejectedValueOnce(new Error('Service unavailable'))
-      .mockResolvedValueOnce(analytics('recovered'));
-
-    const { result } = renderHook(() => useBreakdownAnalytics(filters, '2026-09-01', '2026-09-27'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe('Service unavailable');
+describe('useBreakdownInsights', () => {
+  beforeEach(() => vi.resetAllMocks());
+  it('loads, reports a failure instead of an empty result, and recovers on retry', async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error('Service down')).mockResolvedValueOnce({ success: true, summary: {} });
+    const { result } = renderHook(() => useBreakdownInsights('priority=high'));
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.error).toBe('Service down'));
     expect(result.current.data).toBeNull();
-
-    act(() => result.current.retry());
-    await waitFor(() => expect(result.current.data).toEqual(analytics('recovered')));
-    expect(result.current.error).toBe('');
-    expect(vi.mocked(api.get)).toHaveBeenCalledTimes(2);
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+    expect(result.current.error).toBeNull();
   });
-
-  it('ignores an older filter response after a newer request succeeds', async () => {
-    let resolveOld: (value: HeatmapData) => void = () => {};
-    vi.mocked(api.get)
-      .mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }))
-      .mockResolvedValueOnce(analytics('current'));
-
-    const { result, rerender } = renderHook(
-      ({ status }) => useBreakdownAnalytics({ ...filters, status }, '2026-09-01', '2026-09-27'),
-      { initialProps: { status: 'logged' } },
-    );
-    rerender({ status: 'resolved' });
-    await waitFor(() => expect(result.current.data).toEqual(analytics('current')));
-
-    await act(async () => resolveOld(analytics('old')));
-    expect(result.current.data).toEqual(analytics('current'));
-    expect(result.current.loading).toBe(false);
+  it('refuses a response that says it was not successful', async () => {
+    vi.mocked(api.get).mockResolvedValue({ success: false });
+    const { result } = renderHook(() => useBreakdownInsights(''));
+    await waitFor(() => expect(result.current.error).toMatch(/unavailable/));
   });
-
-  it('ignores an older failure after the date range changes', async () => {
-    let rejectOld: (reason: Error) => void = () => {};
-    vi.mocked(api.get)
-      .mockImplementationOnce(() => new Promise((_, reject) => { rejectOld = reject; }))
-      .mockResolvedValueOnce(analytics('current'));
-
-    const { result, rerender } = renderHook(
-      ({ startDate }) => useBreakdownAnalytics(filters, startDate, '2026-09-27'),
-      { initialProps: { startDate: '2026-08-01' } },
-    );
-    rerender({ startDate: '2026-09-01' });
-    await waitFor(() => expect(result.current.data).toEqual(analytics('current')));
-
-    await act(async () => rejectOld(new Error('Old request failed')));
-    expect(result.current.error).toBe('');
-    expect(result.current.data).toEqual(analytics('current'));
+  it('starts from nothing when the filters change', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({ success: true, n: 1 }).mockImplementationOnce(() => new Promise(() => {}));
+    const { result, rerender } = renderHook(({ q }) => useBreakdownInsights(q), { initialProps: { q: 'a=1' } });
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+    rerender({ q: 'a=2' });
+    expect(result.current.data).toBeNull();
+    expect(result.current.loading).toBe(true);
   });
 });

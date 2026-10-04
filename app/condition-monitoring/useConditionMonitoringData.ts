@@ -5,8 +5,8 @@
 // (contractors.tsx-shaped).
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { useApiList } from '@/lib/useApiList';
 import type { CMReading, CMReadingAPI } from './types';
 
 export const fromCMAPI = (d: CMReadingAPI): CMReading => ({
@@ -21,16 +21,6 @@ export async function createCMReading(body: Record<string, unknown>) {
 }
 
 export function useConditionMonitoringData() {
-  const [readings, setReadings] = useState<CMReading[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchReadings = useCallback(async () => {
-    setLoading(true);
-    try { setReadings((await api.get<CMReadingAPI[]>('/api/condition-monitoring')).map(fromCMAPI)); }
-    catch { /* network error */ } finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchReadings(); }, [fetchReadings]);
-
-  return { readings, loading, fetchReadings };
+  const list = useApiList<CMReadingAPI, CMReading>('/api/condition-monitoring', fromCMAPI);
+  return { readings: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, fetchReadings: list.refetch };
 }

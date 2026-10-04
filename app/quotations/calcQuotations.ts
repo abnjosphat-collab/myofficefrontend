@@ -4,7 +4,6 @@
 // page.tsx with no test coverage at all. Per-line-item totals already went through
 // the shared components/shared/utils.ts's lineTotal (now also tested) — this is the
 // document-level roll-up on top of that.
-import type { QuotationItem } from './types';
 
 export interface QuotationTotals {
   subtotal: string;
@@ -16,7 +15,7 @@ export interface QuotationTotals {
 // Returned as formatted 2-decimal strings (not numbers) — every call site (on-screen,
 // PDF export, DOCX export) displays these directly, so the rounding happens once here
 // instead of being repeated (and potentially drifting) at each render/export site.
-export function calculateTotals(items: QuotationItem[], taxRate: number, discount: number): QuotationTotals {
+export function calculateTotals(items: { amount: number }[], taxRate: number, discount: number): QuotationTotals {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const taxAmount = (subtotal * taxRate) / 100;
   const discountAmount = (subtotal * discount) / 100;

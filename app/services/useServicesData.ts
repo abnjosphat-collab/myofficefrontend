@@ -1,15 +1,11 @@
-// app/services/useServicesData.ts — the services tracker's data-fetching layer: the
-// record CRUD calls, the OCR-extraction and attachment calls, and a hook that owns the
-// main record list's load-once cycle. Split out of page.tsx as part of the standing
-// "decompose on touch" convention. Attachment fetch/upload/delete stay separate exports
-// (like breakdowns' fetchBreakdownAnalytics) since AttachmentPanel is an independent,
-// per-record, lazily-mounted component with its own state — not part of this page-level
-// load cycle. ocrExtract consolidates two previously-duplicated call sites
-// (ExcelImportModal and OcrUploadModal both posted to the same endpoint identically).
+// app/services/useServicesData.ts — the services tracker's reads (honest load state, never a failure shown as an empty register)
+// and writes (they throw, so a dialog can show the reason and keep what was typed).
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { todayLocal } from '@/lib/dates';
+import { useApiList } from '@/lib/useApiList';
+import { useApiResource } from '@/lib/useApiResource';
 import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
 
 export function toApi(r: ServiceRecord): Record<string, unknown> {
@@ -65,8 +61,8 @@ export function emptyRecord(): ServiceRecord {
   const stores = (): StoresStage => ({ ...stage(), grv_number: '' });
   const pay    = (): PaymentStage => ({ done: false, paid_by: '', payment_date: '', payment_reference: '', comments: '' });
   return {
-    id: crypto.randomUUID(), created_at: new Date().toISOString(),
-    date: new Date().toISOString().slice(0, 10),
+    id: '', created_at: '',
+    date: todayLocal(),
     description: '', supplier: '', contact_person: '',
     requisition_number: '', invoice_number: '', order_number: '',
     amount: '', category: '', general_comments: '',
@@ -75,70 +71,19 @@ export function emptyRecord(): ServiceRecord {
   };
 }
 
-export async function fetchServices(): Promise<ServiceRecord[]> {
-  const data = await api.get<Record<string, unknown>[]>('/api/services');
-  if (!Array.isArray(data)) throw new Error('The services register returned an invalid response.');
-  return data.map(fromApi);
-}
-export async function createService(r: ServiceRecord): Promise<ServiceRecord> {
-  return fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(r)));
-}
-export async function updateService(r: ServiceRecord): Promise<ServiceRecord> {
-  return fromApi(await api.put<Record<string, unknown>>(`/api/services/${r.id}`, toApi(r)));
-}
-export async function deleteService(id: string): Promise<void> {
-  await api.delete(`/api/services/${id}`);
-}
+/** The signature images of one job, by stage (a data URL each). Read for the open job only; the register list leaves them out. */
+export const useStageSignatures = (serviceId: string) => useApiResource<Record<string, string>>(`/api/services/${serviceId}/signatures`);
+export const saveStageSignature = async (serviceId: string, stage: string, imageData: string) => { await api.put(`/api/services/${serviceId}/signatures/${stage}`, { image_data: imageData }); };
 
-export async function fetchAttachments(serviceId: string): Promise<Attachment[]> {
-  const data = await api.get<Attachment[]>(`/api/services/${serviceId}/attachments`);
-  return Array.isArray(data) ? data : [];
-}
-export async function uploadAttachment(serviceId: string, file: File): Promise<Attachment> {
-  const fd = new FormData(); fd.append('file', file);
-  return api.post<Attachment>(`/api/services/${serviceId}/attachments`, fd);
-}
-export async function deleteAttachment(serviceId: string, attachmentId: string): Promise<void> {
-  await api.delete(`/api/services/${serviceId}/attachments/${attachmentId}`);
-}
+export const useServices = () => useApiList<Record<string, unknown>, ServiceRecord>('/api/services', fromApi);
+/** The files attached to one job. Nothing is requested until the Attachments tab is open. */
+export const useAttachments = (serviceId: string | null) => useApiList<Attachment>(`/api/services/${serviceId ?? ''}/attachments`, undefined, { enabled: serviceId !== null });
 
-export async function ocrExtract(file: File): Promise<any> {
-  const fd = new FormData(); fd.append('file', file);
-  return api.post<any>('/api/services/ocr', fd);
-}
+export const createService = async (r: ServiceRecord): Promise<ServiceRecord> => fromApi(await api.post<Record<string, unknown>>('/api/services', toApi(r)));
+export const updateService = async (r: ServiceRecord): Promise<ServiceRecord> => fromApi(await api.put<Record<string, unknown>>(`/api/services/${r.id}`, toApi(r)));
+export const deleteService = async (id: string) => { await api.delete(`/api/services/${id}`); };
 
-export function useServicesData() {
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState('');
-  const [recordsLoaded, setRecordsLoaded] = useState(false);
-  const loadedRef = useRef(false);
-  const requestIdRef = useRef(0);
+export const uploadAttachment = (serviceId: string, file: File) => { const fd = new FormData(); fd.append('file', file); return api.post<Attachment>(`/api/services/${serviceId}/attachments`, fd); };
+export const deleteAttachment = async (serviceId: string, attachmentId: string) => { await api.delete(`/api/services/${serviceId}/attachments/${attachmentId}`); };
 
-  const refresh = useCallback(async (preserve = loadedRef.current) => {
-    const requestId = ++requestIdRef.current;
-    setLoading(true);
-    try {
-      const data = await fetchServices();
-      if (requestId !== requestIdRef.current) return;
-      setRecords(data);
-      loadedRef.current = true;
-      setRecordsLoaded(true);
-      setApiError('');
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-      if (!preserve) {
-        setRecords([]);
-        loadedRef.current = false;
-        setRecordsLoaded(false);
-      }
-      setApiError(error instanceof Error ? error.message : 'Could not load services.');
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void refresh(false); }, [refresh]);
-
-  return { records, setRecords, loading, apiError, recordsLoaded, refresh };
-}
+export const ocrExtract = (file: File) => { const fd = new FormData(); fd.append('file', file); return api.post<import('./extract').OcrFields>('/api/services/ocr', fd); };

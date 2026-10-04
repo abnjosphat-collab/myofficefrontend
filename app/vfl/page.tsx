@@ -1,585 +1,403 @@
+// app/vfl/page.tsx — Visible Felt Leadership observations
 'use client';
 
-import { useState, useEffect, useMemo, ElementType } from "react";
-import {
-  Eye, Target, Plus, Trash2, AlertTriangle,
-  LayoutGrid, Table as TableIcon, RefreshCw, HardHat, Zap,
-  MessageSquare, PenTool, X,
-} from "@/components/shared/theme";
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { formatDate } from '@/lib/format';
-import { summarizeActions } from '@/lib/actionPlan';
-import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
-import { toast } from "sonner";
 import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, Button, DetailActions,
-  IconAction, ViewToggle, RecordActions,
-} from '@/components/shared/theme';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
+  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
+  Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { useEmployees } from '@/hooks/useLookups';
+import { summarizeActions } from '@/lib/actionPlan';
 import { exportFilename } from '@/lib/exportUtils';
-import type {
-  SectionType, BehaviourCategory, ObservationType, CoachingTechnique, VFLStatus, ActionStatus,
-  ActionItem, VFLReport,
-} from './types';
-import { useVFLData, createVFLReport, updateVFLReport, deleteVFLReport } from './useVFLData';
+import { formatDate } from '@/lib/format';
+import type { ActionItem, ActionStatus, BehaviourCategory, CoachingTechnique, ObservationType, SectionType, VFLReport, VFLStatus } from './types';
+import { createVFLReport, deleteVFLReport, updateVFLReport, useVFLData } from './useVFLData';
 
-// =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
-const BEHAVIOUR_CATEGORIES: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
-const OBSERVATION_TYPES: ObservationType[] = ['Safe Behaviour', 'Safe Condition', 'At Risk Behaviour', 'At Risk Condition'];
-const COACHING_TECHNIQUES: CoachingTechnique[] = ['SBR', 'CC'];
-
-const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
-const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: HardHat, Electrical: Zap };
-const BEHAVIOUR_HEX: Record<BehaviourCategory, string> = { 'Safe Behaviour': '#10b981', 'Unsafe Behaviour': '#ef4444' };
-const OBSERVATION_HEX: Record<ObservationType, string> = { 'Safe Behaviour': '#10b981', 'Safe Condition': '#34d399', 'At Risk Behaviour': '#f97316', 'At Risk Condition': '#ef4444' };
+const BEHAVIOURS: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
+const OBSERVATIONS: ObservationType[] = ['Safe Behaviour', 'Safe Condition', 'At Risk Behaviour', 'At Risk Condition'];
+const TECHNIQUES: CoachingTechnique[] = ['SBR', 'CC'];
 const COACHING_DESC: Record<CoachingTechnique, string> = { SBR: 'Situation, Behaviour, Result', CC: 'Coaching Conversation' };
-// A missing/unrecognized coachingTechnique (legacy/malformed data) otherwise
-// rendered the literal text "undefined — undefined" (found live, 2026-08-29 UI
-// audit, audit/07-ui-polish-findings.md).
-function coachingLabel(technique: CoachingTechnique | null | undefined): string {
-  if (!technique) return 'Not specified';
-  return `${technique} — ${COACHING_DESC[technique] ?? 'Unknown technique'}`;
-}
-const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
-const ACTION_HEX: Record<ActionStatus, string> = { Pending: '#f59e0b', 'In Progress': '#3b82f6', Completed: '#10b981' };
+const STATUSES: VFLStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
+const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
+const ALL = '__all__';
 
-// =============== HELPERS ===============
+const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
+const BEHAVIOUR_META: Record<BehaviourCategory, { tone: Tone; icon: IconMeaning }> = { 'Safe Behaviour': { tone: 'success', icon: 'safe' }, 'Unsafe Behaviour': { tone: 'danger', icon: 'unsafe' } };
+const OBSERVATION_META: Record<ObservationType, Tone> = { 'Safe Behaviour': 'success', 'Safe Condition': 'success', 'At Risk Behaviour': 'warning', 'At Risk Condition': 'danger' };
+const STATUS_META: Record<VFLStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
+  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
+  reviewed: { tone: 'brand', icon: 'reviewed', label: 'Reviewed' }, closed: { tone: 'success', icon: 'closed', label: 'Closed' },
+};
+const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
+const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
+
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-// A malformed (but non-empty) time string doesn't throw here — new Date() on a bad
-// string is a valid Date OBJECT, just an invalid one, and toLocaleTimeString()
-// returns the literal string "Invalid Date" rather than throwing (found live on
-// near_miss.tsx's identical pattern, 2026-08-29 UI audit,
-// audit/07-ui-polish-findings.md — hardened here too for the same edge case).
+// A malformed but non-empty time is a valid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {
   if (!s) return '';
-  try {
-    const d = new Date(`2000-01-01T${s}`);
-    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  } catch { return ''; }
+  const d = new Date(`2000-01-01T${s}`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
 const newId = () => Math.random().toString(36).slice(2, 11);
+// A missing or unrecognised technique used to render "undefined — undefined".
+const coachingLabel = (t: CoachingTechnique | null | undefined) => (!t ? 'Not specified' : `${t} · ${COACHING_DESC[t] ?? 'Unknown technique'}`);
 
-const defaultForm = (): Partial<VFLReport> => ({
-  observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering',
-  date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-  behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour', description: '',
-  coachingTechnique: 'SBR', actions: [], status: 'draft',
+const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>; };
+const BehaviourBadge = ({ value }: { value: BehaviourCategory }) => { const m = BEHAVIOUR_META[value]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{value}</StatusBadge>; };
+const StatusTag = ({ status }: { status: VFLStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
+const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
+
+type Form = Pick<VFLReport, 'observerName' | 'designation' | 'sectionChoice' | 'departmentSection' | 'date' | 'time' | 'behaviourCategory' | 'observationType' | 'description' | 'coachingTechnique' | 'actions' | 'status'>;
+const emptyForm = (): Form => ({
+  observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering', date: new Date().toISOString().slice(0, 10),
+  time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour',
+  description: '', coachingTechnique: 'SBR', actions: [], status: 'draft',
 });
 
-// =============== ACTION ITEM CARD ===============
-function ActionItemCard({ item, index, onChange, onRemove }: { item: ActionItem; index: number; onChange: (id: string, field: keyof ActionItem, value: string) => void; onRemove: (id: string) => void; }) {
-  const t = useTheme();
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
+function ActionFields({ item, index, touched, onChange, onRemove }: { item: ActionItem; index: number; touched: boolean; onChange: (id: string, patch: Partial<ActionItem>) => void; onRemove: (id: string) => void }) {
+  const n = index + 1;
+  const err = (bad: boolean, text: string) => (touched && bad ? text : undefined);
   return (
-    <div className={`${t.chipBg} rounded-xl p-3.5`}>
-      <div className="flex justify-between items-center mb-2.5">
-        <span className={`text-[11px] ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)} uppercase tracking-wide`}>Action #{index + 1}</span>
-        {t.design === 'dallaglio'
-          ? <IconAction meaning="danger" title="Remove action" tone="danger" onClick={() => onRemove(item.id)} />
-          : <button type="button" onClick={() => onRemove(item.id)} title="Remove action" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>}
+    <fieldset className="flex flex-col gap-3 rounded-card border border-line p-4">
+      <legend className="px-1 font-sans text-label font-medium text-ink">Action {n}</legend>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field label="Status"><Select aria-label={`Action ${n} status`} value={item.status} options={ACTION_STATUSES.map(s => ({ value: s, label: s }))} onValueChange={v => onChange(item.id, { status: v as ActionStatus })} /></Field>
+        </div>
+        <IconButton icon="delete" variant="danger" label={`Remove action ${n}`} onClick={() => onRemove(item.id)} />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2"><FormField label="Action Description" required><input className={inputCls} value={item.action} placeholder="Describe the action..." aria-label="Action description" onChange={e => onChange(item.id, 'action', e.target.value)} /></FormField></div>
-        <FormField label="Responsible Person" required><input className={inputCls} value={item.responsible} placeholder="Full name" aria-label="Responsible person" onChange={e => onChange(item.id, 'responsible', e.target.value)} /></FormField>
-        <FormField label="Target Date" required><input type="date" className={inputCls} value={item.targetDate} title="Target date" aria-label="Target date" onChange={e => onChange(item.id, 'targetDate', e.target.value)} /></FormField>
-        <FormField label="Status">
-          <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
-            options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
-        </FormField>
-        {item.status === 'Completed' && <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>}
-        <div className="col-span-2"><FormField label="Remarks (Optional)"><textarea className={`${inputCls} resize-none`} style={{ minHeight: 48 }} value={item.remarks || ''} placeholder="Additional notes..." aria-label="Remarks" onChange={e => onChange(item.id, 'remarks', e.target.value)} /></FormField></div>
+      <Field label={`Action description (action ${n})`} required error={err(!item.action.trim(), 'Describe the action.')}><Input value={item.action} onChange={e => onChange(item.id, { action: e.target.value })} placeholder="Describe the action" /></Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={`Responsible person (action ${n})`} required error={err(!item.responsible.trim(), 'Enter who is responsible.')}><Input value={item.responsible} onChange={e => onChange(item.id, { responsible: e.target.value })} placeholder="Full name" /></Field>
+        <Field label={`Target date (action ${n})`} required error={err(!item.targetDate, 'Enter the target date.')}><Input type="date" value={item.targetDate} onChange={e => onChange(item.id, { targetDate: e.target.value })} /></Field>
+        {item.status === 'Completed' && <Field label={`Completed date (action ${n})`} optional><Input type="date" value={item.completedDate || ''} onChange={e => onChange(item.id, { completedDate: e.target.value })} /></Field>}
       </div>
-    </div>
+      <Field label={`Remarks (action ${n})`} optional><Textarea rows={2} value={item.remarks || ''} onChange={e => onChange(item.id, { remarks: e.target.value })} placeholder="Additional notes" /></Field>
+    </fieldset>
   );
 }
 
-// =============== VFL CARD (Grid) ===============
-function VFLCard({ report, index, onView, onEdit, onDelete }: { report: VFLReport; index: number; onView: (r: VFLReport) => void; onEdit: (r: VFLReport) => void; onDelete: (id: string) => void; }) {
-  const t = useTheme();
-  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
-  // otherwise makes SectionIcon undefined and crashes the page — same bug class
-  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
-  // audit/07-ui-polish-findings.md).
-  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
-  const bColor = BEHAVIOUR_HEX[report.behaviourCategory] ?? STATUS_TONE.neutral;
-  const sColor = SECTION_HEX[report.sectionChoice] ?? STATUS_TONE.neutral;
-  const cardColor = t.design === 'dallaglio' ? STATUS_TONE.neutral : sColor;
-  const progress = summarizeActions(report.actions);
+function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: VFLReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const employees = useEmployees();
+  const [form, setForm] = useState<Form>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(report?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
+      setForm(report ? { ...emptyForm(), ...report, actions: report.actions || [] } : emptyForm());
+    }
+  }
+  const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
+  const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), designation: e.designation, department: e.department })), [employees]);
+  const setObserver = (name: string) => {
+    const m = people.find(p => p.name === name);
+    setForm(p => ({ ...p, observerName: name, designation: m?.designation || p.designation, departmentSection: m?.department || p.departmentSection }));
+  };
+  const updateAction = (id: string, patch: Partial<ActionItem>) => set({ actions: form.actions.map(a => (a.id === id ? { ...a, ...patch } : a)) });
 
-  return (
-    <GlowCard onClick={() => onView(report)} color={cardColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      <div className="px-4 pt-3.5 pb-3">
-        <div className="flex justify-between items-start mb-2.5">
-          <div className="flex items-center gap-2.5">
-            <SectionIcon className={`h-5 w-5 shrink-0 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: sColor }} />
-            <div><div className={`text-[11px] mb-0.5 ${t.textFaint}`}>VFL #{index + 1}</div><div className={`${TYPE_WEIGHT.bold} text-[15px] ${t.textPrimary}`}>{report.observerName}</div></div>
-          </div>
-          <div className="flex flex-col gap-1 items-end"><StatusBadge color={sColor} label={report.sectionChoice} kind="category" /><StatusBadge color={bColor} label={report.behaviourCategory} /></div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-          {[report.designation || 'No designation', fmtDate(report.date), fmtTime(report.time), report.observationType].map((label, i) => (
-            <div key={i} className={`text-[11px] px-2 py-1 rounded ${t.chipBg} ${t.textFaint}`}>{label}</div>
-          ))}
-        </div>
-
-        <div className={`text-xs mb-2.5 leading-relaxed line-clamp-2 ${t.textMuted}`}>{report.description || 'No description recorded.'}</div>
-
-        {progress.total > 0 && (
-          <div className="mb-2.5">
-            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{progress.pct}%</span></div>
-            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
-            <div className="flex gap-1.5 mt-1.5"><StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} /><StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} /><StatusBadge color="#10b981" label={`${progress.completed} Done`} /></div>
-          </div>
-        )}
-
-        <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
-          <StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} kind="category" />
-          <StatusBadge color={STATUS_HEX[report.status] ?? STATUS_TONE.neutral} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
-        </div>
-
-        <div className="flex justify-end gap-1.5 mt-2.5">
-          {t.design === 'dallaglio'
-            ? <RecordActions onView={() => onView(report)} onEdit={() => onEdit(report)} onDelete={() => onDelete(report.id)} />
-            : <>
-                <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-                <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><PenTool className="h-3 w-3" /> Edit</button>
-                <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
-              </>}
-        </div>
-      </div>
-    </GlowCard>
-  );
-}
-
-// =============== DETAIL MODAL ===============
-function VFLDetailModal({ report, open, onClose, onEdit, onDelete, onStatusChange }: {
-  report: VFLReport | null; open: boolean; onClose: () => void; onEdit: (r: VFLReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, status: VFLStatus) => void;
-}) {
-  const t = useTheme();
-  if (!report) return null;
-  // ?? fallback: an unrecognized sectionChoice value (legacy/malformed data)
-  // otherwise makes SectionIcon undefined and crashes the page — same bug class
-  // found and fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
-  // audit/07-ui-polish-findings.md).
-  const SectionIcon = SECTION_ICONS[report.sectionChoice] ?? HardHat;
-  const bColor = BEHAVIOUR_HEX[report.behaviourCategory] ?? STATUS_TONE.neutral;
-  const sColor = SECTION_HEX[report.sectionChoice] ?? STATUS_TONE.neutral;
-  const oColor = OBSERVATION_HEX[report.observationType] ?? STATUS_TONE.neutral;
-  const progress = summarizeActions(report.actions);
-  const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
-
-  return (
-    <CenterModal open={open} onClose={onClose} title="Visible Felt Leadership Observation" accent="emerald" width="max-w-2xl">
-      <div className="px-5 py-4 space-y-4">
-        <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={t.design === 'dallaglio' ? undefined : { background: `${sColor}22` }}><SectionIcon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : ''}`} style={t.design === 'dallaglio' ? undefined : { color: sColor }} /></div>
-            <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{report.sectionChoice}</span>
-          </div>
-          <div className="flex gap-2 items-center">
-            <StatusBadge color={bColor} label={report.behaviourCategory} />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Change status" value={report.status} onChange={v => onStatusChange(report.id, v as VFLStatus)}
-              options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-          </div>
-        </div>
-
-        {progress.total > 0 && (
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Progress</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
-            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#3b82f6'} showValue={false} />
-            <div className="flex gap-2 mt-2"><StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} /><StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} /><StatusBadge color="#10b981" label={`${progress.completed} Completed`} /></div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-2">
-          {[{ label: 'Observer', val: report.observerName }, { label: 'Designation', val: report.designation || 'N/A' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Time', val: fmtTime(report.time) }].map(({ label, val }) => (
-            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</div></div>
-          ))}
-        </div>
-
-        {report.departmentSection && <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Department/Section</div><div className={`text-sm ${t.textMuted}`}>{report.departmentSection}</div></div>}
-
-        <div className={`${t.chipBg} rounded-xl px-3.5 py-3.5`}>
-          <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Details</div>
-          <div className="flex gap-2 mb-2.5 flex-wrap"><StatusBadge color={oColor} label={report.observationType} /><StatusBadge color="#a78bfa" label={coachingLabel(report.coachingTechnique)} kind="category" /></div>
-          <div className={`text-sm leading-relaxed whitespace-pre-wrap ${t.textMuted}`}>{report.description}</div>
-        </div>
-
-        {report.actions && report.actions.length > 0 && (
-          <div>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actions.length})</div>
-            <div className="flex flex-col gap-2">
-              {report.actions.map((action, idx) => {
-                const ac = ACTION_HEX[action.status] ?? STATUS_TONE.neutral;
-                return (
-                  <div key={action.id} className={`${t.chipBg} rounded-lg px-3 py-2.5`} style={{ borderLeft: `3px solid ${ac}` }}>
-                    <div className="flex justify-between mb-1.5"><span className={`text-[11px] ${t.textFaint}`}>Action #{idx + 1}</span><StatusBadge color={ac} label={action.status} /></div>
-                    <div className={`text-sm mb-1.5 ${t.textMuted}`}>{action.action}</div>
-                    <div className={`flex gap-4 text-[11px] ${t.textFaint}`}><span>By: {action.responsible}</span><span>Target: {fmtDate(action.targetDate)}</span>{action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}</div>
-                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-emerald-400 pl-2`}>{action.remarks}</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
-        <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-      </div>}
-    </CenterModal>
-  );
-}
-
-// =============== FORM MODAL ===============
-function VFLFormModal({ open, editing, onClose, onSave, saving }: { open: boolean; editing: VFLReport | null; onClose: () => void; onSave: (data: Partial<VFLReport>) => Promise<void>; saving: boolean; }) {
-  const t = useTheme();
-  const [tab, setTab] = useState<string>('observer');
-  const [form, setForm] = useState<Partial<VFLReport>>(defaultForm());
-
-  useEffect(() => { if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('observer'); } }, [open, editing]);
-
-  const set = (field: keyof VFLReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
-  const addAction = () => setForm(prev => ({ ...prev, actions: [...(prev.actions || []), { id: newId(), action: '', responsible: '', targetDate: '', status: 'Pending' }] }));
-  const updateAction = (id: string, field: keyof ActionItem, val: string) => setForm(prev => ({ ...prev, actions: prev.actions?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
-  const removeAction = (id: string) => setForm(prev => ({ ...prev, actions: prev.actions?.filter(a => a.id !== id) || [] }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('observer'); return; }
-    if (!form.date) { toast.error('Date is required'); setTab('observer'); return; }
-    if (!form.time) { toast.error('Time is required'); setTab('observer'); return; }
-    if (!form.description?.trim()) { toast.error('Description is required'); setTab('observation'); return; }
-    await onSave(form);
+  const actionsValid = form.actions.every(a => a.action.trim() && a.responsible.trim() && a.targetDate);
+  const submit = async () => {
+    setTouched(true);
+    if (!form.observerName.trim() || !form.date || !form.time || !form.description.trim() || !actionsValid) return false;
+    if (report) await updateVFLReport(report.id, { ...form, updated_at: new Date().toISOString() });
+    // A new observation is always recorded as submitted.
+    else await createVFLReport({ ...form, status: 'submitted', submitted_at: new Date().toISOString() });
+    toast.success(report ? 'VFL observation updated.' : 'VFL observation recorded.');
+    onSaved();
   };
 
-  const tabs = [{ id: 'observer', label: 'Observer Info' }, { id: 'observation', label: 'Observation' }, { id: 'actions', label: 'Action Plan' }];
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
-  const radioLabelCls = `flex items-center gap-1.5 text-sm cursor-pointer ${t.textMuted}`;
-
   return (
-    <CenterModal open={open} onClose={onClose} title={editing ? 'Edit VFL Observation' : 'New VFL Observation'} accent="emerald" width="max-w-2xl">
-      <UnderlineTabs tabs={tabs} value={tab} onChange={setTab} accent="emerald" />
-
-      <form onSubmit={handleSubmit} className="p-5 space-y-4">
-        {tab === 'observer' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2"><FormField label="Observer's Name" required><EmployeeNameInput value={form.observerName || ''} onChange={(name, emp) => { set('observerName', name); if (emp?.designation) set('designation', emp.designation); if (emp?.department) set('departmentSection', emp.department); }} placeholder="Select or type observer name…" /></FormField></div>
-            <FormField label="Designation"><PredictiveInput historyKey="vfl_designation" value={form.designation || ''} onChange={v => set('designation', v)} placeholder="Job title" hints={['Safety Officer', 'Supervisor', 'Foreman', 'Engineer', 'Technician', 'SHEQ Manager', 'Shift Boss']} /></FormField>
-            <FormField label="Section" required>
-              <SelectField size="form" value={form.sectionChoice || 'Mechanical'} title="Section" onChange={v => set('sectionChoice', v as SectionType)}
-                options={SECTIONS.map(s => ({ value: s, label: s }))} />
-            </FormField>
-            <div className="col-span-2"><FormField label="Department/Section"><PredictiveInput historyKey="vfl_department" value={form.departmentSection || ''} onChange={v => set('departmentSection', v)} placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations']} /></FormField></div>
-            <FormField label="Date" required><input type="date" className={inputCls} value={form.date || ''} title="Observation date" aria-label="Observation date" onChange={e => set('date', e.target.value)} /></FormField>
-            <FormField label="Time" required><input type="time" className={inputCls} value={form.time || ''} title="Observation time" aria-label="Observation time" onChange={e => set('time', e.target.value)} /></FormField>
-            <FormField label="Status">
-              <SelectField size="form" value={form.status || 'draft'} title="Status" onChange={v => set('status', v as VFLStatus)}
-                options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-            </FormField>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit VFL observation' : 'New VFL observation'} description="Observer, date, time and a description are required." submitLabel={report ? 'Save changes' : 'Save observation'} onSubmit={submit} size="lg">
+      <div className="flex flex-col gap-5">
+        <section aria-labelledby="vfl-observer" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <h3 id="vfl-observer" className="font-display text-section font-semibold text-ink sm:col-span-2">Observer</h3>
+          <div className="sm:col-span-2">
+            <Field label="Observer's name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}>
+              <Input list="vfl-people" value={form.observerName} onChange={e => setObserver(e.target.value)} autoComplete="off" placeholder="Select or type the observer's name" />
+              <datalist id="vfl-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+            </Field>
           </div>
-        )}
+          <Field label="Designation" optional><SuggestField historyKey="vfl_designation" placeholder="Job title" value={form.designation} onChange={v => set({ designation: v })} /></Field>
+          <Field label="Section"><Select aria-label="Section" value={form.sectionChoice} onValueChange={v => set({ sectionChoice: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          <div className="sm:col-span-2"><Field label="Department or section" optional><SuggestField historyKey="vfl_department" placeholder="For example, Engineering" value={form.departmentSection} onChange={v => set({ departmentSection: v })} /></Field></div>
+          <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
+          <Field label="Time" required error={touched && !form.time ? 'Enter the time.' : undefined}><Input type="time" value={form.time} onChange={e => set({ time: e.target.value })} /></Field>
+          {report && <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v as VFLStatus })} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field>}
+        </section>
 
-        {tab === 'observation' && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Behaviour Category *</div>
-              <div className="flex gap-4 flex-wrap">
-                {BEHAVIOUR_CATEGORIES.map(cat => (
-                  <label key={cat} htmlFor={`behaviour-cat-${cat}`} className={radioLabelCls}><input id={`behaviour-cat-${cat}`} type="radio" style={{ accentColor: '#10b981' }} name="behaviourCat" value={cat} aria-label={cat} checked={form.behaviourCategory === cat} onChange={() => set('behaviourCategory', cat)} /><span className={`${TYPE_WEIGHT.semibold}`} style={{ color: BEHAVIOUR_HEX[cat] }}>{cat}</span></label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className={`text-xs ${TYPE_WEIGHT.medium} mb-2 ${t.textFaint}`}>Observation Type *</div>
-              <div className="flex flex-col gap-2">
-                {OBSERVATION_TYPES.map(type => (
-                  <label key={type} htmlFor={`obs-type-${type}`} className={radioLabelCls}><input id={`obs-type-${type}`} type="radio" style={{ accentColor: '#10b981' }} name="obsType" value={type} aria-label={type} checked={form.observationType === type} onChange={() => set('observationType', type)} /><span style={{ color: OBSERVATION_HEX[type] }}>{type}</span></label>
-                ))}
-              </div>
-            </div>
-            <FormField label="Description" required><textarea className={`${inputCls} resize-none`} style={{ minHeight: 100 }} value={form.description || ''} placeholder="Relate details of the observation..." aria-label="Description" onChange={e => set('description', e.target.value)} /></FormField>
-            <div className={`${t.chipBg} rounded-xl p-3.5`}>
-              <div className={`flex items-center gap-1.5 text-xs ${TYPE_WEIGHT.medium} mb-2.5 ${t.textFaint}`}><MessageSquare className="h-3.5 w-3.5" /> Coaching Technique Used *</div>
-              <div className="flex gap-4 flex-wrap">
-                {COACHING_TECHNIQUES.map(tech => (
-                  <label key={tech} htmlFor={`coaching-${tech}`} className={radioLabelCls}><input id={`coaching-${tech}`} type="radio" style={{ accentColor: '#10b981' }} name="coaching" value={tech} aria-label={tech} checked={form.coachingTechnique === tech} onChange={() => set('coachingTechnique', tech)} /><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{tech}</span><span className={`text-[11px] ${t.textFaint}`}>({COACHING_DESC[tech]})</span></label>
-                ))}
-              </div>
-            </div>
+        <section aria-labelledby="vfl-observation" className="flex flex-col gap-4">
+          <h3 id="vfl-observation" className="font-display text-section font-semibold text-ink">Observation</h3>
+          <div><p className="mb-1.5 font-sans text-label font-medium text-ink">Behaviour category</p><Segmented label="Behaviour category" value={form.behaviourCategory} onValueChange={v => set({ behaviourCategory: v })} options={BEHAVIOURS.map(b => ({ value: b, label: b }))} /></div>
+          <div><p className="mb-1.5 font-sans text-label font-medium text-ink">Observation type</p><Segmented label="Observation type" value={form.observationType} onValueChange={v => set({ observationType: v })} options={OBSERVATIONS.map(o => ({ value: o, label: o }))} /></div>
+          <Field label="Description" required error={touched && !form.description.trim() ? 'Describe the observation.' : undefined}><Textarea rows={4} value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Relate the details of the observation" /></Field>
+          <div><p className="mb-1.5 font-sans text-label font-medium text-ink">Coaching technique used</p><Segmented label="Coaching technique" value={form.coachingTechnique} onValueChange={v => set({ coachingTechnique: v })} options={TECHNIQUES.map(t => ({ value: t, label: `${t} (${COACHING_DESC[t]})` }))} /></div>
+        </section>
+
+        <section aria-labelledby="vfl-actions" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 id="vfl-actions" className="font-display text-section font-semibold text-ink">Actions to rectify or reinforce ({form.actions.length})</h3><p className="font-sans text-caption text-ink-muted">Define actions to address or reinforce behaviours.</p></div>
+            <Button size="sm" icon="plus" onClick={() => set({ actions: [...form.actions, { id: newId(), action: '', responsible: '', targetDate: '', status: 'Pending' }] })}>Add action</Button>
           </div>
-        )}
-
-        {tab === 'actions' && (
-          <div>
-            <div className="flex justify-between items-center mb-3.5">
-              <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Actions to Rectify / Reinforce</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define actions to address or reinforce behaviours.</div></div>
-              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addAction}>Add Action</Button>
-            </div>
-            {(form.actions || []).length === 0 ? (
-              <div className={`text-center py-8 ${t.textFaint}`}><Target className="h-9 w-9 mx-auto mb-2" /><div className="text-sm">No actions added yet.</div><Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" className="mt-2.5" onClick={addAction}>Add First Action</Button></div>
-            ) : (
-              <div className="flex flex-col gap-2.5">{(form.actions || []).map((item, idx) => <ActionItemCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />)}</div>
-            )}
-            <div className={`mt-3.5 text-right text-[10px] italic uppercase tracking-wide ${t.textFaint}`}>Observer Signature Required on Printout</div>
-          </div>
-        )}
-
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update VFL' : 'Save VFL'} accent="emerald" />
-      </form>
-    </CenterModal>
+          {form.actions.length === 0
+            ? <p className="font-sans text-body-sm text-ink-muted">No actions yet.</p>
+            : form.actions.map((a, i) => <ActionFields key={a.id} item={a} index={i} touched={touched} onChange={updateAction} onRemove={id => set({ actions: form.actions.filter(x => x.id !== id) })} />)}
+          <p className="text-right font-sans text-caption italic text-ink-muted">Observer signature is required on the printout.</p>
+        </section>
+      </div>
+    </FormDialog>
   );
 }
 
-// =============== MAIN PAGE ===============
-function VFLObservationContent() {
-  const t = useTheme();
-  const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, refreshing, loadError, loadData } = useVFLData();
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
+}
 
-  const [selectedReport, setSelectedReport] = useState<VFLReport | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<VFLReport | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { report: VFLReport | null; onClose: () => void; onEdit: (r: VFLReport) => void; onDelete: (r: VFLReport) => void; onStatusChange: (id: string, status: VFLStatus) => void }) {
+  const progress = summarizeActions(report?.actions);
+  return (
+    <Dialog
+      open={!!report}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title="Visible felt leadership observation"
+      description={report ? `${report.observerName}, ${fmtDate(report.date)}` : undefined}
+      size="lg"
+      footer={report && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
+        </>
+      )}
+    >
+      {report && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap gap-2"><SectionBadge section={report.sectionChoice} /><BehaviourBadge value={report.behaviourCategory} /><StatusTag status={report.status} /></div>
+            <div className="w-44"><Field label="Change status"><Select aria-label="Change status" value={report.status} onValueChange={v => onStatusChange(report.id, v as VFLStatus)} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field></div>
+          </div>
+          {progress.total > 0 && (
+            <div>
+              <p className="mb-1 font-sans text-caption text-ink-muted">Action progress: {progress.completed} of {progress.total} completed · {progress.inProgress} in progress · {progress.pending} pending</p>
+              <Progress value={progress.pct} label="Action progress" />
+            </div>
+          )}
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Fact label="Observer">{report.observerName}</Fact>
+            <Fact label="Designation">{report.designation || 'Not specified'}</Fact>
+            <Fact label="Date">{fmtDate(report.date)}</Fact>
+            <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
+            <Fact label="Department or section">{report.departmentSection || 'Not specified'}</Fact>
+            <Fact label="Coaching technique">{coachingLabel(report.coachingTechnique)}</Fact>
+          </dl>
+          <div>
+            <h3 className="font-sans text-caption text-ink-muted">Observation</h3>
+            <p className="mt-1.5"><StatusBadge tone={OBSERVATION_META[report.observationType] ?? 'neutral'}>{report.observationType}</StatusBadge></p>
+            <p className="mt-2 whitespace-pre-wrap font-sans text-body text-ink">{report.description || 'No description recorded.'}</p>
+          </div>
+          {report.actions?.length > 0 && (
+            <section aria-labelledby="vfl-detail-actions">
+              <h3 id="vfl-detail-actions" className="mb-2 font-sans text-caption text-ink-muted">Action plan ({report.actions.length})</h3>
+              <ol className="flex flex-col gap-2">
+                {report.actions.map((a, i) => (
+                  <li key={a.id} className="rounded-card border border-line p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-sans text-body font-medium text-ink">{i + 1}. {a.action}</p><ActionBadge status={a.status} /></div>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.responsible} · target {fmtDate(a.targetDate)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+        </div>
+      )}
+    </Dialog>
+  );
+}
 
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'observerName', label: 'Observer', width: 18 },
+  { key: 'designation', label: 'Designation', width: 18 },
+  { key: 'sectionChoice', label: 'Section', width: 14 },
+  { key: 'behaviourCategory', label: 'Behaviour', width: 16 },
+  { key: 'coachingTechnique', label: 'Coaching', width: 12 },
+  { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+  { key: 'departmentSection', label: 'Dept/Section', width: 18 },
+  { key: 'description', label: 'Description', width: 30 },
+];
+
+function VFLContent() {
+  const confirm = useConfirm();
+  const { reports, setReports, loading, loaded, error, errorStatus, refetch } = useVFLData();
+  const [view, setView] = useViewPreference('vfl', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [behaviourFilter, setBehaviourFilter] = useState('all');
+  const [sectionF, setSectionF] = useState(ALL);
+  const [statusF, setStatusF] = useState(ALL);
+  const [behaviourF, setBehaviourF] = useState<string>(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<VFLReport | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  // Derived from the list so an optimistic status change shows in the open dialog.
+  const viewing = useMemo(() => reports.find(r => r.id === viewingId) ?? null, [reports, viewingId]);
 
-  useEffect(() => { loadData(); }, []);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return reports.filter(r => {
+      if (q && ![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q)) && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
+      return (sectionF === ALL || r.sectionChoice === sectionF) && (statusF === ALL || r.status === statusF) && (behaviourF === ALL || r.behaviourCategory === behaviourF)
+        && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo);
+    });
+  }, [reports, search, sectionF, statusF, behaviourF, dateFrom, dateTo]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof VFLReport] ?? '').toLowerCase()), [filtered, sort]);
+  const count = (s: VFLStatus) => reports.filter(r => r.status === s).length;
+  const totalActions = reports.reduce((n, r) => n + (r.actions?.length || 0), 0);
+  const safe = reports.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
+  const unsafe = reports.filter(r => r.behaviourCategory === 'Unsafe Behaviour').length;
 
-  const handleSave = async (form: Partial<VFLReport>) => {
-    setSaving(true);
-    try {
-      if (editing) {
-        const updated = await updateVFLReport(editing.id, { ...form, updated_at: new Date().toISOString() });
-        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
-        toast.success('VFL observation updated');
-      } else {
-        const created = await createVFLReport({ ...form, status: 'submitted', submitted_at: new Date().toISOString() });
-        setReports(prev => [created, ...prev]);
-        toast.success('VFL observation recorded');
-      }
-      setFormOpen(false); setEditing(null);
-    } catch { toast.error('Failed to save VFL report'); }
-    finally { setSaving(false); }
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || sectionF !== ALL || statusF !== ALL || behaviourF !== ALL || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(''); setSectionF(ALL); setStatusF(ALL); setBehaviourF(ALL); setDateFrom(''); setDateTo(''); };
+  const tile = (s: string) => ({ selected: statusF === s, onClick: () => setStatusF(statusF === s ? ALL : s) });
+
+  const openEditor = (r?: VFLReport) => { setViewingId(null); setEditing(r); setDialogOpen(true); };
+  const remove = async (r: VFLReport) => {
+    if (!await confirm({ title: 'Delete this VFL observation?', message: `${r.observerName}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteVFLReport(r.id); setViewingId(null); toast.success('VFL observation deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+  };
+  const changeStatus = async (id: string, next: VFLStatus) => {
+    const before = reports.find(r => r.id === id);
+    if (!before) return;
+    setReports(ps => ps.map(r => (r.id === id ? { ...r, status: next } : r)));
+    try { await updateVFLReport(id, { status: next }); toast.success(`Status changed to ${STATUS_META[next].label.toLowerCase()}.`); }
+    catch (e) { setReports(ps => ps.map(r => (r.id === id ? before : r))); toast.error(`Status was not changed: ${(e as Error).message}`); }
   };
 
-  const handleEdit = (r: VFLReport) => { setEditing(r); setFormOpen(true); };
-
-  const handleDelete = async (id: string) => {
-    try { await deleteVFLReport(id); setReports(prev => prev.filter(r => r.id !== id)); toast.success('VFL report deleted'); setDeleteTarget(null); }
-    catch { toast.error('Failed to delete report'); }
-  };
-
-  const handleStatusChange = async (id: string, status: VFLStatus) => {
-    const prev = reports.find(r => r.id === id);
-    if (!prev) return;
-    setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
-    try { await updateVFLReport(id, { status }); toast.success(`Status updated to ${status}`); }
-    catch { setReports(ps => ps.map(r => r.id === id ? prev : r)); toast.error('Failed to update status'); }
-  };
-
-  const clearFilters = () => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setBehaviourFilter('all'); setDateFrom(''); setDateTo(''); };
-
-  const filtered = useMemo(() => reports.filter(r => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q)) && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
-    }
-    if (sectionFilter !== 'all' && r.sectionChoice !== sectionFilter) return false;
-    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-    if (behaviourFilter !== 'all' && r.behaviourCategory !== behaviourFilter) return false;
-    if (dateFrom && r.date < dateFrom) return false;
-    if (dateTo && r.date > dateTo) return false;
-    return true;
-  }), [reports, search, sectionFilter, statusFilter, behaviourFilter, dateFrom, dateTo]);
-
-  const exportColumns: DLColumn[] = [
-    { key: 'date', label: 'Date', width: 14, format: v => v ? fmtDate(v as string) : '' },
-    { key: 'observerName', label: 'Observer', width: 18 },
-    { key: 'designation', label: 'Designation', width: 18 },
-    { key: 'sectionChoice', label: 'Section', width: 14 },
-    { key: 'behaviourCategory', label: 'Behaviour', width: 16 },
-    { key: 'coachingTechnique', label: 'Coaching', width: 12 },
-    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
-    { key: 'departmentSection', label: 'Dept/Section', width: 18 },
-    { key: 'description', label: 'Description', width: 30 },
+  const COLUMNS: Column<VFLReport>[] = [
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'observerName', header: 'Observer', sortable: true, cell: r => r.observerName },
+    { id: 'designation', header: 'Designation', sortable: true, hideBelow: 'lg', cell: r => r.designation || <span className="text-ink-muted">Not specified</span> },
+    { id: 'sectionChoice', header: 'Section', sortable: true, hideBelow: 'md', cell: r => <SectionBadge section={r.sectionChoice} /> },
+    { id: 'behaviourCategory', header: 'Behaviour', sortable: true, cell: r => <BehaviourBadge value={r.behaviourCategory} /> },
+    { id: 'coachingTechnique', header: 'Coaching', hideBelow: 'lg', cell: r => r.coachingTechnique || <span className="text-ink-muted">Not specified</span> },
+    { id: 'status', header: 'Status', sortable: true, cell: r => <StatusTag status={r.status} /> },
   ];
 
-  const total = reports.length;
-  const drafts = reports.filter(r => r.status === 'draft').length;
-  const submitted = reports.filter(r => r.status === 'submitted').length;
-  const reviewed = reports.filter(r => r.status === 'reviewed').length;
-  const closed = reports.filter(r => r.status === 'closed').length;
-  const unsafe = reports.filter(r => r.behaviourCategory === 'Unsafe Behaviour').length;
-  const safe = reports.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
-  const totalActions = reports.reduce((acc, r) => acc + (r.actions?.length || 0), 0);
-
-  const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || behaviourFilter !== 'all' || dateFrom || dateTo);
-  const registerUnavailable = loading || (!!loadError && reports.length === 0);
-  const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
-
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Eye}
-        accent="violet"
-        crumbs={['Safety & Compliance', 'Visible Felt Leadership']}
-        title="Visible Felt Leadership"
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Visible felt leadership' }]}
+        title="Visible felt leadership"
         description="Safety observations and coaching tracking."
-        statsOpen={sections.expanded.hero}
-        actions={
+        actions={(
           <>
-            {t.design === 'dallaglio'
-              ? <IconAction meaning="refresh" title="Refresh" spinning={refreshing} onClick={() => loadData(true)} />
-              : <button type="button" onClick={() => loadData(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
+            <IconButton icon="refresh" label="Refresh observations" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('VFL_Observations')}
                 title="Visible Felt Leadership"
                 statusColumn="status"
                 statusColor={(_v, row) => STATUS_HEX[row.status as VFLStatus]?.replace('#', '')}
               />
             )}
-            {t.design === 'dallaglio'
-              ? <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: TableIcon, label: 'Table view' }]} />
-              : <>
-                  <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? `bg-emerald-500/20 ${accentText('emerald', t.light)}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
-                </>}
-            <PrimaryButton icon={Plus} accent="emerald" disabled={registerUnavailable} onClick={() => { setEditing(null); setFormOpen(true); }}>New VFL</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>
           </>
-        }
+        )}
+      />
+
+      <MetricGrid columns={5}>
+        <MetricTile label="Total" icon="eye" value={reports.length} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Draft" icon="draft" value={count('draft')} loading={pending} unavailable={unavailable} {...tile('draft')} />
+        <MetricTile label="Submitted" icon="submitted" value={count('submitted')} loading={pending} unavailable={unavailable} {...tile('submitted')} />
+        <MetricTile label="Reviewed" icon="reviewed" value={count('reviewed')} loading={pending} unavailable={unavailable} {...tile('reviewed')} />
+        <MetricTile label="Closed" icon="closed" tone="success" value={count('closed')} loading={pending} unavailable={unavailable} {...tile('closed')} />
+      </MetricGrid>
+
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, description or actions" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        <Segmented label="Behaviour" value={behaviourF} onValueChange={setBehaviourF} options={[{ value: ALL, label: 'All' }, { value: 'Safe Behaviour', label: `Safe (${safe})` }, { value: 'Unsafe Behaviour', label: `Unsafe (${unsafe})` }]} />
+        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="VFL observations"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} />}
       >
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={Eye} color="#10b981" label="Total" value={registerUnavailable ? '—' : total} />
-          <StatTile icon={Eye} color="#94a3b8" label="Draft" value={registerUnavailable ? '—' : drafts} />
-          <StatTile icon={Eye} color={ACCENT_HEX.blue} label="Submitted" value={registerUnavailable ? '—' : submitted} />
-          <StatTile icon={Eye} color="#a78bfa" label="Reviewed" value={registerUnavailable ? '—' : reviewed} />
-          <StatTile icon={Eye} color="#10b981" label="Closed" value={registerUnavailable ? '—' : closed} />
-          <StatTile icon={AlertTriangle} color="#ef4444" label="Unsafe" value={registerUnavailable ? '—' : unsafe} />
-          <StatTile icon={Eye} color="#34d399" label="Safe" value={registerUnavailable ? '—' : safe} />
-          <StatTile icon={Target} color="#60a5fa" label="Actions" value={registerUnavailable ? '—' : totalActions} />
-        </div>
-      </PageHero>
-
-      {loadError && (
-        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
-          <AlertTriangle className={`h-5 w-5 shrink-0 ${accentText('rose', t.light)}`} />
-          <div className="min-w-0 flex-1">
-            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load VFL reports</p>
-            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => loadData()}>Try again</Button>
-        </div>
-      )}
-
-      {sections.expanded.records && <>
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, description, actions..." className="w-full sm:w-72" />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter} options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Status" value={statusFilter} onChange={setStatusFilter} options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Behaviour" value={behaviourFilter} onChange={setBehaviourFilter} options={[{ value: 'all', label: 'All Behaviour' }, { value: 'Safe Behaviour', label: 'Safe' }, { value: 'Unsafe Behaviour', label: 'Unsafe' }]} />
-            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && (t.design === 'dallaglio'
-              ? <Button variant="ghost" size="sm" icon={X} onClick={clearFilters}>Clear</Button>
-              : <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
-            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{registerUnavailable ? '—' : `${filtered.length} of ${total}`}</span>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-        ) : loadError && reports.length === 0 ? null : filtered.length === 0 ? (
-          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
-            <EmptyState icon={Eye} title="No VFL observations found" message={total === 0 ? 'Start by recording your first VFL observation.' : 'Try adjusting your filters.'}
-              action={{ label: total === 0 ? 'Create First VFL' : 'Clear Filters', onClick: total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters }} />
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-            {filtered.map((r, i) => <VFLCard key={r.id} report={r} index={i} onView={rep => { setSelectedReport(rep); setDetailOpen(true); }} onEdit={handleEdit} onDelete={id => setDeleteTarget(id)} />)}
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {totalActions} {totalActions === 1 ? 'action' : 'actions'} across all observations</p>
+        {view === 'cards' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map(r => {
+              const p = summarizeActions(r.actions);
+              return (
+                <RecordCard
+                  key={r.id}
+                  eyebrow={`${fmtDate(r.date)}${fmtTime(r.time) ? ` · ${fmtTime(r.time)}` : ''}`}
+                  title={r.observerName}
+                  subtitle={r.designation || undefined}
+                  status={<StatusTag status={r.status} />}
+                  facts={[
+                    { label: 'Section', value: <SectionBadge section={r.sectionChoice} /> },
+                    { label: 'Behaviour', value: <BehaviourBadge value={r.behaviourCategory} /> },
+                    { label: 'Observation', value: r.observationType },
+                    { label: 'What was seen', value: <span className="line-clamp-2">{r.description || 'No description recorded.'}</span> },
+                    { label: 'Coaching', value: coachingLabel(r.coachingTechnique) },
+                    ...(p.total ? [{ label: 'Actions', value: <><span className="tabular">{p.completed} of {p.total} completed</span><Progress value={p.pct} label={`${r.observerName} action progress`} className="mt-1" /></> }] : []),
+                  ]}
+                  action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete VFL observation for ${r.observerName}`} onClick={() => remove(r)} />}
+                  onOpen={() => setViewingId(r.id)}
+                  openLabel={`View VFL observation for ${r.observerName}, ${fmtDate(r.date)}`}
+                />
+              );
+            })}
           </div>
         ) : (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}><tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Designation</th><th className={thCls}>Section</th><th className={thCls}>Behaviour</th><th className={thCls}>Coaching</th><th className={thCls}>Status</th><th className={thCls}><span className="sr-only">Actions</span></th></tr></thead>
-                <tbody>
-                  {filtered.map(r => (
-                    <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
-                      <td className={tdCls(t)}>{fmtDate(r.date)}</td>
-                      <td className={tdCls(t)}>{r.observerName}</td>
-                      <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.designation || 'N/A'}</td>
-                      <td className={tdCls(t)}>{r.sectionChoice}</td>
-                      <td className="px-3 py-2.5"><StatusBadge color={BEHAVIOUR_HEX[r.behaviourCategory] || ACCENT_HEX.blue} label={r.behaviourCategory} /></td>
-                      <td className={`px-3 py-2.5 text-xs ${t.textFaint}`}>{r.coachingTechnique}</td>
-                      <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[r.status] ?? STATUS_TONE.neutral} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex gap-1 justify-end">
-                          {t.design === 'dallaglio' ? <>
-                            <IconAction meaning="edit" title={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} />
-                            <IconAction meaning="danger" title={`Delete VFL observation for ${r.observerName}`} tone="danger" onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} />
-                          </> : <>
-                            <button type="button" title="Edit" aria-label={`Edit VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><PenTool className="h-3 w-3" /></button>
-                            <button type="button" title="Delete" aria-label={`Delete VFL observation for ${r.observerName}`} onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
-                          </>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <DataTable
+            caption="VFL observations"
+            rows={rows}
+            columns={COLUMNS}
+            getRowId={r => r.id}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={r => setViewingId(r.id)}
+            rowActions={r => (
+              <span className="inline-flex gap-1">
+                <IconButton icon="edit" size="sm" label={`Edit VFL observation for ${r.observerName}`} onClick={() => openEditor(r)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Delete VFL observation for ${r.observerName}`} onClick={() => remove(r)} />
+              </span>
+            )}
+          />
         )}
-      </>}
+      </DataRegion>
 
-      <VFLDetailModal report={selectedReport} open={detailOpen} onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
-        onEdit={r => { setDetailOpen(false); handleEdit(r); }} onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }} onStatusChange={handleStatusChange} />
-
-      <VFLFormModal open={formOpen} editing={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} saving={saving} />
-
-      <CenterModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Deletion" accent="amber" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this VFL observation?</div>
-          {t.design === 'dallaglio' ? <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button variant="danger" size="sm" onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</Button>
-          </div> : <div className="flex gap-2">
-            <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <PrimaryButton danger size="md" fullWidth onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</PrimaryButton>
-          </div>}
-        </div>
-      </CenterModal>
-    </main>
+      <DetailDialog report={viewing} onClose={() => setViewingId(null)} onEdit={openEditor} onDelete={remove} onStatusChange={changeStatus} />
+      <ReportDialog report={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
-function tdCls(t: ReturnType<typeof useTheme>) { return `px-3 py-2.5 text-sm ${t.textMuted}`; }
-
 export default function VFLObservationPage() {
-  return (
-    <AppShell>
-      <VFLObservationContent />
-    </AppShell>
-  );
+  return <AppShell migrated><VFLContent /></AppShell>;
 }

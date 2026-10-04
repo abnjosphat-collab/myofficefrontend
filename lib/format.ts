@@ -43,3 +43,11 @@ export function timeAgo(value?: string | number | Date | null): string {
   const days = Math.floor(hrs / 24);
   return `${days} day${days === 1 ? '' : 's'}`;
 }
+
+/** A file size in the largest sensible unit: 1536 -> "1.5 KB". */
+export function formatFileSize(bytes: number): string {
+  if (!bytes || bytes < 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  return `${parseFloat((bytes / 1024 ** i).toFixed(1))} ${units[i]}`;
+}

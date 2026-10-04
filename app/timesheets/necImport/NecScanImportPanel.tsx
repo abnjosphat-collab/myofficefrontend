@@ -1,229 +1,101 @@
+// app/timesheets/necImport/NecScanImportPanel.tsx — import scanned NEC timesheets for one cycle in four steps: create the job, upload the PDF
+// scans and the validated review JSON, preview what would change (with the exceptions listed), then apply. A dry run changes nothing.
+// Payroll rules and the grid's totals are unchanged: an import writes attendance rows only, and Leaves and Overtime stay authoritative.
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, RefreshCw } from '@/components/shared/theme';
-import { CenterModal, useTheme, accentText, TYPE_WEIGHT, Button } from '@/components/shared/theme';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Dialog, Field, Input, MetricGrid, MetricTile, Notice } from '@/components/ui-system';
 import type { Period } from '../types';
 import * as necApi from './api';
 import type { NecImportJob, NecImportPreview } from './types';
 
 type Step = 'setup' | 'upload' | 'review' | 'done';
+const payrollMonthFromPeriod = (period: Period) => ({ year: period.end.getFullYear(), month: period.end.getMonth() + 1 });
+const say = (e: unknown) => (e instanceof Error ? e.message : 'It did not work.');
 
-function payrollMonthFromPeriod(period: Period): { year: number; month: number } {
-  return { year: period.end.getFullYear(), month: period.end.getMonth() + 1 };
-}
-
-export function NecScanImportPanel({
-  period,
-  open,
-  onClose,
-  onApplied,
-}: {
-  period: Period;
-  open: boolean;
-  onClose: () => void;
-  onApplied?: () => void;
-}) {
-  const t = useTheme();
+export function NecScanImportPanel({ period, open, onClose, onApplied }: { period: Period; open: boolean; onClose: () => void; onApplied?: () => void }) {
   const [step, setStep] = useState<Step>('setup');
   const [job, setJob] = useState<NecImportJob | null>(null);
   const [preview, setPreview] = useState<NecImportPreview | null>(null);
   const [configNote, setConfigNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const pm = useMemo(() => payrollMonthFromPeriod(period), [period]);
 
   useEffect(() => {
     if (!open) return;
-    necApi.fetchImportConfig().then(c => {
-      setConfigNote(
-        c.requires_review_json_upload
-          ? 'Upload scanned PDFs, then attach the validated review JSON for this period (same schema as NEC import preparation). Automated vision extraction can be enabled server-side via NEC_IMPORT_EXTRACTION_PROVIDER.'
-          : `Extraction provider: ${c.extraction_provider}`,
-      );
-    }).catch(() => setConfigNote(''));
+    necApi.fetchImportConfig().then(c => setConfigNote(c.requires_review_json_upload
+      ? 'Upload the scanned PDFs, then attach the validated review JSON for this period (the same schema as the NEC import preparation). Automatic extraction can be enabled on the server with NEC_IMPORT_EXTRACTION_PROVIDER.'
+      : `Extraction provider: ${c.extraction_provider}`)).catch(() => setConfigNote(''));
   }, [open]);
 
-  const startJob = useCallback(async () => {
-    setBusy(true);
-    try {
-      const j = await necApi.createImportJob(pm.year, pm.month);
-      setJob(j);
-      setStep('upload');
-      toast.success('Import job created');
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }, [pm.month, pm.year]);
-
-  const onPdf = async (files: FileList | null) => {
-    if (!job || !files?.length) return;
-    setBusy(true);
-    try {
-      for (const f of Array.from(files)) {
-        await necApi.uploadPdf(job.id, f);
-      }
-      const refreshed = await necApi.getImportJob(job.id);
-      setJob(refreshed);
-      toast.success('PDF uploaded');
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onReviewJson = async (files: FileList | null) => {
-    if (!job || !files?.[0]) return;
-    setBusy(true);
-    try {
-      await necApi.uploadReviewJson(job.id, files[0]);
-      const refreshed = await necApi.getImportJob(job.id);
-      setJob(refreshed);
-      toast.success('Review JSON attached');
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const loadPreview = async () => {
+  const run = useCallback(async (work: () => Promise<void>) => { setBusy(true); setError(null); setInfo(null); try { await work(); } catch (e) { setError(say(e)); } finally { setBusy(false); } }, []);
+  const startJob = () => run(async () => { const j = await necApi.createImportJob(pm.year, pm.month); setJob(j); setStep('upload'); setInfo('Import job created.'); });
+  const onPdf = (files: FileList | null) => run(async () => { if (!job || !files?.length) return; for (const f of Array.from(files)) await necApi.uploadPdf(job.id, f); setJob(await necApi.getImportJob(job.id)); setInfo('PDF uploaded.'); });
+  const onReviewJson = (files: FileList | null) => run(async () => { if (!job || !files?.[0]) return; await necApi.uploadReviewJson(job.id, files[0]); setJob(await necApi.getImportJob(job.id)); setInfo('Review JSON attached.'); });
+  const loadPreview = () => run(async () => { if (!job) return; const res = await necApi.fetchPreview(job.id); setJob(res.job); setPreview(res.preview); setStep('review'); });
+  const apply = (dryRun: boolean) => run(async () => {
     if (!job) return;
-    setBusy(true);
-    try {
-      const res = await necApi.fetchPreview(job.id);
-      setJob(res.job);
-      setPreview(res.preview);
-      setStep('review');
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const runApply = async (dryRun: boolean) => {
-    if (!job) return;
-    setBusy(true);
-    try {
-      const res = await necApi.applyImport(job.id, dryRun);
-      toast.success(dryRun ? 'Dry-run complete' : 'Import applied');
-      if (!dryRun) {
-        setStep('done');
-        onApplied?.();
-      }
-      return res.stats;
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-    return undefined;
-  };
+    const res = await necApi.applyImport(job.id, dryRun);
+    const stats = Object.entries(res.stats ?? {}).map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ');
+    if (dryRun) setInfo(`Dry run complete, nothing was changed.${stats ? ` ${stats}.` : ''}`);
+    else { setStep('done'); onApplied?.(); }
+  });
 
   const exceptions = preview?.line_items.filter(x => x.kind === 'unresolved' || x.kind === 'exception') ?? [];
-
   return (
-    <CenterModal
-      open={open}
-      onClose={onClose}
-      title="Import scanned NEC timesheets"
-      accent="indigo"
-      width="max-w-4xl"
-    >
-      <p className={`text-xs mb-4 ${t.textMuted}`}>
-        Period {period.start.toLocaleDateString('en-GB')} – {period.end.toLocaleDateString('en-GB')}. Payroll rules and grid totals are unchanged — import writes attendance rows only; Leaves and Overtime modules stay authoritative.
-      </p>
-      {configNote && <p className={`text-xs mb-3 ${accentText('amber', t.light)}`}>{configNote}</p>}
+    <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }} size="xl" title="Import scanned NEC timesheets" description={`Period ${period.start.toLocaleDateString('en-GB')} to ${period.end.toLocaleDateString('en-GB')}.`}>
+      <div className="flex flex-col gap-4">
+        <Notice tone="info" title="What an import changes">Payroll rules and the grid&apos;s totals are unchanged. An import writes attendance rows only; Leaves and Overtime stay authoritative.</Notice>
+        {configNote && <p className="font-sans text-body-sm text-ink-muted">{configNote}</p>}
+        {error && <Notice tone="danger" title="That did not work">{error}</Notice>}
+        {info && <Notice tone="info" icon="success" title={info} />}
 
-      {step === 'setup' && (
-        <div className="space-y-4">
-          <p className={`text-sm ${t.textPrimary}`}>Create an import job for this NEC cycle, then upload PDF scans and the validated review JSON.</p>
-          <Button disabled={busy} submitting={busy} onClick={startJob}>
-            Start import for this period
-          </Button>
-        </div>
-      )}
+        {step === 'setup' && (
+          <section aria-label="Start" className="flex flex-col gap-3">
+            <p className="font-sans text-body text-ink">Create an import job for this NEC cycle, then upload the PDF scans and the validated review JSON.</p>
+            <div><Button variant="primary" pending={busy} onClick={startJob}>Start import for this period</Button></div>
+          </section>
+        )}
 
-      {step === 'upload' && job && (
-        <div className="space-y-5">
-          <div className={`text-xs ${t.textFaint}`}>Job {job.id.slice(0, 8)}… · status {job.status}</div>
-          <label className={`flex flex-col gap-2 p-4 rounded-xl border border-dashed ${t.border} cursor-pointer ${t.hoverBg}`}>
-            <span className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}><Upload className="w-4 h-4" /> Upload PDF scan(s)</span>
-            <input type="file" accept="application/pdf" multiple className="text-xs" onChange={e => { void onPdf(e.target.files); e.target.value = ''; }} />
-          </label>
-          <label className={`flex flex-col gap-2 p-4 rounded-xl border border-dashed ${t.border} cursor-pointer ${t.hoverBg}`}>
-            <span className={`flex items-center gap-2 text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}><FileText className="w-4 h-4" /> Upload review JSON</span>
-            <input type="file" accept=".json,application/json" className="text-xs" onChange={e => { void onReviewJson(e.target.files); e.target.value = ''; }} />
-          </label>
-          {job.documents.length > 0 && (
-            <ul className={`text-xs ${t.textMuted} list-disc pl-5`}>
-              {job.documents.map(d => <li key={d.id}>{d.filename}{d.duplicate_of_upload ? ' (duplicate)' : ''}</li>)}
-            </ul>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" disabled={busy || !job.review_json_path} submitting={busy} icon={RefreshCw} onClick={() => void loadPreview()}>
-              Preview changes
-            </Button>
-          </div>
-        </div>
-      )}
+        {step === 'upload' && job && (
+          <section aria-label="Upload" className="flex flex-col gap-4">
+            <p className="font-sans text-caption text-ink-muted">Job {job.id.slice(0, 8)}, status {job.status}</p>
+            <Field label="PDF scans" description="One or more PDF files."><Input type="file" accept="application/pdf" multiple disabled={busy} onChange={e => { void onPdf(e.target.files); e.target.value = ''; }} /></Field>
+            <Field label="Review JSON" description="The validated review file for this period."><Input type="file" accept=".json,application/json" disabled={busy} onChange={e => { void onReviewJson(e.target.files); e.target.value = ''; }} /></Field>
+            {job.documents.length > 0 && <ul className="list-disc pl-5 font-sans text-body-sm text-ink-muted" aria-label="Uploaded files">{job.documents.map(d => <li key={d.id}>{d.filename}{d.duplicate_of_upload ? ' (duplicate)' : ''}</li>)}</ul>}
+            <div><Button icon="refresh" pending={busy} disabled={busy || !job.review_json_path} onClick={loadPreview}>Preview changes</Button>{!job.review_json_path && <span className="ml-3 font-sans text-caption text-ink-muted">Attach the review JSON first.</span>}</div>
+          </section>
+        )}
 
-      {step === 'review' && preview && (
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-            {Object.entries(preview.stats).map(([k, v]) => (
-              <div key={k} className={`rounded-lg p-2 ${t.chipBg}`}>
-                <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{v}</div>
-                <div className={t.textFaint}>{k}</div>
-              </div>
-            ))}
-          </div>
-          {preview.missing_sheets.length > 0 && (
-            <div className={`rounded-lg p-3 ${accentText('amber', t.light)} bg-amber-500/10 text-xs`}>
-              <AlertTriangle className="w-4 h-4 inline mr-1" />
-              {preview.missing_sheets.length} NEC employee(s) with no matched sheet
+        {step === 'review' && preview && (
+          <section aria-label="Preview" className="flex flex-col gap-4">
+            <MetricGrid columns={4}>{Object.entries(preview.stats).map(([k, v]) => <MetricTile key={k} label={k.replace(/_/g, ' ')} value={String(v)} />)}</MetricGrid>
+            {preview.missing_sheets.length > 0 && <Notice tone="warning" title={`${preview.missing_sheets.length} NEC ${preview.missing_sheets.length === 1 ? 'employee has' : 'employees have'} no matched sheet`} />}
+            {preview.duplicate_sheet_groups.length > 0 && <Notice tone="warning" title="Duplicate sheet groups">Mark the superseded ones in the review JSON before applying: {preview.duplicate_sheet_groups.map(g => g.key).join(', ')}.</Notice>}
+            <div className="max-h-72 overflow-auto rounded-control border border-line">
+              <table className="w-full border-collapse font-sans text-caption">
+                <caption className="sr-only">Exceptions found in the import</caption>
+                <thead className="sticky top-0 bg-surface-muted"><tr className="text-left text-ink-muted"><th scope="col" className="px-3 py-2">Date</th><th scope="col" className="px-3 py-2">Code</th><th scope="col" className="px-3 py-2">Kind</th><th scope="col" className="px-3 py-2">Reason</th></tr></thead>
+                <tbody>
+                  {exceptions.length === 0 && <tr><td colSpan={4} className="px-3 py-4 text-ink-muted">No exceptions.</td></tr>}
+                  {exceptions.slice(0, 80).map((row, i) => <tr key={`${row.date}-${i}`} className="border-t border-line-subtle"><td className="px-3 py-1.5 tabular">{row.date}</td><td className="px-3 py-1.5">{row.human_code}</td><td className="px-3 py-1.5">{row.kind}</td><td className="px-3 py-1.5 text-ink-muted [overflow-wrap:anywhere]">{row.reason}</td></tr>)}
+                </tbody>
+              </table>
             </div>
-          )}
-          {preview.duplicate_sheet_groups.length > 0 && (
-            <div className={`rounded-lg p-3 text-xs ${t.textMuted}`}>
-              Duplicate sheet groups — mark superseded in review JSON before apply:{' '}
-              {preview.duplicate_sheet_groups.map(g => g.key).join(', ')}
-            </div>
-          )}
-          <table className="w-full text-[11px]">
-            <thead><tr className={t.textFaint}><th className="text-left py-1">Date</th><th className="text-left">Code</th><th className="text-left">Kind</th><th className="text-left">Reason</th></tr></thead>
-            <tbody>
-              {exceptions.slice(0, 80).map((row, i) => (
-                <tr key={`${row.date}-${i}`} className="border-t border-white/5">
-                  <td className="py-1">{row.date}</td>
-                  <td>{row.human_code}</td>
-                  <td>{row.kind}</td>
-                  <td className={t.textMuted}>{row.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {exceptions.length > 80 && <p className={`text-xs ${t.textFaint}`}>Showing 80 of {exceptions.length} exceptions</p>}
-          <div className="flex flex-wrap gap-2 pt-2 sticky bottom-0 bg-inherit">
-            <Button variant="secondary" disabled={busy} onClick={() => void runApply(true)}>Dry-run apply</Button>
-            <Button disabled={busy} submitting={busy} icon={CheckCircle} onClick={() => void runApply(false)}>
-              Apply validated rows
-            </Button>
-          </div>
-        </div>
-      )}
+            {exceptions.length > 80 && <p className="font-sans text-caption text-ink-muted">Showing 80 of {exceptions.length} exceptions.</p>}
+            <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => apply(true)}>Dry-run apply</Button><Button variant="primary" icon="check" pending={busy} disabled={busy} onClick={() => apply(false)}>Apply validated rows</Button></div>
+          </section>
+        )}
 
-      {step === 'done' && (
-        <div className={`text-sm ${t.textPrimary}`}>
-          <CheckCircle className="w-5 h-5 text-emerald-400 inline mr-2" />
-          Import batch saved. Reload the grid to reconcile with Leaves/Overtime overlays.
-          <Button className="mt-4" variant="secondary" onClick={onClose}>Close</Button>
-        </div>
-      )}
-    </CenterModal>
+        {step === 'done' && (
+          <section aria-label="Done" className="flex flex-col gap-3">
+            <Notice tone="info" icon="success" title="Import batch saved">Reload the grid to reconcile it with the Leaves and Overtime overlays.</Notice>
+            <div><Button onClick={onClose}>Close</Button></div>
+          </section>
+        )}
+      </div>
+    </Dialog>
   );
 }

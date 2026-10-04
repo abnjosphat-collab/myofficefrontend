@@ -1,54 +1,24 @@
-// app/tasks-events/useTasksEventsData.ts — data-fetching layer for the Events &
-// Tasks board. The whole /api/tasks-events router is manager+-gated server-side
-// (main.py), same shape as accounting — this hook just calls it like any other.
+// app/tasks-events/useTasksEventsData.ts — data layer for the Events & Tasks board. The whole /api/tasks-events router is
+// manager+ gated server-side (main.py). A failed load is reported, never turned into an empty board; writes throw so the
+// caller can show the reason and keep what was typed.
 'use client';
 
-import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import type { TaskEvent, TaskEventFormData, TaskComment } from './types';
+import { useApiList } from '@/lib/useApiList';
+import type { TaskComment, TaskEvent, TaskEventFormData } from './types';
 
-export async function createTaskEvent(data: TaskEventFormData) {
-  return api.post<TaskEvent>('/api/tasks-events', data);
-}
-export async function updateTaskEvent(id: number, data: Partial<TaskEventFormData>) {
-  return api.patch<TaskEvent>(`/api/tasks-events/${id}`, data);
-}
-export async function deleteTaskEvent(id: number) {
-  await api.delete(`/api/tasks-events/${id}`);
-}
-export async function completeTaskEvent(id: number, completedBy: string) {
-  return api.patch<TaskEvent>(`/api/tasks-events/${id}`, {
-    status: 'completed', completed_by: completedBy, completed_at: new Date().toISOString(),
-  });
-}
-export async function reopenTaskEvent(id: number) {
-  return api.patch<TaskEvent>(`/api/tasks-events/${id}`, {
-    status: 'pending', completed_by: null, completed_at: null,
-  });
-}
+/** The board's list; mount it only once the caller is known to be a manager. */
+export const useTasksEvents = () => useApiList<TaskEvent>('/api/tasks-events');
 
-export async function listComments(taskId: number) {
+export const createTaskEvent = (data: TaskEventFormData) => api.post<TaskEvent>('/api/tasks-events', data);
+export const updateTaskEvent = (id: number, data: Partial<TaskEventFormData>) => api.patch<TaskEvent>(`/api/tasks-events/${id}`, data);
+export const deleteTaskEvent = async (id: number) => { await api.delete(`/api/tasks-events/${id}`); };
+export const completeTaskEvent = (id: number, completedBy: string) => api.patch<TaskEvent>(`/api/tasks-events/${id}`, { status: 'completed', completed_by: completedBy, completed_at: new Date().toISOString() });
+export const reopenTaskEvent = (id: number) => api.patch<TaskEvent>(`/api/tasks-events/${id}`, { status: 'pending', completed_by: null, completed_at: null });
+
+export async function listComments(taskId: number): Promise<TaskComment[]> {
   const data = await api.get<unknown>(`/api/tasks-events/${taskId}/comments`);
-  return Array.isArray(data) ? data as TaskComment[] : [];
+  if (!Array.isArray(data)) throw new Error('The comments came back in an unexpected form.');
+  return data as TaskComment[];
 }
-export async function addComment(taskId: number, text: string, author?: string) {
-  return api.post<TaskComment>(`/api/tasks-events/${taskId}/comments`, { text, author });
-}
-
-export function useTasksEventsData() {
-  const [items, setItems] = useState<TaskEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<unknown>('/api/tasks-events');
-      setItems(Array.isArray(data) ? data as TaskEvent[] : []);
-    } catch { setItems([]); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { refresh(); }, []);
-
-  return { items, loading, refresh };
-}
+export const addComment = (taskId: number, text: string, author?: string) => api.post<TaskComment>(`/api/tasks-events/${taskId}/comments`, { text, author });

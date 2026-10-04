@@ -1,210 +1,204 @@
 // FILE: app/contractors/page.tsx
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { HardHat, Star, ChevronDown, ChevronUp, Plus, X, RefreshCw, LayoutGrid, List } from '@/components/shared/theme';
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, ProgressBar, FormField, PrimaryButton, GlowCard, SelectField,
-  ViewToggle, GroupSection, RecordCard, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, TYPE_WEIGHT, CloseButton,
-} from '@/components/shared/theme';
+  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Progress, Rating,
+  RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows,
+  useViewPreference, type Column, type SortState,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Contractor, CStatus, Job } from './types';
 import { useContractorsData, createContractor } from './useContractorsData';
 
 const TRADES = ['Mechanical', 'Electrical', 'Civil', 'OEM Specialist', 'Instrumentation', 'Scaffolding'];
+const EMPTY_FORM = { company: '', trade: 'Mechanical', contact: '', phone: '', contractExpiry: '', insuranceExpiry: '' };
+const STATUS_OPTIONS: { value: 'all' | CStatus; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }];
+
 const daysUntil = (d: string) => Math.round((new Date(d).getTime() - Date.now()) / 86400000);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function Stars({ n }: { n: number }) {
-  const t = useTheme();
-  return <div className="flex gap-0.5">{[1, 2, 3, 4, 5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= n ? `${accentText('amber', t.light)} fill-amber-400` : 'text-slate-400/40'}`} />)}</div>;
+/** Expiry date with a status badge once it is within 30 days (or past). Blank dates show a dash. */
+function Expiry({ date }: { date: string }) {
+  if (!date) return <span className="text-ink-muted">Not set</span>;
+  const days = daysUntil(date);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="tabular">{date}</span>
+      {days < 0 ? <StatusBadge tone="danger" icon="expired">Expired</StatusBadge> : days < 30 ? <StatusBadge tone="warning" icon="due-soon">Due in {plural(days, 'day')}</StatusBadge> : null}
+    </span>
+  );
 }
 
-// Palette for trades — drawn from the shared ACCENT_HEX brand palette (not
-// arbitrary hexes), hashed so each distinct trade gets a stable color.
-const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
-function tradeColor(trade?: string) {
-  if (!trade) return '#94a3b8';
-  let h = 0;
-  for (let i = 0; i < trade.length; i++) h = (h * 31 + trade.charCodeAt(i)) >>> 0;
-  return GROUP_PALETTE[h % GROUP_PALETTE.length];
-}
-
-// InfoRow now comes from the shared design system (promoted from this page's
-// own local version — see the design-system migration).
+const StatusTag = ({ status }: { status: CStatus }) => <StatusBadge tone={status === 'active' ? 'success' : 'neutral'} icon={status === 'active' ? 'active' : 'inactive'}>{status === 'active' ? 'Active' : 'Inactive'}</StatusBadge>;
 
 function JobsList({ jobs }: { jobs: Job[] }) {
-  const t = useTheme();
-  if (jobs.length === 0) return <p className={`text-xs ${t.textFaint}`}>No active jobs.</p>;
+  if (jobs.length === 0) return <p className="font-sans text-body-sm text-ink-muted">No active jobs.</p>;
   return (
-    <div className="space-y-2">
-      <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider`}>Active Jobs</p>
-      {jobs.map((j, i) => (
-        <div key={i} className={`p-2.5 rounded-lg ${t.chipBg}`}>
-          <div className="flex items-center justify-between mb-1.5">
-            <div><div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{j.title}</div><div className={`text-[11px] ${t.textFaint}`}>{j.location} · Started {j.startDate}</div></div>
-            <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{j.progress}%</span>
-          </div>
-          <ProgressBar value={j.progress} color={ACCENT_HEX.blue} showValue={false} />
-        </div>
+    <ul className="flex flex-col gap-2.5">
+      {jobs.map((job, index) => (
+        <li key={index} className="rounded-control border border-line-subtle bg-surface-subtle p-3">
+          <p className="font-sans text-label font-medium text-ink">{job.title}</p>
+          <p className="mb-2 font-sans text-caption text-ink-muted">{[job.location, job.startDate && `Started ${job.startDate}`].filter(Boolean).join(' · ')}</p>
+          <Progress value={job.progress} label={`${job.title} progress`} />
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
-// ─── ContractorCard — built on the shared RecordCard so it inherits the exact
-// homepage module-card treatment (bare accent icon, Montserrat title, GlowCard
-// lift/glow). Key summary always visible; the rest expands in place. ──
-function ContractorCard({ c }: { c: Contractor }) {
-  const t = useTheme();
-  const color = tradeColor(c.trade);
-  const cDays = daysUntil(c.contractExpiry);
-  const iDays = daysUntil(c.insuranceExpiry);
-
+function ContractorDetails({ contractor, onClose }: { contractor: Contractor | null; onClose: () => void }) {
   return (
-    <RecordCard
-      icon={HardHat}
-      accentHex={color}
-      title={c.company}
-      subtitle={c.contact}
-      badges={<>
-        <StatusBadge color={color} label={c.trade} />
-        <StatusBadge color={c.status === 'active' ? '#34d399' : '#94a3b8'} label={c.status} />
-      </>}
-      summary={
-        <div className="flex items-center justify-between">
-          <Stars n={c.rating} />
-          <span className={`text-xs ${t.textFaint}`}>{c.jobs.length} job{c.jobs.length !== 1 ? 's' : ''}</span>
-        </div>
-      }
-    >
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <InfoRow label="Phone" value={c.phone} />
-        <InfoRow label="Rating" value={`${c.rating}/5`} />
-        <InfoRow label="Contract Expiry" value={c.contractExpiry && <span className={cDays < 30 ? 'text-amber-500' : undefined}>{c.contractExpiry}</span>} />
-        <InfoRow label="Insurance Expiry" value={c.insuranceExpiry && <span className={iDays < 30 ? 'text-amber-500' : undefined}>{c.insuranceExpiry}</span>} />
-      </div>
-      <JobsList jobs={c.jobs} />
-    </RecordCard>
-  );
-}
-
-// ─── ContractorRow — compact list-view row, mirroring EmployeeRow's pattern. ──
-function ContractorRow({ c }: { c: Contractor }) {
-  const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
-  const color = tradeColor(c.trade);
-  const cDays = daysUntil(c.contractExpiry);
-  const iDays = daysUntil(c.insuranceExpiry);
-
-  return (
-    <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
-        <div className="shrink-0"><HardHat className="h-5 w-5" style={{ color }} /></div>
-
-        <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{c.company}</div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className={`text-xs ${t.textFaint}`}>{c.contact} · {c.phone}</span>
-            <StatusBadge color={c.status === 'active' ? '#34d399' : '#94a3b8'} label={c.status} />
-          </div>
-        </button>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Stars n={c.rating} />
-          <span className={`hidden sm:block text-[11px] ${t.textFaint}`}>{c.jobs.length} job{c.jobs.length !== 1 ? 's' : ''}</span>
-        </div>
-
-        <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-
-      {expanded && (
-        <div className={`px-4 pb-4 pt-3 border-t ${t.border} ${t.hoverBgSoft} space-y-3`}>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-            <InfoRow label="Contract Expiry" value={c.contractExpiry && <span className={cDays < 30 ? 'text-amber-500' : undefined}>{c.contractExpiry}</span>} />
-            <InfoRow label="Insurance Expiry" value={c.insuranceExpiry && <span className={iDays < 30 ? 'text-amber-500' : undefined}>{c.insuranceExpiry}</span>} />
-          </div>
-          <JobsList jobs={c.jobs} />
+    <Dialog open={contractor !== null} onOpenChange={open => { if (!open) onClose(); }} title={contractor?.company ?? 'Contractor'} description={contractor ? [contractor.trade, contractor.contact].filter(Boolean).join(' · ') : undefined} size="md">
+      {contractor && (
+        <div className="flex flex-col gap-5">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 font-sans text-body sm:grid-cols-2">
+            <div><dt className="text-caption text-ink-muted">Status</dt><dd className="mt-1"><StatusTag status={contractor.status} /></dd></div>
+            <div><dt className="text-caption text-ink-muted">Rating</dt><dd className="mt-1 flex items-center gap-2"><Rating value={contractor.rating} /><span className="text-ink-muted">{contractor.rating} of 5</span></dd></div>
+            <div><dt className="text-caption text-ink-muted">Phone</dt><dd className="mt-1 text-ink">{contractor.phone || 'Not set'}</dd></div>
+            <div><dt className="text-caption text-ink-muted">Trade</dt><dd className="mt-1 text-ink">{contractor.trade || 'Unspecified'}</dd></div>
+            <div><dt className="text-caption text-ink-muted">Contract expiry</dt><dd className="mt-1 text-ink"><Expiry date={contractor.contractExpiry} /></dd></div>
+            <div><dt className="text-caption text-ink-muted">Insurance expiry</dt><dd className="mt-1 text-ink"><Expiry date={contractor.insuranceExpiry} /></dd></div>
+          </dl>
+          <section>
+            <h3 className="mb-2 font-display text-title font-semibold text-ink">Active jobs</h3>
+            <JobsList jobs={contractor.jobs} />
+          </section>
         </div>
       )}
-    </div>
+    </Dialog>
+  );
+}
+
+function ContractorCard({ contractor, onOpen }: { contractor: Contractor; onOpen: () => void }) {
+  return (
+    <RecordCard
+      eyebrow={contractor.trade || 'Unspecified trade'}
+      title={contractor.company}
+      subtitle={contractor.contact}
+      status={<StatusTag status={contractor.status} />}
+      facts={[
+        { label: 'Rating', value: <Rating value={contractor.rating} /> },
+        { label: 'Contract', value: <Expiry date={contractor.contractExpiry} /> },
+        { label: 'Insurance', value: <Expiry date={contractor.insuranceExpiry} /> },
+      ]}
+      meta={plural(contractor.jobs.length, 'active job')}
+      onOpen={onOpen}
+      openLabel={`Open ${contractor.company}`}
+    />
+  );
+}
+
+const COLUMNS: Column<Contractor>[] = [
+  { id: 'company', header: 'Company', sortable: true, sticky: true, cell: c => c.company },
+  { id: 'trade', header: 'Trade', sortable: true, hideBelow: 'md', cell: c => (c.trade ? <Tag>{c.trade}</Tag> : <span className="text-ink-muted">Unspecified</span>) },
+  { id: 'contact', header: 'Contact', hideBelow: 'lg', cell: c => <span>{c.contact}<span className="block text-caption text-ink-muted">{c.phone}</span></span> },
+  { id: 'status', header: 'Status', sortable: true, cell: c => <StatusTag status={c.status} /> },
+  { id: 'rating', header: 'Rating', sortable: true, hideBelow: 'md', cell: c => <Rating value={c.rating} /> },
+  { id: 'contractExpiry', header: 'Contract expiry', sortable: true, hideBelow: 'lg', cell: c => <Expiry date={c.contractExpiry} /> },
+  { id: 'jobs', header: 'Jobs', numeric: true, sortable: true, cell: c => c.jobs.length },
+];
+
+const sortValue = (c: Contractor, id: string): unknown => {
+  switch (id) {
+    case 'jobs': return c.jobs.length;
+    case 'company': case 'trade': case 'status': return String(c[id as 'company' | 'trade' | 'status']).toLowerCase();
+    default: return c[id as keyof Contractor];
+  }
+};
+
+const exportColumns: DLColumn[] = [
+  { key: 'company', label: 'Company', width: 24 },
+  { key: 'trade', label: 'Trade', width: 18 },
+  { key: 'contact', label: 'Contact', width: 20 },
+  { key: 'phone', label: 'Phone', width: 16 },
+  { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+  { key: 'rating', label: 'Rating', width: 10 },
+  { key: 'contractExpiry', label: 'Contract Expiry', width: 16 },
+  { key: 'insuranceExpiry', label: 'Insurance Expiry', width: 16 },
+  { key: 'jobs', label: 'Active Jobs', width: 12, format: v => String((v as unknown[])?.length ?? 0) },
+];
+
+function AddContractorDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: () => void }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [needsCompany, setNeedsCompany] = useState(false);
+  const set = (patch: Partial<typeof EMPTY_FORM>) => setForm(current => ({ ...current, ...patch }));
+
+  const submit = async () => {
+    if (!form.company.trim()) { setNeedsCompany(true); return false; }
+    await createContractor({
+      company_name: form.company, trade: form.trade, contact_name: form.contact, phone: form.phone,
+      contract_end: form.contractExpiry || null, insurance_expiry: form.insuranceExpiry || null, status: 'active', performance_rating: 3,
+    });
+    toast.success(`${form.company} was added.`);
+    setForm(EMPTY_FORM);
+    onCreated();
+  };
+
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Add contractor" description="New contractors start as active with a rating of 3." submitLabel="Save contractor" onSubmit={submit}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Company name" required error={needsCompany ? 'Enter the company name.' : undefined}>
+          <Input value={form.company} onChange={event => { set({ company: event.target.value }); setNeedsCompany(false); }} autoComplete="organization" />
+        </Field>
+        <Field label="Trade">
+          <Select aria-label="Trade" value={form.trade} onValueChange={trade => set({ trade })} options={TRADES.map(trade => ({ value: trade, label: trade }))} />
+        </Field>
+        <Field label="Contact person"><Input value={form.contact} onChange={event => set({ contact: event.target.value })} autoComplete="name" /></Field>
+        <Field label="Phone"><Input type="tel" value={form.phone} onChange={event => set({ phone: event.target.value })} autoComplete="tel" /></Field>
+        <Field label="Contract expiry" optional><Input type="date" value={form.contractExpiry} onChange={event => set({ contractExpiry: event.target.value })} /></Field>
+        <Field label="Insurance expiry" optional><Input type="date" value={form.insuranceExpiry} onChange={event => set({ insuranceExpiry: event.target.value })} /></Field>
+      </div>
+    </FormDialog>
   );
 }
 
 function ContractorsContent() {
-  const t = useTheme();
-  const { contractors, loading, fetchContractors } = useContractorsData();
+  const { contractors, loading, loaded, error, errorStatus, fetchContractors } = useContractorsData();
   const [tradeFilter, setTradeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | CStatus>('all');
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ company: '', trade: 'Mechanical', contact: '', phone: '', contractExpiry: '', insuranceExpiry: '' });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  // Records are grouped by trade (homepage category-accordion vocabulary); this
-  // tracks which trade groups the user has collapsed (default: all open).
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [view, setView] = useViewPreference('contractors', VIEW_CARDS_TABLE);
+  const [sort, setSort] = useState<SortState>(null);
+  const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
 
-  const displayed = contractors.filter(c => tradeFilter === 'all' || c.trade === tradeFilter).filter(c => statusFilter === 'all' || c.status === statusFilter);
+  const displayed = useMemo(
+    () => contractors.filter(c => tradeFilter === 'all' || c.trade === tradeFilter).filter(c => statusFilter === 'all' || c.status === statusFilter),
+    [contractors, tradeFilter, statusFilter],
+  );
+  const tableRows = useMemo(() => sortRows(displayed, sort, sortValue), [displayed, sort]);
 
-  const exportColumns: DLColumn[] = [
-    { key: 'company', label: 'Company', width: 24 },
-    { key: 'trade', label: 'Trade', width: 18 },
-    { key: 'contact', label: 'Contact', width: 20 },
-    { key: 'phone', label: 'Phone', width: 16 },
-    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
-    { key: 'rating', label: 'Rating', width: 10 },
-    { key: 'contractExpiry', label: 'Contract Expiry', width: 16 },
-    { key: 'insuranceExpiry', label: 'Insurance Expiry', width: 16 },
-    { key: 'jobs', label: 'Active Jobs', width: 12, format: v => String((v as unknown[])?.length ?? 0) },
-  ];
-
-  // Group by trade — alphabetically, "Unspecified" last.
-  const grouped = (() => {
+  // Grouped by trade for the card view: alphabetical, "Unspecified" last.
+  const groups = useMemo(() => {
     const map = new Map<string, Contractor[]>();
     for (const c of displayed) {
       const key = c.trade || 'Unspecified';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(c);
+      map.set(key, [...(map.get(key) ?? []), c]);
     }
-    return [...map.keys()]
-      .sort((a, b) => (a === 'Unspecified' ? 1 : b === 'Unspecified' ? -1 : a.localeCompare(b)))
-      .map(trade => ({ trade, color: tradeColor(trade === 'Unspecified' ? undefined : trade), contractors: map.get(trade)! }));
-  })();
-  const isGroupOpen = (trade: string) => !collapsedGroups.has(trade);
-  const toggleGroup = (trade: string) => setCollapsedGroups(prev => {
-    const next = new Set(prev);
-    next.has(trade) ? next.delete(trade) : next.add(trade);
-    return next;
-  });
+    return [...map.entries()].sort(([a], [b]) => (a === 'Unspecified' ? 1 : b === 'Unspecified' ? -1 : a.localeCompare(b)));
+  }, [displayed]);
 
-  const submit = async () => {
-    if (!form.company) return;
-    try {
-      const body = { company_name: form.company, trade: form.trade, contact_name: form.contact, phone: form.phone, contract_end: form.contractExpiry || null, insurance_expiry: form.insuranceExpiry || null, status: 'active', performance_rating: 3 };
-      await createContractor(body);
-      fetchContractors();
-    } catch { /* ignore */ }
-    setForm({ company: '', trade: 'Mechanical', contact: '', phone: '', contractExpiry: '', insuranceExpiry: '' });
-    setShowAdd(false);
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
+  const filtered = tradeFilter !== 'all' || statusFilter !== 'all';
+  const stats = {
+    total: contractors.length,
+    active: contractors.filter(c => c.status === 'active').length,
+    inactive: contractors.filter(c => c.status === 'inactive').length,
+    jobs: contractors.reduce((sum, c) => sum + c.jobs.length, 0),
   };
-
-  const stats = { total: contractors.length, active: contractors.filter(c => c.status === 'active').length, inactive: contractors.filter(c => c.status === 'inactive').length, jobs: contractors.reduce((s, c) => s + c.jobs.length, 0) };
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
+  const open = contractors.find(c => c.id === openId) ?? null;
+  const unavailable = !loaded;
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={HardHat}
-        accent="violet"
-        crumbs={['Core Management', 'Contractors']}
-        title="Contractor Management"
-        description="Third-party contractor register and job tracking"
-        statsOpen
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Core management' }, { label: 'Contractors' }]}
+        title="Contractors"
+        description="Third-party contractor register and job tracking."
+        actions={(
           <>
             {displayed.length > 0 && (
               <DownloadButton
@@ -213,89 +207,66 @@ function ContractorsContent() {
                 filename={exportFilename('Contractors')}
                 title="Contractors"
                 statusColumn="status"
-                statusColor={(_v, row) => row.status === 'active' ? '34d399' : '94a3b8'}
+                statusColor={(_v, row) => (row.status === 'active' ? '34d399' : '94a3b8')}
               />
             )}
-            <PrimaryButton icon={Plus} accent="violet" onClick={() => setShowAdd(s => !s)}>Add Contractor</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>
           </>
-        }
+        )}
+      />
+
+      <MetricGrid columns={4}>
+        <MetricTile label="Total contractors" icon="contractor" value={stats.total} loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile label="Active" icon="active" value={stats.active} tone="success" loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile label="Inactive" icon="inactive" value={stats.inactive} loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile label="Current jobs" icon="task" value={stats.jobs} loading={loading && !loaded} unavailable={unavailable && !loading} />
+      </MetricGrid>
+
+      <Toolbar trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <Select className="w-52" aria-label="Filter by trade" value={tradeFilter} onValueChange={setTradeFilter} options={[{ value: 'all', label: 'All trades' }, ...TRADES.map(trade => ({ value: trade, label: trade }))]} />
+        <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_OPTIONS} />
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="contractors"
+        error={error}
+        onRetry={fetchContractors}
+        empty={filtered
+          ? <EmptyState icon="search" title="No contractors match these filters" description="Try a different trade or status." action={<Button onClick={() => { setTradeFilter('all'); setStatusFilter('all'); }}>Clear filters</Button>} />
+          : <EmptyState icon="contractor" title="No contractors yet" description="Add the first contractor to start the register." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>} />}
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatTile icon={HardHat} color="#86BBD8" label="Total" value={stats.total} />
-          <StatTile icon={HardHat} color="#34d399" label="Active" value={stats.active} />
-          <StatTile icon={HardHat} color="#94a3b8" label="Inactive" value={stats.inactive} />
-          <StatTile icon={HardHat} color="#86BBD8" label="Current Jobs" value={stats.jobs} />
-        </div>
-      </PageHero>
-
-      {showAdd && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-6`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Contractor</h2>
-            <CloseButton onClick={() => setShowAdd(false)} />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            <FormField label="Company Name"><input placeholder="Company Name" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} aria-label="Company Name" className={inputCls} /></FormField>
-            <FormField label="Trade">
-              <SelectField size="form" title="Trade" value={form.trade} onChange={v => setForm(f => ({ ...f, trade: v }))}
-                options={TRADES.map(tr => ({ value: tr, label: tr }))} />
-            </FormField>
-            <FormField label="Contact Person"><input placeholder="Contact Person" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} aria-label="Contact Person" className={inputCls} /></FormField>
-            <FormField label="Phone"><input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} aria-label="Phone" className={inputCls} /></FormField>
-            <FormField label="Contract Expiry"><input type="date" title="Contract expiry date" aria-label="Contract expiry date" value={form.contractExpiry} onChange={e => setForm(f => ({ ...f, contractExpiry: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Insurance Expiry"><input type="date" title="Insurance expiry date" aria-label="Insurance expiry date" value={form.insuranceExpiry} onChange={e => setForm(f => ({ ...f, insuranceExpiry: e.target.value }))} className={inputCls} /></FormField>
-          </div>
-          <PrimaryButton accent="violet" size="md" onClick={submit}>Save Contractor</PrimaryButton>
-        </div>
-      )}
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Contractor Register</h2>
-          <div className="flex gap-2 flex-wrap">
-            <SelectField size="filter" title="Filter by trade" value={tradeFilter} onChange={setTradeFilter}
-              options={[{ value: 'all', label: 'All Trades' }, ...TRADES.map(tr => ({ value: tr, label: tr }))]} />
-            {(['all', 'active', 'inactive'] as const).map(s => (
-              <button type="button" key={s} onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${statusFilter === s ? 'bg-brand-500/20 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
+        {view === 'cards' ? (
+          <div className="flex flex-col gap-6">
+            {groups.map(([trade, items]) => (
+              <section key={trade} aria-labelledby={`trade-${trade}`}>
+                <h2 id={`trade-${trade}`} className="mb-3 font-display text-section font-semibold text-ink">{trade}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{plural(items.length, 'contractor')}</span></h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {items.map(contractor => <ContractorCard key={contractor.id} contractor={contractor} onOpen={() => setOpenId(contractor.id)} />)}
+                </div>
+              </section>
             ))}
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
           </div>
-        </div>
-        <div className="p-4">
-          {loading ? (
-            <div className={`flex items-center justify-center py-12 gap-2 ${t.textFaint} text-sm`}><RefreshCw className="h-5 w-5 animate-spin" /> Loading…</div>
-          ) : (
-            <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
-              {grouped.map(g => (
-                <GroupSection
-                  key={g.trade}
-                  icon={HardHat}
-                  accentHex={g.color}
-                  title={g.trade}
-                  count={g.contractors.length}
-                  countLabel={g.contractors.length === 1 ? 'contractor' : 'contractors'}
-                  open={isGroupOpen(g.trade)}
-                  onToggle={() => toggleGroup(g.trade)}
-                  gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
-                >
-                  {g.contractors.map(c => (
-                    <motion.div key={c.id} variants={fadeUp}>
-                      {viewMode === 'grid' ? <ContractorCard c={c} /> : <ContractorRow c={c} />}
-                    </motion.div>
-                  ))}
-                </GroupSection>
-              ))}
-            </motion.div>
-          )}
-        </div>
-      </div>
-    </main>
+        ) : (
+          <DataTable
+            caption="Contractor register"
+            rows={tableRows}
+            columns={COLUMNS}
+            getRowId={c => String(c.id)}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={c => setOpenId(c.id)}
+            rowActions={c => <Button size="sm" variant="ghost" onClick={() => setOpenId(c.id)}>Details</Button>}
+          />
+        )}
+      </DataRegion>
+
+      <ContractorDetails contractor={open} onClose={() => setOpenId(null)} />
+      <AddContractorDialog open={adding} onOpenChange={setAdding} onCreated={fetchContractors} />
+    </div>
   );
 }
 
 export default function ContractorsPage() {
-  return <AppShell><ContractorsContent /></AppShell>;
+  return <AppShell migrated><ContractorsContent /></AppShell>;
 }

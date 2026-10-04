@@ -3,15 +3,17 @@
 import type { ElementType } from 'react';
 import type { IconMeaning } from '../shared/icon-meanings';
 import {
-  Archive, ArrowClockwise, ArrowsDownUp, ChartLineUp, Check,
-  CheckCircle, ClipboardText, Clock, Cube, CurrencyCircleDollar, DownloadSimple,
-  Eye, File, FileXls, Flag, Gauge, Gear, GraduationCap, HardHat,
-  Handshake, Hash, Heart, IdentificationCard, Lightning, List, MagnifyingGlass,
-  Medal, Package, Percent, PencilSimple, Plus, ShoppingCart, SlidersHorizontal,
-  Pulse, Sparkle, SquaresFour, Star, Table, Target, Trash, TrendUp, UserCheck, Users,
+  Archive, ArrowClockwise, ArrowLeft, ArrowsDownUp, ArrowsLeftRight, ArrowUUpLeft, ArrowUUpRight,
+  Bell, ChartLineUp, ChatCircleText, Check,
+  CheckCircle, ClipboardText, Clock, ClockCounterClockwise, Cube, CurrencyCircleDollar, DownloadSimple,
+  DotsSixVertical, Eye, EyeSlash, File, FilePdf, FileXls, Flag, Gauge, Gear, GraduationCap, HardHat,
+  Handshake, Hash, Heart, House, IdentificationCard, ImageSquare, Lightning, List, MagnifyingGlass,
+  MagnifyingGlassMinus, MagnifyingGlassPlus, Medal, Package, Paperclip, Percent, PencilSimple, Plus, ShoppingCart, SlidersHorizontal,
+  Pulse, Sparkle, SquaresFour, Star, Table, Target, TextAa, Toolbox, Trash, TreeStructure, TrendUp,
+  UploadSimple, UserCheck, UserGear, Users,
   Warning, WarningOctagon, Wrench, Buildings, Car, CalendarBlank,
   HardDrives, MapPin, PaperPlaneTilt, CheckSquare, X, CirclesFour, Rows, EnvelopeSimple, Phone,
-} from '@phosphor-icons/react';
+} from '../icons';
 
 export const DALLAGLIO_ICONS: Record<IconMeaning, ElementType> = {
   employees: Users,
@@ -107,6 +109,28 @@ export const DALLAGLIO_ICONS: Record<IconMeaning, ElementType> = {
   electrical: Lightning,
   general: Buildings,
   operational: Pulse,
+  home: House,
+  chat: ChatCircleText,
+  bell: Bell,
+  history: ClockCounterClockwise,
+  pin: MapPin,
+  back: ArrowLeft,
+  swap: ArrowsLeftRight,
+  undo: ArrowUUpLeft,
+  redo: ArrowUUpRight,
+  attachment: Paperclip,
+  image: ImageSquare,
+  pdf: FilePdf,
+  upload: UploadSimple,
+  show: Eye,
+  hide: EyeSlash,
+  department: TreeStructure,
+  font: TextAa,
+  grip: DotsSixVertical,
+  'zoom-in': MagnifyingGlassPlus,
+  'zoom-out': MagnifyingGlassMinus,
+  accounts: UserGear,
+  app: Toolbox,
 };
 
 export const DALLAGLIO_ICON_WEIGHT = 'light' as const;

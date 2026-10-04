@@ -7,7 +7,10 @@
 // compressors.py's own efficiency/service-urgency/cumulative-hours calc engine — the
 // two aren't reconciled, so a divergence between them would go unnoticed. These tests
 // lock in the frontend's version so at least this side won't silently drift on its own.
-import { SERVICE_INTERVALS } from './useCompressorsData';
+import { toLocalISODate } from '@/lib/dates';
+
+/** Service intervals in running hours; the next one a compressor has not yet reached is its next service. */
+export const SERVICE_INTERVALS = [1000, 2000, 4000, 8000, 16000];
 
 export function calculateEfficiency(running: number, loaded: number): number {
   return !running ? 0 : parseFloat(((loaded / running) * 100).toFixed(1));
@@ -62,4 +65,37 @@ export function calculateNextService(
   else if (daysRemaining <= 7) urgency = 'high';
   else if (daysRemaining <= 30) urgency = 'medium';
   return { interval, hoursRemaining, daysRemaining, urgency, isUrgent: daysRemaining <= maintenanceBufferDays };
+}
+
+/** The calendar day in the user's own time zone (toISOString would use UTC and shift the day late in the evening). */
+export const localDateString = toLocalISODate;
+
+export type EfficiencyTone = 'success' | 'info' | 'warning' | 'danger';
+export function efficiencyTone(efficiency: number): EfficiencyTone {
+  if (efficiency >= 80) return 'success';
+  if (efficiency >= 60) return 'info';
+  if (efficiency >= 40) return 'warning';
+  return 'danger';
+}
+
+export interface ReadingProblems { running?: string; loaded?: string; }
+
+/**
+ * What is wrong with a cumulative meter reading, field by field (nothing wrong = empty object).
+ * Totals only ever go up, loaded hours are a subset of running hours, and the hours loaded since the
+ * previous reading cannot exceed the hours run since then.
+ */
+export function readingProblems(
+  previous: { total_running_hours: number; total_loaded_hours: number } | undefined,
+  running: number,
+  loaded: number,
+): ReadingProblems {
+  const problems: ReadingProblems = {};
+  const prevRun = previous?.total_running_hours ?? 0;
+  const prevLoad = previous?.total_loaded_hours ?? 0;
+  if (previous && running < prevRun) problems.running = `Cannot be below the previous total of ${prevRun.toFixed(1)} h.`;
+  if (previous && loaded < prevLoad) problems.loaded = `Cannot be below the previous total of ${prevLoad.toFixed(1)} h.`;
+  if (!problems.loaded && loaded > running) problems.loaded = 'Loaded hours cannot exceed running hours.';
+  if (!problems.loaded && previous && loaded - prevLoad > running - prevRun) problems.loaded = 'Hours loaded since the previous reading exceed the hours run.';
+  return problems;
 }

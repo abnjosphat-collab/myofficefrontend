@@ -13,6 +13,8 @@ import { toLocalISODate } from '@/lib/dates';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Employee, Period, TimesheetEntry } from './types';
 import { periodUsesUnsignedModuleRecords } from './necModuleBatch';
+import { moduleRecordIncluded } from './moduleApproval';
+import { retryTimesheetRead } from './retryTimesheetRead';
 
 function requireArray<T>(value: unknown, label: string): T[] {
   if (!Array.isArray(value)) throw new Error(`${label} returned an unexpected response.`);
@@ -20,11 +22,11 @@ function requireArray<T>(value: unknown, label: string): T[] {
 }
 
 export const api = {
-  async employees(): Promise<Employee[]> {
-    const data = requireArray<Record<string, unknown>>(await apiClient.get<unknown>('/api/employees'), 'Personnel records');
+  async employees(signal?: AbortSignal): Promise<Employee[]> {
+    const data = requireArray<Record<string, unknown>>(await apiClient.get<unknown>('/api/employees', { signal }), 'Personnel records');
     return data.map(d => ({
       id: String(d.id || Math.random().toString(36).slice(2)),
-      employeeId: (() => { const v = String(d.employee_id || '').trim(); return (v === '' || v.toUpperCase() === 'TBA') ? '' : v; })(),
+      employeeId: String(d.employee_id || '').trim(),
       name: (`${d.first_name || ''} ${d.last_name || ''}`).trim() || 'Employee',
       position: (d.position || d.job_title || d.designation || 'Staff') as string,
       department: (d.department || 'General') as string,
@@ -35,9 +37,9 @@ export const api = {
   },
   // Throws on failure — the `catch { return [] }` this replaces made a server
   // outage indistinguishable from "nobody logged time this period".
-  async timesheets(startDate: string, endDate: string): Promise<TimesheetEntry[]> {
+  async timesheets(startDate: string, endDate: string, signal?: AbortSignal): Promise<TimesheetEntry[]> {
     const p = new URLSearchParams({ start_date: startDate, end_date: endDate });
-    return requireArray<TimesheetEntry>(await apiClient.get<unknown>(`/api/timesheets?${p}`), 'Timesheets');
+    return requireArray<TimesheetEntry>(await apiClient.get<unknown>(`/api/timesheets?${p}`, { signal }), 'Timesheets');
   },
   async create(data: Omit<TimesheetEntry, 'id'>): Promise<TimesheetEntry> {
     const res = await apiClient.post<{ action?: string; data?: TimesheetEntry } | TimesheetEntry>('/api/timesheets', data);
@@ -51,26 +53,25 @@ export const api = {
   async delete(id: number): Promise<void> {
     await apiClient.delete(`/api/timesheets/${id}`);
   },
-  /** Leaves for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
-  async moduleLeaves(period: Period): Promise<ApprovedLeaveRecord[]> {
-    const all = requireArray<ApprovedLeaveRecord>(periodUsesUnsignedModuleRecords(period)
-      ? await apiClient.get<unknown>('/api/leaves')
-      : await apiClient.get<unknown>('/api/leaves?status=approved'), 'Leave records');
-    return all.filter(l => l.status !== 'rejected');
+  /** NEC includes all non-rejected source records without changing their approval state. */
+  async moduleLeaves(period: Period, includePending = false, signal?: AbortSignal): Promise<ApprovedLeaveRecord[]> {
+    const all = requireArray<ApprovedLeaveRecord>(includePending || periodUsesUnsignedModuleRecords(period)
+      ? await apiClient.get<unknown>('/api/leaves', { signal })
+      : await apiClient.get<unknown>('/api/leaves?status=approved', { signal }), 'Leave records');
+    return all.filter(l => moduleRecordIncluded(l.status));
   },
-  /** Overtime for grid merge — approved only, except the scoped NEC Aug–Sep 2026 batch. */
-  async moduleOvertime(period: Period): Promise<ApprovedOvertimeRecord[]> {
-    const all = requireArray<ApprovedOvertimeRecord>(periodUsesUnsignedModuleRecords(period)
-      ? await apiClient.get<unknown>('/api/overtime')
-      : await apiClient.get<unknown>('/api/overtime?status=approved'), 'Overtime records');
-    return all.filter(o => o.status !== 'rejected');
+  async moduleOvertime(period: Period, includePending = false, signal?: AbortSignal): Promise<ApprovedOvertimeRecord[]> {
+    const all = requireArray<ApprovedOvertimeRecord>(includePending || periodUsesUnsignedModuleRecords(period)
+      ? await apiClient.get<unknown>('/api/overtime', { signal })
+      : await apiClient.get<unknown>('/api/overtime?status=approved', { signal }), 'Overtime records');
+    return all.filter(o => moduleRecordIncluded(o.status));
   },
-  async shiftAssignments(): Promise<ShiftAssignment[]> {
-    return requireArray<ShiftAssignment>(await apiClient.get<unknown>('/api/standby'), 'Shift assignments');
+  async shiftAssignments(signal?: AbortSignal): Promise<ShiftAssignment[]> {
+    return requireArray<ShiftAssignment>(await apiClient.get<unknown>('/api/standby', { signal }), 'Shift assignments');
   },
 };
 
-export function useTimesheetsData(activePeriod: Period) {
+export function useTimesheetsData(activePeriod: Period, includePending = false) {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeaveRecord[]>([]);
@@ -79,25 +80,46 @@ export function useTimesheetsData(activePeriod: Period) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const requestId = useRef(0);
+  const activeLoad = useRef<AbortController | null>(null);
 
   const load = useCallback(async (quiet = false) => {
     const currentRequest = ++requestId.current;
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
     if (quiet) setRefreshing(true); else setLoading(true);
+    if (!quiet) {
+      setAllEmployees([]);
+      setTimesheets([]);
+      setApprovedLeaves([]);
+      setApprovedOvertime([]);
+      setShiftAssignments([]);
+    }
     setLoadError(null);
+    setRetrying(false);
+    const read = <T,>(operation: (signal: AbortSignal) => Promise<T>) => retryTimesheetRead(operation, controller.signal, () => {
+      if (currentRequest === requestId.current) setRetrying(true);
+    });
     try {
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
-        api.employees(), api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end)),
-        api.moduleLeaves(activePeriod), api.moduleOvertime(activePeriod), api.shiftAssignments(),
+        read(signal => api.employees(signal)),
+        read(signal => api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end), signal)),
+        read(signal => api.moduleLeaves(activePeriod, includePending, signal)),
+        read(signal => api.moduleOvertime(activePeriod, includePending, signal)),
+        read(signal => api.shiftAssignments(signal)),
       ]);
-      if (currentRequest !== requestId.current) return;
+      if (currentRequest !== requestId.current || controller.signal.aborted) return;
+      controller.abort();
       setAllEmployees(emps);
       setTimesheets(sheets);
       setApprovedLeaves(leaves);
       setApprovedOvertime(ot);
       setShiftAssignments(shifts);
     } catch (e) {
-      if (currentRequest !== requestId.current) return;
+      if (currentRequest !== requestId.current || controller.signal.aborted) return;
+      controller.abort();
       const msg = (e as Error).message || 'Unknown error';
       if (!quiet) {
         setAllEmployees([]);
@@ -109,17 +131,17 @@ export function useTimesheetsData(activePeriod: Period) {
       setLoadError(msg);
       toast.error('Failed to load: ' + msg);
     }
-    finally { if (currentRequest === requestId.current) { setLoading(false); setRefreshing(false); } }
-  }, [activePeriod]);
+    finally { if (currentRequest === requestId.current) { setLoading(false); setRefreshing(false); setRetrying(false); } }
+  }, [activePeriod, includePending]);
 
   useEffect(() => {
     const activeRequest = requestId;
     void load();
-    return () => { ++activeRequest.current; };
+    return () => { ++activeRequest.current; activeLoad.current?.abort(); };
   }, [load]);
 
   return {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    loading, refreshing, loadError, refresh: load,
+    loading, refreshing, retrying, loadError, refresh: load,
   };
 }

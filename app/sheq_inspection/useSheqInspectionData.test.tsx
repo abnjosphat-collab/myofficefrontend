@@ -1,78 +1,47 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
 import type { SHEQFormData } from './types';
-import { useSheqInspectionData } from './useSheqInspectionData';
+import { createInspection, deleteInspection, updateInspection, useSheqInspectionData } from './useSheqInspectionData';
 
-vi.mock('@/lib/apiClient', () => ({ api: { get: vi.fn() } }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/lib/apiClient', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  ApiError: class extends Error { status = 0; },
+}));
 
 const inspection = (id: string): SHEQFormData => ({
-  id,
-  inspectors: 'Audit User',
-  title: 'Workshop inspection',
-  place: 'Workshop',
-  date: '2026-09-27',
-  time: '09:00',
-  department: 'Engineering',
-  section: 'mechanical',
-  findings: [],
-  hodName: '',
-  sheqOfficialName: '',
-  status: 'submitted',
-  before_photos: [],
-  after_photos: [],
-  createdAt: '2026-09-27T09:00:00Z',
-  updatedAt: '2026-09-27T09:00:00Z',
+  id, inspectors: 'Audit User', title: 'Monthly audit', place: 'Workshop', date: '2026-09-27', time: '09:00', department: 'Engineering', section: 'mechanical', findings: [],
+  hodName: '', sheqOfficialName: '', status: 'draft', before_photos: [], after_photos: [], createdAt: '2026-09-27T09:00:00Z', updatedAt: '2026-09-27T09:00:00Z',
 });
 
-describe('SHEQ inspection loading', () => {
+describe('SHEQ inspection data', () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it('exposes an initial failure and recovers on retry', async () => {
-    vi.mocked(api.get)
-      .mockRejectedValueOnce(new Error('Supabase is waking up'))
-      .mockResolvedValueOnce([inspection('recovered')]);
-
+  it('reports an initial failure as an error, not an empty register, and recovers on retry', async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error('Service unavailable')).mockResolvedValueOnce([inspection('recovered')]);
     const { result } = renderHook(() => useSheqInspectionData());
-    await act(async () => result.current.load());
-
-    expect(result.current.loadError).toBe('Supabase is waking up');
-    expect(result.current.inspections).toEqual([]);
-    expect(toast.error).toHaveBeenCalledWith('Failed to load inspections');
-
-    await act(async () => result.current.load());
-    expect(result.current.loadError).toBe('');
+    await waitFor(() => expect(result.current.error).toBe('Service unavailable'));
+    expect(result.current.loaded).toBe(false);
+    await act(async () => result.current.refetch());
+    expect(result.current.error).toBeNull();
     expect(result.current.inspections[0]?.id).toBe('recovered');
   });
 
-  it('preserves loaded inspections when a quiet refresh fails', async () => {
-    vi.mocked(api.get)
-      .mockResolvedValueOnce([inspection('existing')])
-      .mockRejectedValueOnce(new Error('Service unavailable'));
-
+  it('keeps loaded inspections when a refresh fails', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce([inspection('existing')]).mockRejectedValueOnce(new Error('Supabase is waking up'));
     const { result } = renderHook(() => useSheqInspectionData());
-    await act(async () => result.current.load());
-    await act(async () => result.current.load(true));
-
+    await waitFor(() => expect(result.current.inspections[0]?.id).toBe('existing'));
+    await act(async () => result.current.refetch());
     expect(result.current.inspections[0]?.id).toBe('existing');
-    expect(result.current.loadError).toBe('Service unavailable');
-    expect(result.current.refreshing).toBe(false);
+    expect(result.current.error).toBe('Supabase is waking up');
   });
 
-  it('ignores an older response after a newer load succeeds', async () => {
-    let resolveOlder: (value: SHEQFormData[]) => void = () => {};
-    vi.mocked(api.get)
-      .mockImplementationOnce(() => new Promise(resolve => { resolveOlder = resolve; }))
-      .mockResolvedValueOnce([inspection('current')]);
-
-    const { result } = renderHook(() => useSheqInspectionData());
-    act(() => { void result.current.load(); });
-    await act(async () => result.current.load());
-    expect(result.current.inspections[0]?.id).toBe('current');
-
-    await act(async () => resolveOlder([inspection('older')]));
-    expect(result.current.inspections[0]?.id).toBe('current');
+  it('lets write failures propagate so the dialog can show them', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('nope'));
+    vi.mocked(api.patch).mockRejectedValueOnce(new Error('nope'));
+    vi.mocked(api.delete).mockRejectedValueOnce(new Error('nope'));
+    await expect(createInspection({})).rejects.toThrow('nope');
+    await expect(updateInspection('1', {})).rejects.toThrow('nope');
+    await expect(deleteInspection('1')).rejects.toThrow('nope');
   });
 });

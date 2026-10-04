@@ -1,0 +1,1926 @@
+{
+  "/admin/lists": {
+    "desktop": {
+      "extra": {
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete Shaft 1?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 162,
+            "top": 369
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    },
+    "phone": {
+      "extra": {
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete Shaft 1?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 162,
+            "top": 341
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    }
+  },
+  "/admin": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Invite user",
+        "fits": true,
+        "box": {
+          "w": 448,
+          "h": 349,
+          "top": 276
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "manage": {
+          "found": true,
+          "name": "Manage Mia Manager",
+          "fits": true,
+          "box": {
+            "w": 576,
+            "h": 329,
+            "top": 286
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-reset": {
+          "found": true,
+          "name": "Send password reset email?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 162,
+            "top": 369
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Invite user",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 368,
+          "top": 238
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "manage": {
+          "found": true,
+          "name": "Manage Mia Manager",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 329,
+            "top": 258
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-reset": {
+          "found": true,
+          "name": "Send password reset email?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 162,
+            "top": 341
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    }
+  },
+  "/availabilities": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Log availability record",
+        "fits": true,
+        "box": {
+          "w": 576,
+          "h": 609,
+          "top": 146
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "edit": {
+          "found": true,
+          "name": "Edit availability record",
+          "fits": true,
+          "box": {
+            "w": 576,
+            "h": 609,
+            "top": 146
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete this availability record?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 162,
+            "top": 369
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": false
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Log availability record",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 628,
+          "top": 108
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "edit": {
+          "found": true,
+          "name": "Edit availability record",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 641,
+            "top": 101
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete this availability record?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 162,
+            "top": 341
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": false
+      }
+    }
+  },
+  "/availability": {
+    "desktop": {
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/compressors": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Add compressor",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 497,
+          "top": 202
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "status": {
+          "found": true,
+          "name": "Change status",
+          "fits": true,
+          "box": {
+            "w": 448,
+            "h": 275,
+            "top": 313
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "reading": {
+          "found": true,
+          "name": "Reading for Compressor One",
+          "fits": true,
+          "box": {
+            "w": 576,
+            "h": 828,
+            "top": 36
+          },
+          "actionReachable": true,
+          "bodyScrolls": true,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-service": {
+          "found": true,
+          "name": "Record the 1000 h service for Compressor One?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 183,
+            "top": 358
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": false
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Add compressor",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 724,
+          "top": 60
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "status": {
+          "found": true,
+          "name": "Change status",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 275,
+            "top": 285
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "reading": {
+          "found": true,
+          "name": "Reading for Compressor One",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 776,
+            "top": 34
+          },
+          "actionReachable": false,
+          "bodyScrolls": true,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "confirm-service": {
+          "found": true,
+          "name": "Record the 1000 h service for Compressor One?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 183,
+            "top": 330
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": false
+      }
+    }
+  },
+  "/condition-monitoring": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Add reading",
+        "fits": true,
+        "box": {
+          "w": 576,
+          "h": 604,
+          "top": 148
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Add reading",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/drivers": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Add driver",
+        "fits": true,
+        "box": {
+          "w": 576,
+          "h": 657,
+          "top": 122
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Edit driver",
+        "fits": true,
+        "box": {
+          "w": 576,
+          "h": 701,
+          "top": 100
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Add driver",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Edit driver",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/engineering-dashboard": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/engineering_report": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/": {
+    "desktop": {
+      "extra": {
+        "customise": {
+          "found": true,
+          "name": "Quick actions",
+          "fits": true,
+          "box": {
+            "w": 448,
+            "h": 277,
+            "top": 311
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "quick-view": {
+          "found": true,
+          "name": "Personnel",
+          "fits": true,
+          "box": {
+            "w": 448,
+            "h": 291,
+            "top": 305
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    },
+    "phone": {
+      "extra": {
+        "customise": {
+          "found": true,
+          "name": "Quick actions",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 296,
+            "top": 274
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        },
+        "quick-view": {
+          "found": true,
+          "name": "Personnel",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 291,
+            "top": 277
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    }
+  },
+  "/inventory": {
+    "desktop": {
+      "extra": {
+        "add": {
+          "found": true,
+          "name": "Add item",
+          "fits": true,
+          "box": {
+            "w": 768,
+            "h": 692,
+            "top": 104
+          },
+          "actionReachable": true,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    },
+    "phone": {
+      "extra": {
+        "add": {
+          "found": true,
+          "name": "Add item",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 776,
+            "top": 34
+          },
+          "actionReachable": true,
+          "bodyScrolls": true,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    }
+  },
+  "/job-cards": {
+    "desktop": {
+      "detail": {
+        "found": true,
+        "name": "Replace conveyor belt",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 721,
+          "top": 89
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "detail": {
+        "found": true,
+        "name": "Replace conveyor belt",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/near_miss": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New near miss report",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 673,
+          "top": 114
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Near miss report",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 455,
+          "top": 222
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New near miss report",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Near miss report",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 641,
+          "top": 101
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/noticeboard": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Create notice",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Fire drill on Friday",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 649,
+          "top": 126
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "confirm-archive": {
+          "found": true,
+          "name": "Archive 1 expired notice?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 162,
+            "top": 369
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Create notice",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Fire drill on Friday",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": null,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "confirm-archive": {
+          "found": true,
+          "name": "Archive 1 expired notice?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 162,
+            "top": 341
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/pachedu": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New care observation",
+        "fits": true,
+        "box": {
+          "w": 1024,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Pachedu: be your brother's keeper",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 703,
+          "top": 98
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New care observation",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Pachedu: be your brother's keeper",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/pto": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New planned task observation",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Planned task observation report",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New planned task observation",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Planned task observation report",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/reliability": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/requisitions": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New purchase requisition",
+        "fits": true,
+        "box": {
+          "w": 1024,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Requisition REQ-001",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 550,
+          "top": 175
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New purchase requisition",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Requisition REQ-001",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 694,
+          "top": 75
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/safety_complaints": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New safety complaint",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Safety complaint",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 547,
+          "top": 176
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New safety complaint",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Safety complaint",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 768,
+          "top": 38
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/sheq_inspection": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New inspection",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Inspection report",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 822,
+          "top": 39
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New inspection",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Inspection report",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": null,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/sheq": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/sop-library": {
+    "desktop": {
+      "detail": {
+        "found": true,
+        "name": "SOP-OPS-001: Lockout and tagout",
+        "fits": true,
+        "box": {
+          "w": 512,
+          "h": 900,
+          "top": 0
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "new": {
+          "found": true,
+          "name": "New SOP",
+          "fits": true,
+          "box": {
+            "w": 768,
+            "h": 828,
+            "top": 36
+          },
+          "actionReachable": true,
+          "bodyScrolls": true,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    },
+    "phone": {
+      "detail": {
+        "found": true,
+        "name": "SOP-OPS-001: Lockout and tagout",
+        "fits": true,
+        "box": {
+          "w": 390,
+          "h": 844,
+          "top": 0
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "new": {
+          "found": true,
+          "name": "New SOP",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 776,
+            "top": 34
+          },
+          "actionReachable": true,
+          "bodyScrolls": true,
+          "focusInside": true,
+          "hasClose": true,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      }
+    }
+  },
+  "/tasks-events": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New event or task",
+        "fits": true,
+        "box": {
+          "w": 576,
+          "h": 590,
+          "top": 155
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Service the north pump",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 604,
+          "top": 148
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete \"Service the north pump\"?",
+          "fits": true,
+          "box": {
+            "w": 384,
+            "h": 143,
+            "top": 379
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New event or task",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 590,
+          "top": 127
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Service the north pump",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {
+        "confirm-delete": {
+          "found": true,
+          "name": "Delete \"Service the north pump\"?",
+          "fits": true,
+          "box": {
+            "w": 358,
+            "h": 143,
+            "top": 351
+          },
+          "actionReachable": null,
+          "bodyScrolls": false,
+          "focusInside": true,
+          "hasClose": false,
+          "contentOverflowsX": false,
+          "escapeCloses": true
+        }
+      },
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/training": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Add certification",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 509,
+          "top": 196
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Edit certification",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 577,
+          "top": 162
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Add certification",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 755,
+          "top": 44
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Edit certification",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/usage-analyzer": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/vfl": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New VFL observation",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Visible felt leadership observation",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 789,
+          "top": 55
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New VFL observation",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Visible felt leadership observation",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/work_stoppage": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New work stoppage",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Work stoppage report",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 786,
+          "top": 57
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New work stoppage",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Work stoppage report",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": null,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  }
+}

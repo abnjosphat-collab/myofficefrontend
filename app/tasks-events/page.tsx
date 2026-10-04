@@ -1,470 +1,183 @@
-// app/tasks-events/page.tsx — manager-only Events & Tasks board: post upcoming
-// events and to-do items in one list, check them off when done, see a
-// completion-rate breakdown per task type. Hidden from the nav (modules.ts's
-// `minRole`) and rejected server-side (the whole /api/tasks-events router is
-// gated in main.py); this page guard is defense-in-depth #2, same pattern as
-// app/accounting/page.tsx.
+// app/tasks-events/page.tsx — manager-only Events & Tasks board: events and to-dos in one list, checked off when done,
+// with a completion breakdown by type. Hidden from the nav (modules.ts `minRole`) and rejected server-side (the whole
+// /api/tasks-events router is manager+ in main.py); the guard below is defence in depth for a direct visit, and the
+// list is only requested once the caller is known to be a manager.
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppShell } from '@/components/app-shell';
-import { useAuth } from '@/lib/auth-context';
 import {
-  useTheme, AccentText, AccentIcon, STATUS_TONE, PageHero, StatTile, GlowCard, ProgressBar, ACCENT_HEX,
-  PrimaryButton, CenterModal, FormField, SelectField, SearchInput, StatusBadge, EmptyState, useConfirm, TYPE_WEIGHT, DetailActions,
-} from '@/components/shared/theme';
-import {
-  ListTodo, Plus, Trash2, CalendarClock, Check, RotateCcw, Clock, Pencil, AlertTriangle, Lock,
-} from '@/components/shared/theme';
-import { fmtDate, fmtDateTime } from '@/components/shared/utils';
+  Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, Skeleton, StatusBadge,
+  Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
+  type Column, type SortState,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { fmtDate } from '@/components/shared/utils';
+import { useAuth } from '@/lib/auth-context';
 import { exportFilename } from '@/lib/exportUtils';
-import { EmployeeMultiPicker } from '@/components/shared/EmployeeMultiPicker';
-import {
-  useTasksEventsData, createTaskEvent, updateTaskEvent, deleteTaskEvent,
-  completeTaskEvent, reopenTaskEvent, listComments, addComment,
-} from './useTasksEventsData';
-import { TASK_TYPES, PRIORITIES, type TaskEvent, type TaskEventFormData, type TaskComment } from './types';
+import { ItemDetailsDialog, ItemFormDialog } from './dialogs';
+import { PRIORITY_TONE, TYPE_TONE, isOverdue } from './meta';
+import { PRIORITIES, TASK_TYPES, type TaskEvent, type TaskEventFormData } from './types';
+import { completeTaskEvent, createTaskEvent, deleteTaskEvent, reopenTaskEvent, updateTaskEvent, useTasksEvents } from './useTasksEventsData';
 
-const TYPE_COLOR: Record<string, string> = {
-  Event: ACCENT_HEX.blue, Task: ACCENT_HEX.violet, Meeting: ACCENT_HEX.cyan, Deadline: ACCENT_HEX.amber,
-};
-// Harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — was its own
-// cyan/amber/rose scale; Low now reads as neutral/muted rather than cyan, matching
-// the "low priority = neutral gray" convention every other page's priority scale uses.
-const PRIORITY_COLOR: Record<string, string> = {
-  Low: STATUS_TONE.neutral, Medium: STATUS_TONE.warning, High: STATUS_TONE.critical,
-};
+const ALL = '__all__';
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'title', label: 'Title' }, { key: 'task_type', label: 'Type' }, { key: 'status', label: 'Status' }, { key: 'priority', label: 'Priority' },
+  { key: 'event_date', label: 'Date', format: v => (v ? fmtDate(v as string) : '') }, { key: 'due_date', label: 'Due date', format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'responsible_people', label: 'Responsible', format: v => (Array.isArray(v) ? v.join(', ') : '') }, { key: 'completed_by', label: 'Completed by' },
+];
 
-const blankForm = (): TaskEventFormData => ({
-  title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_people: [], priority: 'Medium',
-});
-const isOverdue = (item: TaskEvent) => item.status === 'pending' && !!item.due_date && new Date(item.due_date) < new Date(new Date().toDateString());
-
-// ─── Form modal (create + edit) ────────────────────────────────────────────
-
-function FormModal({ open, onClose, onSaved, initialData }: {
-  open: boolean; onClose: () => void; onSaved: () => void; initialData: TaskEvent | null;
-}) {
-  const mode = initialData ? 'edit' : 'create';
-  const [form, setForm] = useState<TaskEventFormData>(blankForm());
-  const [saving, setSaving] = useState(false);
-  const set = <K extends keyof TaskEventFormData>(k: K, v: TaskEventFormData[K]) => setForm(f => ({ ...f, [k]: v }));
-
-  useEffect(() => {
-    if (initialData) {
-      setForm({
-        title: initialData.title, description: initialData.description || '', task_type: initialData.task_type,
-        event_date: initialData.event_date || '', due_date: initialData.due_date || '',
-        responsible_people: initialData.responsible_people || [], priority: initialData.priority,
-      });
-    } else setForm(blankForm());
-  }, [initialData, open]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.title.trim()) { toast.error('Title is required'); return; }
-    setSaving(true);
-    try {
-      if (mode === 'edit' && initialData) {
-        await updateTaskEvent(initialData.id, form);
-        toast.success('Updated');
-      } else {
-        await createTaskEvent(form);
-        toast.success('Added to the board');
-      }
-      onSaved();
-      onClose();
-    } catch (err) { toast.error((err as Error).message || 'Could not save'); }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <CenterModal open={open} onClose={onClose} title={mode === 'edit' ? 'Edit Event / Task' : 'New Event / Task'} accent="violet" width="max-w-lg">
-      <form onSubmit={handleSubmit} className="p-5 space-y-4">
-        <FormField label="Title" required>
-          <input aria-label="Title" value={form.title} onChange={e => set('title', e.target.value)}
-            placeholder="What needs doing?" className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
-        </FormField>
-        <FormField label="Description">
-          <textarea aria-label="Description" rows={3} value={form.description} onChange={e => set('description', e.target.value)}
-            className="w-full rounded-lg px-3 py-2 text-sm outline-none bg-white/10 resize-none" />
-        </FormField>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Type">
-            <SelectField value={form.task_type} onChange={v => set('task_type', v)} options={[...TASK_TYPES]} />
-          </FormField>
-          <FormField label="Priority">
-            <SelectField value={form.priority} onChange={v => set('priority', v)} options={[...PRIORITIES]} />
-          </FormField>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Date">
-            <input aria-label="Date" type="date" value={form.event_date} onChange={e => set('event_date', e.target.value)}
-              className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
-          </FormField>
-          <FormField label="Due Date">
-            <input aria-label="Due Date" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)}
-              className="w-full h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
-          </FormField>
-        </div>
-        <EmployeeMultiPicker
-          label="Responsible People"
-          value={form.responsible_people.map(name => ({ id: name, employee_id: name, name }))}
-          onAdd={p => set('responsible_people', form.responsible_people.includes(p.name) ? form.responsible_people : [...form.responsible_people, p.name])}
-          onRemove={id => set('responsible_people', form.responsible_people.filter(n => n !== id))}
-        />
-        <div className="flex justify-end gap-2 pt-2">
-          <PrimaryButton type="submit" submitting={saving}>{mode === 'edit' ? 'Save' : 'Add'}</PrimaryButton>
-        </div>
-      </form>
-    </CenterModal>
-  );
-}
-
-// ─── Details modal (read-only view + comments) ─────────────────────────────
-
-function DetailsModal({ item, open, onClose, onEdit, onDelete, onToggle }: {
-  item: TaskEvent | null; open: boolean; onClose: () => void; onEdit: (i: TaskEvent) => void; onDelete: (i: TaskEvent) => void; onToggle: (i: TaskEvent) => void;
-}) {
-  const t = useTheme();
-  const [comments, setComments] = useState<TaskComment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [posting, setPosting] = useState(false);
-  const { profile } = useAuth();
-
-  useEffect(() => {
-    if (!open || !item) { setComments([]); return; }
-    setLoadingComments(true);
-    listComments(item.id).then(setComments).catch(() => setComments([])).finally(() => setLoadingComments(false));
-  }, [open, item]);
-
-  if (!item) return null;
-
-  const handlePost = async () => {
-    if (!draft.trim()) return;
-    setPosting(true);
-    try {
-      const created = await addComment(item.id, draft.trim(), profile?.email || profile?.id);
-      setComments(prev => [...prev, created]);
-      setDraft('');
-    } catch (err) { toast.error((err as Error).message || 'Could not post comment'); }
-    finally { setPosting(false); }
-  };
-
-  return (
-    <CenterModal open={open} onClose={onClose} title={item.title} accent="violet" width="max-w-2xl">
-      <div className="p-5 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge color={item.status === 'completed' ? ACCENT_HEX.emerald : ACCENT_HEX.amber} label={item.status === 'completed' ? 'Completed' : 'Pending'} dot />
-          <StatusBadge color={TYPE_COLOR[item.task_type] || ACCENT_HEX.violet} label={item.task_type} />
-          <StatusBadge color={PRIORITY_COLOR[item.priority] || ACCENT_HEX.amber} label={item.priority} />
-          {isOverdue(item) && <StatusBadge color="#f43f5e" label="Overdue" />}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Date', val: item.event_date ? fmtDate(item.event_date) : '—' },
-            { label: 'Due Date', val: item.due_date ? fmtDate(item.due_date) : '—' },
-            { label: 'Responsible', val: item.responsible_people?.length ? item.responsible_people.join(', ') : 'Unassigned' },
-            { label: 'Completed By', val: item.completed_by || '—' },
-          ].map(({ label, val }) => (
-            <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
-              <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>{label}</span>
-              <span className={`text-sm ${t.textMuted}`}>{val}</span>
-            </div>
-          ))}
-        </div>
-
-        {item.description && (
-          <div>
-            <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-0.5 ${t.textFaint}`}>Description</span>
-            <div className={`${t.chipBg} rounded-xl p-3 text-sm whitespace-pre-wrap break-words ${t.textMuted}`}>{item.description}</div>
-          </div>
-        )}
-
-        <div>
-          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider block mb-2 ${t.textFaint}`}>Progress Comments</span>
-          <div className="space-y-2 max-h-48 overflow-y-auto mb-2">
-            {loadingComments ? (
-              <p className={`text-xs ${t.textFaint}`}>Loading…</p>
-            ) : comments.length === 0 ? (
-              <p className={`text-xs ${t.textFaint}`}>No comments yet.</p>
-            ) : comments.map(c => (
-              <div key={c.id} className={`${t.chipBg} rounded-xl p-2.5`}>
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{c.author || 'Someone'}</span>
-                  <span className={`text-[10px] ${t.textFaint}`}>{fmtDateTime(c.created_at)}</span>
-                </div>
-                <p className={`text-sm ${t.textMuted}`}>{c.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input value={draft} onChange={e => setDraft(e.target.value)} placeholder="Add a progress update…" aria-label="Add a progress update"
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handlePost(); } }}
-              className="flex-1 h-9 rounded-lg px-3 text-sm outline-none bg-white/10" />
-            <PrimaryButton onClick={handlePost} submitting={posting} disabled={!draft.trim()}>Post</PrimaryButton>
-          </div>
-        </div>
-
-        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} primaryAction={{ label: item.status === 'completed' ? 'Reopen' : 'Mark complete', onClick: () => { onToggle(item); onClose(); } }} onEdit={() => { onEdit(item); onClose(); }} onDelete={() => { onDelete(item); onClose(); }} /> : <div className="flex gap-2 pt-2">
-          <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Close</button>
-          <PrimaryButton size="md" fullWidth accent="emerald" onClick={() => { onToggle(item); onClose(); }}>
-            {item.status === 'completed' ? 'Reopen' : 'Mark Complete'}
-          </PrimaryButton>
-          <PrimaryButton size="md" fullWidth accent="amber" onClick={() => { onEdit(item); onClose(); }}>Edit</PrimaryButton>
-          <PrimaryButton danger size="md" fullWidth onClick={() => { onDelete(item); onClose(); }}>Delete</PrimaryButton>
-        </div>}
-      </div>
-    </CenterModal>
-  );
-}
-
-// ─── Page ───────────────────────────────────────────────────────────────────
-
-type StatusFilter = 'all' | 'pending' | 'completed';
-
-function TasksEventsContent() {
-  const t = useTheme();
-  const { profile, loading: authLoading, isAtLeast } = useAuth();
-  const router = useRouter();
+function Board({ completedBy }: { completedBy: string }) {
   const confirm = useConfirm();
-  const { items, loading, refresh } = useTasksEventsData();
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<TaskEvent | null>(null);
-  const [viewing, setViewing] = useState<TaskEvent | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const { items, setItems, loading, loaded, error, errorStatus, refetch } = useTasksEvents();
+  const [statusF, setStatusF] = useState(ALL);
+  const [typeF, setTypeF] = useState(ALL);
+  const [priorityF, setPriorityF] = useState(ALL);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<TaskEvent | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [viewingId, setViewingId] = useState<number | null>(null);
+  const viewing = useMemo(() => items.find(i => i.id === viewingId) ?? null, [items, viewingId]);
 
-  // Defense-in-depth #2 — the nav hides the tile and the backend router rejects
-  // the API for anyone below manager, but a direct URL visit still needs this.
-  useEffect(() => {
-    if (!authLoading && profile && !isAtLeast('manager')) router.replace('/');
-  }, [authLoading, profile, isAtLeast, router]);
-
-  // Hooks must run on every render regardless of auth state — these were
-  // previously declared after the early returns below, so a signed-out or
-  // still-loading visit called fewer hooks than a signed-in one ("Rendered
-  // more hooks than during the previous render" on the loading→loaded
-  // transition). None of these actually depend on profile/authLoading, so
-  // hoisting them above the returns is behavior-preserving (2026-08-30 fix).
-  const pending = items.filter(i => i.status === 'pending');
-  const completed = items.filter(i => i.status === 'completed');
+  const pendingItems = items.filter(i => i.status === 'pending');
+  const completedItems = items.filter(i => i.status === 'completed');
   const overdueCount = items.filter(isOverdue).length;
-
   const byType = useMemo(() => {
-    const groups = new Map<string, { total: number; completed: number }>();
-    for (const i of items) {
-      const g = groups.get(i.task_type) || { total: 0, completed: 0 };
-      g.total += 1;
-      if (i.status === 'completed') g.completed += 1;
-      groups.set(i.task_type, g);
-    }
-    return Array.from(groups.entries()).map(([type, g]) => ({
-      type, total: g.total, completed: g.completed,
-      pct: g.total ? Math.round((g.completed / g.total) * 100) : 0,
-    }));
+    const g = new Map<string, { total: number; done: number }>(); // a record with no type is grouped, not dropped
+    for (const i of items) { const k = i.task_type || 'No type'; const x = g.get(k) ?? { total: 0, done: 0 }; x.total += 1; if (i.status === 'completed') x.done += 1; g.set(k, x); }
+    return [...g.entries()].map(([type, x]) => ({ type, ...x, pct: x.total ? Math.round((x.done / x.total) * 100) : 0 }));
   }, [items]);
-
-  const pieData = useMemo(() => [
-    { name: 'Completed', value: completed.length, color: ACCENT_HEX.emerald },
-    { name: 'Pending', value: pending.length, color: ACCENT_HEX.amber },
-  ].filter(d => d.value > 0), [completed.length, pending.length]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter(i =>
-      (statusFilter === 'all' || i.status === statusFilter) &&
-      (typeFilter === 'all' || i.task_type === typeFilter) &&
-      (priorityFilter === 'all' || i.priority === priorityFilter) &&
-      (!overdueOnly || isOverdue(i)) &&
-      (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q))
-    );
-  }, [items, statusFilter, typeFilter, priorityFilter, overdueOnly, search]);
+    return items.filter(i => (statusF === ALL || i.status === statusF) && (typeF === ALL || i.task_type === typeF) && (priorityF === ALL || i.priority === priorityF)
+      && (!overdueOnly || isOverdue(i)) && (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q)));
+  }, [items, statusF, typeF, priorityF, overdueOnly, search]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof TaskEvent] ?? '').toLowerCase()), [filtered, sort]);
 
-  // authLoading resolves to false whether or not a session was found — so
-  // "still checking" and "checked, nobody's signed in" are genuinely different
-  // states and need different UI. Before this fix both rendered the same
-  // spinner forever for a signed-out visitor (2026-08-29 UI audit finding,
-  // audit/07-ui-polish-findings.md — confirmed live, not a mocking artifact).
-  if (authLoading) {
-    return (
-      <main className="flex-1 flex items-center justify-center py-32">
-        <div className={`h-8 w-8 border-2 ${t.border} border-t-brand-500 rounded-full animate-spin`} />
-      </main>
-    );
-  }
-  if (!profile) {
-    return (
-      <main className="flex-1 flex items-center justify-center py-32">
-        <EmptyState icon={Lock} title="Sign in required" message="Sign in with a manager account (top right) to view Tasks & Events." />
-      </main>
-    );
-  }
-  if (!isAtLeast('manager')) return null;
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || statusF !== ALL || typeF !== ALL || priorityF !== ALL || overdueOnly;
+  const clearFilters = () => { setSearch(''); setStatusF(ALL); setTypeF(ALL); setPriorityF(ALL); setOverdueOnly(false); };
 
-  const exportColumns: DLColumn[] = [
-    { key: 'title', label: 'Title' },
-    { key: 'task_type', label: 'Type' },
-    { key: 'status', label: 'Status' },
-    { key: 'priority', label: 'Priority' },
-    { key: 'event_date', label: 'Date', format: v => v ? fmtDate(v as string) : '' },
-    { key: 'due_date', label: 'Due Date', format: v => v ? fmtDate(v as string) : '' },
-    { key: 'responsible_people', label: 'Responsible', format: v => Array.isArray(v) ? v.join(', ') : '' },
-    { key: 'completed_by', label: 'Completed By' },
+  const openForm = (item: TaskEvent | null) => { setViewingId(null); setEditing(item); setFormOpen(true); };
+  const save = async (id: number | null, data: TaskEventFormData) => {
+    try { if (id === null) await createTaskEvent(data); else await updateTaskEvent(id, data); }
+    catch (e) { throw new Error(`Not saved: ${(e as Error).message}`); }
+    await refetch();
+  };
+  // Optimistic, and put back with the reason if the server refuses.
+  const toggle = async (item: TaskEvent) => {
+    const completing = item.status !== 'completed';
+    const next: TaskEvent = completing ? { ...item, status: 'completed', completed_by: completedBy, completed_at: new Date().toISOString() } : { ...item, status: 'pending', completed_by: null, completed_at: null };
+    setItems(p => p.map(i => (i.id === item.id ? next : i)));
+    try { if (completing) await completeTaskEvent(item.id, completedBy); else await reopenTaskEvent(item.id); }
+    catch (e) { setItems(p => p.map(i => (i.id === item.id ? item : i))); toast.error(`"${item.title}" was not updated: ${(e as Error).message}`); }
+  };
+  const remove = async (item: TaskEvent) => {
+    if (!await confirm({ title: `Delete "${item.title}"?`, message: 'This cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteTaskEvent(item.id); setViewingId(null); toast.success('Deleted.'); await refetch(); }
+    catch (e) { toast.error(`"${item.title}" was not deleted: ${(e as Error).message}`); }
+  };
+
+  const COLUMNS: Column<TaskEvent>[] = [
+    { id: 'done', header: 'Done', width: '4.5rem', cell: i => <span role="presentation" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}><IconButton icon={i.status === 'completed' ? 'success' : 'pending'} size="sm" variant={i.status === 'completed' ? 'outline' : 'ghost'} pressed={i.status === 'completed'} label={i.status === 'completed' ? `Mark "${i.title}" pending` : `Mark "${i.title}" complete`} onClick={() => toggle(i)} /></span> },
+    { id: 'title', header: 'Title', sortable: true, sticky: true, cell: i => <div className="min-w-0"><p className={`font-medium [overflow-wrap:anywhere] ${i.status === 'completed' ? 'text-ink-muted line-through' : 'text-ink'}`}>{i.title}</p>{!!i.responsible_people?.length && <p className="truncate text-caption text-ink-muted">{i.responsible_people.join(', ')}</p>}</div> },
+    { id: 'task_type', header: 'Type', sortable: true, hideBelow: 'md', cell: i => (i.task_type ? <StatusBadge tone={TYPE_TONE[i.task_type] ?? 'neutral'}>{i.task_type}</StatusBadge> : <span className="text-ink-muted">None</span>) },
+    { id: 'priority', header: 'Priority', sortable: true, hideBelow: 'md', cell: i => (i.priority ? <StatusBadge tone={PRIORITY_TONE[i.priority] ?? 'neutral'}>{i.priority}</StatusBadge> : <span className="text-ink-muted">None</span>) },
+    { id: 'due_date', header: 'Due', sortable: true, cell: i => (i.due_date ? <span className={`inline-flex items-center gap-1 whitespace-nowrap tabular ${isOverdue(i) ? 'font-medium text-danger' : ''}`}>{fmtDate(i.due_date)}{isOverdue(i) && <StatusBadge tone="danger" icon="warning">Overdue</StatusBadge>}</span> : <span className="text-ink-muted">None</span>) },
   ];
 
-  const toggle = async (item: TaskEvent) => {
-    try {
-      if (item.status === 'completed') await reopenTaskEvent(item.id);
-      else await completeTaskEvent(item.id, profile.email || profile.id);
-      await refresh();
-    } catch (err) { toast.error((err as Error).message || 'Could not update'); }
-  };
-
-  const handleDelete = async (item: TaskEvent) => {
-    if (!await confirm({ title: `Delete "${item.title}"?`, destructive: true })) return;
-    try { await deleteTaskEvent(item.id); await refresh(); toast.success('Deleted'); }
-    catch (err) { toast.error((err as Error).message || 'Could not delete'); }
-  };
-
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1100px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={ListTodo}
-        accent="violet"
-        crumbs={['Manager Tools', 'Events & Tasks']}
-        title="Events & Tasks"
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Manager tools' }, { label: 'Events and tasks' }]}
+        title="Events and tasks"
+        description="Upcoming events and to-dos in one list, checked off when done."
+        actions={(
           <>
-            <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('events_tasks')} title="Events & Tasks" />
-            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setShowForm(true); }}>New</PrimaryButton>
+            <IconButton icon="refresh" label="Refresh events and tasks" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" />}
+            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
           </>
-        }
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile icon={ListTodo} color={ACCENT_HEX.violet} value={items.length} label="Total" />
-          <StatTile icon={Clock} color={ACCENT_HEX.amber} value={pending.length} label="Pending" />
-          <StatTile icon={Check} color={ACCENT_HEX.emerald} value={completed.length} label="Completed" />
-          <StatTile icon={AlertTriangle} color="#f43f5e" value={overdueCount} label="Overdue" onClick={() => setOverdueOnly(v => !v)} />
+        )}
+      />
+
+      <MetricGrid columns={4}>
+        <MetricTile label="Total" icon="task" value={items.length} loading={pending} unavailable={unavailable} selected={statusF === ALL && !overdueOnly} onClick={clearFilters} />
+        <MetricTile label="Pending" icon="pending" value={pendingItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'pending'} onClick={() => setStatusF(statusF === 'pending' ? ALL : 'pending')} />
+        <MetricTile label="Completed" icon="success" tone="success" value={completedItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'completed'} onClick={() => setStatusF(statusF === 'completed' ? ALL : 'completed')} />
+        <MetricTile label="Overdue" icon="warning" tone={overdueCount ? 'danger' : 'default'} value={overdueCount} loading={pending} unavailable={unavailable} selected={overdueOnly} onClick={() => setOverdueOnly(v => !v)} />
+      </MetricGrid>
+
+      {loaded && items.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2"><Panel title="Progress by type" description="Share of each type that is completed.">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              {byType.map(g => <div key={g.type} className="flex flex-col gap-1"><p className="font-sans text-body-sm text-ink">{g.type} <span className="text-ink-muted">· {g.done} of {g.total} done</span></p><Progress value={g.pct} label={`${g.type} completion`} /></div>)}
+            </div>
+          </Panel></div>
+          <Panel title="Completion split"><Distribution rows={[{ name: 'Completed', value: completedItems.length }, { name: 'Pending', value: pendingItems.length }]} /></Panel>
         </div>
-      </PageHero>
+      )}
 
-      <div className="grid sm:grid-cols-[1fr_auto] gap-4">
-        {byType.length > 0 && (
-          <GlowCard color={ACCENT_HEX.violet} surface={`${t.glass} rounded-2xl`} className="p-5 space-y-4">
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted}`}>Progress by type</p>
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
-              {byType.map(g => (
-                <ProgressBar key={g.type} value={g.pct} color={TYPE_COLOR[g.type] || ACCENT_HEX.violet}
-                  label={`${g.type} — ${g.completed}/${g.total}`} />
-              ))}
-            </div>
-          </GlowCard>
-        )}
+      <Toolbar filtered={hasFilters}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or description" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, { value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
+        <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, ...TASK_TYPES.map(v => ({ value: v, label: v }))]} />
+        <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
 
-        {pieData.length > 0 && (
-          <GlowCard color={ACCENT_HEX.emerald} surface={`${t.glass} rounded-2xl`} className="p-5">
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textMuted} mb-2`}>Completion split</p>
-            <div className="w-full sm:w-40 h-40">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={35} outerRadius={60} paddingAngle={3}>
-                    {pieData.map(d => <Cell key={d.name} fill={d.color} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </GlowCard>
-        )}
-      </div>
+      <DataRegion
+        status={status}
+        subject="events and tasks"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="Nothing matches" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="task" title="Nothing on the board yet" description="Add the first event or task." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New</Button>} />}
+      >
+        <DataTable
+          caption="Events and tasks"
+          rows={rows}
+          columns={COLUMNS}
+          getRowId={i => String(i.id)}
+          sort={sort}
+          onSortChange={setSort}
+          onRowActivate={i => setViewingId(i.id)}
+          rowActions={i => (
+            <span className="inline-flex gap-1">
+              <IconButton icon="edit" size="sm" label={`Edit "${i.title}"`} onClick={() => openForm(i)} />
+              <IconButton icon="delete" variant="danger" size="sm" label={`Delete "${i.title}"`} onClick={() => remove(i)} />
+            </span>
+          )}
+        />
+      </DataRegion>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search title or description…" className="w-full sm:w-64" />
-        <SelectField value={statusFilter} onChange={v => setStatusFilter(v as StatusFilter)} size="filter"
-          options={[{ value: 'all', label: 'All Statuses' }, { value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
-        <SelectField value={typeFilter} onChange={setTypeFilter} size="filter"
-          options={[{ value: 'all', label: 'All Types' }, ...TASK_TYPES.map(v => ({ value: v, label: v }))]} />
-        <SelectField value={priorityFilter} onChange={setPriorityFilter} size="filter"
-          options={[{ value: 'all', label: 'All Priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} />
-        <button type="button" onClick={() => setOverdueOnly(v => !v)}
-          className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.medium} transition-all ${overdueOnly ? `bg-rose-500/25 ${TYPE_WEIGHT.semibold}` : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}>
-          {overdueOnly ? <AccentText accent="rose">Overdue only</AccentText> : 'Overdue only'}
-        </button>
-      </div>
-
-      <div className={`${t.glass} rounded-2xl overflow-hidden`}>
-        {loading ? (
-          <div className="flex justify-center py-16"><div className={`h-6 w-6 border-2 ${t.border} border-t-brand-500 rounded-full animate-spin`} /></div>
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={ListTodo} title="Nothing here" message="No items match these filters." />
-        ) : (
-          <div className="divide-y divide-white/10">
-            {filtered.map(item => (
-              <div key={item.id} onClick={() => setViewing(item)} role="button" tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(item); } }}
-                className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${t.hoverBgSoft}`}>
-                <button type="button" onClick={e => { e.stopPropagation(); toggle(item); }} title={item.status === 'completed' ? 'Mark pending' : 'Mark complete'}
-                  className={`h-6 w-6 flex items-center justify-center rounded-full border shrink-0 transition-colors ${
-                    item.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/40' : `${t.chipBg} ${t.border} ${t.textFaint}`
-                  }`}>
-                  {item.status === 'completed' ? <AccentIcon icon={Check} accent="emerald" className="h-3.5 w-3.5" /> : <RotateCcw className="h-3 w-3 opacity-0" />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${item.status === 'completed' ? t.textFaint + ' line-through' : t.textPrimary}`}>{item.title}</p>
-                  {!!item.responsible_people?.length && <p className={`text-xs truncate ${t.textFaint}`}>{item.responsible_people.join(', ')}</p>}
-                </div>
-                <StatusBadge color={TYPE_COLOR[item.task_type] || ACCENT_HEX.violet} label={item.task_type} />
-                {item.due_date && (
-                  isOverdue(item)
-                    ? <AccentText accent="rose" className="text-xs flex items-center gap-1 shrink-0">
-                        <CalendarClock className="h-3.5 w-3.5" /> {fmtDate(item.due_date)}
-                      </AccentText>
-                    : <span className={`text-xs flex items-center gap-1 shrink-0 ${t.textFaint}`}>
-                        <CalendarClock className="h-3.5 w-3.5" /> {fmtDate(item.due_date)}
-                      </span>
-                )}
-                <button type="button" onClick={e => { e.stopPropagation(); setEditing(item); setShowForm(true); }} title="Edit"
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg shrink-0 ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={e => { e.stopPropagation(); handleDelete(item); }} title="Delete"
-                  className={`h-7 w-7 flex items-center justify-center rounded-lg shrink-0 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'}`}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <FormModal
-        open={showForm}
-        onClose={() => { setShowForm(false); setEditing(null); }}
-        onSaved={refresh}
-        initialData={editing}
-      />
-      <DetailsModal
-        item={viewing}
-        open={!!viewing}
-        onClose={() => setViewing(null)}
-        onEdit={i => { setEditing(i); setShowForm(true); }}
-        onDelete={handleDelete}
-        onToggle={toggle}
-      />
-    </main>
+      <ItemDetailsDialog item={viewing} author={completedBy} onClose={() => setViewingId(null)} onEdit={openForm} onDelete={remove} onToggle={i => { toggle(i); }} />
+      <ItemFormDialog open={formOpen} item={editing} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} />
+    </div>
   );
 }
 
+function TasksEventsContent() {
+  const { profile, loading, isAtLeast } = useAuth();
+  const router = useRouter();
+  useEffect(() => { if (!loading && profile && !isAtLeast('manager')) router.replace('/'); }, [loading, profile, isAtLeast, router]);
+
+  // "Still checking" and "checked, nobody is signed in" are different states: a signed-out visitor must not see a spinner forever.
+  if (loading) return <div role="status" aria-label="Checking your access" className="flex flex-col gap-3 py-8"><Skeleton className="h-8 w-64" /><Skeleton className="h-24 w-full" /></div>;
+  if (!profile) return <EmptyState icon="lock" title="Sign in required" description="Sign in with a manager account (top right) to view events and tasks." />;
+  if (!isAtLeast('manager')) return null;
+  return <Board completedBy={profile.email || profile.id} />;
+}
+
 export default function TasksEventsPage() {
-  return <AppShell><TasksEventsContent /></AppShell>;
+  return <AppShell migrated><TasksEventsContent /></AppShell>;
 }

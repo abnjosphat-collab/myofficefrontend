@@ -35,16 +35,17 @@ export function DallaglioCard({
   children: ReactNode;
 }) {
   const t = useTheme();
+  // Stationary card (Tools calm-motion standard): hover changes surface/shadow
+  // only — no lift, tilt, or scale. Motion.div stays for AnimatePresence
+  // compatibility; it carries no hover/tap animation.
   return (
     <motion.div
       data-ds="card"
       onClick={onClick}
       style={style}
       initial={false}
-      whileHover={{ y: -4 }}
-      whileTap={onClick ? { scale: 0.99 } : undefined}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className={`${surface ?? `${t.glass} rounded-[13px]`} ${t.shadow} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      transition={{ duration: 0.18 }}
+      className={`${surface ?? `${t.glass} rounded-[13px]`} ${t.shadow} transition-shadow duration-200 hover:shadow-[var(--d-shadow-hover)] ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
     </motion.div>

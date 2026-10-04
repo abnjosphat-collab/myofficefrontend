@@ -5,9 +5,9 @@
 // background-accent wash. Consolidated here so there is exactly one hex parser.
 
 /** Default accent used whenever a caller passes an invalid/missing hex. Aligned with
- *  the app's richer-purple brand accent (ACCENT_HEX.violet) so the background wash and
- *  the action color share the same purple. */
-export const DEFAULT_BG_ACCENT = '#9333ea';
+ *  the forest brand accent (ACCENT_HEX.violet) so the background wash and
+ *  the action color share the same forest tone. */
+export const DEFAULT_BG_ACCENT = '#3a6352';
 
 export function hexToRgbTuple(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -57,7 +57,7 @@ export function bgLayersFromHex(hex: string) {
   const safe = isValidHex(hex) ? hex : DEFAULT_BG_ACCENT;
   const rgb = hexToRgbTuple(safe);
   const light = [
-    'linear-gradient(180deg, #fafaf9 0%, #f5f5f4 55%, #f0efec 100%)',
+    'linear-gradient(180deg, #f4f6f5 0%, #eef2f0 55%, #e8eeeb 100%)',
     `radial-gradient(ellipse 90% 50% at 100% 0%, ${rgbaString(rgb, 0.06)} 0%, transparent 55%)`,
   ].join(', ');
   const darkWash = [

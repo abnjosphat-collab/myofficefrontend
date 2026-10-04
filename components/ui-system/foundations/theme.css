@@ -1,0 +1,170 @@
+/* MyOffice UI system — Tailwind theme bridge.
+ *
+ * Exposes the foundation tokens (./tokens.css) as Tailwind utilities:
+ *   colours   bg-canvas bg-surface text-ink text-ink-muted border-line bg-action …
+ *   type      text-page text-section text-title text-body text-body-sm text-label
+ *             text-caption text-metric text-display  (+ font-display / font-sans)
+ *   geometry  rounded-control rounded-card rounded-panel shadow-card …
+ *
+ * Text sizing goes through --mo-text-scale (the 85–130% appearance preference),
+ * including Tailwind's default text-xs…text-4xl, so every page and every portal
+ * scales together. There is deliberately no CSS `zoom` anywhere: browser zoom
+ * and responsive reflow keep working normally.
+ *
+ * `inline` makes utilities embed the calc() so the scale resolves on the element
+ * itself (inherited from :root) rather than being frozen at :root.
+ */
+@theme inline {
+  /* Families */
+  --font-sans: var(--mo-font-body);
+  --font-display: var(--mo-font-display);
+
+  /* Tailwind default sizes — same values, scale-aware */
+  --text-xs: calc(0.75rem * var(--mo-text-scale));
+  --text-xs--line-height: 1.34;
+  --text-sm: calc(0.875rem * var(--mo-text-scale));
+  --text-sm--line-height: 1.43;
+  --text-base: calc(1rem * var(--mo-text-scale));
+  --text-base--line-height: 1.5;
+  --text-lg: calc(1.125rem * var(--mo-text-scale));
+  --text-lg--line-height: 1.45;
+  --text-xl: calc(1.25rem * var(--mo-text-scale));
+  --text-xl--line-height: 1.4;
+  --text-2xl: calc(1.5rem * var(--mo-text-scale));
+  --text-2xl--line-height: 1.3;
+  --text-3xl: calc(1.875rem * var(--mo-text-scale));
+  --text-3xl--line-height: 1.2;
+  --text-4xl: calc(2.25rem * var(--mo-text-scale));
+  --text-4xl--line-height: 1.15;
+
+  /* Role scale — the sizes interface code should use (see typography.ts) */
+  --text-display: calc(1.875rem * var(--mo-text-scale));
+  --text-display--line-height: 1.2;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 600;
+  --text-page: calc(1.5rem * var(--mo-text-scale));
+  --text-page--line-height: 1.25;
+  --text-page--letter-spacing: -0.02em;
+  --text-page--font-weight: 600;
+  --text-section: calc(1.0625rem * var(--mo-text-scale));
+  --text-section--line-height: 1.4;
+  --text-section--letter-spacing: -0.01em;
+  --text-section--font-weight: 600;
+  --text-title: calc(0.9375rem * var(--mo-text-scale));
+  --text-title--line-height: 1.45;
+  --text-title--letter-spacing: -0.005em;
+  --text-title--font-weight: 600;
+  --text-body: calc(0.875rem * var(--mo-text-scale));
+  --text-body--line-height: 1.5;
+  --text-body-sm: calc(0.8125rem * var(--mo-text-scale));
+  --text-body-sm--line-height: 1.46;
+  --text-label: calc(0.8125rem * var(--mo-text-scale));
+  --text-label--line-height: 1.38;
+  --text-label--font-weight: 500;
+  --text-caption: calc(0.75rem * var(--mo-text-scale));
+  --text-caption--line-height: 1.34;
+  --text-caption--letter-spacing: 0.005em;
+  /* Shell navigation, matched to the Tools sidebar: 12px items, 14px spotlight label. */
+  --text-nav: calc(0.75rem * var(--mo-text-scale));
+  --text-nav--line-height: 1.3;
+  --text-nav--font-weight: 500;
+  --text-nav--letter-spacing: -0.005em;
+  --text-spotlight: calc(0.875rem * var(--mo-text-scale));
+  --text-spotlight--line-height: 1.3;
+  --text-spotlight--font-weight: 650;
+  --text-spotlight--letter-spacing: -0.02em;
+  --text-tip: calc(0.6875rem * var(--mo-text-scale)); /* tooltips: 11px like Tools */
+  --text-tip--line-height: 1.3;
+  --text-tip--font-weight: 500;
+  --text-metric: calc(1.75rem * var(--mo-text-scale));
+  --text-metric--line-height: 1.15;
+  --text-metric--letter-spacing: -0.02em;
+  --text-metric--font-weight: 600;
+
+  /* Colours */
+  --color-canvas: var(--mo-canvas);
+  --color-surface: var(--mo-surface);
+  --color-surface-raised: var(--mo-surface-raised);
+  --color-surface-subtle: var(--mo-surface-subtle);
+  --color-soft: var(--mo-soft);
+  --color-surface-muted: var(--mo-surface-muted);
+  --color-surface-interactive: var(--mo-surface-interactive);
+  --color-surface-interactive-hover: var(--mo-surface-interactive-hover);
+  --color-surface-inverse: var(--mo-surface-inverse);
+  --color-ink: var(--mo-ink);
+  --color-ink-muted: var(--mo-ink-muted);
+  --color-ink-subtle: var(--mo-ink-subtle);
+  --color-ink-inverse: var(--mo-ink-inverse);
+  --color-line: var(--mo-line);
+  --color-line-subtle: var(--mo-line-subtle);
+  --color-line-control: var(--mo-line-control);
+  --color-line-strong: var(--mo-line-strong);
+  --color-action: var(--mo-action);
+  --color-action-hover: var(--mo-action-hover);
+  --color-action-pressed: var(--mo-action-pressed);
+  --color-action-ink: var(--mo-action-ink);
+  --color-action-soft: var(--mo-action-soft);
+  --color-action-soft-hover: var(--mo-action-soft-hover);
+  --color-focus: var(--mo-focus);
+  --color-success: var(--mo-success);
+  --color-success-soft: var(--mo-success-soft);
+  --color-success-line: var(--mo-success-line);
+  --color-warning: var(--mo-warning);
+  --color-warning-soft: var(--mo-warning-soft);
+  --color-warning-line: var(--mo-warning-line);
+  --color-danger: var(--mo-danger);
+  --color-danger-soft: var(--mo-danger-soft);
+  --color-danger-line: var(--mo-danger-line);
+  --color-info: var(--mo-info);
+  --color-info-soft: var(--mo-info-soft);
+  --color-info-line: var(--mo-info-line);
+  --color-neutral: var(--mo-neutral);
+  --color-neutral-soft: var(--mo-neutral-soft);
+  --color-neutral-line: var(--mo-neutral-line);
+  --color-chart-1: var(--mo-chart-1);
+  --color-chart-2: var(--mo-chart-2);
+  --color-chart-3: var(--mo-chart-3);
+  --color-chart-4: var(--mo-chart-4);
+  --color-chart-5: var(--mo-chart-5);
+  --color-chart-6: var(--mo-chart-6);
+  --color-chart-7: var(--mo-chart-7);
+  --color-chart-8: var(--mo-chart-8);
+
+  /* Geometry — the Tailwind radius scale itself follows the Tools geometry */
+  --radius-xs: var(--mo-radius-xs);
+  --radius-sm: 5px;
+  --radius-md: var(--mo-radius-control);
+  --radius-lg: 10px;
+  --radius-xl: var(--mo-radius-card);
+  --radius-2xl: var(--mo-radius-panel);
+  --radius-3xl: 20px;
+  --radius-nav: 9px; /* sidebar items and the spotlight pill (Tools geometry) */
+  --radius-control: var(--mo-radius-control);
+  --radius-card: var(--mo-radius-card);
+  --radius-panel: var(--mo-radius-panel);
+
+  --shadow-xs: var(--mo-shadow-xs);
+  --shadow-card: var(--mo-shadow-card);
+  --shadow-card-hover: var(--mo-shadow-card-hover);
+  --shadow-popover: var(--mo-shadow-popover);
+  --shadow-dialog: var(--mo-shadow-dialog);
+  --shadow-ring: var(--mo-ring);
+
+  --ease-standard: var(--mo-ease-standard);
+  --ease-emphasized: var(--mo-ease-emphasized);
+}
+
+/* Shared focus treatment: one visible ring for every interactive element. */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible { box-shadow: var(--mo-ring); }
+}
+
+/* Coarse pointers (touch) get 44px minimum targets on controls that opt in. */
+@utility touch-target {
+  @media (pointer: coarse) { min-height: var(--mo-touch-min); min-width: var(--mo-touch-min); }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

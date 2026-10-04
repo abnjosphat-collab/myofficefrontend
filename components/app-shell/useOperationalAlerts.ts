@@ -35,6 +35,7 @@ export function useOperationalAlerts() {
   const canView = isAtLeast('manager');
   const [alerts, setAlerts] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(canView);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!canView) { setAlerts([]); setLoading(false); return; }
@@ -49,6 +50,8 @@ export function useOperationalAlerts() {
         safeJson(`${API_BASE}/api/tasks-events?status=pending`, true),
       ]);
       if (cancelled) return;
+      // safeJson returns null when a request fails; an empty list is a real answer.
+      setFailed([leaves, overtime, sheq, workOrders, tasksEvents].some(r => r === null));
 
       const leaveItems: ActivityItem[] = Array.isArray(leaves)
         ? leaves.slice(0, 5).map((l: any) => toItem(
@@ -104,5 +107,5 @@ export function useOperationalAlerts() {
     return () => { cancelled = true; };
   }, [canView]);
 
-  return { alerts, loading };
+  return { alerts, loading, failed };
 }

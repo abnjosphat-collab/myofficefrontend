@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   rateFor, calcHours, mondayOf, toISODate, addDays, buildWeeklyRows, isExcludedFromWeeklyRoster,
-  cleanReasonText, significantTokens, levenshtein, tokensMatch, reasonSimilarity, groupSimilarReasons,
+  cleanReasonText, significantTokens, tokensMatch, reasonSimilarity, groupSimilarReasons,
   overtimeDefaultsForPublicHoliday, PUBLIC_HOLIDAY_OT_REASON, overtimeCostCentre,
   recordsForEngineeringCostCentreExport,
 } from './calcOvertime';

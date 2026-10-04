@@ -1,13 +1,11 @@
 // app/safety_complaints/useSafetyComplaintsData.ts — the safety complaints register's
 // data-fetching layer: the camelCase<->snake_case payload converter, record CRUD, and a
-// hook owning the complaint list and its loading/refreshing flags. Split out of page.tsx
-// as part of the standing "decompose on touch" convention. One resource, one load(quiet)
-// cycle — same shape as sheq_inspection.
+// list hook. Writes throw on failure so the form dialog can show the reason and keep the user's input;
+// a failed load is reported (never an empty list) through useApiList.
 'use client';
 
-import { useRef, useState } from 'react';
 import { api as apiClient } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
 import type { Complaint } from './types';
 
 const BASE = '/api/safety-complaints';
@@ -32,40 +30,12 @@ function toSnake(d: Partial<Complaint>): Record<string, unknown> {
 }
 
 export const api = {
-  list: () => apiClient.get<Complaint[]>(BASE + '/'),
   create: (d: Partial<Complaint>) => apiClient.post<Complaint>(BASE + '/', toSnake(d)),
   update: (id: string, d: Partial<Complaint>) => apiClient.patch<Complaint>(`${BASE}/${id}`, toSnake(d)),
   remove: (id: string) => apiClient.delete<void>(`${BASE}/${id}`),
 };
 
 export function useSafetyComplaintsData() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const requestRef = useRef(0);
-
-  const load = async (quiet = false) => {
-    const requestId = ++requestRef.current;
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    setLoadError('');
-    try {
-      const nextComplaints = await api.list();
-      if (requestId !== requestRef.current) return;
-      setComplaints(Array.isArray(nextComplaints) ? nextComplaints : []);
-    }
-    catch (error) {
-      if (requestId !== requestRef.current) return;
-      setLoadError(error instanceof Error ? error.message : 'Could not load safety complaints.');
-      toast.error('Failed to load complaints');
-    }
-    finally {
-      if (requestId === requestRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  };
-
-  return { complaints, setComplaints, loading, refreshing, loadError, load };
+  const list = useApiList<Complaint>(`${BASE}/`, undefined, { paged: true });
+  return { complaints: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
 }

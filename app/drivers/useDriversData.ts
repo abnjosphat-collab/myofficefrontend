@@ -4,9 +4,8 @@
 // One resource, one load(quiet) cycle — same shape as sheq_inspection.
 'use client';
 
-import { useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
 import type { Driver } from './types';
 
 export async function getDrivers(): Promise<Driver[]> {
@@ -26,20 +25,6 @@ export async function deleteDriver(id: number): Promise<void> {
 }
 
 export function useDriversData() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Fixed a duplicate-fetch bug while extracting: the original called
-  // apiGetDrivers() twice per load (once for an Array.isArray check, again for
-  // the value used), doubling every page load's network traffic. Call once.
-  const loadData = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
-    try { const data = await getDrivers(); setDrivers(Array.isArray(data) ? data : []); }
-    catch (e) { toast.error((e as Error).message); }
-    finally { setLoading(false); setRefreshing(false); }
-  };
-
-  return { drivers, setDrivers, loading, refreshing, loadData };
+  const list = useApiList<Driver>('/api/drivers?limit=2000');
+  return { drivers: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, loadData: list.refetch };
 }

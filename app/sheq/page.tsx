@@ -1,1099 +1,452 @@
+// app/sheq/page.tsx — SHEQ safety dashboard (read-only overview across the six safety modules)
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { formatDateTime } from '@/lib/format';
-import {
-  Shield, RefreshCw, TrendingUp, TrendingDown, AlertTriangle, CheckCircle,
-  Target, Eye, ClipboardList, ClipboardCheck, Ban, ExternalLink, ChevronRight, MessageSquare,
-  Activity, FileSearch, BarChart3, Calendar,
-  Clock, Zap, Bell, ChevronDown, ChevronUp, HeartHandshake,
-} from '@/components/shared/theme';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
-import { useTheme, useCollapseSection, Button, Plus, IconAction } from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-
-// ─── PALETTE ─────────────────────────────────────────────────────────────────
-const C = {
-  nm: '#f59e0b', ws: '#f43f5e', vfl: '#10b981', pto: '#818cf8', insp: '#06b6d4', pach: '#a855f7',
-  done: '#34d399', prog: '#60a5fa', pend: '#fbbf24', high: '#ef4444', safe: '#10b981',
-};
-
-function usePalette() {
-  const t = useTheme();
-  return useMemo(() => (t.light ? {
-    glassBg: 'rgba(255,255,255,0.92)', glassBorder: '1px solid rgba(15,23,42,0.08)', shadow: '0 8px 32px rgba(15,23,42,0.06)',
-    cardBg: 'rgba(15,23,42,0.035)', cardBg2: 'rgba(15,23,42,0.045)', cardBorder: '1px solid rgba(15,23,42,0.06)',
-    textPrimary: 'rgba(15,23,42,0.95)', textSecondary: 'rgba(15,23,42,0.75)', textMuted: 'rgba(15,23,42,0.60)',
-    textFaint: 'rgba(15,23,42,0.42)', textFaintest: 'rgba(15,23,42,0.30)',
-    divider: 'rgba(15,23,42,0.08)', trackBg: 'rgba(15,23,42,0.08)',
-    inputBg: '#fff', inputBorder: '1px solid rgba(15,23,42,0.15)', inputText: 'rgba(15,23,42,0.9)',
-    chipTrack: 'rgba(15,23,42,0.06)',
-  } : {
-    glassBg: 'rgba(5,15,28,0.74)', glassBorder: '1px solid rgba(255,255,255,0.11)', shadow: '0 8px 40px rgba(0,0,0,0.36)',
-    cardBg: 'rgba(255,255,255,0.04)', cardBg2: 'rgba(255,255,255,0.05)', cardBorder: '1px solid rgba(255,255,255,0.08)',
-    textPrimary: 'rgba(255,255,255,0.95)', textSecondary: 'rgba(255,255,255,0.72)', textMuted: 'rgba(255,255,255,0.55)',
-    textFaint: 'rgba(255,255,255,0.40)', textFaintest: 'rgba(255,255,255,0.28)',
-    divider: 'rgba(255,255,255,0.07)', trackBg: 'rgba(255,255,255,0.07)',
-    inputBg: 'rgba(255,255,255,0.06)', inputBorder: '1px solid rgba(255,255,255,0.14)', inputText: 'rgba(255,255,255,0.9)',
-    chipTrack: 'rgba(255,255,255,0.05)',
-  }), [t.light]);
-}
-
-import type { Comment, ComputedStats, DonutSegment, MonthBucket, QuickRange, RawData } from './types';
+import {
+  Button, Card, ChartPanel, DataRegion, DataTable, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
+  Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, useConfirm, useMediaQuery, usePersistentState,
+  type Column, type IconMeaning, type Tone,
+} from '@/components/ui-system';
+import { formatDateTime } from '@/lib/format';
+import { computeStats, rangeToFromTo, scoreLabel, weekLabel, weeklyActuals } from './stats';
+import type { Comment, ModuleKey, QuickRange } from './types';
 import { postSafetyAnalysis, useSheqDashboardData } from './useSheqDashboardData';
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-function getDate(r: any, module: 'nm' | 'ws' | 'vfl' | 'pto'): Date | null {
-  const raw = module === 'nm' ? (r.submittedAt || r.date || r.created_at) : (r.created_at || r.date || r.submittedAt);
-  if (!raw) return null;
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function filterByRange(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', from: Date | null, to: Date | null): any[] {
-  if (!from && !to) return items;
-  return items.filter(r => {
-    const d = getDate(r, module);
-    if (!d) return true;
-    if (from && d < from) return false;
-    if (to && d > to) return false;
-    return true;
-  });
-}
-
-function rangeToFromTo(quick: QuickRange | 'custom', customFrom: string, customTo: string): [Date | null, Date | null] {
-  if (quick === 'all') return [null, null];
-  if (quick === 'custom') return [customFrom ? new Date(customFrom) : null, customTo ? new Date(customTo + 'T23:59:59') : null];
-  const now = new Date();
-  const days = quick === '7d' ? 7 : quick === '30d' ? 30 : quick === '90d' ? 90 : 182;
-  const from = new Date(now);
-  from.setDate(from.getDate() - days);
-  return [from, null];
-}
-
-function scoreColor(s: number) { if (s >= 80) return C.done; if (s >= 60) return C.nm; if (s >= 40) return '#f97316'; return C.high; }
-function scoreLabel(s: number) { if (s >= 80) return 'Good Standing'; if (s >= 60) return 'Needs Attention'; if (s >= 40) return 'Concern'; return 'Critical'; }
-
-// ─── STATS COMPUTATION ────────────────────────────────────────────────────────
-function buildMonthly(items: any[], module: 'nm' | 'ws' | 'vfl' | 'pto', months: MonthBucket[]): number[] {
-  return months.map(m => items.filter(r => { const d = getDate(r, module); return d && d.getFullYear() === m.year && d.getMonth() === m.month; }).length);
-}
-
-function computeStats(raw: RawData, from: Date | null, to: Date | null): ComputedStats {
-  const nm = filterByRange(raw.nm, 'nm', from, to);
-  const ws = filterByRange(raw.ws, 'ws', from, to);
-  const vfl = filterByRange(raw.vfl, 'vfl', from, to);
-  const pto = filterByRange(raw.pto, 'pto', from, to);
-  const pach = (raw.pach || []).filter(r => {
-    const d = r.date ? new Date(r.date) : (r.created_at ? new Date(r.created_at) : null);
-    if (!d || isNaN(d.getTime())) return true;
-    if (from && d < from) return false;
-    if (to && d > to) return false;
-    return true;
-  });
-  const insp = (raw.insp || []).filter(r => {
-    const d = r.date ? new Date(r.date) : (r.createdAt ? new Date(r.createdAt) : null);
-    if (!d || isNaN(d.getTime())) return true;
-    if (from && d < from) return false;
-    if (to && d > to) return false;
-    return true;
-  });
-
-  const nmTotal = nm.length;
-  const nmOpen = nm.filter(r => ['open', 'under_investigation', 'Open', 'Under Investigation'].includes(r.status ?? '')).length;
-  const nmClosed = nm.filter(r => ['resolved', 'closed', 'Resolved', 'Closed'].includes(r.status ?? '')).length;
-  const nmHigh = nm.filter(r => ['high', 'critical'].includes((r.priority ?? r.severity ?? '').toLowerCase())).length;
-
-  const wsTotal = ws.length;
-  const wsActions = ws.flatMap((r: any) => r.correctiveActions || []);
-  const wsActDone = wsActions.filter((a: any) => a.status === 'Completed').length;
-  const wsActPend = wsActions.filter((a: any) => a.status === 'Pending').length;
-  const wsActProg = wsActions.filter((a: any) => a.status === 'In Progress').length;
-
-  const vflTotal = vfl.length;
-  const vflSafe = vfl.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
-  const vflUnsafe = vfl.filter(r => r.behaviourCategory === 'Unsafe Behaviour').length;
-  const vflDraft = vfl.filter(r => r.status === 'draft').length;
-  const vflSubmitted = vfl.filter(r => r.status === 'submitted').length;
-  const vflClosed = vfl.filter(r => r.status === 'closed').length;
-  const vflActions = vfl.flatMap((r: any) => r.actions || []);
-  const vflActDone = vflActions.filter((a: any) => a.status === 'Completed').length;
-  const vflActPend = vflActions.filter((a: any) => a.status === 'Pending').length;
-  const vflActProg = vflActions.filter((a: any) => a.status === 'In Progress').length;
-
-  const ptoTotal = pto.length;
-  const ptoHighRisk = pto.filter(r => r.riskAssessment?.made === 'No' || r.riskAssessment?.identified === 'No' || r.riskAssessment?.effective === 'No').length;
-  const ptoInitial = pto.filter(r => r.observationType === 'Initial').length;
-  const ptoFollowup = pto.filter(r => r.observationType === 'Follow up').length;
-  const ptoActions = pto.flatMap((r: any) => r.actionPlan || []);
-  const ptoActDone = ptoActions.filter((a: any) => a.status === 'Completed').length;
-  const ptoActPend = ptoActions.filter((a: any) => a.status === 'Pending').length;
-  const ptoActProg = ptoActions.filter((a: any) => a.status === 'In Progress').length;
-
-  const inspTotal = insp.length;
-  const inspDraft = insp.filter(r => r.status === 'draft').length;
-  const inspSubmitted = insp.filter(r => r.status === 'submitted').length;
-  const inspApproved = insp.filter(r => r.status === 'approved').length;
-  const inspRejected = insp.filter(r => r.status === 'rejected').length;
-  const allFindings = insp.flatMap((r: any) => r.findings || []);
-  const inspOpenFindings = allFindings.filter((f: any) => ['open', 'in-progress'].includes(f.status)).length;
-  const inspClosedFindings = allFindings.filter((f: any) => f.status === 'closed').length;
-  const inspCritical = allFindings.filter((f: any) => f.priority === 'critical').length;
-  const inspOverdue = allFindings.filter((f: any) => f.status === 'overdue').length;
-
-  const pachTotal = pach.length;
-  const pachIntentional = pach.filter(r => r.behaviourType === 'Intentional').length;
-  const pachUnintentional = pach.filter(r => r.behaviourType === 'Unintentional').length;
-  const pachDraft = pach.filter(r => r.status === 'draft').length;
-  const pachSubmitted = pach.filter(r => r.status === 'submitted').length;
-  const pachReviewed = pach.filter(r => r.status === 'reviewed').length;
-  const pachClosed = pach.filter(r => r.status === 'closed').length;
-
-  const totalActionsPend = wsActPend + vflActPend + ptoActPend;
-  const totalActionsProg = wsActProg + vflActProg + ptoActProg;
-  const totalActionsDone = wsActDone + vflActDone + ptoActDone;
-  const totalActions = totalActionsPend + totalActionsProg + totalActionsDone;
-  const totalReports = nmTotal + wsTotal + vflTotal + ptoTotal + inspTotal + pachTotal;
-
-  const nmScore = nmTotal ? ((nmClosed || nmTotal - nmOpen) / nmTotal) * 100 : 100;
-  const vflScore = vflTotal ? (vflSafe / vflTotal) * 100 : 100;
-  const ptoScore = ptoTotal ? ((ptoTotal - ptoHighRisk) / ptoTotal) * 100 : 100;
-  const actScore = totalActions ? (totalActionsDone / totalActions) * 100 : 100;
-  const inspScore = inspTotal ? (inspApproved / inspTotal) * 100 : 100;
-  const pachScore = pachTotal ? ((pachClosed + pachReviewed) / pachTotal) * 100 : 100;
-  const safetyScore = Math.round((nmScore + vflScore + ptoScore + actScore + inspScore + pachScore) / 6);
-
-  const now = new Date();
-  const months: MonthBucket[] = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    return { label: d.toLocaleDateString('en-GB', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
-  });
-  [...nm, ...ws, ...vfl, ...pto, ...insp, ...pach].forEach(r => {
-    const ds = r.submittedAt || r.created_at || r.date || r.createdAt;
-    if (!ds) return;
-    const d = new Date(ds);
-    const m = months.find(x => x.year === d.getFullYear() && x.month === d.getMonth());
-    if (m) m.count++;
-  });
-
-  const inspMonthly = months.map(m => insp.filter(r => { const ds = r.date || r.createdAt || r.created_at; if (!ds) return false; const d = new Date(ds); return d.getFullYear() === m.year && d.getMonth() === m.month; }).length);
-  const pachMonthly = months.map(m => pach.filter(r => { const ds = r.date || r.created_at; if (!ds) return false; const d = new Date(ds); return d.getFullYear() === m.year && d.getMonth() === m.month; }).length);
-
-  return {
-    nm: { total: nmTotal, open: nmOpen, closed: nmClosed, high: nmHigh },
-    ws: { total: wsTotal, actDone: wsActDone, actPend: wsActPend, actProg: wsActProg, actTotal: wsActions.length },
-    vfl: { total: vflTotal, safe: vflSafe, unsafe: vflUnsafe, draft: vflDraft, submitted: vflSubmitted, closed: vflClosed, actDone: vflActDone, actPend: vflActPend, actProg: vflActProg, actTotal: vflActions.length },
-    pto: { total: ptoTotal, highRisk: ptoHighRisk, initial: ptoInitial, followup: ptoFollowup, actDone: ptoActDone, actPend: ptoActPend, actProg: ptoActProg, actTotal: ptoActions.length },
-    insp: { total: inspTotal, draft: inspDraft, submitted: inspSubmitted, approved: inspApproved, rejected: inspRejected, openFindings: inspOpenFindings, closedFindings: inspClosedFindings, criticalFindings: inspCritical, overdueFindings: inspOverdue },
-    pach: { total: pachTotal, intentional: pachIntentional, unintentional: pachUnintentional, draft: pachDraft, submitted: pachSubmitted, reviewed: pachReviewed, closed: pachClosed },
-    totals: { totalReports, totalActions, totalActionsDone, totalActionsProg, totalActionsPend },
-    safetyScore, months,
-    moduleMonthly: { nm: buildMonthly(nm, 'nm', months), ws: buildMonthly(ws, 'ws', months), vfl: buildMonthly(vfl, 'vfl', months), pto: buildMonthly(pto, 'pto', months), insp: inspMonthly, pach: pachMonthly },
-  };
-}
-
-// ─── CHARTS ──────────────────────────────────────────────────────────────────
-
-function DonutChart({ segments = [], size = 120, strokeWidth = 18, label, sublabel, trackColor, textColor, subColor }: {
-  segments?: DonutSegment[]; size?: number; strokeWidth?: number; label?: string | number; sublabel?: string;
-  trackColor: string; textColor: string; subColor: string;
-}) {
-  const r = (size - strokeWidth) / 2;
-  const cx = size / 2, cy = size / 2;
-  const circ = 2 * Math.PI * r;
-  const total = segments.reduce((s, x) => s + (x.value || 0), 0);
-  let offset = 0;
-  const arcs = segments.map(seg => { const pct = total > 0 ? (seg.value || 0) / total : 0; const dash = pct * circ; const cur = offset; offset += dash; return { ...seg, dash, offset: cur }; });
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={trackColor} strokeWidth={strokeWidth} />
-      {total > 0 && arcs.filter(a => a.dash > 0.5).map((arc, i) => (
-        <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={arc.color} strokeWidth={strokeWidth - 2}
-          strokeDasharray={`${arc.dash} ${circ - arc.dash}`} strokeDashoffset={(circ / 4) - arc.offset}
-          style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px`, transition: 'stroke-dasharray 0.6s ease' }} />
-      ))}
-      {label !== undefined && <text x={cx} y={cy + (sublabel ? -6 : 7)} textAnchor="middle" fill={textColor} fontSize={size > 110 ? 22 : 15} fontWeight="800">{label}</text>}
-      {sublabel && <text x={cx} y={cy + 12} textAnchor="middle" fill={subColor} fontSize={9}>{sublabel}</text>}
-    </svg>
-  );
-}
-
-function TrendLineChart({ data = [], labels = [], color = '#60a5fa', height = 130, gridColor, subColor }: {
-  data?: number[]; labels?: string[]; color?: string; height?: number; gridColor: string; subColor: string;
-}) {
-  if (data.length < 2) return <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: subColor, fontSize: 12 }}>Not enough data to display trend</div>;
-  const vw = 600, padL = 28, padR = 12, padT = 16, padB = 28;
-  const cW = vw - padL - padR, cH = height - padT - padB;
-  const max = Math.max(...data, 1);
-  const pts = data.map((v, i) => ({ x: padL + (i / (data.length - 1)) * cW, y: padT + (1 - v / max) * cH, v }));
-  const poly = pts.map(p => `${p.x},${p.y}`).join(' ');
-  const area = `${pts[0].x},${padT + cH} ${poly} ${pts[pts.length - 1].x},${padT + cH}`;
-  return (
-    <svg viewBox={`0 0 ${vw} ${height}`} style={{ width: '100%', height, display: 'block' }}>
-      <defs>
-        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0, 0.25, 0.5, 0.75, 1].map(t => {
-        const y = padT + (1 - t) * cH;
-        return (<g key={t}><line x1={padL} y1={y} x2={vw - padR} y2={y} stroke={gridColor} strokeWidth={1} strokeDasharray="4 4" /><text x={padL - 4} y={y + 4} textAnchor="end" fill={subColor} fontSize={8}>{Math.round(t * max)}</text></g>);
-      })}
-      <polygon points={area} fill={`url(#grad-${color.replace('#', '')})`} />
-      <polyline points={poly} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r={4.5} fill={color} opacity={0.9} />
-          <circle cx={p.x} cy={p.y} r={2.5} fill="rgba(5,15,28,0.9)" />
-          {p.v > 0 && <text x={p.x} y={p.y - 10} textAnchor="middle" fill={color} fontSize={9} fontWeight="700">{p.v}</text>}
-          <text x={p.x} y={height - 3} textAnchor="middle" fill={subColor} fontSize={8}>{labels[i] || ''}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function BarChartViz({ data = [], height = 110, barWidth = 44, gap = 18, trackColor, subColor }: {
-  data?: { label: string; value: number; color?: string }[]; height?: number; barWidth?: number; gap?: number;
-  trackColor: string; subColor: string;
-}) {
-  const max = Math.max(...data.map(d => d.value), 1);
-  const totalW = data.length * (barWidth + gap) - gap;
-  return (
-    <svg width={totalW} height={height + 30} viewBox={`0 0 ${totalW} ${height + 30}`} style={{ display: 'block', overflow: 'visible' }}>
-      {data.map((item, i) => {
-        const barH = Math.max((item.value / max) * (height - 10), item.value > 0 ? 4 : 0);
-        const x = i * (barWidth + gap);
-        const y = height - barH;
-        const color = item.color || '#60a5fa';
-        return (
-          <g key={i}>
-            <rect x={x} y={2} width={barWidth} height={height - 8} rx={7} fill={trackColor} />
-            <rect x={x} y={y} width={barWidth} height={barH} rx={7} fill={color} opacity={0.85} />
-            {item.value > 0 && <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fill={subColor} fontSize={11} fontWeight="700">{item.value}</text>}
-            <text x={x + barWidth / 2} y={height + 20} textAnchor="middle" fill={subColor} fontSize={9}>{item.label}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function ProgBar({ label, value, max = 100, color = '#10b981', sub, trackColor, textColor, subColor }: {
-  label: string; value: number; max?: number; color?: string; sub?: string; trackColor: string; textColor: string; subColor: string;
-}) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: textColor, fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 11, color, fontWeight: 700 }}>{Math.round(pct)}%</span>
-      </div>
-      <div style={{ height: 6, borderRadius: 999, background: trackColor }}>
-        <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})`, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
-      </div>
-      {sub && <div style={{ fontSize: 10, color: subColor, marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
-
-// ─── UI COMPONENTS ────────────────────────────────────────────────────────────
-
-function Glass({ children, style = {}, P }: { children: React.ReactNode; style?: React.CSSProperties; P: ReturnType<typeof usePalette> }) {
-  return <div style={{ background: P.glassBg, backdropFilter: 'blur(28px) saturate(1.5)', WebkitBackdropFilter: 'blur(28px) saturate(1.5)', border: P.glassBorder, borderRadius: 16, padding: '22px 24px', boxShadow: P.shadow, ...style }}>{children}</div>;
-}
-
-function Chip({ label, color }: { label: string; color: string }) {
-  return <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: color + '22', color, border: `1px solid ${color}44` }}>{label}</span>;
-}
-
-function EmptyViz({ text = 'No data for this period', subColor }: { text?: string; subColor: string }) {
-  return <div style={{ textAlign: 'center', padding: '32px 0', color: subColor, fontSize: 12, fontStyle: 'italic' }}>{text}</div>;
-}
-
-function SectionHeader({ icon, title, sub, color, textColor, subColor }: { icon: React.ReactNode; title: string; sub?: string; color: string; textColor: string; subColor: string; }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: textColor }}>
-        <span style={{ color, display: 'flex' }}>{icon}</span>{title}
-      </div>
-      {sub && <div style={{ fontSize: 11, color: subColor, marginTop: 4, marginLeft: 24 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function CollapsibleSection({ title, icon, sub, children, accent, open, onToggle, P }: {
-  title: string; icon: React.ReactNode; sub?: string; children: React.ReactNode;
-  accent: string; open: boolean; onToggle: () => void; P: ReturnType<typeof usePalette>;
-}) {
-  return (
-    <Glass style={{ padding: 0, overflow: 'hidden' }} P={P}>
-      <button type="button" onClick={onToggle}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? `1px solid ${P.divider}` : 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ padding: 7, borderRadius: 9, background: accent + '1e' }}><span style={{ color: accent, display: 'flex' }}>{icon}</span></div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.textPrimary }}>{title}</div>
-            {sub && <div style={{ fontSize: 11, color: P.textFaint, marginTop: 2 }}>{sub}</div>}
-          </div>
-        </div>
-        <span style={{ color: P.textFaintest, display: 'flex' }}>{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-      </button>
-      {open && <div style={{ padding: '20px 24px' }}>{children}</div>}
-    </Glass>
-  );
-}
-
-function ModuleCard({ label, href, icon, color, total, donutSegments, miniStats, legend, P }: {
-  label: string; href: string; icon: React.ReactNode; color: string; total: number;
-  donutSegments: DonutSegment[]; miniStats: { label: string; value: number; color: string }[];
-  legend: { label: string; value: number; color: string }[]; P: ReturnType<typeof usePalette>;
-}) {
-  const t = useTheme();
-  const [hovered, setHovered] = useState(false);
-  // role="presentation" below — the mouse enter/leave pair is a purely decorative hover
-  // highlight (background/border/shadow tint), not a functional interaction; every piece
-  // of real content (label, "Open" link, chart, stats) keeps its own semantics and stays
-  // fully keyboard/AT accessible regardless of this wrapper's role.
-  return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} role="presentation"
-      style={{ background: hovered ? P.cardBg2 : P.cardBg, backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)', border: hovered ? `1px solid ${color}44` : P.cardBorder, borderRadius: 14, padding: '18px 18px 14px', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: hovered ? `0 8px 32px ${color}22` : 'none', transition: 'all 0.25s ease' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ padding: 8, borderRadius: 9, background: color + '22' }}><span style={{ color, display: 'flex' }}>{icon}</span></div>
-          <div>
-            <div style={{ fontSize: 11, color: P.textFaint, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1.1 }}>{total}</div>
-          </div>
-        </div>
-        {t.design === 'dallaglio'
-          ? <Button href={href} variant="secondary" size="sm" icon={ExternalLink} iconPosition="end">Open</Button>
-          : <Link href={href} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color, background: color + '18', padding: '5px 10px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30` }}>Open <ExternalLink size={9} /></Link>}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center' }}><DonutChart segments={donutSegments} size={88} strokeWidth={14} trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} /></div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${miniStats.length}, 1fr)`, gap: 5 }}>
-        {miniStats.map(({ label: l, value: v, color: c }) => (
-          <div key={l} style={{ textAlign: 'center', background: P.chipTrack, borderRadius: 8, padding: '7px 4px' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: c }}>{v}</div>
-            <div style={{ fontSize: 9, color: P.textFaint, marginTop: 2, lineHeight: 1.2 }}>{l}</div>
-          </div>
-        ))}
-      </div>
-      {legend.filter(l => l.value > 0).length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {legend.filter(l => l.value > 0).map(l => (
-            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: P.textMuted }}>
-              <div style={{ width: 7, height: 7, borderRadius: 2, background: l.color, flexShrink: 0 }} />{l.label}: {l.value}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CommentsSection({ open, onToggle, P }: { open: boolean; onToggle: () => void; P: ReturnType<typeof usePalette> }) {
-  const t = useTheme();
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [text, setText] = useState('');
-  const [author, setAuthor] = useState('');
-
-  useEffect(() => {
-    try { setComments(JSON.parse(localStorage.getItem('sheq_dash_notes') || '[]') as Comment[]); } catch { /* ignore */ }
-  }, []);
-
-  const persist = (updated: Comment[]) => { setComments(updated); localStorage.setItem('sheq_dash_notes', JSON.stringify(updated)); };
-  const add = () => { if (!text.trim()) return; persist([{ id: Date.now().toString(), text: text.trim(), author: author.trim() || 'Safety Manager', ts: new Date().toISOString() }, ...comments].slice(0, 50)); setText(''); };
-  const inputCls: React.CSSProperties = { background: P.inputBg, border: P.inputBorder, borderRadius: 9, padding: '8px 12px', color: P.inputText, fontSize: 13, outline: 'none' };
-
-  return (
-    <Glass style={{ padding: 0, overflow: 'hidden' }} P={P}>
-      <button type="button" onClick={onToggle}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: open ? `1px solid ${P.divider}` : 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ padding: 7, borderRadius: 9, background: '#60a5fa1e' }}><MessageSquare size={14} style={{ color: '#60a5fa' }} /></div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: P.textPrimary }}>Dashboard Notes &amp; Observations</div>
-            <div style={{ fontSize: 11, color: P.textFaint, marginTop: 2 }}>{comments.length} note{comments.length !== 1 ? 's' : ''} saved locally</div>
-          </div>
-        </div>
-        <span style={{ color: P.textFaintest, display: 'flex' }}>{open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-      </button>
-      {open && (
-        <div style={{ padding: '20px 24px' }}>
-          <div className={t.design === 'dallaglio' ? 'sheq-notes-form' : undefined} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name (optional)" style={{ ...inputCls, width: 170 }} title="Your name" aria-label="Your name" />
-            <input value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add(); } }}
-              placeholder="Add a safety observation or note… (Enter to submit)" style={{ ...inputCls, flex: 1 }} title="Note" aria-label="Note" />
-            <Button type="button" variant="subtle" size={t.design === 'dallaglio' ? 'sm' : 'xs'} icon={Plus} iconPosition="end" onClick={add}>Add</Button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
-            {comments.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: P.textFaintest, fontSize: 13 }}>No notes yet — add safety observations, flags or reminders above.</div>
-            ) : comments.map(c => (
-              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: P.chipTrack, borderRadius: 9, padding: '10px 13px', gap: 10, borderLeft: '3px solid #60a5fa44' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: P.textPrimary, lineHeight: 1.55 }}>{c.text}</div>
-                  <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 4 }}>{c.author} · {formatDateTime(c.ts)}</div>
-                </div>
-                {t.design === 'dallaglio'
-                  ? <IconAction meaning="danger" title={`Delete note by ${c.author}`} tone="danger" onClick={() => persist(comments.filter(x => x.id !== c.id))} />
-                  : <button type="button" onClick={() => persist(comments.filter(x => x.id !== c.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P.textFaintest, fontSize: 17, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Glass>
-  );
-}
-
-// ─── QUICK DATE FILTER ────────────────────────────────────────────────────────
-const QUICK_OPTIONS: { key: QuickRange | 'custom'; label: string }[] = [
-  { key: '7d', label: '7 Days' }, { key: '30d', label: '30 Days' }, { key: '90d', label: '90 Days' },
-  { key: '6m', label: '6 Months' }, { key: 'all', label: 'All Time' }, { key: 'custom', label: 'Custom' },
+const RANGES: { value: QuickRange | 'custom'; label: string }[] = [
+  { value: '7d', label: '7 days' }, { value: '30d', label: '30 days' }, { value: '90d', label: '90 days' },
+  { value: '6m', label: '6 months' }, { value: 'all', label: 'All time' }, { value: 'custom', label: 'Custom' },
 ];
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-function SHEQDashboardContent() {
-  const t = useTheme();
-  const P = usePalette();
-  const sections = useCollapseSection({ weekly: false, score: false, modules: false, analytics: false, actions: false, notes: false, ai: false });
-  const { raw, loading, refreshing, loadError, lastUpdated, refresh: load } = useSheqDashboardData();
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const MODULES: { key: ModuleKey; label: string; href: string; icon: IconMeaning }[] = [
+  { key: 'nm', label: 'Near miss', href: '/near_miss', icon: 'warning' },
+  { key: 'ws', label: 'Work stoppage', href: '/work_stoppage', icon: 'cancel' },
+  { key: 'vfl', label: 'Visible felt leadership', href: '/vfl', icon: 'eye' },
+  { key: 'pto', label: 'Planned task observation', href: '/pto', icon: 'task' },
+  { key: 'insp', label: 'SHEQ inspections', href: '/sheq_inspection', icon: 'compliance' },
+  { key: 'pach', label: 'Pachedu', href: '/pachedu', icon: 'care' },
+];
 
-  const DEFAULT_TARGETS = { vfl: 2, pto: 4, insp: 7, pach: 20, nm: 5 } as const;
-  type ModuleKey = keyof typeof DEFAULT_TARGETS;
+type TargetKey = 'vfl' | 'pto' | 'insp' | 'pach' | 'nm';
+const TARGET_MODULES: { key: TargetKey; label: string; href: string }[] = [
+  { key: 'vfl', label: 'Visible felt leadership', href: '/vfl' }, { key: 'pto', label: 'Planned task observation', href: '/pto' },
+  { key: 'insp', label: 'SHEQ inspections', href: '/sheq_inspection' }, { key: 'pach', label: 'Pachedu', href: '/pachedu' }, { key: 'nm', label: 'Near miss', href: '/near_miss' },
+];
+// Starting targets until a device saves its own. They are not company policy and are stored per device.
+const DEFAULT_TARGETS: Record<TargetKey, number> = { vfl: 2, pto: 4, insp: 7, pach: 20, nm: 5 };
+const validTargets = (raw: unknown): Record<TargetKey, number> | undefined => {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out = { ...DEFAULT_TARGETS };
+  for (const k of Object.keys(out) as TargetKey[]) { const v = (raw as Record<string, unknown>)[k]; if (typeof v === 'number' && v >= 1) out[k] = v; }
+  return out;
+};
+const validNotes = (raw: unknown): Comment[] | undefined => (Array.isArray(raw) ? (raw as Comment[]).filter(c => c && typeof c.text === 'string' && typeof c.id === 'string') : undefined);
 
-  const [weeklyTargets, setWeeklyTargets] = useState<Record<ModuleKey, number>>(() => {
-    try { const s = typeof window !== 'undefined' ? localStorage.getItem('sheq_weekly_targets') : null; return s ? { ...DEFAULT_TARGETS, ...JSON.parse(s) } : { ...DEFAULT_TARGETS }; }
-    catch { return { ...DEFAULT_TARGETS }; }
-  });
-  const [editingTargets, setEditingTargets] = useState(false);
-  const [targetDraft, setTargetDraft] = useState({ ...DEFAULT_TARGETS } as Record<ModuleKey, number>);
+interface AiResult {
+  summary?: string; overall_risk?: string; risk_score?: number; _records_analysed?: number; generated_at?: string;
+  problem_areas?: { title: string; severity?: string; description?: string; module?: string; location_or_dept?: string; count?: number }[];
+  recommendations?: { priority?: string; action: string; rationale?: string; owner?: string; target?: string }[];
+  trends?: { metric: string; direction?: string; insight?: string }[];
+  top_risk_locations?: string[]; top_risk_departments?: string[];
+}
+const RISK_TONE: Record<string, Tone> = { low: 'success', medium: 'warning', high: 'warning', critical: 'danger' };
+const PRIORITY_TONE: Record<string, Tone> = { immediate: 'danger', short_term: 'warning', long_term: 'info' };
+const summarise = (rows: { name: string; value: number }[]) => rows.map(r => `${r.name} ${r.value}`).join(', ') || 'no data';
+const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
 
-  function saveTargets() { setWeeklyTargets({ ...targetDraft }); localStorage.setItem('sheq_weekly_targets', JSON.stringify(targetDraft)); setEditingTargets(false); }
+function weeklyStatus(actual: number, target: number): { label: string; tone: Tone } {
+  const p = Math.min(Math.round((actual / target) * 100), 100);
+  if (actual > target) return { label: 'Exceeded', tone: 'success' };
+  if (p >= 100) return { label: 'On target', tone: 'success' };
+  if (p >= 80) return { label: 'Almost', tone: 'info' };
+  if (p >= 50) return { label: 'In progress', tone: 'warning' };
+  return actual === 0 ? { label: 'Not started', tone: 'danger' } : { label: 'Below target', tone: 'danger' };
+}
 
-  const [aiResult, setAiResult] = useState<Record<string, any> | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState('');
+function TargetsDialog({ targets, open, onOpenChange, onSave }: { targets: Record<TargetKey, number>; open: boolean; onOpenChange: (open: boolean) => void; onSave: (t: Record<TargetKey, number>) => void }) {
+  const [draft, setDraft] = useState(targets);
+  const [loadedFor, setLoadedFor] = useState(false);
+  if (open !== loadedFor) { setLoadedFor(open); if (open) setDraft(targets); }
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Edit weekly targets" description="Saved on this device only. Each target is the number of records expected per week." submitLabel="Save targets" onSubmit={async () => { onSave(draft); }}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {TARGET_MODULES.map(m => (
+          <Field key={m.key} label={`${m.label} target`}>
+            <Input type="number" min={1} max={999} value={draft[m.key]} onChange={e => setDraft(p => ({ ...p, [m.key]: Math.max(1, parseInt(e.target.value, 10) || 1) }))} />
+          </Field>
+        ))}
+      </div>
+    </FormDialog>
+  );
+}
 
-  const [quickRange, setQuickRange] = useState<QuickRange | 'custom'>('all');
+function ModuleCard({ label, href, total, rows, facts }: { label: string; href: string; total: number; rows: { name: string; value: number }[]; facts?: string }) {
+  return (
+    <Card padding="lg" className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-title font-semibold text-ink">{label}</h3>
+          <p className="font-sans text-caption text-ink-muted tabular">{total} {total === 1 ? 'record' : 'records'}</p>
+        </div>
+        <Link href={href} className="focus-ring rounded-xs font-sans text-label font-medium text-action underline underline-offset-2">Open<span className="sr-only"> {label}</span></Link>
+      </div>
+      <Distribution rows={rows} empty="No records in this period" />
+      {facts && <p className="font-sans text-caption text-ink-muted">{facts}</p>}
+    </Card>
+  );
+}
+
+function SheqContent() {
+  const confirm = useConfirm();
+  const narrow = useMediaQuery('(max-width: 480px)');
+  const { raw, loading, refreshing, loadError, lastUpdated, refresh } = useSheqDashboardData();
+  const loaded = lastUpdated !== null;
+  const [tab, setTab] = useState('overview');
+  const [range, setRange] = useState<QuickRange | 'custom'>('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [showCustom, setShowCustom] = useState(false);
-
-  const runAiAnalysis = useCallback(async () => {
-    setAiLoading(true); setAiError('');
-    try {
-      setAiResult(await postSafetyAnalysis({ near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: quickRange === 'all' ? 'all time' : quickRange }));
-      if (!sections.expanded.ai) sections.toggle('ai');
-    } catch (e) { setAiError(`Analysis failed: ${(e as Error).message}`); }
-    finally { setAiLoading(false); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw, quickRange]);
-
-  const weeklyActuals = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-    monday.setHours(0, 0, 0, 0);
-    const inWeek = (r: any): boolean => { const ds = r.date || r.submittedAt || r.created_at || r.createdAt || ''; if (!ds) return false; const d = new Date(ds); return !isNaN(d.getTime()) && d >= monday; };
-    return { vfl: raw.vfl.filter(inWeek).length, pto: raw.pto.filter(inWeek).length, insp: raw.insp.filter(inWeek).length, pach: raw.pach.filter(inWeek).length, nm: raw.nm.filter(inWeek).length } as Record<ModuleKey, number>;
-  }, [raw]);
-
-  const weekLabel = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    return `${fmt(monday)} – ${fmt(sunday)} ${sunday.getFullYear()}`;
-  }, []);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [targets, setTargets] = usePersistentState<Record<TargetKey, number>>('sheq_weekly_targets', DEFAULT_TARGETS, validTargets);
+  const [editingTargets, setEditingTargets] = useState(false);
+  const [notes, setNotes] = usePersistentState<Comment[]>('sheq_dash_notes', [], validNotes);
+  const [noteText, setNoteText] = useState('');
+  const [noteAuthor, setNoteAuthor] = useState('');
+  const [ai, setAi] = useState<AiResult | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (autoRefresh) intervalRef.current = setInterval(load, 5 * 60 * 1000);
-    else if (intervalRef.current) clearInterval(intervalRef.current);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [autoRefresh, load]);
+    if (autoRefresh) timer.current = setInterval(refresh, 5 * 60 * 1000);
+    return () => { if (timer.current) clearInterval(timer.current); };
+  }, [autoRefresh, refresh]);
 
-  const [fromDate, toDate] = useMemo(() => rangeToFromTo(quickRange as QuickRange, customFrom, customTo), [quickRange, customFrom, customTo]);
-  const stats = useMemo(() => computeStats(raw, fromDate, toDate), [raw, fromDate, toDate]);
-
-  const score = stats.safetyScore;
-  const sc = scoreColor(score);
-  const trendData = stats.months.map(m => m.count);
-  const trendLabels = stats.months.map(m => m.label);
+  const [from, to] = useMemo(() => rangeToFromTo(range, customFrom, customTo), [range, customFrom, customTo]);
+  const stats = useMemo(() => computeStats(raw, from, to), [raw, from, to]);
+  const actuals = useMemo(() => weeklyActuals(raw), [raw]);
+  const week = useMemo(() => weekLabel(), []);
   const { totals } = stats;
+  const everything = raw.nm.length + raw.ws.length + raw.vfl.length + raw.pto.length + raw.insp.length + raw.pach.length;
+  const status = deriveDataStatus({ loaded, loading, error: loadError || null, errorStatus: null, count: everything, transient: false });
+  const pending = loading && !loaded;
 
-  const alerts: { text: string; color: string }[] = [];
-  if (stats.nm.high > 0) alerts.push({ text: `${stats.nm.high} high/critical near miss report${stats.nm.high > 1 ? 's' : ''} require attention`, color: C.high });
-  if (stats.nm.open > 0) alerts.push({ text: `${stats.nm.open} near miss report${stats.nm.open > 1 ? 's' : ''} open / under investigation`, color: C.nm });
-  if (stats.pto.highRisk > 0) alerts.push({ text: `${stats.pto.highRisk} PTO observation${stats.pto.highRisk > 1 ? 's' : ''} flagged as high risk`, color: '#f97316' });
-  if (totals.totalActionsPend > 5) alerts.push({ text: `${totals.totalActionsPend} corrective actions pending — review required`, color: C.pend });
-  if (stats.insp.criticalFindings > 0) alerts.push({ text: `${stats.insp.criticalFindings} critical inspection finding${stats.insp.criticalFindings > 1 ? 's' : ''} require immediate action`, color: C.high });
-  if (stats.insp.overdueFindings > 0) alerts.push({ text: `${stats.insp.overdueFindings} inspection finding${stats.insp.overdueFindings > 1 ? 's' : ''} are overdue`, color: '#f97316' });
+  const runAnalysis = useCallback(async () => {
+    setAiLoading(true); setAiError('');
+    try {
+      setAi(await postSafetyAnalysis({ near_miss: raw.nm, work_stoppage: raw.ws, vfl: raw.vfl, pto: raw.pto, inspections: raw.insp, pachedu: raw.pach, period_label: range === 'all' ? 'all time' : range }) as AiResult);
+    } catch (e) { setAiError(`Analysis failed: ${(e as Error).message}`); }
+    finally { setAiLoading(false); }
+  }, [raw, range]);
 
-  const selectRange = (key: QuickRange | 'custom') => { setQuickRange(key); setShowCustom(key === 'custom'); };
-  const allOpen = sections.allOpen;
-  const inputCls: React.CSSProperties = { background: P.inputBg, border: P.inputBorder, borderRadius: 9, padding: '8px 12px', color: P.inputText, fontSize: 13, outline: 'none' };
+  const addNote = () => {
+    if (!noteText.trim()) return;
+    setNotes([{ id: Date.now().toString(), text: noteText.trim(), author: noteAuthor.trim() || 'Safety manager', ts: new Date().toISOString() }, ...notes].slice(0, 50));
+    setNoteText('');
+  };
+  const removeNote = async (c: Comment) => {
+    if (!await confirm({ title: 'Delete this note?', message: 'Notes are kept on this device only, so this cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
+    setNotes(notes.filter(x => x.id !== c.id));
+  };
+
+  const alerts: { text: string; tone: 'warning' | 'danger' }[] = [];
+  if (stats.pto.highRisk > 0) alerts.push({ text: `${stats.pto.highRisk} planned task ${stats.pto.highRisk === 1 ? 'observation is' : 'observations are'} flagged as high risk.`, tone: 'warning' });
+  if (totals.totalActionsPend > 5) alerts.push({ text: `${totals.totalActionsPend} corrective actions are pending. Review is required.`, tone: 'warning' });
+  if (stats.insp.criticalFindings > 0) alerts.push({ text: `${stats.insp.criticalFindings} critical inspection ${stats.insp.criticalFindings === 1 ? 'finding needs' : 'findings need'} immediate action.`, tone: 'danger' });
+  if (stats.insp.overdueFindings > 0) alerts.push({ text: `${stats.insp.overdueFindings} inspection ${stats.insp.overdueFindings === 1 ? 'finding is' : 'findings are'} overdue.`, tone: 'danger' });
+
+  const trend = stats.months.map(m => ({ month: m.label, reports: m.count }));
+  const delta = trend.length >= 2 ? trend[trend.length - 1].reports - trend[trend.length - 2].reports : null;
+  const score = stats.safetyScore;
+
+  const monthRows = MODULES.map(m => ({ id: m.key, label: m.label, counts: stats.moduleMonthly[m.key] }));
+  const monthColumns: Column<(typeof monthRows)[number]>[] = [
+    { id: 'label', header: 'Module', sticky: true, cell: r => r.label },
+    ...stats.months.map((m, i) => ({ id: `m${i}`, header: m.label, numeric: true, cell: (r: (typeof monthRows)[number]) => r.counts[i] })),
+    { id: 'sum', header: 'Total', numeric: true, cell: r => r.counts.reduce((a, b) => a + b, 0) },
+  ];
+
+  const weeklyRows = TARGET_MODULES.map(m => { const actual = actuals[m.key]; const target = targets[m.key]; return { ...m, id: m.key, actual, target, p: Math.min(Math.round((actual / target) * 100), 100), st: weeklyStatus(actual, target) }; });
+  const weeklyColumns: Column<(typeof weeklyRows)[number]>[] = [
+    { id: 'label', header: 'Module', sticky: true, cell: r => <Link href={r.href} className="focus-ring rounded-xs text-action underline underline-offset-2">{r.label}</Link> },
+    { id: 'actual', header: 'This week', numeric: true, cell: r => r.actual },
+    { id: 'target', header: 'Target', numeric: true, cell: r => r.target },
+    { id: 'p', header: 'Achievement', cell: r => <Progress value={r.p} label={`${r.label} weekly achievement`} className="min-w-32" /> },
+    { id: 'st', header: 'Status', cell: r => <StatusBadge tone={r.st.tone}>{r.st.label}</StatusBadge> },
+  ];
+  const met = weeklyRows.filter(r => r.actual >= r.target).length;
+  const totalTarget = weeklyRows.reduce((s, r) => s + r.target, 0);
+  const totalActual = weeklyRows.reduce((s, r) => s + r.actual, 0);
+  const overall = Math.min(Math.round((totalActual / totalTarget) * 100), 100);
+
+  const SHORT: Record<ModuleKey, string> = { nm: 'Near miss', ws: 'Stoppage', vfl: 'VFL', pto: 'PTO', insp: 'Inspect.', pach: 'Pachedu' };
+  const reportsByModule = MODULES.map(m => ({ name: SHORT[m.key], value: stats[m.key].total }));
+  const actionRows = [{ name: 'Completed', value: totals.totalActionsDone }, { name: 'In progress', value: totals.totalActionsProg }, { name: 'Pending', value: totals.totalActionsPend }];
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'container mx-auto'} px-4 py-6`} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ dashboard' }]}
+        title="SHEQ safety dashboard"
+        description="Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu."
+        actions={(
+          <>
+            <Button variant={autoRefresh ? "primary" : "secondary"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
+            <IconButton icon="refresh" label="Refresh dashboard" variant="outline" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
+          </>
+        )}
+      />
+      {lastUpdated && <p className="-mt-3 font-sans text-caption text-ink-muted">Refreshed {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}{autoRefresh ? ' · refreshes every 5 minutes' : ''}</p>}
 
-      {/* ── HERO ── */}
-      <Glass style={{ padding: '20px 26px' }} P={P}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
-          <div>
-            <nav style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: P.textFaint, marginBottom: 8 }}>
-              <span>Home</span><ChevronRight size={11} /><span style={{ color: P.textSecondary, fontWeight: 600 }}>SHEQ Dashboard</span>
-            </nav>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: P.textPrimary, fontFamily: 'Montserrat, sans-serif', letterSpacing: -0.5, marginBottom: 4 }}>SHEQ Safety Dashboard</h1>
-            <p style={{ fontSize: 13, color: P.textMuted }}>Live overview across Near Miss, Work Stoppage, VFL, PTO, Inspections &amp; Pachedu</p>
-            {lastUpdated && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: P.textFaintest, marginTop: 6 }}>
-                <Clock size={10} /> Refreshed {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      <Toolbar>
+        <Segmented label="Period" value={range} onValueChange={setRange} options={RANGES} />
+        {range === 'custom' && (
+          <>
+            <Input type="date" aria-label="From date" className="w-40" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <Input type="date" aria-label="To date" className="w-40" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+          </>
+        )}
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="the SHEQ dashboard"
+        error={loadError || null}
+        onRetry={() => refresh()}
+        skeletonRows={4}
+        empty={<EmptyState icon="compliance" title="No safety records yet" description="The dashboard fills in as near miss, work stoppage, VFL, PTO, inspection and Pachedu records are logged." />}
+      >
+        <MetricGrid columns={4}>
+          <MetricTile label="Total reports" icon="flag" detail="All six modules" value={totals.totalReports} loading={pending} />
+          <MetricTile label="Near miss" icon="warning" href="/near_miss" detail={`${stats.nm.mechanical} mech, ${stats.nm.electrical} elec, ${stats.nm.general} general`} value={stats.nm.total} loading={pending} />
+          <MetricTile label="Work stoppages" icon="cancel" href="/work_stoppage" detail={`${stats.ws.actPend} ${stats.ws.actPend === 1 ? 'action' : 'actions'} pending`} value={stats.ws.total} loading={pending} />
+          <MetricTile label="VFL observations" icon="eye" href="/vfl" detail={`${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe`} value={stats.vfl.total} loading={pending} />
+          <MetricTile label="PTO reports" icon="task" href="/pto" tone={stats.pto.highRisk ? 'warning' : 'default'} detail={`${stats.pto.highRisk} high risk`} value={stats.pto.total} loading={pending} />
+          <MetricTile label="Inspections" icon="compliance" href="/sheq_inspection" detail={`${stats.insp.openFindings} open ${stats.insp.openFindings === 1 ? 'finding' : 'findings'}`} value={stats.insp.total} loading={pending} />
+          <MetricTile label="Pending actions" icon="pending" tone={totals.totalActionsPend > 5 ? 'warning' : 'default'} detail={`${totals.totalActionsDone} completed`} value={totals.totalActionsPend} loading={pending} />
+        </MetricGrid>
+
+        <Tabs value={tab} onValueChange={setTab} className="mt-6">
+          <TabsList aria-label="SHEQ dashboard sections">
+            <TabsTrigger value="overview" icon="home">Overview</TabsTrigger>
+            <TabsTrigger value="weekly" icon="target">Weekly targets</TabsTrigger>
+            <TabsTrigger value="modules" icon="grid-view">Modules</TabsTrigger>
+            <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="analysis" icon="shield">Analysis</TabsTrigger>
+            <TabsTrigger value="notes" icon="draft" count={notes.length || undefined}>Notes</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-5 flex flex-col gap-4">
+            {alerts.map(a => <Notice key={a.text} tone={a.tone} title={a.text} />)}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <ChartPanel
+                title="Safety score"
+                description="Average of the measures below that have records in this period"
+                summary={score === null ? 'No safety score: there are no records in this period to judge.' : `Safety score ${score} out of 100, ${scoreLabel(score).toLowerCase()}. ${stats.scoreParts.map(p => (p.value === null ? `${p.label}: no records` : `${p.label} ${Math.round(p.value)} percent`)).join('; ')}.`}
+              >
+                <div className="flex flex-col gap-4">
+                  {score === null ? (
+                    <p className="font-sans text-body text-ink-muted">No score for this period. Nothing has been recorded that the score can judge.</p>
+                  ) : (
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-display text-display font-semibold tabular text-ink">{score}</span>
+                      <span className="font-sans text-body text-ink-muted">out of 100</span>
+                      <StatusBadge tone={score >= 80 ? 'success' : score >= 60 ? 'warning' : 'danger'}>{scoreLabel(score)}</StatusBadge>
+                    </div>
+                  )}
+                  <ul className="flex flex-col gap-3">
+                    {stats.scoreParts.map(p => (
+                      <li key={p.key}>
+                        <div className="mb-1 flex justify-between font-sans text-body-sm"><span className="text-ink">{p.label}</span><span className="tabular text-ink-muted">{p.den > 0 ? `${p.num} of ${p.den}` : 'No records'}</span></div>
+                        {p.value !== null && <Progress value={p.value} label={p.label} />}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </ChartPanel>
+              <ChartPanel
+                title="Monthly report trend"
+                description="All modules combined, last six months"
+                summary={`Reports per month: ${trend.map(t => `${t.month} ${t.reports}`).join(', ')}.${delta === null ? '' : ` ${delta >= 0 ? 'Up' : 'Down'} ${Math.abs(delta)} on the previous month.`}`}
+              >
+                {delta !== null && <p className="mb-2 font-sans text-body-sm text-ink-muted">{delta >= 0 ? '+' : ''}{delta} compared with the previous month</p>}
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={trend} barSize={26}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+                    <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+                    <Tooltip {...chartTheme.tooltip} />
+                    <Bar dataKey="reports" name="Reports" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartPanel>
+            </div>
+            <section aria-labelledby="sheq-monthly">
+              <h2 id="sheq-monthly" className="mb-3 font-display text-section font-semibold text-ink">Reports per module and month</h2>
+              <DataTable caption="Reports per module and month" rows={monthRows} columns={monthColumns} getRowId={r => r.id} />
+            </section>
+          </TabsContent>
+
+          <TabsContent value="weekly" className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-sans text-body-sm text-ink-muted">Week of {week}. Targets are saved on this device only.</p>
+              <Button icon="edit" onClick={() => setEditingTargets(true)}>Edit targets</Button>
+            </div>
+            <DataTable caption="Weekly performance against target" rows={weeklyRows} columns={weeklyColumns} getRowId={r => r.id} />
+            <Card padding="lg" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div><p className="font-sans text-caption text-ink-muted">Modules on target</p><p className="font-display text-title font-semibold tabular text-ink">{met} of {weeklyRows.length}</p></div>
+              <div><p className="font-sans text-caption text-ink-muted">Records this week</p><p className="font-display text-title font-semibold tabular text-ink">{totalActual} of {totalTarget}</p></div>
+              <div><p className="mb-1 font-sans text-caption text-ink-muted">Overall achievement</p><Progress value={overall} label="Overall weekly achievement" /></div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="modules" className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <ModuleCard label="Near miss" href="/near_miss" total={stats.nm.total} rows={[{ name: 'Mechanical', value: stats.nm.mechanical }, { name: 'Electrical', value: stats.nm.electrical }, { name: 'General', value: stats.nm.general }]} facts="Near miss records carry no status, so only the section split is shown." />
+            <ModuleCard label="Work stoppage" href="/work_stoppage" total={stats.ws.total} rows={[{ name: 'Actions done', value: stats.ws.actDone }, { name: 'In progress', value: stats.ws.actProg }, { name: 'Pending', value: stats.ws.actPend }]} facts="Corrective actions across all stoppages." />
+            <ModuleCard label="Visible felt leadership" href="/vfl" total={stats.vfl.total} rows={[{ name: 'Safe', value: stats.vfl.safe }, { name: 'Unsafe', value: stats.vfl.unsafe }]} facts={`${stats.vfl.actTotal} actions recorded.`} />
+            <ModuleCard label="Planned task observation" href="/pto" total={stats.pto.total} rows={[{ name: 'Low risk', value: stats.pto.total - stats.pto.highRisk }, { name: 'High risk', value: stats.pto.highRisk }]} facts={`${stats.pto.initial} initial, ${stats.pto.followup} follow-up.`} />
+            <ModuleCard label="SHEQ inspections" href="/sheq_inspection" total={stats.insp.total} rows={[{ name: 'Approved', value: stats.insp.approved }, { name: 'Submitted', value: stats.insp.submitted }, { name: 'Draft', value: stats.insp.draft }, { name: 'Rejected', value: stats.insp.rejected }]} facts={`${stats.insp.openFindings} open findings, ${stats.insp.criticalFindings} critical.`} />
+            <ModuleCard label="Pachedu" href="/pachedu" total={stats.pach.total} rows={[{ name: 'Closed', value: stats.pach.closed }, { name: 'Reviewed', value: stats.pach.reviewed }, { name: 'Submitted', value: stats.pach.submitted }, { name: 'Draft', value: stats.pach.draft }]} facts={`${stats.pach.intentional} intentional, ${stats.pach.unintentional} unintentional.`} />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ChartPanel title="Reports by module" summary={`Reports by module: ${summarise(reportsByModule)}.`}>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={reportsByModule} barSize={26}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+                  <XAxis dataKey="name" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval={0} angle={narrow ? -40 : 0} textAnchor={narrow ? 'end' : 'middle'} height={narrow ? 60 : 30} />
+                  <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+                  <Tooltip {...chartTheme.tooltip} />
+                  <Bar dataKey="value" name="Reports" fill={chartColor(2)} radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+            <ChartPanel title="Action items" description="Across work stoppage, VFL and PTO" summary={`Corrective actions: ${summarise(actionRows)} of ${totals.totalActions}.`}>
+              {totals.totalActions === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No actions recorded in this period.</p> : <Distribution rows={actionRows} />}
+            </ChartPanel>
+            <ChartPanel title="VFL behaviour" description="Safe and unsafe observations" summary={`VFL behaviour: ${stats.vfl.safe} safe and ${stats.vfl.unsafe} unsafe of ${stats.vfl.total}.`}>
+              {stats.vfl.total === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No VFL observations in this period.</p> : (
+                <div className="flex flex-col gap-3">
+                  <Distribution rows={[{ name: 'Safe', value: stats.vfl.safe }, { name: 'Unsafe', value: stats.vfl.unsafe }]} />
+                  <Progress value={pct(stats.vfl.safe, stats.vfl.total)} label="Safe share of VFL observations" />
+                </div>
+              )}
+            </ChartPanel>
+            <ChartPanel title="Pachedu behaviour" description="Intentional and unintentional" summary={`Pachedu: ${stats.pach.intentional} intentional, ${stats.pach.unintentional} unintentional, ${stats.pach.closed + stats.pach.reviewed} resolved of ${stats.pach.total}.`}>
+              {stats.pach.total === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No Pachedu reports in this period.</p> : (
+                <div className="flex flex-col gap-3">
+                  <Distribution rows={[{ name: 'Intentional', value: stats.pach.intentional }, { name: 'Unintentional', value: stats.pach.unintentional }]} />
+                  <p className="font-sans text-caption text-ink-muted">Resolved (closed or reviewed)</p>
+                  <Progress value={pct(stats.pach.closed + stats.pach.reviewed, stats.pach.total)} label="Pachedu resolved share" />
+                </div>
+              )}
+            </ChartPanel>
+            <ChartPanel title="Near miss by section" summary={`Near miss by section: ${stats.nm.mechanical} mechanical, ${stats.nm.electrical} electrical, ${stats.nm.general} general.`}>
+              <Distribution rows={[{ name: 'Mechanical', value: stats.nm.mechanical }, { name: 'Electrical', value: stats.nm.electrical }, { name: 'General', value: stats.nm.general }]} />
+            </ChartPanel>
+            <ChartPanel title="Action plan progress" description="Completed actions per module" summary={`Action completion: work stoppage ${stats.ws.actDone} of ${stats.ws.actTotal}, VFL ${stats.vfl.actDone} of ${stats.vfl.actTotal}, PTO ${stats.pto.actDone} of ${stats.pto.actTotal}.`}>
+              <ul className="flex flex-col gap-3">
+                {[{ label: 'Work stoppage', done: stats.ws.actDone, total: stats.ws.actTotal }, { label: 'VFL', done: stats.vfl.actDone, total: stats.vfl.actTotal }, { label: 'PTO', done: stats.pto.actDone, total: stats.pto.actTotal }, { label: 'All combined', done: totals.totalActionsDone, total: totals.totalActions }].map(r => (
+                  <li key={r.label}>
+                    <div className="mb-1 flex justify-between font-sans text-body-sm"><span className="text-ink">{r.label}</span><span className="tabular text-ink-muted">{r.total > 0 ? `${r.done} of ${r.total}` : 'No actions recorded'}</span></div>
+                    {r.total > 0 && <Progress value={pct(r.done, r.total)} label={`${r.label} action completion`} />}
+                  </li>
+                ))}
+              </ul>
+            </ChartPanel>
+          </TabsContent>
+
+          <TabsContent value="analysis" className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="primary" icon="analytics" pending={aiLoading} disabled={loading || refreshing} onClick={runAnalysis}>{aiLoading ? 'Analysing' : ai ? 'Re-analyse' : 'Analyse'}</Button>
+              {ai?._records_analysed != null && <span className="font-sans text-caption text-ink-muted">{ai._records_analysed} records analysed across all modules</span>}
+            </div>
+            {aiError && <Notice tone="danger" title={aiError} />}
+            {!ai && !aiError && <p className="font-sans text-body-sm text-ink-muted">Run the analysis to see hotspots, trend direction, a risk score and prioritised recommendations. It reads every record, not only the selected period.</p>}
+            {ai && !aiLoading && (
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Card padding="lg" className="md:col-span-2"><h3 className="font-sans text-caption text-ink-muted">Executive summary</h3><p className="mt-1 font-sans text-body text-ink">{ai.summary}</p></Card>
+                  <Card padding="lg">
+                    <h3 className="font-sans text-caption text-ink-muted">Risk level</h3>
+                    <p className="font-display text-display font-semibold tabular text-ink">{ai.risk_score ?? 'n/a'}</p>
+                    <StatusBadge tone={RISK_TONE[ai.overall_risk ?? ''] ?? 'neutral'}>{(ai.overall_risk ?? 'unknown').toUpperCase()}</StatusBadge>
+                    {typeof ai.risk_score === 'number' && <Progress value={ai.risk_score} label="Risk score" className="mt-3" />}
+                  </Card>
+                </div>
+                {(ai.problem_areas ?? []).length > 0 && (
+                  <section aria-labelledby="ai-problems">
+                    <h3 id="ai-problems" className="mb-2 font-display text-section font-semibold text-ink">Problem areas</h3>
+                    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {ai.problem_areas!.map((p, i) => (
+                        <li key={i}><Card className="h-full">
+                          <div className="flex items-start justify-between gap-2"><p className="font-sans text-body font-medium text-ink">{p.title}</p><StatusBadge tone={RISK_TONE[p.severity ?? ''] ?? 'neutral'}>{(p.severity ?? '').toUpperCase()}</StatusBadge></div>
+                          <p className="mt-1 font-sans text-body-sm text-ink-muted">{p.description}</p>
+                          <p className="mt-2 font-sans text-caption text-ink-muted">{[p.module, p.location_or_dept, p.count ? `${p.count} incidents` : ''].filter(Boolean).join(' · ')}</p>
+                        </Card></li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {(ai.recommendations ?? []).length > 0 && (
+                  <section aria-labelledby="ai-recs">
+                    <h3 id="ai-recs" className="mb-2 font-display text-section font-semibold text-ink">Recommendations</h3>
+                    <ol className="flex flex-col gap-2">
+                      {ai.recommendations!.map((r, i) => (
+                        <li key={i}><Card className="flex flex-wrap gap-3">
+                          <StatusBadge tone={PRIORITY_TONE[r.priority ?? ''] ?? 'info'}>{(r.priority ?? '').replace('_', ' ').toUpperCase()}</StatusBadge>
+                          <div className="min-w-0 flex-1"><p className="font-sans text-body font-medium text-ink">{r.action}</p><p className="font-sans text-body-sm text-ink-muted">{r.rationale}</p>
+                            {(r.owner || r.target) && <p className="mt-1 font-sans text-caption text-ink-muted">{[r.owner && `Owner: ${r.owner}`, r.target && `Target: ${r.target}`].filter(Boolean).join(' · ')}</p>}</div>
+                        </Card></li>
+                      ))}
+                    </ol>
+                  </section>
+                )}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {(ai.trends ?? []).length > 0 && (
+                    <Card padding="lg"><h3 className="mb-2 font-sans text-caption text-ink-muted">Trends</h3>
+                      <ul className="flex flex-col gap-2">{ai.trends!.map((t, i) => <li key={i}><p className="font-sans text-body font-medium text-ink">{t.metric} <span className="font-normal text-ink-muted">({t.direction ?? 'stable'})</span></p><p className="font-sans text-body-sm text-ink-muted">{t.insight}</p></li>)}</ul></Card>
+                  )}
+                  {((ai.top_risk_locations ?? []).length > 0 || (ai.top_risk_departments ?? []).length > 0) && (
+                    <Card padding="lg"><h3 className="mb-2 font-sans text-caption text-ink-muted">Risk hotspots</h3>
+                      {(ai.top_risk_locations ?? []).length > 0 && <><p className="font-sans text-caption text-ink-muted">Locations</p><ul className="mb-2 list-disc pl-5 font-sans text-body text-ink">{ai.top_risk_locations!.map(l => <li key={l}>{l}</li>)}</ul></>}
+                      {(ai.top_risk_departments ?? []).length > 0 && <><p className="font-sans text-caption text-ink-muted">Departments</p><ul className="list-disc pl-5 font-sans text-body text-ink">{ai.top_risk_departments!.map(d => <li key={d}>{d}</li>)}</ul></>}
+                    </Card>
+                  )}
+                </div>
+                <p className="text-right font-sans text-caption text-ink-muted">Generated {ai.generated_at ? new Date(ai.generated_at).toLocaleString('en-GB') : ''}. Review the recommendations with your safety team before acting.</p>
               </div>
             )}
-          </div>
-          <div className={t.design === 'dallaglio' ? 'sheq-hero-actions' : undefined} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
-            {([
-              { href: '/near_miss', label: 'Near Miss', color: C.nm },
-              { href: '/work_stoppage', label: 'Work Stop.', color: C.ws },
-              { href: '/vfl', label: 'VFL', color: C.vfl },
-              { href: '/pto', label: 'PTO', color: C.pto },
-              { href: '/sheq_inspection', label: 'Inspections', color: C.insp },
-            ] as const).map(({ href, label, color }) => (
-              t.design === 'dallaglio'
-                ? <Button key={href} href={href} variant="secondary" size="sm" icon={ExternalLink} iconPosition="end">{label}</Button>
-                : <Link key={href} href={href} style={{ fontSize: 11, color, background: color + '18', padding: '6px 11px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', gap: 4 }}>{label} <ExternalLink size={9} /></Link>
-            ))}
-            {t.design === 'dallaglio' ? <>
-              <Button variant="secondary" size="sm" icon={allOpen ? ChevronUp : ChevronDown} title={allOpen ? 'Collapse all sections' : 'Expand all sections'} onClick={sections.toggleAll}>{allOpen ? 'Collapse All' : 'Expand All'}</Button>
-              <Button variant={autoRefresh ? 'primary' : 'secondary'} size="sm" icon={Zap} pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto ON' : 'Auto OFF'}</Button>
-              <IconAction meaning="refresh" title="Refresh" label={refreshing ? 'Refreshing…' : 'Refresh'} spinning={refreshing} disabled={loading || refreshing} onClick={load} />
-            </> : <>
-              <button type="button" onClick={sections.toggleAll} title={allOpen ? 'Collapse all sections' : 'Expand all sections'}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: P.textMuted, fontSize: 11, fontWeight: 600 }}>
-                {allOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {allOpen ? 'Collapse All' : 'Expand All'}
-              </button>
-              <button type="button" onClick={() => setAutoRefresh(a => !a)}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, background: autoRefresh ? '#10b98118' : P.chipTrack, border: `1px solid ${autoRefresh ? '#10b98144' : P.divider}`, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', color: autoRefresh ? '#10b981' : P.textMuted, fontSize: 11, fontWeight: 600 }}>
-                <Zap size={12} /> {autoRefresh ? 'Auto ON' : 'Auto OFF'}
-              </button>
-              <button type="button" onClick={load} disabled={loading}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, background: P.chipTrack, border: `1px solid ${P.divider}`, borderRadius: 9, padding: '8px 14px', cursor: loading ? 'not-allowed' : 'pointer', color: P.textSecondary, fontSize: 12, fontWeight: 600 }}>
-                <RefreshCw size={13} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }} /> {loading ? 'Loading…' : 'Refresh'}
-              </button>
-            </>}
-          </div>
-        </div>
+          </TabsContent>
 
-        <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: P.textFaint }}><Calendar size={12} /> Filter:</div>
-          {QUICK_OPTIONS.map(({ key, label }) => (
-            t.design === 'dallaglio'
-              ? <Button key={key} variant={quickRange === key ? 'primary' : 'secondary'} size="sm" pressed={quickRange === key} onClick={() => selectRange(key)}>{label}</Button>
-              : <button key={key} type="button" onClick={() => selectRange(key)}
-                  style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: quickRange === key ? '1px solid #60a5fa66' : `1px solid ${P.divider}`, background: quickRange === key ? 'rgba(96,165,250,0.18)' : P.chipTrack, color: quickRange === key ? '#60a5fa' : P.textFaint, transition: 'all 0.15s' }}>
-                  {label}
-                </button>
-          ))}
-          {showCustom && (
-            <div className={t.design === 'dallaglio' ? 'sheq-custom-range' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ ...inputCls, width: 138, ...(t.design === 'dallaglio' ? { minHeight: 36 } : {}) }} title="From date" aria-label="From date" />
-              <span style={{ fontSize: 11, color: P.textFaintest }}>to</span>
-              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ ...inputCls, width: 138, ...(t.design === 'dallaglio' ? { minHeight: 36 } : {}) }} title="To date" aria-label="To date" />
-            </div>
-          )}
-        </div>
-      </Glass>
+          <TabsContent value="notes" className="mt-5 flex flex-col gap-4">
+            <p className="font-sans text-body-sm text-ink-muted">Notes are saved on this device only; they are not shared with other people or devices.</p>
+            <form className="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_1fr_auto] sm:items-end" onSubmit={e => { e.preventDefault(); addNote(); }}>
+              <Field label="Your name" optional><Input value={noteAuthor} onChange={e => setNoteAuthor(e.target.value)} placeholder="Safety manager" /></Field>
+              <Field label="Note"><Textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add a safety observation, flag or reminder" /></Field>
+              <Button variant="primary" type="submit" icon="plus" disabled={!noteText.trim()}>Add note</Button>
+            </form>
+            {notes.length === 0 ? <EmptyState icon="draft" title="No notes yet" description="Add safety observations, flags or reminders above." /> : (
+              <ul className="flex flex-col gap-2">
+                {notes.map(c => (
+                  <li key={c.id}><Card className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="whitespace-pre-wrap font-sans text-body text-ink">{c.text}</p><p className="mt-1 font-sans text-caption text-ink-muted">{c.author} · {formatDateTime(c.ts)}</p></div>
+                    <IconButton icon="delete" variant="danger" size="sm" label={`Delete note by ${c.author}`} onClick={() => removeNote(c)} />
+                  </Card></li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DataRegion>
 
-      {t.design === 'dallaglio' && loadError && (
-        <div role="alert" className="rounded-2xl border border-[var(--d-line)] bg-[var(--d-surface)] px-5 py-4 shadow-[var(--d-shadow)] flex flex-wrap items-center gap-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-[var(--d-ink)]">Could not load the complete SHEQ dashboard</p>
-            <p className="mt-0.5 text-xs text-[var(--d-ink-subtle)]">{loadError}</p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={load}>Try again</Button>
-        </div>
-      )}
-
-      {loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 42, height: 42, border: `3px solid ${P.trackBg}`, borderTopColor: '#60a5fa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 14px' }} />
-            <div style={{ fontSize: 13, color: P.textFaint }}>Loading safety data…</div>
-          </div>
-        </div>
-      )}
-
-      {lastUpdated && (
-        <>
-          {alerts.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {alerts.map((a, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: a.color + '14', border: `1px solid ${a.color}33`, borderRadius: 11, padding: '10px 16px' }}>
-                  <Bell size={13} style={{ color: a.color, flexShrink: 0 }} /><span style={{ fontSize: 13, color: a.color, fontWeight: 600 }}>{a.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 12 }}>
-            {[
-              { label: 'Total Reports', value: totals.totalReports, color: '#60a5fa', icon: <FileSearch size={18} />, sub: 'All 6 modules' },
-              { label: 'Near Miss', value: stats.nm.total, color: C.nm, icon: <AlertTriangle size={18} />, sub: `${stats.nm.open || stats.nm.total} active` },
-              { label: 'Work Stoppages', value: stats.ws.total, color: C.ws, icon: <Ban size={18} />, sub: `${stats.ws.actPend} actions pending` },
-              { label: 'VFL Observations', value: stats.vfl.total, color: C.vfl, icon: <Eye size={18} />, sub: `${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe` },
-              { label: 'PTO Reports', value: stats.pto.total, color: C.pto, icon: <ClipboardList size={18} />, sub: `${stats.pto.highRisk} high risk` },
-              { label: 'Inspections', value: stats.insp.total, color: C.insp, icon: <ClipboardCheck size={18} />, sub: `${stats.insp.openFindings} open findings` },
-              { label: 'Pending Actions', value: totals.totalActionsPend, color: C.pend, icon: <Target size={18} />, sub: `${totals.totalActionsDone} completed` },
-            ].map(({ label, value, color, icon, sub }) => (
-              <div key={label} style={{ background: P.cardBg, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: P.cardBorder, borderRadius: 13, padding: '16px 18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                  <div style={{ padding: 8, borderRadius: 9, background: color + '20' }}><span style={{ color, display: 'flex' }}>{icon}</span></div>
-                  <Chip label={value.toString()} color={color} />
-                </div>
-                <div style={{ fontSize: 32, fontWeight: 800, color: P.textPrimary, lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: 12, color: P.textSecondary, marginTop: 6, fontWeight: 600 }}>{label}</div>
-                <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 3 }}>{sub}</div>
-              </div>
-            ))}
-          </div>
-
-          <CollapsibleSection title="Weekly Performance vs Target" icon={<Target size={15} />} sub={`Week of ${weekLabel} · click a target to edit`} accent="#a855f7" open={sections.expanded.weekly} onToggle={() => sections.toggle('weekly')} P={P}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14, gap: 8 }}>
-              {editingTargets ? (
-                <>
-                  {t.design === 'dallaglio' ? <>
-                    <Button variant="secondary" size="sm" onClick={() => setEditingTargets(false)}>Cancel</Button>
-                    <Button size="sm" onClick={saveTargets}>Save Targets</Button>
-                  </> : <>
-                    <button type="button" onClick={() => setEditingTargets(false)} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: P.chipTrack, border: `1px solid ${P.divider}`, color: P.textMuted, cursor: 'pointer' }}>Cancel</button>
-                    <button type="button" onClick={saveTargets} style={{ fontSize: 11, padding: '5px 14px', borderRadius: 8, background: '#a855f7', border: '1px solid rgba(168,85,247,0.5)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Save Targets</button>
-                  </>}
-                </>
-              ) : (
-                t.design === 'dallaglio'
-                  ? <Button variant="secondary" size="sm" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }}>Edit Targets</Button>
-                  : <button type="button" onClick={() => { setTargetDraft({ ...weeklyTargets }); setEditingTargets(true); }} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 8, background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.28)', color: '#a855f7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>✎ Edit Targets</button>
-              )}
-            </div>
-
-            {([
-              { key: 'vfl', label: 'VFL Observations', color: C.vfl, icon: <Eye size={15} />, href: '/vfl' },
-              { key: 'pto', label: 'PTO Reports', color: C.pto, icon: <ClipboardList size={15} />, href: '/pto' },
-              { key: 'insp', label: 'Inspections', color: C.insp, icon: <ClipboardCheck size={15} />, href: '/sheq_inspection' },
-              { key: 'pach', label: 'Pachedu', color: C.pach, icon: <HeartHandshake size={15} />, href: '/pachedu' },
-              { key: 'nm', label: 'Near Miss', color: C.nm, icon: <AlertTriangle size={15} />, href: '/near_miss' },
-            ] as { key: ModuleKey; label: string; color: string; icon: React.ReactNode; href: string }[]).map(({ key, label, color, icon, href }) => {
-              const actual = weeklyActuals[key] ?? 0;
-              const target = weeklyTargets[key] ?? 1;
-              const pct = Math.min(Math.round((actual / target) * 100), 100);
-              const overflow = actual > target;
-              const barColor = overflow ? C.safe : pct >= 80 ? '#60a5fa' : pct >= 50 ? C.nm : C.high;
-              const statusLabel = overflow ? 'Exceeded ✓' : pct >= 100 ? 'On Target ✓' : pct >= 80 ? 'Almost' : pct >= 50 ? 'In Progress' : actual === 0 ? 'Not Started' : 'Below Target';
-              const statusColor = overflow || pct >= 100 ? C.safe : pct >= 80 ? '#60a5fa' : pct >= 50 ? C.nm : C.high;
-
-              return (
-                <div key={key} className={t.design === 'dallaglio' ? 'sheq-weekly-row' : undefined} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 80px 90px 80px', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: `1px solid ${P.divider}` }}>
-                  <div style={{ color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <Link href={href} style={{ fontSize: 12, fontWeight: 700, color: P.textSecondary, textDecoration: 'none' }}>{label}</Link>
-                    </div>
-                    <div style={{ height: 7, borderRadius: 999, background: P.trackBg, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ height: '100%', borderRadius: 999, width: `${pct}%`, background: `linear-gradient(90deg, ${barColor}99, ${barColor})`, transition: 'width 0.8s cubic-bezier(0.16,1,0.3,1)', boxShadow: pct > 0 ? `0 0 8px ${barColor}66` : 'none' }} />
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    {editingTargets ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
-                        <span style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</span>
-                        <span style={{ fontSize: 11, color: P.textFaintest }}>/</span>
-                        <input type="number" min={1} max={999} title={`${label} target`} aria-label={`${label} target`} value={targetDraft[key]}
-                          onChange={e => setTargetDraft(p => ({ ...p, [key]: Math.max(1, parseInt(e.target.value) || 1) }))}
-                          style={{ width: 44, minHeight: t.design === 'dallaglio' ? 36 : undefined, textAlign: 'center', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.45)', borderRadius: 7, color: '#a855f7', fontSize: 13, fontWeight: 800, padding: '2px 4px', outline: 'none' }} />
-                      </div>
-                    ) : (
-                      <div><div style={{ fontSize: 16, fontWeight: 800, color }}>{actual}</div><div style={{ fontSize: 10, color: P.textFaintest }}>of {target}</div></div>
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: barColor, lineHeight: 1 }}>{overflow ? `${Math.round((actual / target) * 100)}%` : `${pct}%`}</div>
-                    <div style={{ fontSize: 9, color: P.textFaintest, marginTop: 2 }}>achievement</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}><span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: statusColor + '20', color: statusColor, border: `1px solid ${statusColor}40` }}>{statusLabel}</span></div>
-                </div>
-              );
-            })}
-
-            {(() => {
-              const keys: ModuleKey[] = ['vfl', 'pto', 'insp', 'pach', 'nm'];
-              const met = keys.filter(k => (weeklyActuals[k] ?? 0) >= weeklyTargets[k]).length;
-              const totalTarget = keys.reduce((s, k) => s + weeklyTargets[k], 0);
-              const totalActual = keys.reduce((s, k) => s + (weeklyActuals[k] ?? 0), 0);
-              const overall = Math.min(Math.round((totalActual / totalTarget) * 100), 100);
-              const overallColor = met === keys.length ? C.safe : met >= 3 ? '#60a5fa' : met >= 1 ? C.nm : C.high;
-              return (
-                <div style={{ marginTop: 16, padding: '14px 18px', background: P.chipTrack, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: P.textFaint, marginBottom: 4 }}>WEEKLY SUMMARY</div>
-                    <div style={{ fontSize: 13, color: P.textSecondary, fontWeight: 600 }}><span style={{ color: overallColor, fontWeight: 800, fontSize: 18 }}>{met}</span><span style={{ color: P.textFaint }}> / {keys.length} modules on target</span></div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}><div style={{ fontSize: 11, color: P.textFaint, marginBottom: 4 }}>Total Activities</div><div style={{ fontSize: 22, fontWeight: 900, color: overallColor }}>{totalActual} <span style={{ fontSize: 13, color: P.textFaint, fontWeight: 500 }}>/ {totalTarget}</span></div></div>
-                  <div style={{ textAlign: 'center' }}><div style={{ fontSize: 11, color: P.textFaint, marginBottom: 4 }}>Overall Achievement</div><div style={{ fontSize: 28, fontWeight: 900, color: overallColor, lineHeight: 1 }}>{overall}%</div></div>
-                  <div style={{ flex: '1 0 120px', minWidth: 120 }}>
-                    <div style={{ height: 10, borderRadius: 999, background: P.trackBg, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, width: `${overall}%`, background: `linear-gradient(90deg, ${overallColor}88, ${overallColor})`, transition: 'width 0.9s cubic-bezier(0.16,1,0.3,1)', boxShadow: `0 0 10px ${overallColor}55` }} /></div>
-                    <div style={{ fontSize: 9, color: P.textFaintest, marginTop: 4, textAlign: 'right' }}>{totalActual} completed this week</div>
-                  </div>
-                </div>
-              );
-            })()}
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Safety Score &amp; Trends" icon={<Shield size={15} />} sub="Weighted safety score across all modules + monthly activity trend" accent={sc} open={sections.expanded.score} onToggle={() => sections.toggle('score')} P={P}>
-            <div className={t.design === 'dallaglio' ? 'sheq-score-grid' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <DonutChart segments={[{ value: score, color: sc }, { value: 100 - score, color: P.trackBg }]} size={155} strokeWidth={22} label={score} sublabel="/ 100" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
-                <div style={{ marginTop: 12, textAlign: 'center' }}>
-                  <div style={{ fontSize: 16, color: sc, fontWeight: 800 }}>{scoreLabel(score)}</div>
-                  <div style={{ fontSize: 11, color: P.textFaint, marginTop: 4 }}>Weighted across all modules</div>
-                </div>
-                <div style={{ marginTop: 18, width: '100%' }}>
-                  <ProgBar label="NM Resolution" value={stats.nm.closed || stats.nm.total} max={Math.max(stats.nm.total, 1)} color={C.nm} sub={`${stats.nm.closed || stats.nm.total}/${stats.nm.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                  <ProgBar label="VFL Safe Rate" value={stats.vfl.safe} max={Math.max(stats.vfl.total, 1)} color={C.vfl} sub={`${stats.vfl.safe}/${stats.vfl.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                  <ProgBar label="Action Completion" value={totals.totalActionsDone} max={Math.max(totals.totalActions, 1)} color={C.prog} sub={`${totals.totalActionsDone}/${totals.totalActions}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                  <ProgBar label="PTO Low Risk" value={stats.pto.total - stats.pto.highRisk} max={Math.max(stats.pto.total, 1)} color={C.pto} sub={`${stats.pto.total - stats.pto.highRisk}/${stats.pto.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                  <ProgBar label="Insp. Approved" value={stats.insp.approved} max={Math.max(stats.insp.total, 1)} color={C.insp} sub={`${stats.insp.approved}/${stats.insp.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                </div>
-              </div>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: P.textPrimary }}>Monthly Report Trend</div>
-                    <div style={{ fontSize: 11, color: P.textFaint, marginTop: 3 }}>All modules combined — last 6 months</div>
-                  </div>
-                  {trendData.length >= 2 && (() => {
-                    const prev = trendData[trendData.length - 2];
-                    const curr = trendData[trendData.length - 1];
-                    const delta = curr - prev;
-                    const up = delta >= 0;
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: up ? C.done : '#f87171', background: (up ? C.done : '#f87171') + '18', padding: '5px 11px', borderRadius: 8 }}>
-                        {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}{delta >= 0 ? '+' : ''}{delta} vs prev month
-                      </div>
-                    );
-                  })()}
-                </div>
-                <TrendLineChart data={trendData} labels={trendLabels} color="#60a5fa" height={140} gridColor={P.divider} subColor={P.textFaint} />
-                <div className={t.design === 'dallaglio' ? 'sheq-five-grid' : undefined} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginTop: 16 }}>
-                  {([
-                    { key: 'nm' as const, label: 'Near Miss', color: C.nm },
-                    { key: 'ws' as const, label: 'Work Stop.', color: C.ws },
-                    { key: 'vfl' as const, label: 'VFL', color: C.vfl },
-                    { key: 'pto' as const, label: 'PTO', color: C.pto },
-                    { key: 'insp' as const, label: 'Inspections', color: C.insp },
-                  ]).map(({ key, label, color }) => {
-                    const data = stats.moduleMonthly[key];
-                    const tot = data.reduce((a, b) => a + b, 0);
-                    return (
-                      <div key={key} style={{ background: P.chipTrack, borderRadius: 10, padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color }}>{label}</span><span style={{ fontSize: 10, color: P.textFaint }}>{tot}</span>
-                        </div>
-                        <TrendLineChart data={data} labels={trendLabels} color={color} height={60} gridColor={P.divider} subColor={P.textFaint} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Module Overview" icon={<BarChart3 size={15} />} sub="Live stats per safety module — click a card's Open link to navigate" accent="#818cf8" open={sections.expanded.modules} onToggle={() => sections.toggle('modules')} P={P}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
-              <ModuleCard label="Near Miss" href="/near_miss" color={C.nm} icon={<AlertTriangle size={17} />} total={stats.nm.total} P={P}
-                donutSegments={[
-                  { value: stats.nm.closed || Math.round(stats.nm.total * 0.7), color: C.safe, label: 'Resolved' },
-                  { value: stats.nm.open || Math.round(stats.nm.total * 0.3), color: C.nm, label: 'Open' },
-                  { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open), color: '#6b7280', label: 'Other' },
-                ]}
-                miniStats={[{ label: 'Open', value: stats.nm.open, color: C.nm }, { label: 'Closed', value: stats.nm.closed, color: C.safe }, { label: 'High/Crit', value: stats.nm.high, color: C.high }]}
-                legend={[{ label: 'Resolved', value: stats.nm.closed, color: C.safe }, { label: 'Open', value: stats.nm.open, color: C.nm }]} />
-
-              <ModuleCard label="Work Stoppage" href="/work_stoppage" color={C.ws} icon={<Ban size={17} />} total={stats.ws.total} P={P}
-                donutSegments={[{ value: stats.ws.actDone, color: C.done, label: 'Done' }, { value: stats.ws.actProg, color: C.prog, label: 'Active' }, { value: stats.ws.actPend, color: C.ws, label: 'Pending' }]}
-                miniStats={[{ label: 'Reports', value: stats.ws.total, color: C.ws }, { label: 'Pending', value: stats.ws.actPend, color: C.pend }, { label: 'Done', value: stats.ws.actDone, color: C.done }]}
-                legend={[{ label: 'Done', value: stats.ws.actDone, color: C.done }, { label: 'Active', value: stats.ws.actProg, color: C.prog }, { label: 'Pending', value: stats.ws.actPend, color: C.ws }]} />
-
-              <ModuleCard label="VFL" href="/vfl" color={C.vfl} icon={<Eye size={17} />} total={stats.vfl.total} P={P}
-                donutSegments={[{ value: stats.vfl.safe, color: C.vfl, label: 'Safe' }, { value: stats.vfl.unsafe, color: C.high, label: 'Unsafe' }]}
-                miniStats={[{ label: 'Safe', value: stats.vfl.safe, color: C.vfl }, { label: 'Unsafe', value: stats.vfl.unsafe, color: C.high }, { label: 'Actions', value: stats.vfl.actTotal, color: C.prog }]}
-                legend={[{ label: 'Safe', value: stats.vfl.safe, color: C.vfl }, { label: 'Unsafe', value: stats.vfl.unsafe, color: C.high }]} />
-
-              <ModuleCard label="PTO" href="/pto" color={C.pto} icon={<ClipboardList size={17} />} total={stats.pto.total} P={P}
-                donutSegments={[{ value: stats.pto.total - stats.pto.highRisk, color: C.pto, label: 'Low Risk' }, { value: stats.pto.highRisk, color: C.high, label: 'High Risk' }]}
-                miniStats={[{ label: 'Initial', value: stats.pto.initial, color: '#a78bfa' }, { label: 'Follow up', value: stats.pto.followup, color: '#f97316' }, { label: 'High Risk', value: stats.pto.highRisk, color: C.high }]}
-                legend={[{ label: 'Low Risk', value: stats.pto.total - stats.pto.highRisk, color: C.pto }, { label: 'High Risk', value: stats.pto.highRisk, color: C.high }]} />
-
-              <ModuleCard label="SHEQ Inspections" href="/sheq_inspection" color={C.insp} icon={<ClipboardCheck size={17} />} total={stats.insp.total} P={P}
-                donutSegments={[{ value: stats.insp.approved, color: C.safe, label: 'Approved' }, { value: stats.insp.submitted, color: C.insp, label: 'Submitted' }, { value: stats.insp.draft, color: '#6b7280', label: 'Draft' }, { value: stats.insp.rejected, color: C.high, label: 'Rejected' }]}
-                miniStats={[{ label: 'Approved', value: stats.insp.approved, color: C.safe }, { label: 'Open Fnds', value: stats.insp.openFindings, color: C.nm }, { label: 'Critical', value: stats.insp.criticalFindings, color: C.high }]}
-                legend={[{ label: 'Approved', value: stats.insp.approved, color: C.safe }, { label: 'Submitted', value: stats.insp.submitted, color: C.insp }, { label: 'Draft', value: stats.insp.draft, color: '#6b7280' }, { label: 'Rejected', value: stats.insp.rejected, color: C.high }]} />
-
-              <ModuleCard label="Pachedu" href="/pachedu" color={C.pach} icon={<HeartHandshake size={17} />} total={stats.pach.total} P={P}
-                donutSegments={[{ value: stats.pach.closed, color: C.safe, label: 'Closed' }, { value: stats.pach.reviewed, color: C.pach, label: 'Reviewed' }, { value: stats.pach.submitted, color: C.prog, label: 'Submitted' }, { value: stats.pach.draft, color: '#6b7280', label: 'Draft' }]}
-                miniStats={[{ label: 'Intentional', value: stats.pach.intentional, color: C.nm }, { label: 'Unintentional', value: stats.pach.unintentional, color: C.pach }, { label: 'Closed', value: stats.pach.closed, color: C.safe }]}
-                legend={[{ label: 'Closed', value: stats.pach.closed, color: C.safe }, { label: 'Reviewed', value: stats.pach.reviewed, color: C.pach }, { label: 'Submitted', value: stats.pach.submitted, color: C.prog }, { label: 'Draft', value: stats.pach.draft, color: '#6b7280' }]} />
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Analytics &amp; Visualisations" icon={<Activity size={15} />} sub="Reports by module, action status breakdown and behaviour analysis" accent={C.prog} open={sections.expanded.analytics} onToggle={() => sections.toggle('analytics')} P={P}>
-            <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 18 }}>
-              <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
-                <SectionHeader icon={<BarChart3 size={13} />} title="Reports by Module" sub="Total count per category" color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
-                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8 }}>
-                  <BarChartViz data={[
-                    { label: 'Near Miss', value: stats.nm.total, color: C.nm }, { label: 'Work Stop.', value: stats.ws.total, color: C.ws },
-                    { label: 'VFL', value: stats.vfl.total, color: C.vfl }, { label: 'PTO', value: stats.pto.total, color: C.pto },
-                    { label: 'Insp.', value: stats.insp.total, color: C.insp }, { label: 'Pachedu', value: stats.pach.total, color: C.pach },
-                  ]} height={110} barWidth={40} gap={14} trackColor={P.trackBg} subColor={P.textFaint} />
-                </div>
-              </div>
-
-              <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
-                <SectionHeader icon={<Target size={13} />} title="Action Items Status" sub="Across all modules combined" color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
-                {totals.totalActions === 0 ? <EmptyViz subColor={P.textFaint} /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: totals.totalActionsDone, color: C.done }, { value: totals.totalActionsProg, color: C.prog }, { value: totals.totalActionsPend, color: C.pend }]} size={130} strokeWidth={20} label={totals.totalActions} sublabel="total" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {[{ label: 'Completed', value: totals.totalActionsDone, color: C.done }, { label: 'In Progress', value: totals.totalActionsProg, color: C.prog }, { label: 'Pending', value: totals.totalActionsPend, color: C.pend }].map(({ label, value, color }) => (
-                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0 }} /><span style={{ fontSize: 12, color: P.textMuted, flex: 1 }}>{label}</span><span style={{ fontSize: 16, fontWeight: 800, color }}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-              <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
-                <SectionHeader icon={<Eye size={13} />} title="VFL Behaviour Breakdown" sub="Safe vs Unsafe observations" color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
-                {stats.vfl.total === 0 ? <EmptyViz subColor={P.textFaint} /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: stats.vfl.safe, color: C.vfl }, { value: stats.vfl.unsafe, color: C.high }]} size={110} strokeWidth={17} label={`${Math.round((stats.vfl.safe / stats.vfl.total) * 100)}%`} sublabel="safe" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
-                    <div style={{ flex: 1 }}>
-                      <ProgBar label="Safe Behaviour" value={stats.vfl.safe} max={stats.vfl.total} color={C.vfl} sub={`${stats.vfl.safe} of ${stats.vfl.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                      <ProgBar label="Unsafe Behaviour" value={stats.vfl.unsafe} max={stats.vfl.total} color={C.high} sub={`${stats.vfl.unsafe} of ${stats.vfl.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
-                <SectionHeader icon={<HeartHandshake size={13} />} title="Pachedu Behaviour Breakdown" sub="Intentional vs Unintentional observations" color={C.pach} textColor={P.textPrimary} subColor={P.textFaint} />
-                {stats.pach.total === 0 ? <EmptyViz subColor={P.textFaint} /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: stats.pach.intentional, color: C.nm, label: 'Intentional' }, { value: stats.pach.unintentional, color: C.pach, label: 'Unintentional' }]} size={110} strokeWidth={17} label={stats.pach.total} sublabel="reports" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
-                    <div style={{ flex: 1 }}>
-                      <ProgBar label="Intentional" value={stats.pach.intentional} max={stats.pach.total} color={C.nm} sub={`${stats.pach.intentional} of ${stats.pach.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                      <ProgBar label="Unintentional" value={stats.pach.unintentional} max={stats.pach.total} color={C.pach} sub={`${stats.pach.unintentional} of ${stats.pach.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                      <ProgBar label="Resolved (Closed + Reviewed)" value={stats.pach.closed + stats.pach.reviewed} max={stats.pach.total} color={C.safe} sub={`${stats.pach.closed + stats.pach.reviewed} of ${stats.pach.total}`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ background: P.chipTrack, borderRadius: 12, padding: '16px 18px' }}>
-                <SectionHeader icon={<AlertTriangle size={13} />} title="Near Miss Status" sub={`${stats.nm.total} report${stats.nm.total !== 1 ? 's' : ''} in selected period`} color={P.textFaint} textColor={P.textPrimary} subColor={P.textFaint} />
-                {stats.nm.total === 0 ? <EmptyViz text="No near miss reports in this period" subColor={P.textFaint} /> : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 22, justifyContent: 'center' }}>
-                    <DonutChart segments={[{ value: stats.nm.closed, color: C.safe }, { value: stats.nm.open, color: C.nm }, { value: Math.max(0, stats.nm.total - stats.nm.closed - stats.nm.open), color: '#6b7280' }]} size={110} strokeWidth={17} label={stats.nm.total} sublabel="total" trackColor={P.trackBg} textColor={P.textPrimary} subColor={P.textFaint} />
-                    <div style={{ flex: 1 }}>
-                      <ProgBar label="Resolved/Closed" value={stats.nm.closed || stats.nm.total} max={stats.nm.total} color={C.safe} sub={`${stats.nm.closed || stats.nm.total} reports`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                      <ProgBar label="Open/Investigating" value={stats.nm.open} max={stats.nm.total} color={C.nm} sub={`${stats.nm.open} reports`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />
-                      {stats.nm.high > 0 && <ProgBar label="High/Critical" value={stats.nm.high} max={stats.nm.total} color={C.high} sub={`${stats.nm.high} reports`} trackColor={P.trackBg} textColor={P.textSecondary} subColor={P.textFaintest} />}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Action Plan Progress" icon={<CheckCircle size={15} />} sub="Completion rates for corrective actions per module" accent={C.done} open={sections.expanded.actions} onToggle={() => sections.toggle('actions')} P={P}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-              {[
-                { label: 'Work Stoppage Actions', done: stats.ws.actDone, total: stats.ws.actTotal, color: C.ws },
-                { label: 'VFL Actions', done: stats.vfl.actDone, total: stats.vfl.actTotal, color: C.vfl },
-                { label: 'PTO Actions', done: stats.pto.actDone, total: stats.pto.actTotal, color: C.pto },
-                { label: 'All Actions Combined', done: totals.totalActionsDone, total: totals.totalActions, color: '#a78bfa' },
-              ].map(({ label, done, total, color }) => (
-                <div key={label} style={{ background: P.chipTrack, borderRadius: 11, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: P.textSecondary, fontWeight: 600 }}>{label}</span><span style={{ fontSize: 12, color, fontWeight: 700 }}>{done}/{total}</span>
-                  </div>
-                  <div style={{ height: 8, borderRadius: 999, background: P.trackBg }}><div style={{ height: '100%', borderRadius: 999, width: `${total > 0 ? (done / total) * 100 : 0}%`, background: `linear-gradient(90deg, ${color}aa, ${color})`, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} /></div>
-                  <div style={{ fontSize: 10, color: P.textFaintest, marginTop: 5 }}>{total > 0 ? Math.round((done / total) * 100) : 0}% complete{total === 0 && ' — no actions recorded'}</div>
-                </div>
-              ))}
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection title="Safety Analysis &amp; Recommendations" icon={<Shield size={15} />} sub="Hotspot detection · trend direction · risk scoring · prioritised recommendations across all safety modules" accent="#a855f7" open={sections.expanded.ai} onToggle={() => sections.toggle('ai')} P={P}>
-            <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              {t.design === 'dallaglio'
-                ? <Button icon={Shield} size="sm" submitting={aiLoading} disabled={loading || refreshing} onClick={runAiAnalysis}>{aiLoading ? 'Analysing…' : aiResult ? 'Re-analyse' : 'Analyse'}</Button>
-                : <button type="button" disabled={aiLoading || loading} onClick={runAiAnalysis}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, background: aiLoading ? 'rgba(168,85,247,0.15)' : 'linear-gradient(135deg,#6d28d9,#a855f7)', color: '#fff', border: '1px solid rgba(168,85,247,0.45)', cursor: aiLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', boxShadow: aiLoading ? 'none' : '0 4px 16px rgba(168,85,247,0.3)' }}>
-                    {aiLoading ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', marginRight: 4, fontSize: 14 }}>⟳</span> Analysing…</> : <><span style={{ fontSize: 16 }}>✦</span> {aiResult ? 'Re-analyse' : 'Analyse'}</>}
-                  </button>}
-              {aiResult && <span style={{ fontSize: 11, color: P.textFaint }}>{aiResult._records_analysed} records analysed across all modules</span>}
-              {aiError && <span style={{ fontSize: 11, color: '#f87171', background: 'rgba(248,113,113,0.10)', padding: '4px 10px', borderRadius: 8 }}>{aiError}</span>}
-            </div>
-
-            {aiResult && !aiLoading && (() => {
-              const riskColors: Record<string, string> = { low: C.safe, medium: C.pend, high: C.nm, critical: C.high };
-              const priorityColors: Record<string, string> = { immediate: C.high, short_term: C.nm, long_term: C.prog };
-              const sevColor = (s: string) => riskColors[s] ?? '#60a5fa';
-
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 2, minWidth: 200, background: P.chipTrack, borderRadius: 12, padding: '14px 18px' }}>
-                      <div style={{ fontSize: 11, color: P.textFaint, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Executive Summary</div>
-                      <p style={{ fontSize: 13, color: P.textSecondary, lineHeight: 1.65 }}>{aiResult.summary}</p>
-                    </div>
-                    <div style={{ minWidth: 140, background: P.chipTrack, borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, color: P.textFaint, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Risk Level</div>
-                      <div style={{ fontSize: 32, fontWeight: 900, color: sevColor(aiResult.overall_risk), lineHeight: 1 }}>{aiResult.risk_score}</div>
-                      <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700, textTransform: 'uppercase', color: sevColor(aiResult.overall_risk) }}>{aiResult.overall_risk}</div>
-                      <div style={{ marginTop: 10, height: 6, borderRadius: 999, background: P.trackBg }}><div style={{ height: '100%', borderRadius: 999, width: `${aiResult.risk_score}%`, background: `linear-gradient(90deg, ${sevColor(aiResult.overall_risk)}99, ${sevColor(aiResult.overall_risk)})`, transition: 'width 0.8s' }} /></div>
-                    </div>
-                  </div>
-
-                  {(aiResult.problem_areas ?? []).length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: P.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>⚠ Problem Areas</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
-                        {(aiResult.problem_areas as any[]).map((p: any, i: number) => (
-                          <div key={i} style={{ background: P.chipTrack, borderRadius: 10, padding: '12px 14px', borderLeft: `3px solid ${sevColor(p.severity)}` }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: P.textPrimary }}>{p.title}</span>
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: sevColor(p.severity) + '22', color: sevColor(p.severity), border: `1px solid ${sevColor(p.severity)}44` }}>{p.severity?.toUpperCase()}</span>
-                            </div>
-                            <p style={{ fontSize: 11, color: P.textMuted, lineHeight: 1.55, margin: '0 0 6px' }}>{p.description}</p>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              {p.module && <span style={{ fontSize: 10, color: P.textFaint, background: P.chipTrack, padding: '2px 7px', borderRadius: 6 }}>{p.module}</span>}
-                              {p.location_or_dept && <span style={{ fontSize: 10, color: P.textFaint, background: P.chipTrack, padding: '2px 7px', borderRadius: 6 }}>📍 {p.location_or_dept}</span>}
-                              {p.count > 0 && <span style={{ fontSize: 10, color: C.nm, background: C.nm + '15', padding: '2px 7px', borderRadius: 6 }}>{p.count} incidents</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(aiResult.recommendations ?? []).length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: P.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>✅ Recommendations</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {(aiResult.recommendations as any[]).map((r: any, i: number) => {
-                          const pc = priorityColors[r.priority] ?? '#60a5fa';
-                          return (
-                            <div key={i} style={{ display: 'flex', gap: 12, background: P.chipTrack, borderRadius: 10, padding: '10px 14px' }}>
-                              <div style={{ width: 70, flexShrink: 0, fontSize: 9, fontWeight: 800, padding: '3px 0', textAlign: 'center', borderRadius: 7, background: pc + '20', color: pc, border: `1px solid ${pc}40`, textTransform: 'uppercase', letterSpacing: 0.5, alignSelf: 'flex-start', marginTop: 2 }}>{r.priority?.replace('_', ' ')}</div>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: P.textPrimary, marginBottom: 2 }}>{r.action}</div>
-                                <div style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.5 }}>{r.rationale}</div>
-                                <div style={{ display: 'flex', gap: 10, marginTop: 5 }}>
-                                  {r.owner && <span style={{ fontSize: 10, color: P.textFaint }}>👤 {r.owner}</span>}
-                                  {r.target && <span style={{ fontSize: 10, color: P.textFaint }}>🎯 {r.target}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={t.design === 'dallaglio' ? 'sheq-two-col' : undefined} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    {(aiResult.trends ?? []).length > 0 && (
-                      <div style={{ background: P.chipTrack, borderRadius: 10, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: P.textFaint, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Trends</div>
-                        {(aiResult.trends as any[]).map((tr: any, i: number) => {
-                          const dc = tr.direction === 'improving' ? C.safe : tr.direction === 'worsening' ? C.high : C.pend;
-                          const arrow = tr.direction === 'improving' ? '↑' : tr.direction === 'worsening' ? '↓' : '→';
-                          return (
-                            <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${P.divider}` }}>
-                              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
-                                <span style={{ fontSize: 13, fontWeight: 800, color: dc }}>{arrow}</span><span style={{ fontSize: 12, fontWeight: 600, color: P.textSecondary }}>{tr.metric}</span>
-                              </div>
-                              <p style={{ fontSize: 11, color: P.textFaint, lineHeight: 1.5, margin: 0 }}>{tr.insight}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {((aiResult.top_risk_locations ?? []).length > 0 || (aiResult.top_risk_departments ?? []).length > 0) && (
-                      <div style={{ background: P.chipTrack, borderRadius: 10, padding: '14px 16px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: P.textFaint, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.8 }}>Risk Hotspots</div>
-                        {(aiResult.top_risk_locations ?? []).length > 0 && (
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 10, color: P.textFaint, marginBottom: 5 }}>📍 Locations</div>
-                            {(aiResult.top_risk_locations as string[]).map((loc: string, i: number) => <div key={i} style={{ fontSize: 12, color: C.nm, marginBottom: 3 }}>• {loc}</div>)}
-                          </div>
-                        )}
-                        {(aiResult.top_risk_departments ?? []).length > 0 && (
-                          <div>
-                            <div style={{ fontSize: 10, color: P.textFaint, marginBottom: 5 }}>🏭 Departments</div>
-                            {(aiResult.top_risk_departments as string[]).map((d: string, i: number) => <div key={i} style={{ fontSize: 12, color: C.pend, marginBottom: 3 }}>• {d}</div>)}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ fontSize: 10, color: P.textFaintest, textAlign: 'right' }}>Analysis generated {aiResult.generated_at ? new Date(aiResult.generated_at).toLocaleString('en-GB') : ''} · Review recommendations with your safety team before acting</div>
-                </div>
-              );
-            })()}
-          </CollapsibleSection>
-
-          <CommentsSection open={sections.expanded.notes} onToggle={() => sections.toggle('notes')} P={P} />
-        </>
-      )}
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .sheq-weekly-row { grid-template-columns: 28px minmax(0, 1fr) !important; gap: 10px !important; }
-          .sheq-weekly-row > :nth-child(n + 3) { grid-column: 2; text-align: left !important; }
-          .sheq-hero-actions { width: 100%; max-width: 100%; flex-shrink: 1 !important; }
-          .sheq-score-grid, .sheq-two-col { grid-template-columns: minmax(0, 1fr) !important; }
-          .sheq-five-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-          .sheq-notes-form { flex-direction: column !important; }
-          .sheq-notes-form input { width: 100% !important; min-width: 0; }
-          .sheq-custom-range { width: 100%; margin-left: 0 !important; flex-wrap: wrap; }
-          .sheq-custom-range input { flex: 1; min-width: 120px; width: auto !important; }
-        }
-      `}</style>
-    </main>
+      <TargetsDialog targets={targets} open={editingTargets} onOpenChange={setEditingTargets} onSave={t => { setTargets(t); toast.success('Weekly targets saved on this device.'); }} />
+    </div>
   );
 }
 
 export default function SHEQDashboardPage() {
-  return <AppShell><SHEQDashboardContent /></AppShell>;
+  return <AppShell migrated><SheqContent /></AppShell>;
 }

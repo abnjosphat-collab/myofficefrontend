@@ -24,17 +24,26 @@ export function getMonthLabel(dateStr: string): string {
 // Groups records into day/week/month buckets and averages availability_percentage
 // within each — the fleet-wide "how did we do this week/month" rollup.
 export function computePeriodRows(records: AvailRecord[], period: Period): PeriodRow[] {
-  const grouped = new Map<string, { sum: number; count: number; opH: number; bdH: number }>();
+  const grouped = new Map<string, { sortKey: string; sum: number; count: number; opH: number; bdH: number }>();
   records.forEach(r => {
     const key = period === 'day' ? r.date
       : period === 'week' ? getWeekLabel(r.date)
       : getMonthLabel(r.date);
-    const ex = grouped.get(key) ?? { sum: 0, count: 0, opH: 0, bdH: 0 };
-    grouped.set(key, { sum: ex.sum + (r.availability_percentage ?? 0), count: ex.count + 1, opH: ex.opH + (r.operational_hours ?? 0), bdH: ex.bdH + (r.breakdown_hours ?? 0) });
+    const ex = grouped.get(key) ?? { sortKey: periodSortKey(r.date, period), sum: 0, count: 0, opH: 0, bdH: 0 };
+    grouped.set(key, { ...ex, sum: ex.sum + (r.availability_percentage ?? 0), count: ex.count + 1, opH: ex.opH + (r.operational_hours ?? 0), bdH: ex.bdH + (r.breakdown_hours ?? 0) });
   });
+  // Chronological, not alphabetical: sorting the labels put "Apr 2026" before "Jan 2026" and week 01 of next year before week 50.
   return Array.from(grouped.entries())
-    .map(([k, v]) => ({ periodKey: k, label: k, avgAvailability: v.sum / v.count, totalOpHours: v.opH, totalBdHours: v.bdH, recordCount: v.count }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .map(([k, v]) => ({ periodKey: k, label: k, sortKey: v.sortKey, avgAvailability: v.sum / v.count, totalOpHours: v.opH, totalBdHours: v.bdH, recordCount: v.count }))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+}
+
+/** A key that sorts periods in time order: the day, the year and week, or the year and month. */
+export function periodSortKey(dateStr: string, period: Period): string {
+  if (period === 'day') return dateStr;
+  if (period === 'month') return dateStr.slice(0, 7);
+  const label = getWeekLabel(dateStr); // "W05 2026"
+  return `${label.slice(4)}-${label.slice(1, 3)}`;
 }
 
 export interface BestWorstPeriod {
@@ -56,4 +65,14 @@ export function findBestWorstPeriod(periodRows: PeriodRow[]): BestWorstPeriod {
     bestLabel: periodRows.find(r => r.avgAvailability === best)?.label,
     worstLabel: periodRows.find(r => r.avgAvailability === worst)?.label,
   };
+}
+
+/** (operational − downtime) ÷ operational × 100, held to 0–100. Needs operational hours above zero. */
+export function availabilityPercent(operational: number, downtime: number): number {
+  return Math.max(0, Math.min(100, ((operational - downtime) / operational) * 100));
+}
+
+/** 95% and above is good, 90% and above needs watching, below that is poor. */
+export function availabilityTone(pct: number): 'success' | 'warning' | 'danger' {
+  return pct >= 95 ? 'success' : pct >= 90 ? 'warning' : 'danger';
 }

@@ -89,7 +89,7 @@ describe('ActiveNoticesPopup', () => {
     render(<ActiveNoticesPopup />);
     await screen.findByText('Fire drill Friday');
 
-    await user.click(screen.getByTitle('Dismiss'));
+    await user.click(screen.getByRole('button', { name: 'Dismiss Fire drill Friday' }));
 
     expect(mockMarkRead).toHaveBeenCalledWith(['notice-1']);
     await waitFor(() => expect(screen.queryByText('Fire drill Friday')).not.toBeInTheDocument());

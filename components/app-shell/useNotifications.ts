@@ -40,9 +40,11 @@ export interface Notification extends ActivityItem {
 }
 
 export function useNotifications() {
-  const { activity, loading: activityLoading } = useDashboardData();
-  const { alerts, loading: alertsLoading } = useOperationalAlerts();
-  const { alerts: noticeAlerts, loading: noticeLoading } = useNoticeAlerts();
+  const { activity, loading: activityLoading, activityFailed } = useDashboardData();
+  const { alerts, loading: alertsLoading, failed: alertsFailed } = useOperationalAlerts();
+  const { alerts: noticeAlerts, loading: noticeLoading, failed: noticeFailed } = useNoticeAlerts();
+  /** True when any source could not be loaded, so an empty list is not mistaken for "nothing to report". */
+  const failed = activityFailed || alertsFailed || noticeFailed;
   const loading = activityLoading || alertsLoading || noticeLoading;
   const [seen, setSeen] = useState<string[]>([]);
 
@@ -81,5 +83,5 @@ export function useNotifications() {
     markRead(merged.map(a => a.id));
   }, [merged, markRead]);
 
-  return { notifications, unreadCount, loading, markAllRead, markRead };
+  return { notifications, unreadCount, loading, failed, markAllRead, markRead };
 }

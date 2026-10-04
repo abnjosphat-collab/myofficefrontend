@@ -1,0 +1,66 @@
+/* MyOffice UI system — element defaults. Kept small: components own their look. */
+
+@layer base {
+  html {
+    font-family: var(--mo-font-body);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--mo-canvas);
+    color: var(--mo-ink);
+    font-family: var(--mo-font-body);
+    font-size: calc(0.875rem * var(--mo-text-scale));
+    line-height: 1.5;
+    font-feature-settings: 'cv11', 'ss01', 'calt';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1, h2, h3 {
+    font-family: var(--mo-font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--mo-ink);
+  }
+  h4, h5, h6 {
+    font-family: var(--mo-font-body);
+    font-weight: 600;
+  }
+  /* Finish: headings break into even lines, running text avoids a lone last word, and table figures align in columns. */
+  h1, h2, h3, h4, [role='heading'] { text-wrap: balance; }
+  p, li, dd { text-wrap: pretty; }
+  table { font-variant-numeric: tabular-nums; }
+  * {
+    border-color: var(--mo-line);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--mo-focus) 26%, transparent);
+    color: var(--mo-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--mo-focus);
+    outline-offset: 2px;
+  }
+  /* Elements that draw their own ring via the focus-ring utility opt out of the outline. */
+  .focus-ring:focus-visible { outline: none; }
+  input, select, textarea, button { font: inherit; color: inherit; }
+  input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'], input[type='week'] {
+    color-scheme: light;
+  }
+  input::placeholder, textarea::placeholder { color: var(--mo-ink-subtle); opacity: 1; }
+  button, [role='button'], a { touch-action: manipulation; }
+  :where(button):disabled { cursor: not-allowed; }
+
+  /* Calm, thin scrollbars that match the surfaces. */
+  * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--mo-ink) 22%, transparent) transparent; }
+}
+
+/* "Helpful hints" preference off: hide hint buttons and any open hint content. */
+html[data-guidance='off'] .mo-hint,
+html[data-guidance='off'] .mo-hint-content { display: none !important; }
+
+@media print {
+  body { background: #fff; }
+}

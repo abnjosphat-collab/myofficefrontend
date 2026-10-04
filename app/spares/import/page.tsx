@@ -1,563 +1,229 @@
+// app/spares/import/page.tsx — import spares from a spreadsheet: upload, check the column mapping, import, result.
 'use client';
 
-import { AppShell } from '@/components/app-shell';
-import { api } from '@/lib/apiClient';
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import {
-  Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, X,
-  ArrowLeft, Loader2, RefreshCw, ChevronDown,
-} from '@/components/shared/theme';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
-import { useTheme, PageHero, PrimaryButton, TYPE_WEIGHT, STATUS_TONE } from '@/components/shared/theme';
-
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+import { AppShell } from '@/components/app-shell';
+import {
+  Button, DataTable, Field, Icon, MetricGrid, MetricTile, Notice, PageHeader, Select, Spinner, StatusBadge, cn, useConfirm,
+  type Column,
+} from '@/components/ui-system';
+import { api } from '@/lib/apiClient';
+import { confidenceTone, extractRows, toBulkItem, type ExtractedRow, type Mapping } from './extract';
 
 interface InferResult {
-  inferred:        { stock_code?: string; description?: string; unit_price?: string };
-  confidence:      { stock_code: number; description: number; unit_price: number };
-  all_columns:     string[];
-  raw_rows:        Record<string, any>[];
-  total_rows:      number;
+  inferred: { stock_code?: string; description?: string; unit_price?: string };
+  confidence: { stock_code: number; description: number; unit_price: number };
+  all_columns: string[];
+  raw_rows: Record<string, unknown>[];
+  total_rows: number;
   has_categories?: boolean;
 }
+interface ImportResult { created: number; updated?: number; skipped: number; errors: number; total: number }
+type Mode = 'upsert' | 'skip';
 
-interface Mapping {
-  stock_code:  string;
-  description: string;
-  unit_price:  string;
+const NONE = '__none__';
+const FIELDS: { key: keyof Mapping; label: string; required: boolean }[] = [
+  { key: 'stock_code', label: 'Stock code', required: true },
+  { key: 'description', label: 'Description', required: true },
+  { key: 'unit_price', label: 'Unit price', required: false },
+];
+const STEPS = ['Upload', 'Check columns', 'Result'];
+const MODES: { mode: Mode; title: string; text: string; recommended?: boolean }[] = [
+  { mode: 'upsert', title: 'Update existing parts', recommended: true, text: 'New parts are added. Parts whose stock code already exists get the description, price and category from this file. Their stock on hand, limits, priority and supplier are kept.' },
+  { mode: 'skip', title: 'Skip existing parts', text: 'Only parts whose stock code is not already in the register are added. Existing parts are left exactly as they are.' },
+];
+
+function Steps({ current }: { current: number }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-label" aria-label="Import steps">
+      {STEPS.map((s, i) => (
+        <li key={s} aria-current={i === current ? 'step' : undefined} className={cn('flex items-center gap-2', i === current ? 'font-semibold text-ink' : 'text-ink-muted')}>
+          <span className={cn('inline-flex size-6 items-center justify-center rounded-full border text-caption', i < current ? 'border-success bg-success-soft text-success' : i === current ? 'border-action bg-action text-action-ink' : 'border-line-control')}>
+            {i < current ? <Icon name="check" size="xs" weight="emphasis" /> : i + 1}
+          </span>
+          {s}{i < STEPS.length - 1 && <Icon name="chevron-right" size="xs" className="text-ink-subtle" />}
+        </li>
+      ))}
+    </ol>
+  );
 }
 
-interface ExtractedRow {
-  stock_code:  string;
-  description: string;
-  unit_price:  number;
-  category:    string;
-  _valid:      boolean;
-}
+function SpareImportContent() {
+  const confirm = useConfirm();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [infer, setInfer] = useState<InferResult | null>(null);
+  const [mapping, setMapping] = useState<Mapping>({ stock_code: '', description: '', unit_price: '' });
+  const [mode, setMode] = useState<Mode>('upsert');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+  const extracted = useMemo<ExtractedRow[]>(() => (infer && mapping.stock_code && mapping.description ? extractRows(infer.raw_rows, mapping) : []), [infer, mapping]);
+  const valid = useMemo(() => extracted.filter(r => r.valid), [extracted]);
+  const invalid = extracted.length - valid.length;
+  const step = !infer ? 0 : result ? 2 : 1;
 
-function confidenceLabel(c: number): { label: string; color: string; bg: string } {
-  if (c >= 0.70) return { label: 'High', color: STATUS_TONE.good, bg: `${STATUS_TONE.good}20` };
-  if (c >= 0.40) return { label: 'Medium', color: STATUS_TONE.warning, bg: `${STATUS_TONE.warning}20` };
-  return { label: 'Low', color: STATUS_TONE.critical, bg: `${STATUS_TONE.critical}20` };
-}
+  const handleFile = useCallback(async (file: File) => {
+    setFileName(file.name); setInfer(null); setResult(null); setUploadError(null); setUploading(true);
+    try {
+      const body = new FormData(); body.append('file', file);
+      const data = await api.post<InferResult>('/api/spares/infer', body);
+      setInfer(data);
+      setMapping({ stock_code: data.inferred.stock_code || '', description: data.inferred.description || '', unit_price: data.inferred.unit_price || '' });
+    } catch (e) { setUploadError((e as Error).message); setFileName(''); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+  }, []);
 
-function extractRows(rawRows: Record<string, any>[], mapping: Mapping): ExtractedRow[] {
-  return rawRows.map(row => {
-    const stock_code  = String(row[mapping.stock_code]  ?? '').trim();
-    const description = String(row[mapping.description] ?? '').trim();
-    const rawPrice    = String(row[mapping.unit_price]   ?? '').replace(/[$,€£\s]/g, '');
-    const unit_price  = parseFloat(rawPrice) || 0;
-    const category    = String(row['_category'] ?? '').trim();
-    return {
-      stock_code,
-      description,
-      unit_price,
-      category,
-      _valid: Boolean(stock_code && description),
-    };
-  });
-}
+  const reset = () => { setInfer(null); setFileName(''); setResult(null); setUploadError(null); setImportError(null); setMapping({ stock_code: '', description: '', unit_price: '' }); };
 
-// ─── COLUMN SELECTOR ─────────────────────────────────────────────────────────
+  const doImport = async () => {
+    setImporting(true); setImportError(null);
+    try {
+      const data = await api.post<ImportResult>('/api/spares/bulk', { items: valid.map(toBulkItem), skip_existing: mode === 'skip', upsert: mode === 'upsert' });
+      setResult(data);
+      toast.success(`${data.created} added, ${data.updated ?? 0} updated.`);
+    } catch (e) { setImportError((e as Error).message); }
+    finally { setImporting(false); }
+  };
+  const runImport = async () => {
+    if (valid.length === 0) return;
+    const ok = await confirm({
+      title: `Import ${valid.length} ${valid.length === 1 ? 'part' : 'parts'}?`,
+      message: mode === 'upsert' ? 'New parts are added and existing parts get this file’s description, price and category. Stock on hand and supplier are kept.' : 'Only parts that are not already in the register are added.',
+      confirmLabel: 'Import',
+    });
+    if (ok) await doImport();
+  };
 
-function ColumnSelector({
-  label, field, value, columns, confidence, onChange,
-}: {
-  label: string; field: string; value: string;
-  columns: string[]; confidence: number;
-  onChange: (v: string) => void;
-}) {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-  const { label: confLabel, color, bg } = confidenceLabel(confidence);
+  const columns: Column<ExtractedRow & { n: number }>[] = [
+    { id: 'n', header: '#', width: '3rem', cell: r => <span className="tabular text-ink-muted">{r.n}</span> },
+    { id: 'stock_code', header: 'Stock code', cell: r => (r.stock_code ? <span className="font-mono">{r.stock_code}</span> : <StatusBadge tone="danger" icon="warning">Missing</StatusBadge>) },
+    { id: 'description', header: 'Description', cell: r => (r.description ? <span className="line-clamp-2">{r.description}</span> : <StatusBadge tone="danger" icon="warning">Missing</StatusBadge>) },
+    { id: 'unit_price', header: 'Unit price', numeric: true, cell: r => (r.unit_price === null ? <span className="text-ink-muted">Kept as is</span> : <span className="tabular">{r.unit_price.toFixed(2)}</span>) },
+    ...(infer?.has_categories ? [{ id: 'category', header: 'Category', hideBelow: 'md' as const, cell: (r: ExtractedRow) => r.category || <span className="text-ink-muted">None</span> }] : []),
+  ];
+  const preview = extracted.slice(0, 30).map((r, i) => ({ ...r, n: i + 1 }));
 
   return (
-    <div className={`rounded-2xl p-4 flex flex-col gap-3 relative ${t.glassSoft}`}>
-      <div className="flex items-center justify-between">
-        <span className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>{label}</span>
-        {value && (
-          <span className={`text-[10px] ${TYPE_WEIGHT.semibold} px-2 py-0.5 rounded-full`}
-            style={{ background: bg, color }}>
-            {confLabel} confidence
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Spares', href: '/spares' }, { label: 'Import' }]}
+        title="Import spares from a spreadsheet"
+        description="The server reads the file and works out which column is the stock code, description and price. You check the columns before anything is saved."
+        actions={<Button asChild><Link href="/spares">Back to spares</Link></Button>}
+      />
+      <Steps current={step} />
 
-      {/* Dropdown trigger */}
-      <button type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`flex items-center justify-between gap-2 w-full px-3 py-2.5 rounded-xl text-sm text-left transition-all border ${t.inputBg}`}
-        style={{ borderColor: open ? 'rgba(134,187,216,0.45)' : undefined }}>
-        <span className={`truncate ${value ? t.textPrimary : t.textFaint}`}>{value || 'Not mapped — select column'}</span>
-        <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 ${t.textFaint}`} />
-      </button>
-
-      {open && (
-        <>
-          <button type="button" aria-label="Close dropdown" className="fixed inset-0 z-40 bg-transparent border-0 cursor-default" onClick={() => setOpen(false)} />
-          <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl overflow-hidden ${t.shadow} ${t.glass}`}>
-            {columns.map(col => (
-              <button key={col} type="button"
-                onClick={() => { onChange(col); setOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 text-sm transition-all border-b flex items-center justify-between gap-2 ${t.border} ${t.hoverBg}`}
-                style={{
-                  background: col === value ? 'rgba(134,187,216,0.12)' : undefined,
-                  color: col === value ? STATUS_TONE.info : undefined,
-                }}>
-                <span className={col === value ? '' : t.textMuted}>{col}</span>
-                {col === value && <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />}
-              </button>
-            ))}
+      {step === 0 && (
+        <div className="flex flex-col gap-4">
+          {uploadError && <Notice tone="danger" title="The file could not be read">{uploadError}</Notice>}
+          <div
+            role="button" tabIndex={0} aria-busy={uploading}
+            aria-label="Upload a spares file. Drop a file here or press Enter to browse."
+            onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+            onClick={() => !uploading && fileRef.current?.click()}
+            onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
+            className={cn('focus-ring flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors', dragging ? 'border-action bg-action-soft' : 'border-line-control bg-surface hover:bg-surface-subtle')}
+          >
+            {uploading ? (<><Spinner className="size-8 text-action" /><p className="font-sans text-body font-medium text-ink">Reading {fileName || 'the file'}…</p></>) : (
+              <>
+                <span className="inline-flex size-14 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name="upload" size="xl" /></span>
+                <div><p className="font-display text-title font-semibold text-ink">Drop your file here</p><p className="mt-1 font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls) or CSV, up to 25 MB.</p></div>
+              </>
+            )}
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </div>
-        </>
+          <Notice tone="info" title="How the columns are found">The server looks at the column headings and at the values in each column. Bold rows in an Excel sheet are read as category headings. You can correct any column on the next step.</Notice>
+        </div>
       )}
 
-      {/* Detected column name pill */}
-      {value && (
-        <div className={`text-[11px] truncate ${t.textFaint}`}>
-          Excel column: <span className={t.textMuted}>{value}</span>
+      {step === 1 && infer && (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-4">
+            <Icon name="documents" size="lg" className="text-ink-muted" />
+            <div className="min-w-0 flex-1"><p className="truncate font-sans text-label font-medium text-ink">{fileName}</p><p className="font-sans text-caption text-ink-muted">{infer.total_rows} rows, {infer.all_columns.length} columns{infer.has_categories ? ', categories found' : ''}</p></div>
+            <Button icon="close" onClick={reset}>Choose another file</Button>
+          </div>
+
+          <section aria-labelledby="map-h" className="flex flex-col gap-3">
+            <div><h2 id="map-h" className="font-display text-section font-semibold text-ink">Column mapping</h2><p className="font-sans text-body-sm text-ink-muted">Correct any column that was picked wrongly.</p></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {FIELDS.map(f => {
+                const conf = confidenceTone(infer.confidence[f.key]);
+                return (
+                  <div key={f.key} className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4">
+                    <Field label={f.label} required={f.required} optional={!f.required}>
+                      <Select aria-label={`${f.label} column`} value={mapping[f.key] || NONE} onValueChange={v => setMapping(m => ({ ...m, [f.key]: v === NONE ? '' : v }))}
+                        options={[{ value: NONE, label: f.required ? 'Choose a column' : 'No column (leave prices as they are)' }, ...infer.all_columns.map(c => ({ value: c, label: c }))]} />
+                    </Field>
+                    {mapping[f.key] && <div><StatusBadge tone={conf.tone}>{conf.label} confidence</StatusBadge></div>}
+                  </div>
+                );
+              })}
+            </div>
+            {(!mapping.stock_code || !mapping.description) && <Notice tone="warning" title="Choose the stock code and description columns">Nothing can be imported until both are chosen.</Notice>}
+          </section>
+
+          <section aria-labelledby="mode-h" className="flex flex-col gap-3">
+            <h2 id="mode-h" className="font-display text-section font-semibold text-ink">If a stock code is already in the register</h2>
+            <div role="radiogroup" aria-labelledby="mode-h" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {MODES.map(m => (
+                <button key={m.mode} type="button" role="radio" aria-checked={mode === m.mode} onClick={() => setMode(m.mode)}
+                  className={cn('focus-ring flex flex-col gap-1.5 rounded-card border p-4 text-left transition-colors', mode === m.mode ? 'border-action bg-action-soft/60' : 'border-line bg-surface hover:bg-surface-subtle')}>
+                  <span className="flex flex-wrap items-center gap-2 font-sans text-label font-semibold text-ink"><Icon name={mode === m.mode ? 'success' : 'pending'} size="md" weight={mode === m.mode ? 'emphasis' : 'control'} className={mode === m.mode ? 'text-action' : 'text-ink-muted'} />{m.title}{m.recommended && <StatusBadge tone="brand">Recommended</StatusBadge>}</span>
+                  <span className="font-sans text-body-sm text-ink-muted">{m.text}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {extracted.length > 0 && (
+            <section aria-labelledby="prev-h" className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="prev-h" className="font-display text-section font-semibold text-ink">Preview{extracted.length > 30 ? ' (first 30 rows)' : ''}</h2>
+                <StatusBadge tone="success">{valid.length} ready to import</StatusBadge>
+                {invalid > 0 && <StatusBadge tone="danger" icon="warning">{invalid} skipped: no stock code or description</StatusBadge>}
+              </div>
+              <DataTable caption="Spares import preview" rows={preview} columns={columns} getRowId={r => String(r.n)} />
+              {extracted.length > 30 && <p className="font-sans text-caption text-ink-muted">Showing 30 of {extracted.length} rows. All {valid.length} valid rows are imported.</p>}
+            </section>
+          )}
+
+          {importError && <Notice tone="danger" title="The import failed" action={<Button size="sm" icon="refresh" onClick={doImport}>Try again</Button>}>{importError} Nothing is shown as imported; check the register before trying again, because part of the file may have been saved.</Notice>}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button onClick={reset}>Cancel</Button>
+            <Button variant="primary" icon="upload" pending={importing} disabled={valid.length === 0} onClick={runImport}>{`Import ${valid.length} ${valid.length === 1 ? 'part' : 'parts'}`}</Button>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && result && (
+        <div className="flex flex-col gap-4">
+          <MetricGrid columns={5}>
+            <MetricTile label="Added" icon="plus" tone="success" value={result.created} />
+            <MetricTile label="Updated" icon="edit" value={result.updated ?? 0} />
+            <MetricTile label="Skipped" icon="inactive" value={result.skipped} />
+            <MetricTile label="Errors" icon="warning" tone={result.errors ? 'danger' : 'default'} value={result.errors} />
+            <MetricTile label="In the file" icon="documents" value={result.total} />
+          </MetricGrid>
+          {result.errors > 0 && <Notice tone="warning" title={`${result.errors} ${result.errors === 1 ? 'row' : 'rows'} could not be saved`}>The rest were saved. Check the register for the missing parts, or ask for the server log to see which rows failed.</Notice>}
+          <div className="flex flex-wrap gap-2">
+            <Button icon="refresh" onClick={reset}>Import another file</Button>
+            <Button asChild variant="primary"><Link href="/spares">View spares</Link></Button>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-
 export default function SpareImportPage() {
-  return (
-    <AppShell>
-      <SpareImportContent />
-    </AppShell>
-  );
-}
-
-function SpareImportContent() {
-  const t = useTheme();
-  const router  = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const [dragging,    setDragging]    = useState(false);
-  const [uploading,   setUploading]   = useState(false);
-  const [fileName,    setFileName]    = useState('');
-  const [inferResult, setInferResult] = useState<InferResult | null>(null);
-  const [mapping,     setMapping]     = useState<Mapping>({ stock_code: '', description: '', unit_price: '' });
-  const [importing,   setImporting]   = useState(false);
-  const [result,      setResult]      = useState<{ created: number; updated: number; skipped: number; errors: number; total: number } | null>(null);
-  // 'upsert'  → insert new + update existing (recommended when re-importing)
-  // 'skip'    → insert new only, leave existing unchanged
-  type ImportMode = 'upsert' | 'skip';
-  const [importMode, setImportMode] = useState<ImportMode>('upsert');
-
-  // When inference result arrives, initialise mapping from backend suggestion
-  useEffect(() => {
-    if (!inferResult) return;
-    setMapping({
-      stock_code:  inferResult.inferred.stock_code  || '',
-      description: inferResult.inferred.description || '',
-      unit_price:  inferResult.inferred.unit_price  || '',
-    });
-  }, [inferResult]);
-
-  // Re-derive extracted rows whenever raw data or mapping changes
-  const extracted = useMemo<ExtractedRow[]>(() => {
-    if (!inferResult || !mapping.stock_code || !mapping.description) return [];
-    return extractRows(inferResult.raw_rows, mapping);
-  }, [inferResult, mapping]);
-
-  const validRows   = useMemo(() => extracted.filter(r => r._valid),   [extracted]);
-  const invalidRows = useMemo(() => extracted.filter(r => !r._valid),  [extracted]);
-
-  // ── Upload ────────────────────────────────────────────────────────────────
-
-  const handleFile = useCallback(async (file: File) => {
-    setFileName(file.name);
-    setInferResult(null);
-    setResult(null);
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const data = await api.post<InferResult>('/api/spares/infer', formData);
-      setInferResult(data);
-      toast.success(`Parsed ${data.total_rows} rows — columns mapped automatically`);
-    } catch (err: any) {
-      toast.error(`Upload failed: ${err.message}`);
-      setFileName('');
-    } finally {
-      setUploading(false);
-    }
-  }, []);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  };
-
-  // ── Import ────────────────────────────────────────────────────────────────
-
-  const handleImport = async () => {
-    if (validRows.length === 0) return;
-    setImporting(true);
-    try {
-      const items = validRows.map(r => ({
-        stock_code:       r.stock_code,
-        description:      r.description,
-        unit_price:       r.unit_price,
-        category:         r.category || null,
-        categories:       r.category ? [r.category] : [],
-        current_quantity: 0,
-        min_quantity:     1,
-        max_quantity:     5,
-        priority:         'medium',
-        safety_stock:     false,
-        lead_time_days:   0,
-      }));
-      const data = await api.post<any>('/api/spares/bulk', {
-        items,
-        skip_existing: importMode === 'skip',
-        upsert:        importMode === 'upsert',
-      });
-      setResult(data);
-      toast.success(`${data.created} inserted, ${data.updated ?? 0} updated`);
-    } catch (err: any) {
-      toast.error(`Import failed: ${err.message}`);
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const reset = () => {
-    setInferResult(null);
-    setFileName('');
-    setResult(null);
-    setMapping({ stock_code: '', description: '', unit_price: '' });
-    if (fileRef.current) fileRef.current.value = '';
-  };
-
-  const setField = (field: keyof Mapping) => (v: string) =>
-    setMapping(m => ({ ...m, [field]: v }));
-
-  // ── Determine step ────────────────────────────────────────────────────────
-  const step = !inferResult ? 'upload' : result ? 'done' : 'review';
-
-  // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-6xl mx-auto'} p-4 sm:p-6 space-y-5`}>
-
-      <PageHero
-        icon={FileSpreadsheet}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Spares', 'Import']}
-        title="Import Spares from Excel"
-        description="Backend reads the file with Polars, infers your columns automatically"
-        actions={
-          <button onClick={() => router.push('/spares')}
-            className={`h-9 w-9 flex items-center justify-center rounded-xl transition-all ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        }
-      />
-
-      {/* ── STEP: UPLOAD ─────────────────────────────────────────────────── */}
-      {step === 'upload' && (
-        <>
-          <div
-            onDragOver={e => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            onClick={() => !uploading && fileRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            aria-label="Upload spares file — drop a file here or press Enter to browse"
-            onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
-            className="cursor-pointer rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-5 py-20 px-8 select-none"
-            style={{
-              borderColor: dragging ? STATUS_TONE.info : undefined,
-              background:  dragging ? 'rgba(134,187,216,0.06)' : undefined,
-              cursor: uploading ? 'default' : 'pointer',
-            }}>
-            {uploading ? (
-              <>
-                <Loader2 className="h-12 w-12 animate-spin" style={{ color: STATUS_TONE.info }} />
-                <div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>Analysing columns&hellip;</div>
-              </>
-            ) : (
-              <>
-                <div className="h-16 w-16 rounded-2xl flex items-center justify-center"
-                  style={{ background: 'rgba(134,187,216,0.12)' }}>
-                  <FileSpreadsheet className="h-8 w-8" style={{ color: STATUS_TONE.info }} />
-                </div>
-                <div className="text-center">
-                  <div className={`${TYPE_WEIGHT.semibold} text-base ${t.textMuted}`}>Drop your file here</div>
-                  <div className={`text-sm mt-1 ${t.textFaint}`}>or click to browse &mdash; .xlsx&nbsp;&nbsp;.csv</div>
-                </div>
-              </>
-            )}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={onFileChange} />
-          </div>
-
-          <div className={`rounded-xl px-4 py-3 flex items-start gap-3 text-xs ${t.glassSoft}`}>
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: 'rgba(251,191,36,0.5)' }} />
-            <span className={`leading-relaxed ${t.textFaint}`}>
-              The server will read your file using <span className={t.textMuted}>Polars</span> and
-              automatically detect the <span className={t.textMuted}>Stock Code</span>,{' '}
-              <span className={t.textMuted}>Description</span>, and{' '}
-              <span className={t.textMuted}>Unit Price</span> columns by analysing both the header
-              names and the actual data patterns in each column. You can correct any misidentified
-              column before importing.
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* ── STEP: REVIEW ─────────────────────────────────────────────────── */}
-      {step === 'review' && inferResult && (
-        <div className="space-y-5">
-
-          {/* File bar */}
-          <div className={`rounded-2xl p-4 flex flex-wrap items-center gap-4 ${t.glassSoft}`}>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <FileSpreadsheet className="h-5 w-5 flex-shrink-0" style={{ color: STATUS_TONE.info }} />
-              <span className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textMuted}`}>{fileName}</span>
-              <span className={`text-xs flex-shrink-0 ${t.textFaint}`}>
-                &mdash; {inferResult.total_rows} rows &bull; {inferResult.all_columns.length} columns
-                {inferResult.has_categories && (
-                  <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.semibold}`}
-                    style={{ background: `${STATUS_TONE.info}26`, color: STATUS_TONE.info }}>
-                    categories detected
-                  </span>
-                )}
-              </span>
-            </div>
-            <button onClick={reset}
-              className={`h-7 w-7 flex items-center justify-center rounded-lg transition-all ${t.textFaint} ${t.hoverText} ${t.hoverBg}`} title="Remove">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          {/* Column mapping cards */}
-          <div>
-            <div className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} mb-3 px-1 ${t.textFaint}`}>
-              Column Mapping &mdash; adjust if any are wrong
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <ColumnSelector
-                label="Stock Code"
-                field="stock_code"
-                value={mapping.stock_code}
-                columns={inferResult.all_columns}
-                confidence={inferResult.confidence.stock_code}
-                onChange={setField('stock_code')}
-              />
-              <ColumnSelector
-                label="Description"
-                field="description"
-                value={mapping.description}
-                columns={inferResult.all_columns}
-                confidence={inferResult.confidence.description}
-                onChange={setField('description')}
-              />
-              <ColumnSelector
-                label="Unit Price"
-                field="unit_price"
-                value={mapping.unit_price}
-                columns={inferResult.all_columns}
-                confidence={inferResult.confidence.unit_price}
-                onChange={setField('unit_price')}
-              />
-            </div>
-          </div>
-
-          {/* Row summary */}
-          {extracted.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={`text-xs px-2.5 py-1 rounded-lg ${TYPE_WEIGHT.semibold}`}
-                style={{ background: `${STATUS_TONE.good}26`, color: STATUS_TONE.good }}>
-                {validRows.length} ready to import
-              </span>
-              {invalidRows.length > 0 && (
-                <span className={`text-xs px-2.5 py-1 rounded-lg ${TYPE_WEIGHT.semibold}`}
-                  style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }}>
-                  {invalidRows.length} skipped (empty stock code or description)
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Import mode selector */}
-          <div className={`rounded-2xl p-4 space-y-2 ${t.glassSoft}`}>
-            <div className={`text-xs uppercase tracking-wide ${TYPE_WEIGHT.semibold} mb-3 ${t.textFaint}`}>
-              If a stock code already exists in the database…
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {([
-                {
-                  mode: 'upsert' as ImportMode,
-                  title: 'Update existing records',
-                  desc: 'Inserts new items AND updates existing ones with the latest data from this file. Use this when re-importing to fix categories or prices.',
-                  recommended: true,
-                },
-                {
-                  mode: 'skip' as ImportMode,
-                  title: 'Skip existing records',
-                  desc: 'Only inserts rows whose stock code is not already in the database. Existing records are left completely unchanged.',
-                  recommended: false,
-                },
-              ] as const).map(opt => (
-                <button key={opt.mode} type="button"
-                  onClick={() => setImportMode(opt.mode)}
-                  className={`text-left p-3 rounded-xl border transition-all ${importMode === opt.mode ? '' : t.border}`}
-                  style={{
-                    background:   importMode === opt.mode ? 'rgba(42,77,105,0.35)' : undefined,
-                    borderColor:  importMode === opt.mode ? 'rgba(134,187,216,0.45)' : undefined,
-                  }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                      style={{ borderColor: importMode === opt.mode ? STATUS_TONE.info : undefined }}>
-                      {importMode === opt.mode && (
-                        <div className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_TONE.info }} />
-                      )}
-                    </div>
-                    <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{opt.title}</span>
-                    {opt.recommended && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${TYPE_WEIGHT.semibold}`} style={{ background: `${STATUS_TONE.info}26`, color: STATUS_TONE.info }}>
-                        Recommended
-                      </span>
-                    )}
-                  </div>
-                  <p className={`text-xs leading-relaxed pl-5 ${t.textFaint}`}>{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Preview table */}
-          {extracted.length > 0 && (
-            <div className={`rounded-2xl overflow-hidden ${t.glassSoft}`}>
-              <div className={`px-4 py-3 border-b flex items-center justify-between ${t.border}`}>
-                <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>
-                  Preview{extracted.length > 30 ? ' (first 30 rows)' : ''}
-                </span>
-                {invalidRows.length > 0 && (
-                  <span className="text-xs flex items-center gap-1" style={{ color: STATUS_TONE.critical }}>
-                    <AlertTriangle className="h-3 w-3" />
-                    Red rows are missing stock code or description
-                  </span>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className={`border-b ${t.border}`}>
-                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} w-10 ${t.textFaint}`}>#</th>
-                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Stock Code</th>
-                      <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Description</th>
-                      <th className={`px-3 py-2 text-right ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Unit Price</th>
-                      {inferResult.has_categories && (
-                        <th className={`px-3 py-2 text-left ${TYPE_WEIGHT.medium} ${t.textFaint}`}>Category</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${t.divide}`}>
-                    {extracted.slice(0, 30).map((row, i) => (
-                      <tr key={i} className="transition-colors"
-                        style={{
-                          background: !row._valid ? 'rgba(244,63,94,0.05)' : undefined,
-                        }}>
-                        <td className={`px-3 py-1.5 ${t.textFaint}`}>{i + 1}</td>
-                        <td className="px-3 py-1.5 font-mono"
-                          style={{ color: row.stock_code ? STATUS_TONE.info : STATUS_TONE.critical }}>
-                          {row.stock_code || <span style={{ fontStyle: 'italic', color: STATUS_TONE.critical }}>missing</span>}
-                        </td>
-                        <td className={`px-3 py-1.5 max-w-[220px] truncate`}
-                          style={{ color: row.description ? undefined : STATUS_TONE.critical }}>
-                          <span className={row.description ? t.textMuted : ''}>
-                            {row.description || <span style={{ fontStyle: 'italic', color: STATUS_TONE.critical }}>missing</span>}
-                          </span>
-                        </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">
-                          <span className={row.unit_price > 0 ? t.textMuted : t.textFaint}>
-                            {row.unit_price > 0 ? row.unit_price.toFixed(2) : '—'}
-                          </span>
-                        </td>
-                        {inferResult.has_categories && (
-                          <td className="px-3 py-1.5 max-w-[160px] truncate">
-                            {row.category
-                              ? <span className={`px-2 py-0.5 rounded-full text-[10px] ${TYPE_WEIGHT.medium}`} style={{ background: `${STATUS_TONE.info}1f`, color: STATUS_TONE.info }}>
-                                  {row.category}
-                                </span>
-                              : <span className={t.textFaint}>—</span>}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {extracted.length > 30 && (
-                  <div className={`px-4 py-2.5 text-xs text-center border-t ${t.border} ${t.textFaint}`}>
-                    Showing 30 of {extracted.length} rows &mdash; all {validRows.length} valid rows will be imported
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Action bar */}
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <button onClick={reset}
-              className={`px-4 py-2.5 rounded-xl text-sm transition-all ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}>
-              Cancel
-            </button>
-            <PrimaryButton
-              icon={importing ? undefined : Upload}
-              accent="amber"
-              size="md"
-              disabled={importing || validRows.length === 0}
-              submitting={importing}
-              onClick={handleImport}
-            >
-              {importing ? 'Importing…' : `Import ${validRows.length} Records`}
-            </PrimaryButton>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP: DONE ───────────────────────────────────────────────────── */}
-      {step === 'done' && result && (
-        <div className="space-y-4">
-          <div className="rounded-2xl p-10 text-center"
-            style={{ background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.18)' }}>
-            <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: STATUS_TONE.good }} />
-            <div className={`text-3xl ${TYPE_WEIGHT.bold} mb-2 ${t.textPrimary}`}>
-              {result.created} inserted &nbsp;&bull;&nbsp; {result.updated ?? 0} updated
-            </div>
-            <div className={`text-sm ${t.textFaint}`}>
-              {result.skipped} skipped &bull; {result.errors} errors &bull; {result.total} total
-            </div>
-          </div>
-          <div className="flex justify-center gap-3">
-            <button onClick={reset}
-              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all border ${t.border} ${t.textMuted} ${t.hoverText} ${t.hoverBg}`}>
-              <RefreshCw className="h-4 w-4" /> Import another file
-            </button>
-            <PrimaryButton icon={undefined} accent="amber" size="md" onClick={() => router.push('/spares')}>
-              View Spares
-            </PrimaryButton>
-          </div>
-        </div>
-      )}
-
-    </main>
-  );
+  return <AppShell migrated><SpareImportContent /></AppShell>;
 }

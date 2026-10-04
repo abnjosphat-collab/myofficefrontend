@@ -1,166 +1,69 @@
+// app/employees/NormalizeRosterDialog.tsx — tidy the whole roster in one batch: standard designations, the section that fits the trade,
+// phone numbers in one format, hoist drivers archived. It shows every change it would make before doing anything, and says which
+// people could not be updated if the batch is only partly applied.
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Loader2, Sparkles, AlertCircle } from '@/components/shared/theme';
-import {
-  useTheme, CenterModal, FormActions, TYPE_WEIGHT, accentText,
-} from '@/components/shared/theme';
 import { toast } from 'sonner';
-import type { Employee } from './types';
+import { Button, Dialog, EmptyState, MetricGrid, MetricTile, Notice } from '@/components/ui-system';
 import { planRosterNormalization, type FieldChange } from './calcNormalizeRoster';
+import type { Employee } from './types';
 import { bulkNormalizeEmployees } from './useEmployeesData';
 
-const FIELD_LABELS: Record<FieldChange['field'], string> = {
-  designation: 'Designation',
-  section: 'Section',
-  phone: 'Phone',
-  archived: 'Archived',
-};
+const FIELD_LABELS: Record<FieldChange['field'], string> = { designation: 'Designation', section: 'Section', phone: 'Phone', archived: 'Archived' };
 
-function ChangeLine({ change }: { change: FieldChange }) {
-  const t = useTheme();
-  return (
-    <div className={`text-xs ${t.textMuted}`}>
-      <span className={`${TYPE_WEIGHT.medium} ${t.textFaint}`}>{FIELD_LABELS[change.field]}:</span>{' '}
-      <span className="line-through opacity-60">{change.from || '—'}</span>
-      <span className={`mx-1 ${t.textFaint}`}>→</span>
-      <span className={t.textPrimary}>{change.to || '—'}</span>
-    </div>
-  );
-}
-
-export function NormalizeRosterDialog({
-  open,
-  employees,
-  onClose,
-  onComplete,
-}: {
-  open: boolean;
-  employees: Employee[];
-  onClose: () => void;
-  onComplete: () => Promise<void>;
-}) {
-  const t = useTheme();
+export function NormalizeRosterDialog({ open, employees, onOpenChange, onComplete }: { open: boolean; employees: Employee[]; onOpenChange: (open: boolean) => void; onComplete: () => Promise<void> }) {
   const plan = useMemo(() => planRosterNormalization(employees), [employees]);
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const preview = plan.items.slice(0, 25);
   const more = plan.items.length - preview.length;
 
-  const handleConfirm = async () => {
-    if (plan.affected === 0) { onClose(); return; }
-    setRunning(true);
+  const run = async () => {
+    setRunning(true); setError(null);
     try {
       const { succeeded, failed, errors } = await bulkNormalizeEmployees(plan, employees);
       await onComplete();
-      if (failed === 0) {
-        toast.success(`Normalized ${succeeded} employee record${succeeded === 1 ? '' : 's'}`);
-      } else if (succeeded > 0) {
-        toast.warning(`Updated ${succeeded}; ${failed} failed — refresh and retry the remainder`);
-      } else {
-        toast.error(errors?.[0] || 'Normalization failed — no records were updated');
-      }
-      onClose();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Normalization failed');
-    } finally {
-      setRunning(false);
-    }
+      if (failed === 0) { toast.success(`Normalised ${succeeded} ${succeeded === 1 ? 'record' : 'records'}.`); onOpenChange(false); }
+      else if (succeeded > 0) setError(`${succeeded} updated, ${failed} could not be. ${errors?.[0] ?? ''} Close this and open it again to retry the rest.`);
+      else setError(errors?.[0] || 'Nothing was updated.');
+    } catch (e) { setError(e instanceof Error ? e.message : 'The batch failed.'); }
+    finally { setRunning(false); }
   };
 
   return (
-    <CenterModal
-      open={open}
-      onClose={() => !running && onClose()}
-      title="Normalize roster"
-      subtitle="Standardize designations, sections, and phone formatting across all personnel records"
-      accent="violet"
-      width="max-w-xl"
+    <Dialog
+      open={open} onOpenChange={o => { if (!running) onOpenChange(o); }} size="lg" title="Normalise the roster" description="Standardise designations, sections and phone numbers across every record."
+      footer={<><Button onClick={() => onOpenChange(false)} disabled={running}>{plan.affected === 0 ? 'Close' : 'Cancel'}</Button>{plan.affected > 0 && <Button variant="primary" icon="normalize" pending={running} onClick={run}>{`Normalise ${plan.affected} ${plan.affected === 1 ? 'record' : 'records'}`}</Button>}</>}
     >
-      <div className="p-5 space-y-4">
+      <div className="flex flex-col gap-4">
         {plan.affected === 0 ? (
-          <div className={`flex items-start gap-3 rounded-xl p-4 ${t.chipBg}`}>
-            <Sparkles className="h-5 w-5 text-brand-400 shrink-0 mt-0.5" />
-            <div>
-              <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Roster is already clean</p>
-              <p className={`text-xs mt-1 ${t.textFaint}`}>
-                All {plan.total} employee{plan.total === 1 ? '' : 's'} already use standard designations, sections, and phone formatting.
-              </p>
-            </div>
-          </div>
+          <EmptyState icon="success" title="The roster is already clean" description={`All ${plan.total} ${plan.total === 1 ? 'employee uses' : 'employees use'} standard designations, sections and phone numbers.`} />
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Will update', value: plan.affected, color: accentText('violet', t.light) },
-                { label: 'Unchanged', value: plan.unchanged, color: t.textMuted },
-                { label: 'Total', value: plan.total, color: t.textPrimary },
-              ].map(s => (
-                <div key={s.label} className={`${t.chipBg} rounded-xl px-3 py-2.5 text-center`}>
-                  <div className={`text-lg ${TYPE_WEIGHT.bold} ${s.color}`}>{s.value}</div>
-                  <div className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className={`text-xs ${t.textFaint} flex flex-wrap gap-x-4 gap-y-1`}>
-              {plan.byField.designation > 0 && <span>Designation: {plan.byField.designation}</span>}
-              {plan.byField.section > 0 && <span>Section: {plan.byField.section}</span>}
-              {plan.byField.phone > 0 && <span>Phone: {plan.byField.phone}</span>}
-              {plan.byField.archived > 0 && <span>Archived: {plan.byField.archived}</span>}
-            </div>
-
-            <div className={`rounded-xl border ${t.border} overflow-hidden`}>
-              <div className={`px-3 py-2 border-b ${t.border} ${t.chipBg}`}>
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary}`}>Preview changes</span>
-              </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-white/5">
+            <MetricGrid columns={3}>
+              <MetricTile label="Will change" icon="edit" tone="warning" value={plan.affected} />
+              <MetricTile label="Unchanged" icon="check" value={plan.unchanged} />
+              <MetricTile label="Total" icon="employees" value={plan.total} />
+            </MetricGrid>
+            <p className="font-sans text-caption text-ink-muted">{(['designation', 'section', 'phone', 'archived'] as const).filter(f => plan.byField[f] > 0).map(f => `${FIELD_LABELS[f]}: ${plan.byField[f]}`).join(', ')}</p>
+            <section aria-labelledby="nr-prev" className="rounded-card border border-line">
+              <h3 id="nr-prev" className="border-b border-line bg-surface-subtle px-4 py-2 font-sans text-label font-semibold text-ink">Changes to be made</h3>
+              <ul className="max-h-72 divide-y divide-line-subtle overflow-y-auto">
                 {preview.map(item => (
-                  <div key={item.id} className="px-3 py-2.5 space-y-1">
-                    <div className={`text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>
-                      {item.name}
-                      <span className={`ml-2 text-[11px] font-mono ${t.textFaint}`}>{item.employee_id}</span>
-                    </div>
-                    {item.changes.map(c => (
-                      <ChangeLine key={`${item.id}-${c.field}`} change={c} />
-                    ))}
-                  </div>
+                  <li key={item.id} className="flex flex-col gap-1 px-4 py-2.5">
+                    <p className="font-sans text-body-sm font-medium text-ink">{item.name} <span className="font-mono text-caption text-ink-muted">{item.employee_id}</span></p>
+                    {item.changes.map(c => <p key={`${item.id}-${c.field}`} className="font-sans text-caption text-ink-muted"><span className="font-medium">{FIELD_LABELS[c.field]}:</span> <span className="line-through">{c.from || 'empty'}</span> to <span className="text-ink">{c.to || 'empty'}</span></p>)}
+                  </li>
                 ))}
-              </div>
-              {more > 0 && (
-                <div className={`px-3 py-2 text-[11px] ${t.textFaint} border-t ${t.border}`}>
-                  …and {more} more employee{more === 1 ? '' : 's'}
-                </div>
-              )}
-            </div>
-
-            <div className={`flex items-start gap-2 text-xs ${t.textFaint}`}>
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <p>
-                Non-standard roles are left unchanged. Assistant titles merge to one form (e.g. Assistant Fitter → Fitter Assistant).
-                Sections align to the trade — electricians and lamproom attendants to Electrical, fitters/riggers to Mechanical.
-                Driver job titles like Class 4 Driver or Driver Class 4 become Light Vehicle Driver.
-                Phone numbers are stored as +263 XX XXX XXXX; multiples separated by /.
-                Hoist Driver roles are archived automatically.
-              </p>
-            </div>
+              </ul>
+              {more > 0 && <p className="border-t border-line px-4 py-2 font-sans text-caption text-ink-muted">and {more} more {more === 1 ? 'person' : 'people'}</p>}
+            </section>
+            <Notice tone="info" title="What it does">Roles it does not recognise are left alone. Assistant titles merge to one form (Assistant Fitter becomes Fitter Assistant). Sections follow the trade. Driver titles become Light Vehicle Driver. Phone numbers are stored as +263 XX XXX XXXX. Hoist Driver roles are archived.</Notice>
           </>
         )}
-
-        <form onSubmit={e => { e.preventDefault(); void handleConfirm(); }}>
-          <FormActions
-            onCancel={() => !running && onClose()}
-            submitting={running}
-            submitLabel={plan.affected === 0 ? 'Close' : `Normalize ${plan.affected} record${plan.affected === 1 ? '' : 's'}`}
-            accent="violet"
-          />
-        </form>
-        {running && (
-          <div className={`flex items-center justify-center gap-2 text-xs ${t.textFaint} pb-2`}>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Updating {plan.affected} record{plan.affected === 1 ? '' : 's'} in one batch…
-          </div>
-        )}
+        {error && <Notice tone="danger" title="The batch did not finish">{error}</Notice>}
       </div>
-    </CenterModal>
+    </Dialog>
   );
 }

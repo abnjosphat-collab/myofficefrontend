@@ -1,168 +1,67 @@
-// components/sop-library/SopCard.tsx — one SOP as an animated, expandable
-// workspace. Built on RecordCard (design-system/components.tsx): its
-// `headerActions` slot is already kept structurally separate from the expand
-// toggle (clicks inside it don't also expand the card — see RecordCard's
-// data-card-actions handling), which is exactly the "don't accidentally expand
-// while editing/exporting" requirement. Section-level accordions inside use the
-// same Collapse primitive as every other collapsible in the app, with the same
-// reduced-motion-respecting CSS grid-row animation (Collapse itself has no
-// separate reduced-motion branch — it's already a cheap opacity/height transition,
-// not a large transform, which is the app-wide baseline for "purposeful, not
-// gratuitous" motion).
+// components/sop-library/SopCard.tsx — one SOP in the library list. The whole card opens the viewer;
+// exports and management actions live in one per-card menu (nothing is nested inside the open target).
 'use client';
 
-import { useState } from 'react';
-import {
-  RecordCard, StatusBadge, Collapse, useCollapseSection,
-  CardIconButton, useTheme,
-} from '@/components/shared/theme';
-import {
-  FileText, Pencil, FileDown, Download, Archive, RotateCcw, ChevronDown, User, Clock,
-} from '@/components/shared/theme';
-import {
-  SOP_SECTION_LABELS, SOP_STATUS_LABEL, SOP_STATUS_HEX, SOP_RISK_TIER_LABEL, isReviewOverdue, isReviewDueSoon,
-  type SopDocument, type SopRevision,
-} from '@/lib/sops/types';
+import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, RecordCard, StatusBadge, Tag, type Tone } from '@/components/ui-system';
+import { SOP_RISK_TIER_LABEL, SOP_STATUS_LABEL, isReviewDueSoon, isReviewOverdue, type SopDocument, type SopStatus } from '@/lib/sops/types';
+import { formatDate } from '@/lib/format';
 
-const RISK_TIER_HEX = { 1: '#94a3b8', 2: '#f59e0b', 3: '#ef4444' } as const;
+export const SOP_STATUS_TONE: Record<SopStatus, Tone> = { draft: 'neutral', pilot: 'info', effective: 'success', superseded: 'warning', retired: 'neutral' };
 
-export function SopCard({
-  sop, canEdit, canArchive, archived, onEdit, onExportWord, onExportPdf, onArchive, onRestore,
-  loadRevisions,
-}: {
+export function SopBadges({ sop }: { sop: SopDocument }) {
+  const overdue = isReviewOverdue(sop);
+  const dueSoon = !overdue && isReviewDueSoon(sop);
+  return (
+    <span className="flex flex-wrap items-center justify-end gap-1.5">
+      <StatusBadge tone={SOP_STATUS_TONE[sop.status]}>{SOP_STATUS_LABEL[sop.status]}</StatusBadge>
+      <Tag>v{sop.version}</Tag>
+      {sop.classification !== 'Internal' && <StatusBadge tone={sop.classification === 'Restricted' ? 'danger' : 'warning'}>{sop.classification}</StatusBadge>}
+      {sop.risk_tier && <StatusBadge tone={sop.risk_tier === 3 ? 'danger' : sop.risk_tier === 2 ? 'warning' : 'neutral'}>{SOP_RISK_TIER_LABEL[sop.risk_tier]}</StatusBadge>}
+      {overdue && <StatusBadge tone="danger" icon="overdue">Review overdue</StatusBadge>}
+      {dueSoon && <StatusBadge tone="warning" icon="due-soon">Review due soon</StatusBadge>}
+    </span>
+  );
+}
+
+export function SopCard({ sop, canEdit, archived, onOpen, onEdit, onExportWord, onExportPdf, onArchive, onRestore }: {
   sop: SopDocument;
   canEdit: boolean;
-  canArchive: boolean;
   archived?: boolean;
+  onOpen: () => void;
   onEdit: () => void;
   onExportWord: () => void;
   onExportPdf: () => void;
   onArchive?: () => void;
   onRestore?: () => void;
-  /** Lazily loads revision history the first time that section is opened. */
-  loadRevisions: () => Promise<SopRevision[]>;
 }) {
-  const t = useTheme();
-  const sections = useCollapseSection({
-    purpose: false, scope_exclusions: false, definitions: false, trigger_outcome: false,
-    roles_responsibilities: false, inputs_dependencies: false, procedure: false, controls: false,
-    exceptions_escalation: false, records_retention: false, measures_review: false, training: false,
-    history: false,
-  });
-  const [revisions, setRevisions] = useState<SopRevision[] | null>(null);
-  const [revisionsLoading, setRevisionsLoading] = useState(false);
-
-  const overdue = isReviewOverdue(sop);
-  const dueSoon = !overdue && isReviewDueSoon(sop);
-  const accentHex = SOP_STATUS_HEX[sop.status];
-
-  const toggleHistory = async () => {
-    sections.toggle('history');
-    if (revisions === null && !sections.expanded.history) {
-      setRevisionsLoading(true);
-      try { setRevisions(await loadRevisions()); } finally { setRevisionsLoading(false); }
-    }
-  };
-
   return (
     <RecordCard
-      icon={FileText}
-      accentHex={accentHex}
-      title={`${sop.code} — ${sop.title}`}
+      eyebrow={<span className="font-mono">{sop.code}</span>}
+      title={sop.title}
       subtitle={sop.department}
-      badges={
-        <>
-          <StatusBadge color={accentHex} label={SOP_STATUS_LABEL[sop.status]} dot />
-          <StatusBadge color={t.light ? '#334155' : '#cbd5e1'} label={`v${sop.version}`} />
-          {sop.classification !== 'Internal' && (
-            <StatusBadge color={sop.classification === 'Restricted' ? '#ef4444' : '#f59e0b'} label={sop.classification} />
-          )}
-          {sop.risk_tier && <StatusBadge color={RISK_TIER_HEX[sop.risk_tier]} label={SOP_RISK_TIER_LABEL[sop.risk_tier]} />}
-          {overdue && <StatusBadge color="#ef4444" label="Review overdue" dot />}
-          {dueSoon && <StatusBadge color="#f59e0b" label="Review due soon" dot />}
-        </>
-      }
-      summary={
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-          <span className={`flex items-center gap-1 ${t.textMuted}`}><User className="h-3 w-3" />{sop.owner || 'Unassigned'}</span>
-          <span className={`flex items-center gap-1 ${t.textFaint}`}><Clock className="h-3 w-3" />Updated {new Date(sop.updated_at).toLocaleDateString()}</span>
-          {sop.next_review_date && (
-            <span className={`flex items-center gap-1 ${overdue ? 'text-rose-500' : dueSoon ? 'text-amber-500' : t.textFaint}`}>
-              Next review {new Date(sop.next_review_date).toLocaleDateString()}
-            </span>
-          )}
-          {sop.supersedes && <span className={t.textFaint}>Supersedes {sop.supersedes}</span>}
-        </div>
-      }
-      headerActions={
-        <>
-          {sop.summary && (
-            <p className={`hidden md:block text-[11px] ${t.textFaint} max-w-[240px] truncate mr-1`} title={sop.summary}>
-              {sop.summary}
-            </p>
-          )}
-          <CardIconButton icon={Download} title="Export Word" onClick={e => { e.stopPropagation(); onExportWord(); }} />
-          <CardIconButton icon={FileDown} title="Export PDF" onClick={e => { e.stopPropagation(); onExportPdf(); }} />
-          {canEdit && !archived && (
-            <CardIconButton icon={Pencil} title="Edit" onClick={e => { e.stopPropagation(); onEdit(); }} />
-          )}
-          {canArchive && !archived && onArchive && (
-            <CardIconButton icon={Archive} title="Archive" onClick={e => { e.stopPropagation(); onArchive(); }} />
-          )}
-          {canArchive && archived && onRestore && (
-            <CardIconButton icon={RotateCcw} title="Restore" onClick={e => { e.stopPropagation(); onRestore(); }} />
-          )}
-        </>
-      }
-    >
-      {sop.summary && <p className={`text-[13px] ${t.textSecondary} leading-relaxed`}>{sop.summary}</p>}
-
-      {SOP_SECTION_LABELS.map(({ key, label }) => (
-        <div key={key} className={`rounded-lg border ${t.border} overflow-hidden`}>
-          <button
-            type="button"
-            onClick={() => sections.toggle(key)}
-            aria-expanded={sections.expanded[key]}
-            className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-medium ${t.textPrimary} ${t.hoverBgSoft} transition-colors`}
-          >
-            {label}
-            <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${t.textFaint} transition-transform ${sections.expanded[key] ? 'rotate-180' : ''}`} />
-          </button>
-          <Collapse open={!!sections.expanded[key]}>
-            <div className={`px-3 pb-3 pt-1 text-[13px] ${t.textSecondary} whitespace-pre-wrap leading-relaxed`}>
-              {sop.sections[key]?.trim() || <span className={t.textFaint}>Not yet documented.</span>}
-            </div>
-          </Collapse>
-        </div>
-      ))}
-
-      <div className={`rounded-lg border ${t.border} overflow-hidden`}>
-        <button
-          type="button"
-          onClick={toggleHistory}
-          aria-expanded={sections.expanded.history}
-          className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-medium ${t.textPrimary} ${t.hoverBgSoft} transition-colors`}
-        >
-          Revision History
-          <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${t.textFaint} transition-transform ${sections.expanded.history ? 'rotate-180' : ''}`} />
-        </button>
-        <Collapse open={!!sections.expanded.history}>
-          <div className="px-3 pb-3 pt-1 space-y-2">
-            {revisionsLoading && <p className={`text-xs ${t.textFaint}`}>Loading history…</p>}
-            {!revisionsLoading && revisions?.length === 0 && <p className={`text-xs ${t.textFaint}`}>No revisions yet.</p>}
-            {!revisionsLoading && revisions?.map(rev => (
-              <div key={rev.id} className={`text-xs ${t.textSecondary} border-l-2 ${t.border} pl-2.5`}>
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${t.textPrimary}`}>Rev {rev.revision_number}</span>
-                  <span className={t.textFaint}>{new Date(rev.created_at).toLocaleString()}</span>
-                  <span className={t.textFaint}>· {rev.author_email}</span>
-                </div>
-                <p className="mt-0.5">{rev.change_note}</p>
-              </div>
-            ))}
-          </div>
-        </Collapse>
-      </div>
-    </RecordCard>
+      status={<SopBadges sop={sop} />}
+      facts={[
+        { label: 'Owner', value: sop.owner || 'Unassigned' },
+        { label: 'Updated', value: formatDate(sop.updated_at) },
+        ...(sop.next_review_date ? [{ label: 'Next review', value: formatDate(sop.next_review_date) }] : []),
+        ...(sop.supersedes ? [{ label: 'Supersedes', value: sop.supersedes }] : []),
+      ]}
+      meta={sop.summary ? <span className="line-clamp-2">{sop.summary}</span> : undefined}
+      action={(
+        <Menu>
+          <MenuTrigger asChild><IconButton icon="more" label={`Actions for ${sop.code}`} size="sm" /></MenuTrigger>
+          <MenuContent align="end">
+            <MenuItem icon="download" onSelect={onExportWord}>Export Word</MenuItem>
+            <MenuItem icon="pdf" onSelect={onExportPdf}>Export PDF</MenuItem>
+            {canEdit && <MenuSeparator />}
+            {canEdit && !archived && <MenuItem icon="edit" onSelect={onEdit}>Edit</MenuItem>}
+            {canEdit && !archived && onArchive && <MenuItem icon="archive" tone="danger" onSelect={onArchive}>Archive</MenuItem>}
+            {canEdit && archived && onRestore && <MenuItem icon="reset" onSelect={onRestore}>Restore</MenuItem>}
+          </MenuContent>
+        </Menu>
+      )}
+      onOpen={onOpen}
+      openLabel={`Open ${sop.code}: ${sop.title}`}
+    />
   );
 }

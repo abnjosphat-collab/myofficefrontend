@@ -1,78 +1,135 @@
 // FILE: app/compliance-register/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { ShieldCheck, Plus, X, RefreshCw } from '@/components/shared/theme';
+import { SuggestField } from '@/components/shared/SuggestField';
+import {
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Segmented,
+  StatusBadge, Tag, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
+} from '@/components/ui-system';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
-import { useTheme, accentText, PageHero, StatTile, StatusBadge, FormField, PrimaryButton, ACCENT_HEX, TYPE_WEIGHT, CloseButton } from '@/components/shared/theme';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Status, ComplianceItem } from './types';
 
-const statusHex: Record<Status, string> = { current: '#34d399', due_soon: '#fbbf24', overdue: '#fb7185' };
-const statusLabel: Record<Status, string> = { current: 'Current', due_soon: 'Due Soon', overdue: 'Overdue' };
+const STATUS_META: Record<Status, { label: string; tone: Tone; icon: 'valid' | 'due-soon' | 'overdue'; hex: string }> = {
+  current: { label: 'Current', tone: 'success', icon: 'valid', hex: '#34d399' },
+  due_soon: { label: 'Due soon', tone: 'warning', icon: 'due-soon', hex: '#fbbf24' },
+  overdue: { label: 'Overdue', tone: 'danger', icon: 'overdue', hex: '#fb7185' },
+};
+const FILTERS: { value: Status | 'all'; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }, { value: 'due_soon', label: 'Due soon' }, { value: 'overdue', label: 'Overdue' }];
+const EMPTY_FORM = { equipment_name: '', inspection_type: '', regulatory_body: '', certificate_no: '', expiry_date: '', responsible: '', notes: '' };
 
+const exportColumns: DLColumn[] = [
+  { key: 'equipment_name', label: 'Equipment', width: 24 },
+  { key: 'inspection_type', label: 'Inspection Type', width: 20 },
+  { key: 'regulatory_body', label: 'Regulatory Body', width: 20 },
+  { key: 'certificate_no', label: 'Certificate No.', width: 18 },
+  { key: 'expiry_date', label: 'Expiry', width: 14, format: v => (v ? formatDate(v as string) : '') },
+  { key: 'days', label: 'Days', width: 10, format: (_v, row) => (row.expiry_date ? String(daysUntil(row.expiry_date as string)) : '') },
+  { key: 'status', label: 'Status', width: 14, format: v => STATUS_META[v as Status].label },
+  { key: 'responsible', label: 'Responsible', width: 20 },
+];
 
-function ComplianceRegisterContent() {
-  const t = useTheme();
-  const { data: records, loading, error, create, refetch } = useModuleData<ComplianceItem>('compliance');
-  const [filter, setFilter] = useState<Status | 'all'>('all');
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ equipment_name: '', inspection_type: '', regulatory_body: '', certificate_no: '', expiry_date: '', responsible: '', notes: '' });
+/** "12 days left", "Due today" or "3 days overdue": a text value, with colour only as reinforcement. */
+function DaysLeft({ expiry }: { expiry: string }) {
+  if (!expiry) return <span className="text-ink-muted">Not set</span>;
+  const days = daysUntil(expiry);
+  const tone = days < 0 ? 'text-danger' : days <= 30 ? 'text-warning' : 'text-success';
+  const text = days < 0 ? `${Math.abs(days)} ${Math.abs(days) === 1 ? 'day' : 'days'} overdue` : days === 0 ? 'Due today' : `${days} ${days === 1 ? 'day' : 'days'} left`;
+  return <span className={`font-medium tabular ${tone}`}>{text}</span>;
+}
 
-  const displayed = filter === 'all' ? records : records.filter(i => i.status === filter);
-  const counts = { current: records.filter(i => i.status === 'current').length, due_soon: records.filter(i => i.status === 'due_soon').length, overdue: records.filter(i => i.status === 'overdue').length };
+const sortValue = (item: ComplianceItem, id: string): unknown => {
+  switch (id) {
+    case 'days': return item.expiry_date ? daysUntil(item.expiry_date) : null;
+    case 'expiry_date': return item.expiry_date;
+    default: return String(item[id as keyof ComplianceItem] ?? '').toLowerCase();
+  }
+};
 
-  const exportColumns: DLColumn[] = [
-    { key: 'equipment_name', label: 'Equipment', width: 24 },
-    { key: 'inspection_type', label: 'Inspection Type', width: 20 },
-    { key: 'regulatory_body', label: 'Regulatory Body', width: 20 },
-    { key: 'certificate_no', label: 'Certificate No.', width: 18 },
-    { key: 'expiry_date', label: 'Expiry', width: 14, format: v => v ? formatDate(v as string) : '' },
-    { key: 'days', label: 'Days', width: 10, format: (_v, row) => row.expiry_date ? String(daysUntil(row.expiry_date as string)) : '' },
-    { key: 'status', label: 'Status', width: 14, format: v => statusLabel[v as Status] },
-    { key: 'responsible', label: 'Responsible', width: 20 },
-  ];
+const COLUMNS: Column<ComplianceItem>[] = [
+  { id: 'equipment_name', header: 'Equipment', sortable: true, sticky: true, cell: i => i.equipment_name },
+  { id: 'inspection_type', header: 'Inspection type', sortable: true, hideBelow: 'md', cell: i => i.inspection_type },
+  { id: 'regulatory_body', header: 'Regulatory body', hideBelow: 'lg', cell: i => (i.regulatory_body ? <Tag>{i.regulatory_body}</Tag> : null) },
+  { id: 'certificate_no', header: 'Certificate no.', hideBelow: 'lg', cell: i => <span className="font-mono text-caption text-ink-muted">{i.certificate_no}</span> },
+  { id: 'expiry_date', header: 'Expiry', sortable: true, cell: i => <span className="tabular whitespace-nowrap">{i.expiry_date ? formatDate(i.expiry_date) : 'Not set'}</span> },
+  { id: 'days', header: 'Time left', sortable: true, cell: i => <DaysLeft expiry={i.expiry_date} /> },
+  { id: 'status', header: 'Status', sortable: true, cell: i => <StatusBadge tone={STATUS_META[i.status].tone} icon={STATUS_META[i.status].icon}>{STATUS_META[i.status].label}</StatusBadge> },
+  { id: 'responsible', header: 'Responsible', sortable: true, hideBelow: 'md', cell: i => i.responsible },
+];
+
+function AddItemDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpenChange: (open: boolean) => void; onCreate: (form: typeof EMPTY_FORM) => Promise<void> }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [touched, setTouched] = useState(false);
+  const set = (patch: Partial<typeof EMPTY_FORM>) => setForm(current => ({ ...current, ...patch }));
 
   const submit = async () => {
-    if (!form.equipment_name || !form.expiry_date) return;
-    await create(form);
-    refetch();
-    setForm({ equipment_name: '', inspection_type: '', regulatory_body: '', certificate_no: '', expiry_date: '', responsible: '', notes: '' });
-    setShowAdd(false);
+    setTouched(true);
+    if (!form.equipment_name.trim() || !form.expiry_date) return false;
+    await onCreate(form);
+    setForm(EMPTY_FORM);
+    setTouched(false);
   };
 
-  const inputCls = `w-full rounded-xl px-3 py-2 text-sm outline-none transition-colors ${t.inputBg}`;
-
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center py-32 gap-3">
-      <RefreshCw className={`h-5 w-5 animate-spin ${t.textFaint}`} />
-      <span className={`text-sm ${t.textFaint}`}>Loading...</span>
-    </div>
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Add compliance item" description="Equipment name and expiry date are required." submitLabel="Add to register" onSubmit={submit}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Equipment name" required error={touched && !form.equipment_name.trim() ? 'Enter the equipment name.' : undefined}>
+          <Input value={form.equipment_name} onChange={event => set({ equipment_name: event.target.value })} />
+        </Field>
+        <Field label="Inspection type">
+          <SuggestField historyKey="compliance_inspection_type" placeholder="For example, pressure vessel test" value={form.inspection_type} onChange={value => set({ inspection_type: value })} />
+        </Field>
+        <Field label="Regulatory body">
+          <SuggestField historyKey="compliance_regulatory_body" placeholder="For example, DMRE" value={form.regulatory_body} onChange={value => set({ regulatory_body: value })} />
+        </Field>
+        <Field label="Certificate number"><Input value={form.certificate_no} onChange={event => set({ certificate_no: event.target.value })} /></Field>
+        <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}>
+          <Input type="date" value={form.expiry_date} onChange={event => set({ expiry_date: event.target.value })} />
+        </Field>
+        <Field label="Responsible person"><Input value={form.responsible} onChange={event => set({ responsible: event.target.value })} autoComplete="name" /></Field>
+      </div>
+    </FormDialog>
   );
+}
 
-  if (error) return (
-      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8`}>
-      <div className={`rounded-xl bg-rose-500/15 ${accentText('rose', t.light)} px-5 py-4 text-sm`}>{error}</div>
-    </main>
-  );
+function ComplianceRegisterContent() {
+  const { data: records, loading, error, create, refetch } = useModuleData<ComplianceItem>('compliance');
+  const [filter, setFilter] = useState<Status | 'all'>('all');
+  const [adding, setAdding] = useState(false);
+  const [sort, setSort] = useState<SortState>(null);
+
+  // useModuleData reports failures as "<HTTP status>: <body>"; recover the status so 401/403 and
+  // transient failures are told apart. A failed request must never read as "nothing registered".
+  const errorStatus = error ? Number(error.match(/^(\d{3})\b/)?.[1]) || null : null;
+  const loaded = records.length > 0 || (!loading && !error);
+  const displayed = useMemo(() => (filter === 'all' ? records : records.filter(i => i.status === filter)), [records, filter]);
+  const rows = useMemo(() => sortRows(displayed, sort, sortValue), [displayed, sort]);
+  const counts = { current: records.filter(i => i.status === 'current').length, due_soon: records.filter(i => i.status === 'due_soon').length, overdue: records.filter(i => i.status === 'overdue').length };
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+
+  const createItem = async (form: typeof EMPTY_FORM) => {
+    await create(form);
+    toast.success(`${form.equipment_name} was added to the register.`);
+    refetch();
+  };
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={ShieldCheck}
-        accent="violet"
-        crumbs={['Safety & Compliance', 'Compliance Register']}
-        title="Statutory Compliance Register"
-        description="Regulatory certificates and inspection tracking"
-        statsOpen
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Compliance register' }]}
+        title="Statutory compliance register"
+        description="Regulatory certificates and inspection tracking."
+        actions={(
           <>
-            <button type="button" onClick={() => refetch()} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className="h-4 w-4" /></button>
+            <IconButton icon="refresh" label="Refresh register" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {displayed.length > 0 && (
               <DownloadButton
                 data={displayed as unknown as Record<string, unknown>[]}
@@ -80,89 +137,44 @@ function ComplianceRegisterContent() {
                 filename={exportFilename('Compliance_Register')}
                 title="Statutory Compliance Register"
                 statusColumn="status"
-                statusColor={(_v, row) => statusHex[row.status as Status]?.replace('#', '')}
+                statusColor={(_v, row) => STATUS_META[row.status as Status]?.hex.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Plus} onClick={() => setShowAdd(s => !s)}>Add Item</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>
           </>
-        }
+        )}
+      />
+
+      <MetricGrid columns={3}>
+        <MetricTile label="Current" icon="valid" tone="success" value={counts.current} loading={pending} unavailable={unavailable} selected={filter === 'current'} onClick={() => setFilter(filter === 'current' ? 'all' : 'current')} />
+        <MetricTile label="Due soon" icon="due-soon" tone="warning" value={counts.due_soon} loading={pending} unavailable={unavailable} selected={filter === 'due_soon'} onClick={() => setFilter(filter === 'due_soon' ? 'all' : 'due_soon')} />
+        <MetricTile label="Overdue" icon="overdue" tone="danger" value={counts.overdue} loading={pending} unavailable={unavailable} selected={filter === 'overdue'} onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')} />
+      </MetricGrid>
+
+      <Toolbar>
+        <Segmented label="Status" value={filter} onValueChange={setFilter} options={FILTERS} />
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="compliance items"
+        error={error}
+        onRetry={() => refetch()}
+        empty={filter !== 'all'
+          ? <EmptyState icon="search" title={`No ${STATUS_META[filter as Status].label.toLowerCase()} items`} description="Choose a different status to see other items." action={<Button onClick={() => setFilter('all')}>Show all</Button>} />
+          : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} />}
       >
-        <div className="grid grid-cols-3 gap-3">
-          <StatTile icon={ShieldCheck} color="#34d399" label="Current" value={counts.current} />
-          <StatTile icon={ShieldCheck} color="#fbbf24" label="Due Soon" value={counts.due_soon} />
-          <StatTile icon={ShieldCheck} color="#fb7185" label="Overdue" value={counts.overdue} />
-        </div>
-      </PageHero>
+        <DataTable caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
+      </DataRegion>
 
-      {showAdd && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden p-6`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>New Compliance Item</h2>
-            <CloseButton onClick={() => setShowAdd(false)} />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            <FormField label="Equipment Name"><input placeholder="Equipment Name" value={form.equipment_name} onChange={e => setForm(f => ({ ...f, equipment_name: e.target.value }))} aria-label="Equipment Name" className={inputCls} /></FormField>
-            <FormField label="Inspection Type"><PredictiveInput historyKey="compliance_inspection_type" placeholder="Inspection Type" value={form.inspection_type} onChange={v => setForm(f => ({ ...f, inspection_type: v }))} inputClassName={inputCls} /></FormField>
-            <FormField label="Regulatory Body"><PredictiveInput historyKey="compliance_regulatory_body" placeholder="Regulatory Body" value={form.regulatory_body} onChange={v => setForm(f => ({ ...f, regulatory_body: v }))} inputClassName={inputCls} /></FormField>
-            <FormField label="Certificate No."><input placeholder="Certificate No." value={form.certificate_no} onChange={e => setForm(f => ({ ...f, certificate_no: e.target.value }))} aria-label="Certificate No." className={inputCls} /></FormField>
-            <FormField label="Expiry Date"><input type="date" title="Expiry date" aria-label="Expiry date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} className={inputCls} /></FormField>
-            <FormField label="Responsible Person"><input placeholder="Responsible Person" value={form.responsible} onChange={e => setForm(f => ({ ...f, responsible: e.target.value }))} aria-label="Responsible Person" className={inputCls} /></FormField>
-          </div>
-          <PrimaryButton onClick={submit}>Add to Register</PrimaryButton>
-        </div>
-      )}
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`p-4 border-b ${t.border} flex items-center justify-between flex-wrap gap-3`}>
-          <h2 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Compliance Items</h2>
-          <div className="flex gap-2 flex-wrap">
-            {(['all', 'current', 'due_soon', 'overdue'] as const).map(s => (
-              <button key={s} type="button" onClick={() => setFilter(s)} className={`px-3 py-1 rounded-lg text-xs ${TYPE_WEIGHT.semibold} transition-colors ${filter === s ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                {s === 'all' ? 'All' : s === 'due_soon' ? 'Due Soon' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={`border-b ${t.border}`}>
-                {['Equipment', 'Inspection Type', 'Reg. Body', 'Cert. No.', 'Expiry', 'Days', 'Status', 'Responsible'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-left text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {displayed.map(item => {
-                const days = daysUntil(item.expiry_date);
-                return (
-                  <tr key={item.id} className={`border-b ${t.border} last:border-0 ${t.hoverBgSoft} transition-colors`}>
-                    <td className={`px-4 py-3 ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{item.equipment_name}</td>
-                    <td className={`px-4 py-3 ${t.textMuted}`}>{item.inspection_type}</td>
-                    <td className="px-4 py-3"><StatusBadge color={ACCENT_HEX.blue} label={item.regulatory_body} /></td>
-                    <td className={`px-4 py-3 font-mono text-xs ${t.textFaint}`}>{item.certificate_no}</td>
-                    <td className={`px-4 py-3 ${t.textMuted}`}>{item.expiry_date}</td>
-                    <td className="px-4 py-3">
-                      <span className={`${TYPE_WEIGHT.semibold} text-xs ${days < 0 ? accentText('rose', t.light) : days <= 30 ? accentText('amber', t.light) : accentText('emerald', t.light)}`}>
-                        {days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3"><StatusBadge color={statusHex[item.status]} label={statusLabel[item.status]} /></td>
-                    <td className={`px-4 py-3 ${t.textMuted}`}>{item.responsible}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </main>
+      <AddItemDialog open={adding} onOpenChange={setAdding} onCreate={createItem} />
+    </div>
   );
 }
 
 export default function ComplianceRegisterPage() {
   return (
-    <AppShell>
+    <AppShell migrated>
       <ComplianceRegisterContent />
     </AppShell>
   );

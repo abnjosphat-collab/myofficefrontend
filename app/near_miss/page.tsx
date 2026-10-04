@@ -1,410 +1,297 @@
 // app/near_miss/page.tsx — Near Miss Reporting
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  AlertTriangle, RefreshCw, Users, X,
-} from '@/components/shared/theme';
-import { AppShell } from '@/components/app-shell';
-import { formatDate } from '@/lib/format';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { AppShell } from '@/components/app-shell';
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, FormField, FormActions,
-  useCollapseSection, CenterModal, PrimaryButton, EmptyState, ACCENT_HEX, SelectField, useConfirm, TYPE_WEIGHT,
-  Button, IconAction, DisclosureButton, RecordActions, DetailActions,
-} from '@/components/shared/theme';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { EmployeeNameInput } from '@/components/shared/EmployeeNameInput';
-import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
+  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select,
+  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { useEmployees, useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 import type { NearMissReport } from './types';
-import { useNearMissData, createReport, updateReport, deleteReport } from './useNearMissData';
+import { createReport, deleteReport, updateReport, useNearMissData } from './useNearMissData';
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+type Section = NearMissReport['section'];
+const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }[] = [
+  { value: 'Mechanical', label: 'Mechanical', tone: 'info', icon: 'mechanical' },
+  { value: 'Electrical', label: 'Electrical', tone: 'warning', icon: 'electrical' },
+  { value: 'General', label: 'General / other', tone: 'neutral', icon: 'general' },
+];
+const SECTION_META = Object.fromEntries(SECTIONS.map(s => [s.value, s])) as Record<Section, (typeof SECTIONS)[number]>;
+const SECTION_HEX: Record<Section, string> = { Mechanical: '#86BBD8', Electrical: '#fbbf24', General: '#a78bfa' };
+const ALL = '__all__';
 
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-// A missing/malformed time doesn't throw here — `new Date('2000-01-01Tundefined')`
-// is a valid Date OBJECT, just an invalid one, and .toLocaleTimeString() on it
-// returns the literal string "Invalid Date" rather than throwing, so the try/catch
-// never caught it. Rendered as visible "Invalid Date" text on every row (found
-// live, 2026-08-29 UI audit, audit/07-ui-polish-findings.md).
+// `new Date('2000-01-01Tundefined')` is an invalid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {
   if (!s) return '';
-  try {
-    const d = new Date(`2000-01-01T${s}`);
-    return isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  } catch { return ''; }
+  const d = new Date(`2000-01-01T${s}`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
-const SECTION_HEX: Record<NearMissReport['section'], string> = { Mechanical: '#86BBD8', Electrical: '#fbbf24', General: '#a78bfa' };
 
-function calcStats(reports: NearMissReport[]) {
-  const bySection: Record<string, number> = { Mechanical: 0, Electrical: 0, General: 0 };
-  const byReporter: Record<string, number> = {};
-  reports.forEach(r => {
-    if (r.section in bySection) bySection[r.section]++;
-    if (r.reporterName?.trim()) byReporter[r.reporterName.trim()] = (byReporter[r.reporterName.trim()] || 0) + 1;
-  });
-  return { total: reports.length, bySection, byReporter };
-}
+const SectionBadge = ({ section }: { section: Section }) => {
+  const meta = SECTION_META[section];
+  return <StatusBadge tone={meta?.tone ?? 'neutral'} icon={meta?.icon}>{meta?.value ?? section}</StatusBadge>;
+};
 
-// ─── FORM MODAL ───────────────────────────────────────────────────────────────
+type Form = { department: string; section: Section; date: string; time: string; location: string; description: string; witnessDetails: string; reporterName: string };
+const emptyForm = (): Form => ({
+  department: 'Engineering', section: 'General', date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5),
+  location: '', description: '', witnessDetails: '', reporterName: '',
+});
 
-function ReportFormModal({ open, onClose, onSave, report }: {
-  open: boolean; onClose: () => void;
-  onSave: (data: Partial<NearMissReport>) => Promise<void>;
-  report?: NearMissReport | null;
-}) {
-  const t = useTheme();
-  const [form, setForm] = useState<Partial<NearMissReport>>({});
-  const [saving, setSaving] = useState(false);
-  const set = (k: keyof NearMissReport, v: string) => setForm(p => ({ ...p, [k]: v }));
-
-  useEffect(() => {
-    if (open) {
+function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMissReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const employees = useEmployees();
+  const locations = useLookupList('location');
+  const [form, setForm] = useState<Form>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(report?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
       setForm(report ? {
-        department: report.department, section: report.section, date: report.date,
-        time: report.time, location: report.location, description: report.description,
-        witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
-      } : {
-        department: 'Engineering', section: 'General',
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toTimeString().slice(0, 5),
-        location: '', description: '', witnessDetails: '', reporterName: '',
-      });
+        department: report.department, section: report.section, date: report.date, time: report.time, location: report.location,
+        description: report.description, witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
+      } : emptyForm());
     }
-  }, [open, report]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.department?.trim()) { toast.error('Department is required'); return; }
-    if (!form.location?.trim()) { toast.error('Location is required'); return; }
-    if (!form.description?.trim()) { toast.error('Description is required'); return; }
-    setSaving(true);
-    try { await onSave(form); } finally { setSaving(false); }
+  }
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(p => ({ ...p, [k]: v }));
+  const names = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
+  const setReporter = (name: string) => {
+    const match = names.find(n => n.name === name);
+    setForm(p => ({ ...p, reporterName: name, department: match?.department && !p.department.trim() ? match.department : p.department }));
   };
 
-  const inputCls = `w-full rounded-lg px-3 py-1.5 text-sm outline-none transition-colors ${t.inputBg}`;
+  const errors = {
+    department: touched && !form.department.trim() ? 'Enter the department.' : undefined,
+    location: touched && !form.location.trim() ? 'Enter where it happened.' : undefined,
+    description: touched && !form.description.trim() ? 'Describe what happened.' : undefined,
+  };
+  const submit = async () => {
+    setTouched(true);
+    if (!form.department.trim() || !form.location.trim() || !form.description.trim()) return false;
+    if (report) await updateReport(report.id, form); else await createReport(form);
+    toast.success(report ? 'Report updated.' : 'Report submitted.');
+    onSaved();
+  };
 
   return (
-    <CenterModal open={open} onClose={onClose} title={report ? 'Edit Near Miss Report' : 'New Near Miss Report'} accent="amber" width="max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <div className="p-5 space-y-4">
-          <div className={`grid gap-3 ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
-            <FormField label="Department" required>
-              <PredictiveInput historyKey="nm_department" value={form.department || ''} onChange={v => set('department', v)}
-                placeholder="e.g. Engineering" hints={['Engineering', 'Mechanical', 'Electrical', 'Mining', 'Processing', 'Safety', 'Maintenance', 'Operations', 'HR', 'Administration']} />
-            </FormField>
-            <FormField label="Section">
-              <SelectField size="form" value={form.section || 'General'} onChange={v => set('section', v as NearMissReport['section'])}
-                title="Section"
-                options={[
-                  { value: 'Mechanical', label: 'Mechanical' },
-                  { value: 'Electrical', label: 'Electrical' },
-                  { value: 'General', label: 'General / Other' },
-                ]} />
-            </FormField>
-            <FormField label="Date" required>
-              <input type="date" value={form.date || ''} onChange={e => set('date', e.target.value)} title="Incident date" aria-label="Incident date" className={inputCls} />
-            </FormField>
-            <FormField label="Time" required>
-              <input type="time" value={form.time || ''} onChange={e => set('time', e.target.value)} title="Incident time" aria-label="Incident time" className={inputCls} />
-            </FormField>
-            <div className={t.design === 'dallaglio' ? 'sm:col-span-2' : 'col-span-2'}>
-              <FormField label="Location" required>
-                <ListAutocomplete listName="location" value={form.location || ''} onChange={v => set('location', v)} placeholder="Specific location details" />
-              </FormField>
-            </div>
-          </div>
-          <FormField label="Description of Incident" required>
-            <PredictiveInput historyKey="nm_description" value={form.description || ''} onChange={v => set('description', v)} multiline rows={4}
-              placeholder="Describe what happened, as it occurred…" hints={['While operating equipment', 'During routine maintenance', 'While working at height', 'Near moving machinery', 'Slipped on wet surface', 'Electrical flash observed']} />
-          </FormField>
-          <div className={`grid gap-3 ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
-            <FormField label="Witness Details">
-              <PredictiveInput historyKey="nm_witness" value={form.witnessDetails || ''} onChange={v => set('witnessDetails', v)} placeholder="Names and contact info" />
-            </FormField>
-            <FormField label="Reporter Name">
-              <EmployeeNameInput value={form.reporterName || ''} onChange={(name, emp) => { set('reporterName', name); if (emp?.department && !form.department?.trim()) set('department', emp.department); }} placeholder="Select or type name (optional)" />
-            </FormField>
-          </div>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit near miss report' : 'New near miss report'} description="Department, location and a description are required." submitLabel={report ? 'Save changes' : 'Submit report'} onSubmit={submit} size="lg">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Department" required error={errors.department}>
+          <SuggestField historyKey="nm_department" placeholder="For example, Engineering" value={form.department} onChange={v => set('department', v)} />
+        </Field>
+        <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set('section', v as Section)} options={SECTIONS.map(s => ({ value: s.value, label: s.label }))} /></Field>
+        <Field label="Date"><Input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></Field>
+        <Field label="Time"><Input type="time" value={form.time} onChange={e => set('time', e.target.value)} /></Field>
+        <div className="sm:col-span-2">
+          <Field label="Location" required error={errors.location} description="Choose a known place or type a new one.">
+            <Input list="nm-locations" value={form.location} onChange={e => set('location', e.target.value)} placeholder="Specific location details" />
+            <datalist id="nm-locations">{locations.map(l => <option key={l} value={l} />)}</datalist>
+          </Field>
         </div>
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={report ? 'Update Report' : 'Submit Report'} accent="amber" />
-      </form>
-    </CenterModal>
-  );
-}
-
-// ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-
-function ReportDetailModal({ report, open, onClose, onEdit, onDelete }: {
-  report: NearMissReport | null; open: boolean; onClose: () => void;
-  onEdit: (r: NearMissReport) => void; onDelete: (id: string) => void;
-}) {
-  const t = useTheme();
-  if (!report) return null;
-  const fields = [
-    { label: 'Department', value: report.department },
-    { label: 'Section', value: <StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : SECTION_HEX[report.section]} label={report.section} /> },
-    { label: 'Date', value: fmtDate(report.date) },
-    { label: 'Time', value: fmtTime(report.time) },
-    { label: 'Location', value: report.location, full: true },
-    { label: 'Reporter', value: report.reporterName || 'Anonymous' },
-  ];
-  return (
-    <CenterModal open={open} onClose={onClose} title="Near Miss Report Details" accent="amber" width="max-w-2xl">
-      <div className="p-5 space-y-4">
-        <div className={`grid gap-3 text-sm ${t.design === 'dallaglio' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'}`}>
-          {fields.map(f => (
-            <div key={f.label} className={f.full ? 'col-span-2' : ''}>
-              <div className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{f.label}</div>
-              <div className={t.textMuted}>{f.value}</div>
-            </div>
-          ))}
+        <div className="sm:col-span-2">
+          <Field label="Description of incident" required error={errors.description}>
+            <Textarea rows={4} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Describe what happened, as it occurred" />
+          </Field>
         </div>
-        <div className={`rounded-xl p-3 ${t.chipBg}`}>
-          <div className={`text-[10px] uppercase tracking-wide mb-1.5 ${t.textFaint}`}>Description of Incident</div>
-          <p className={`text-sm whitespace-pre-wrap leading-relaxed ${t.textMuted}`}>{report.description}</p>
-        </div>
-        {report.witnessDetails && (
-          <div className={`rounded-xl p-3 ${t.chipBg}`}>
-            <div className={`text-[10px] uppercase tracking-wide mb-1.5 ${t.textFaint}`}>Witness Details</div>
-            <p className={`text-sm ${t.textMuted}`}>{report.witnessDetails}</p>
-          </div>
-        )}
+        <Field label="Witness details" optional><SuggestField historyKey="nm_witness" placeholder="Names and contact details" value={form.witnessDetails} onChange={v => set('witnessDetails', v)} /></Field>
+        <Field label="Reporter name" optional description="Leave blank to report anonymously.">
+          <Input list="nm-reporters" value={form.reporterName} onChange={e => setReporter(e.target.value)} autoComplete="off" placeholder="Select or type a name" />
+          <datalist id="nm-reporters">{names.map(n => <option key={n.name} value={n.name} />)}</datalist>
+        </Field>
       </div>
-      {t.design === 'dallaglio'
-        ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div>
-        : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-            <button type="button" onClick={onClose} className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-            <button type="button" onClick={() => { onClose(); onEdit(report); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} text-brand-400 hover:text-brand-300 border border-brand-400/25 transition-all`}>Edit</button>
-            <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`flex-1 py-2 rounded-xl text-sm ${TYPE_WEIGHT.medium} ${accentText('rose', t.light)} hover:bg-rose-500/20 border border-rose-500/25 transition-all`}>Delete</button>
-          </div>}
-    </CenterModal>
+    </FormDialog>
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
+}
+
+function DetailDialog({ report, onClose, onEdit, onDelete }: { report: NearMissReport | null; onClose: () => void; onEdit: (r: NearMissReport) => void; onDelete: (r: NearMissReport) => void }) {
+  return (
+    <Dialog
+      open={!!report}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title="Near miss report"
+      description={report ? `${report.department}, ${fmtDate(report.date)}` : undefined}
+      size="lg"
+      footer={report && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
+        </>
+      )}
+    >
+      {report && (
+        <div className="flex flex-col gap-4">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Fact label="Department">{report.department}</Fact>
+            <Fact label="Section"><SectionBadge section={report.section} /></Fact>
+            <Fact label="Date">{fmtDate(report.date)}</Fact>
+            <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
+            <Fact label="Location">{report.location}</Fact>
+            <Fact label="Reporter">{report.reporterName || 'Anonymous'}</Fact>
+          </dl>
+          <div><h3 className="font-sans text-caption text-ink-muted">Description of incident</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.description}</p></div>
+          {report.witnessDetails && <div><h3 className="font-sans text-caption text-ink-muted">Witness details</h3><p className="mt-1 font-sans text-body text-ink">{report.witnessDetails}</p></div>}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
+  { key: 'time', label: 'Time', width: 10 },
+  { key: 'department', label: 'Department', width: 18 },
+  { key: 'section', label: 'Section', width: 14 },
+  { key: 'location', label: 'Location', width: 20 },
+  { key: 'reporterName', label: 'Reporter', width: 18, format: v => (v as string) || 'Anonymous' },
+  { key: 'description', label: 'Description', width: 34 },
+  { key: 'witnessDetails', label: 'Witness Details', width: 26 },
+];
 
 function NearMissContent() {
-  const t = useTheme();
   const confirm = useConfirm();
-  const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, loadError, refreshing, loadReports } = useNearMissData();
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [editingReport, setEditingReport] = useState<NearMissReport | null>(null);
-  const [selectedReport, setSelectedReport] = useState<NearMissReport | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
+  const { reports, loading, loaded, error, errorStatus, refetch } = useNearMissData();
   const [search, setSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
+  const [section, setSection] = useState<string>(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<NearMissReport | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewing, setViewing] = useState<NearMissReport | null>(null);
 
-  const stats = useMemo(() => calcStats(reports), [reports]);
+  const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return reports.filter(r =>
+      (!s || r.department?.toLowerCase().includes(s) || (r.reporterName || '').toLowerCase().includes(s) || r.location?.toLowerCase().includes(s))
+      && (section === ALL || r.section === section)
+      && (!dateFrom || r.date >= dateFrom)
+      && (!dateTo || r.date <= dateTo));
+  }, [reports, search, section, dateFrom, dateTo]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof NearMissReport] ?? '').toLowerCase()), [filtered, sort]);
+  const stats = useMemo(() => {
+    const by = (s: Section) => reports.filter(r => r.section === s).length;
+    return { total: reports.length, mechanical: by('Mechanical'), electrical: by('Electrical'), general: by('General'), reporters: new Set(reports.map(r => r.reporterName?.trim()).filter(Boolean)).size };
+  }, [reports]);
+  const byReporter = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of reports) { const n = r.reporterName?.trim(); if (n) counts.set(n, (counts.get(n) ?? 0) + 1); }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [reports]);
 
-  const filteredReports = useMemo(() => reports.filter(r => {
-    const matchSearch = !search || r.department?.toLowerCase().includes(search.toLowerCase()) ||
-      (r.reporterName || '').toLowerCase().includes(search.toLowerCase()) ||
-      r.location?.toLowerCase().includes(search.toLowerCase());
-    const matchSection = sectionFilter === 'all' || r.section === sectionFilter;
-    const matchFrom = !dateFrom || r.date >= dateFrom;
-    const matchTo = !dateTo || r.date <= dateTo;
-    return matchSearch && matchSection && matchFrom && matchTo;
-  }), [reports, search, sectionFilter, dateFrom, dateTo]);
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || section !== ALL || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(''); setSection(ALL); setDateFrom(''); setDateTo(''); };
 
-  const handleSave = async (formData: Partial<NearMissReport>) => {
-    try {
-      if (editingReport) {
-        const updated = await updateReport(editingReport.id, formData);
-        if (updated) { setReports(p => p.map(r => r.id === updated.id ? updated : r)); toast.success('Report updated'); }
-        else toast.error('Failed to update');
-      } else {
-        const created = await createReport(formData);
-        if (created) { setReports(p => [created, ...p]); toast.success('Report submitted'); }
-        else toast.error('Failed to submit');
-      }
-      setFormOpen(false); setEditingReport(null);
-    } catch { toast.error('Failed to save report'); }
+  const openEditor = (r?: NearMissReport) => { setViewing(null); setEditing(r); setDialogOpen(true); };
+  const remove = async (r: NearMissReport) => {
+    if (!await confirm({ title: 'Delete this report?', message: `${r.department}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteReport(r.id); setViewing(null); toast.success('Report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!await confirm({ title: 'Delete this report?', message: 'This cannot be undone.', destructive: true })) return;
-    const ok = await deleteReport(id);
-    if (ok) { setReports(p => p.filter(r => r.id !== id)); toast.success('Deleted'); }
-    else toast.error('Failed to delete');
-  };
-
-  const toggleRow = (id: string) => setExpandedRows(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const clearFilters = () => { setSearch(''); setSectionFilter('all'); setDateFrom(''); setDateTo(''); };
-  const hasFilters = !!(search || sectionFilter !== 'all' || dateFrom || dateTo);
-  const registerUnavailable = t.design === 'dallaglio' && (loading || (!!loadError && reports.length === 0));
-
-  const selCls = `h-9 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
-
-  const exportColumns: DLColumn[] = [
-    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
-    { key: 'time', label: 'Time', width: 10 },
-    { key: 'department', label: 'Department', width: 18 },
-    { key: 'section', label: 'Section', width: 14 },
-    { key: 'location', label: 'Location', width: 20 },
-    { key: 'reporterName', label: 'Reporter', width: 18, format: v => (v as string) || 'Anonymous' },
-    { key: 'description', label: 'Description', width: 34 },
-    { key: 'witnessDetails', label: 'Witness Details', width: 26 },
+  const COLUMNS: Column<NearMissReport>[] = [
+    { id: 'date', header: 'Date and time', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}<span className="ml-2 text-ink-muted">{fmtTime(r.time)}</span></span> },
+    { id: 'department', header: 'Department', sortable: true, cell: r => r.department },
+    { id: 'section', header: 'Section', sortable: true, cell: r => <SectionBadge section={r.section} /> },
+    { id: 'location', header: 'Location', sortable: true, hideBelow: 'md', cell: r => r.location },
+    { id: 'reporterName', header: 'Reporter', sortable: true, hideBelow: 'lg', cell: r => r.reporterName || <span className="text-ink-muted">Anonymous</span> },
   ];
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={AlertTriangle}
-        accent="violet"
-        crumbs={['Safety & Compliance', 'Near Miss']}
-        title="Near Miss Reporting"
-        description="Report dangerous occurrences — every report helps prevent future incidents"
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Near miss' }]}
+        title="Near miss reporting"
+        description="Report dangerous occurrences. Every report helps prevent a future incident."
+        actions={(
           <>
-            {t.design === 'dallaglio'
-              ? <IconAction meaning="refresh" title="Refresh" onClick={() => loadReports(true)} disabled={refreshing} spinning={refreshing} />
-              : <button type="button" onClick={() => loadReports(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></button>}
-            {filteredReports.length > 0 && (
+            <IconButton icon="refresh" label="Refresh reports" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            {filtered.length > 0 && (
               <DownloadButton
-                data={filteredReports as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                data={filtered as unknown as Record<string, unknown>[]}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('Near_Miss_Reports')}
                 title="Near Miss Reports"
                 statusColumn="section"
-                statusColor={(_v, row) => SECTION_HEX[row.section as NearMissReport['section']]?.replace('#', '')}
+                statusColor={(_v, row) => SECTION_HEX[row.section as Section]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={AlertTriangle} accent="amber" disabled={registerUnavailable} onClick={() => { setEditingReport(null); setFormOpen(true); }}>New Report</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>
           </>
-        }
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <StatTile icon={AlertTriangle} color="#fbbf24" label="Total Reports" value={registerUnavailable ? '—' : stats.total} />
-          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : ACCENT_HEX.blue} label="Mechanical" value={registerUnavailable ? '—' : stats.bySection.Mechanical || 0} />
-          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : '#fbbf24'} label="Electrical" value={registerUnavailable ? '—' : stats.bySection.Electrical || 0} />
-          <StatTile icon={AlertTriangle} color={t.design === 'dallaglio' ? '#94a3b8' : '#a78bfa'} label="General" value={registerUnavailable ? '—' : stats.bySection.General || 0} />
-          <StatTile icon={Users} color={t.design === 'dallaglio' ? '#94a3b8' : '#34d399'} label="Unique Reporters" value={registerUnavailable ? '—' : Object.keys(stats.byReporter).length} />
-        </div>
-      </PageHero>
+        )}
+      />
 
-      {t.design === 'dallaglio' && loadError && (
-        <div role="alert" className={`${t.glass} ${t.shadow} rounded-2xl border ${t.border} px-5 py-4 flex flex-wrap items-center gap-4`}>
-          <AlertTriangle className="h-5 w-5 shrink-0 text-rose-500" />
-          <div className="min-w-0 flex-1">
-            <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Could not load near miss reports</p>
-            <p className={`mt-0.5 text-xs ${t.textFaint}`}>{loadError}</p>
-          </div>
-          <Button variant="secondary" size="sm" onClick={() => loadReports()}>Try again</Button>
-        </div>
+      <MetricGrid columns={5}>
+        <MetricTile label="Total reports" icon="warning" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Mechanical" icon="mechanical" value={stats.mechanical} loading={pending} unavailable={unavailable} selected={section === 'Mechanical'} onClick={() => setSection(section === 'Mechanical' ? ALL : 'Mechanical')} />
+        <MetricTile label="Electrical" icon="electrical" value={stats.electrical} loading={pending} unavailable={unavailable} selected={section === 'Electrical'} onClick={() => setSection(section === 'Electrical' ? ALL : 'Electrical')} />
+        <MetricTile label="General" icon="general" value={stats.general} loading={pending} unavailable={unavailable} selected={section === 'General'} onClick={() => setSection(section === 'General' ? ALL : 'General')} />
+        <MetricTile label="Unique reporters" icon="employees" value={stats.reporters} loading={pending} unavailable={unavailable} />
+      </MetricGrid>
+
+      <Toolbar filtered={hasFilters}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, reporter or location" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-44" aria-label="Filter by section" value={section} onValueChange={setSection} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s.value, label: s.label }))]} />
+        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
+
+      {byReporter.length > 0 && (
+        <section aria-label="Reports by reporter" className="flex flex-wrap items-center gap-2">
+          <span className="font-sans text-caption text-ink-muted">By reporter</span>
+          {byReporter.map(([name, count]) => <StatusBadge key={name} tone="neutral">{name} · {count}</StatusBadge>)}
+        </section>
       )}
 
-      {sections.expanded.records && <>
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search department, reporter, location…" className={t.design === 'dallaglio' ? 'w-72 max-w-full' : 'w-56'} />
-            <SelectField size={t.design === 'dallaglio' ? 'form' : 'filter'} title="Section" value={sectionFilter} onChange={setSectionFilter}
-              options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }, { value: 'General', label: 'General' }]} />
-            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && (t.design === 'dallaglio'
-              ? <Button variant="ghost" size="sm" icon={X} title="Clear filters" onClick={clearFilters}>Clear</Button>
-              : <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>)}
-            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filteredReports.length} of {reports.length}</span>
-          </div>
-        </div>
-
-        {Object.keys(stats.byReporter).length > 0 && (
-          <div className={`${t.glass} rounded-2xl px-5 py-3 flex flex-wrap items-center gap-2`}>
-            <span className={`text-[10px] uppercase tracking-wider mr-1 flex items-center gap-1 ${t.textFaint}`}><Users className="h-3 w-3" /> By Reporter:</span>
-            {Object.entries(stats.byReporter).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
-              <span key={name} className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full ${t.chipBg} ${t.textMuted}`}>{name} <span className={`${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{count}</span></span>
-            ))}
-          </div>
-        )}
-
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)}`} /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Near Miss Reports</span><span className={`ml-auto text-xs ${t.textFaint}`}>{filteredReports.length}</span></div>
-          {loading ? (
-            <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-          ) : t.design === 'dallaglio' && loadError && reports.length === 0 ? null : t.design !== 'dallaglio' && loadError ? (
-            // Never show the friendly "no reports yet" state over a failed load.
-            <EmptyState icon={AlertTriangle} title="Could not load reports"
-              message={loadError}
-              action={{ label: 'Try again', onClick: () => loadReports() }} />
-          ) : filteredReports.length === 0 ? (
-            <EmptyState icon={AlertTriangle} title="No reports found"
-              message={hasFilters ? 'No records match your filters' : 'Submit the first near miss report using the button above'}
-              action={hasFilters ? undefined : { label: 'New Report', onClick: () => { setEditingReport(null); setFormOpen(true); } }} />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Date & Time</th><th className={thCls}>Department</th><th className={thCls}>Section</th><th className={thCls}>Location</th><th className={thCls}>Reporter</th><th className={thCls}><span className="sr-only">Actions</span></th></tr>
-                </thead>
-                <tbody>
-                  {filteredReports.map(report => {
-                    const expanded = expandedRows.has(report.id);
-                    return (
-                      <React.Fragment key={report.id}>
-                        <tr className={`border-b ${t.border} cursor-pointer transition-colors ${expanded ? t.chipBg : t.hoverBgSoft}`} onClick={() => { setSelectedReport(report); setDetailOpen(true); }}>
-                          <td className="px-3 py-3 whitespace-nowrap"><div className={`text-xs ${t.textMuted}`}>{fmtDate(report.date)}</div><div className={`text-[10px] mt-0.5 ${t.textFaint}`}>{fmtTime(report.time)}</div></td>
-                          <td className={`px-3 py-3 text-sm ${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{report.department}</td>
-                          <td className="px-3 py-3"><StatusBadge color={t.design === 'dallaglio' ? '#94a3b8' : SECTION_HEX[report.section]} label={report.section} /></td>
-                          <td className={`px-3 py-3 text-xs max-w-[160px] truncate ${t.textFaint}`}>{report.location}</td>
-                          <td className={`px-3 py-3 text-xs ${t.textFaint}`}>{report.reporterName || <span className="italic opacity-60">Anonymous</span>}</td>
-                          <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                            <div className="flex gap-1 justify-end">
-                              {t.design === 'dallaglio' ? <>
-                                <DisclosureButton open={expanded} label="report details" onClick={() => toggleRow(report.id)} />
-                                <RecordActions onEdit={() => { setEditingReport(report); setFormOpen(true); }} onDelete={() => handleDelete(report.id)} />
-                              </> : <>
-                                <button type="button" title={expanded ? 'Collapse' : 'Expand'} aria-label={expanded ? 'Collapse report details' : 'Expand report details'} onClick={() => toggleRow(report.id)} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>{expanded ? '−' : '+'}</button>
-                                <button type="button" title="Edit" aria-label="Edit near miss report" onClick={() => { setEditingReport(report); setFormOpen(true); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}>✎</button>
-                                <button type="button" title="Delete" aria-label="Delete near miss report" onClick={() => handleDelete(report.id)} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}>×</button>
-                              </>}
-                            </div>
-                          </td>
-                        </tr>
-                        {expanded && (
-                          <tr className={`border-b ${t.border}`}>
-                            <td colSpan={6} className="px-5 py-4">
-                              <div className={`text-[10px] uppercase tracking-wider mb-1.5 ${t.textFaint}`}>Description</div>
-                              <p className={`text-sm whitespace-pre-wrap leading-relaxed ${t.textMuted}`}>{report.description}</p>
-                              {report.witnessDetails && (
-                                <>
-                                  <div className={`text-[10px] uppercase tracking-wider mt-3 mb-1 ${t.textFaint}`}>Witness Details</div>
-                                  <p className={`text-xs ${t.textFaint}`}>{report.witnessDetails}</p>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+      <DataRegion
+        status={status}
+        subject="near miss reports"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No reports match" description="Try a different search, section or date range." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} />}
+      >
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}</p>
+        <DataTable
+          caption="Near miss reports"
+          rows={rows}
+          columns={COLUMNS}
+          getRowId={r => r.id}
+          sort={sort}
+          onSortChange={setSort}
+          onRowActivate={setViewing}
+          rowActions={r => (
+            <span className="inline-flex gap-1">
+              <IconButton icon="edit" size="sm" label={`Edit report from ${r.department}, ${fmtDate(r.date)}`} onClick={() => openEditor(r)} />
+              <IconButton icon="delete" variant="danger" size="sm" label={`Delete report from ${r.department}, ${fmtDate(r.date)}`} onClick={() => remove(r)} />
+            </span>
           )}
-        </div>
-      </>}
+        />
+      </DataRegion>
 
-      <ReportFormModal open={formOpen} onClose={() => { setFormOpen(false); setEditingReport(null); }} onSave={handleSave} report={editingReport} />
-      <ReportDetailModal report={selectedReport} open={detailOpen} onClose={() => setDetailOpen(false)} onEdit={r => { setEditingReport(r); setFormOpen(true); }} onDelete={handleDelete} />
-    </main>
+      <DetailDialog report={viewing} onClose={() => setViewing(null)} onEdit={openEditor} onDelete={remove} />
+      <ReportDialog report={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
 export default function NearMissPage() {
-  return (
-    <AppShell>
-      <NearMissContent />
-    </AppShell>
-  );
+  return <AppShell migrated><NearMissContent /></AppShell>;
 }

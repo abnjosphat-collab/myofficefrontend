@@ -60,6 +60,10 @@ jobs:
       - name: Lint
         run: npx eslint . --ext .ts,.tsx
 
+      - name: Documentation checks
+        # TypeDoc contracts, the generated migration ledger (stale or inconsistent fails) and relative Markdown links.
+        run: npm run docs:check
+
       - name: Unit tests and coverage floor
         run: npm run test:coverage
 

@@ -1,58 +1,17 @@
-// app/sheq_inspection/useSheqInspectionData.ts — the SHEQ inspection page's data-fetching
-// layer: single-resource CRUD plus a hook that owns the inspection list and its
-// loading/refreshing flags. Split out of page.tsx as part of the standing "decompose on
-// touch" convention. One resource, one load cycle — closest precedent is employees.tsx.
+// app/sheq_inspection/useSheqInspectionData.ts — the SHEQ inspection register's data layer: record CRUD plus the
+// list hook. Writes throw on failure so the form dialog can show the reason and keep the user's input; a failed
+// load is reported (never an empty list) through useApiList.
 'use client';
 
-import { useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
 import type { SHEQFormData } from './types';
 
-// Throws on failure — a `catch { return [] }` here would make a server
-// outage indistinguishable from "no inspections yet".
-export async function getInspections(): Promise<SHEQFormData[]> {
-  const data = await api.get<SHEQFormData[]>('/api/sheq/');
-  return Array.isArray(data) ? data : [];
-}
-export async function createInspection(data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return api.post<SHEQFormData>('/api/sheq/', data);
-}
-export async function updateInspection(id: string, data: Partial<SHEQFormData>): Promise<SHEQFormData> {
-  return api.patch<SHEQFormData>(`/api/sheq/${id}/`, data);
-}
-export async function deleteInspection(id: string): Promise<void> {
-  await api.delete(`/api/sheq/${id}/`);
-}
+export const createInspection = (data: Partial<SHEQFormData>) => api.post<SHEQFormData>('/api/sheq/', data);
+export const updateInspection = (id: string, data: Partial<SHEQFormData>) => api.patch<SHEQFormData>(`/api/sheq/${id}/`, data);
+export const deleteInspection = (id: string) => api.delete(`/api/sheq/${id}/`);
 
 export function useSheqInspectionData() {
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [inspections, setInspections] = useState<SHEQFormData[]>([]);
-  const [loadError, setLoadError] = useState('');
-  const requestRef = useRef(0);
-
-  const load = async (quiet = false) => {
-    const requestId = ++requestRef.current;
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    setLoadError('');
-    try {
-      const nextInspections = await getInspections();
-      if (requestId !== requestRef.current) return;
-      setInspections(nextInspections);
-    }
-    catch (error) {
-      if (requestId !== requestRef.current) return;
-      setLoadError(error instanceof Error ? error.message : 'Could not load SHEQ inspections.');
-      toast.error('Failed to load inspections');
-    }
-    finally {
-      if (requestId === requestRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  };
-
-  return { inspections, setInspections, loading, refreshing, loadError, load };
+  const list = useApiList<SHEQFormData>('/api/sheq/');
+  return { inspections: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
 }

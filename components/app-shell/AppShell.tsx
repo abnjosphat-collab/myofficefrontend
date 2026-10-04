@@ -1,39 +1,29 @@
-// components/app-shell/AppShell.tsx — the shared page wrapper: homepage's own
-// background/header/sidebar/footer chrome for every module route. Legacy
-// PageShell/Header/Footer were removed Sep 2026. No wallpaper here, per the homepage design.
+// components/app-shell/AppShell.tsx — the shared page frame for every module route, built only from
+// the UI system (components/ui-system). One appearance, one top bar (Feedback, notifications and
+// settings live there), a sidebar that is a drawer below lg, and no bottom status bar. The document
+// scrolls; there is no inner scroll container.
+//
+// `migrated` is true for routes that already use the UI system. Routes that have not migrated yet
+// still render their own spacing and get the saved text size through CSS zoom on their content only
+// (never on the shell); the flag and that zoom go away with the last legacy route.
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
-import { Bookmark, X } from '@/components/shared/theme';
-import {
-  useTheme, CenterModal, DEFAULT_BG_ACCENT, bgLayersFromHex, AccentIcon, IconAction,
-} from '@/components/shared/theme';
-import { TopNavigation } from './TopNavigation';
-import { SidebarNavigation } from './SidebarNavigation';
-import { BottomBar } from './BottomBar';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AppFrame, Button, Dialog, IconButton, useAppearance } from '@/components/ui-system';
+import { ShellSidebar } from './ShellSidebar';
+import { ShellTopBar } from './ShellTopBar';
+import { ShellSettings } from './ShellSettings';
 import { UsageTracker } from './UsageTracker';
 import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
 import { useAppShellState } from './useAppShellState';
 import { AppShellContext } from './context';
-import { PreferencesPanel } from './PreferencesPanel';
 import { QuickActionsManagePanel } from './QuickActionsManagePanel';
 import { ActiveNoticesPopup } from './ActiveNoticesPopup';
-import { hasSeenPrefs } from '@/lib/prefs';
-import ds from '@/components/shared/design-system/dallaglio/shell.module.css';
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const t = useTheme();
+export function AppShell({ children, migrated = false }: { children: ReactNode; migrated?: boolean }) {
   const s = useAppShellState();
-  const bgAccent = DEFAULT_BG_ACCENT;
-  const bgLayers = useMemo(() => bgLayersFromHex(bgAccent), []);
-
-  // Preferences panel + first-run setup: open it once (in welcome mode) for accounts that
-  // haven't seen it. Closing/saving marks it seen (see PreferencesPanel.close()).
-  const [prefsOpen, setPrefsOpen] = useState(false);
-  const [prefsWelcome, setPrefsWelcome] = useState(false);
-  useEffect(() => {
-    if (!hasSeenPrefs()) { setPrefsWelcome(true); setPrefsOpen(true); }
-  }, []);
+  const { appearance } = useAppearance();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // App-wide: clicking anywhere in a date/time input opens the native picker (not just
   // the tiny calendar glyph). Delegated so it covers every page's date fields without
@@ -53,90 +43,70 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener('click', onClick);
   }, []);
 
+  const legacyZoom = !migrated && appearance.fontSize !== 100 ? appearance.fontSize / 100 : undefined;
+
   return (
     <AppShellContext.Provider value={s}>
-    <UsageTracker />
-    <ServiceWorkerRegistrar />
-    <div
-      data-ds="shell"
-      className={t.design === 'dallaglio' ? ds.shell : 'relative flex h-screen flex-col'}
-      style={t.design === 'dallaglio' ? undefined : { background: t.light ? bgLayers.light : bgLayers.darkWash }}
-    >
-      <TopNavigation
-        onMenuToggle={() => s.setSidebarOpen(!s.sidebarOpen)}
-        searchQuery={s.searchQuery}
-        onSearchChange={s.setSearchQuery}
-        mobileSearchOpen={s.mobileSearchOpen}
-        setMobileSearchOpen={s.setMobileSearchOpen}
-        onCustomize={() => s.setCustomizeOpen(true)}
-        onPreferences={() => { setPrefsWelcome(false); setPrefsOpen(true); }}
-        accentHex={bgAccent}
-        visibleCategories={s.visibleCategories}
-      />
+      <UsageTracker />
+      <ServiceWorkerRegistrar />
+      <AppFrame
+        contained={migrated}
+        topBar={(
+          <ShellTopBar
+            searchQuery={s.searchQuery}
+            onSearchChange={s.setSearchQuery}
+            mobileSearchOpen={s.mobileSearchOpen}
+            onMobileSearchChange={s.setMobileSearchOpen}
+            onOpenSettings={() => setSettingsOpen(true)}
+            visibleCategories={s.visibleCategories}
+          />
+        )}
+        sidebar={(
+          <ShellSidebar
+            open={s.sidebarOpen}
+            onOpenChange={s.setSidebarOpen}
+            collapsed={s.sidebarCollapsed}
+            onToggleCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
+            favoriteModules={s.favoriteModules}
+            onToggleFavorite={s.toggleFavorite}
+            visibleCategories={s.visibleCategories}
+          />
+        )}
+      >
+        {legacyZoom ? <div style={{ zoom: legacyZoom }}>{children}</div> : children}
+      </AppFrame>
 
-      <div className="flex flex-1 overflow-hidden">
-        <SidebarNavigation
-          isOpen={s.sidebarOpen}
-          onClose={() => s.setSidebarOpen(false)}
-          collapsed={s.sidebarCollapsed}
-          onToggleCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
-          favoriteModules={s.favoriteModules}
-          accentHex={bgAccent}
-          onToggleFavorite={s.toggleFavorite}
-          visibleCategories={s.visibleCategories}
-        />
+      <Dialog
+        open={s.customizeOpen}
+        onOpenChange={s.setCustomizeOpen}
+        title="Customise favourites"
+        description="Manage the modules pinned to your sidebar."
+        size="sm"
+        footer={<Button onClick={() => s.setCustomizeOpen(false)}>Done</Button>}
+      >
+        {s.favoriteModules.length === 0 ? (
+          <p className="font-sans text-body text-ink-muted">Nothing pinned yet. Use the bookmark on a module card on the home page.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {s.favoriteModules.map(({ module }) => (
+              <li key={module.href} className="flex items-center justify-between gap-2 rounded-control border border-line-subtle bg-surface px-3 py-2">
+                <span className="min-w-0 truncate font-sans text-body text-ink">{module.title}</span>
+                <IconButton icon="close" variant="danger" size="sm" label={`Remove ${module.title} from favourites`} onClick={() => s.toggleFavorite(module.href)} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dialog>
 
-        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${s.sidebarCollapsed ? 'lg:ml-[76px]' : 'lg:ml-64'} pb-9 ${t.design === 'dallaglio' ? ds.main : ''}`}>
-          {children}
-        </main>
-      </div>
-
-      <BottomBar
+      <ShellSettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
         sidebarCollapsed={s.sidebarCollapsed}
-        onOpenCustomize={() => s.setCustomizeOpen(true)}
-        onOpenPreferences={() => { setPrefsWelcome(false); setPrefsOpen(true); }}
-        onToggleSidebarCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
+        onSidebarCollapsedChange={s.setSidebarCollapsed}
         onResetCustomizations={s.resetCustomizations}
       />
-
-      <CenterModal
-        open={s.customizeOpen}
-        onClose={() => s.setCustomizeOpen(false)}
-        title="Customize"
-        subtitle="Manage your pinned favorites"
-        accent="violet"
-        width="max-w-lg"
-      >
-        <>
-          {s.favoriteModules.length === 0 ? (
-            <p className={`text-[13px] ${t.textFaint} p-5`}>No favorites pinned yet — hover a module on the homepage and tap the bookmark icon.</p>
-          ) : (
-            <div className="p-5 space-y-1">
-              {s.favoriteModules.map(({ module }) => (
-                <div key={module.href} className={t.design === 'dallaglio' ? 'flex items-center justify-between gap-2 rounded-[9px] border border-[var(--d-line)] bg-[var(--d-surface)] px-3 py-2' : `flex items-center justify-between gap-2 px-3 py-2 rounded-lg ${t.hoverBgSoft}`}>
-                  <span className="flex items-center gap-2 min-w-0">
-                    {t.design === 'dallaglio' ? <module.icon className="h-[18px] w-[18px] shrink-0 text-[var(--d-ink-muted)]" weight="light" aria-hidden="true" /> : <AccentIcon icon={Bookmark} accent="brand" className="h-3.5 w-3.5 shrink-0" weight="fill" />}
-                    <span className={`text-[13px] ${t.textMuted} truncate`}>{module.title}</span>
-                  </span>
-                  {t.design === 'dallaglio' ? <IconAction meaning="close" title={`Remove ${module.title} from favorites`} onClick={() => s.toggleFavorite(module.href)} /> : <button
-                    onClick={() => s.toggleFavorite(module.href)}
-                    type="button"
-                    title="Remove from favorites"
-                    className={`p-1 rounded ${t.hoverBg} text-rose-500 ${t.light ? 'hover:text-rose-600' : 'hover:text-rose-400'} transition-colors shrink-0`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      </CenterModal>
-
-      <PreferencesPanel open={prefsOpen} onClose={() => setPrefsOpen(false)} welcome={prefsWelcome} />
       <QuickActionsManagePanel open={s.quickActionsManageOpen} onClose={() => s.setQuickActionsManageOpen(false)} />
       <ActiveNoticesPopup />
-    </div>
     </AppShellContext.Provider>
   );
 }

@@ -1,0 +1,162 @@
+# Current handoff: MyOffice redesign
+
+**Status as of 3 Oct 2026.** This is the one current handoff; any agent or developer, in any tool, should start here.
+It supersedes [`CLAUDE_HANDOFF_2026-09-30.md`](./CLAUDE_HANDOFF_2026-09-30.md), [`MUSE_HANDOFF_2026-10-01.md`](./MUSE_HANDOFF_2026-10-01.md),
+their prompt files, and is the summary of [`CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md`](./CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md)
+(the checkpoint keeps the long per-route narrative and defects found).
+Update this file at every milestone and before stopping for any reason.
+
+## 1. Goal and decisions
+
+Rebuild MyOffice around the real Tools & Equipment (`/tools`) interface as one shared design system.
+
+- One appearance. There is no light/dark switch and no old theme. Text size (85–130%) is the only appearance preference.
+- Preserve business behaviour. Keep Feedback visible in the top bar. The old bottom bar and its hard-coded status are gone.
+- Never fake data and never show a failed load as an empty list (`DataRegion` / `deriveDataStatus`).
+- A passing build or spec is not visual verification. Rendering is inspected and recorded by hand
+  in [`migration-verification.json`](./migration-verification.json).
+- Confirmed with the owner: the new sidebar drops "Recent activity", "Operations snapshot" and "Tips"; the first-run
+  preferences popup is not carried over.
+- Settings uses the spanner (Wrench), same as Tools. Icon meaning lives in `components/ui-system/icon-meanings.ts`.
+- Website and installed apps are one codebase and one deployment ([`PWA_UPDATES.md`](./PWA_UPDATES.md)).
+
+**Standing constraints from the owner:** do not commit, push, deploy, run database migrations or alter live records
+without explicit authorisation. Preserve pre-existing uncommitted edits. Work inline; keep chat concise; never put
+credentials or private business records in docs.
+
+## 2. Git state (two separate repositories)
+
+| Repo | Branch | HEAD when written | Dirty |
+|---|---|---|---|
+| `frontend/` | `main` | `1c699f8` | about 183 paths, all uncommitted |
+| `backend/` | `main` | `d2e0e2a` | 1: `docs/NEC_TIMESHEET_RULES.md` (pre-existing, not mine) |
+
+Nothing from this redesign has been committed or pushed. Dirty frontend work, by owner:
+
+- **Redesign (this effort):** `components/ui-system/**`, `components/app-shell/**` (new shell files; old TopNavigation,
+  SidebarNavigation, BottomBar, PreferencesPanel deleted), migrated route folders (section 5), `lib/useApiList.ts`,
+  `lib/serviceWorkerSource.ts`, `lib/registerServiceWorker*`, `app/sw.js/`, `app/globals.css`, `app/layout.tsx`,
+  `components/Providers.tsx`, `components/shared/SuggestField.tsx`, `scripts/**`, `docs/**` listed here, `.github/workflows/ci.yml`,
+  `eslint.config.mjs`, `package.json`, manifests, `public/sw.js` deleted.
+- **Pre-existing, not part of the redesign, preserve:** the `app/tools/**` edits (Tools polish, 2 Oct), `app/timesheets/**`,
+  `app/ppe/**`, `app/breakdowns/**`, `app/spares/**` changes, `e2e/smoke.mjs`, `docs/tools-polish-2026-10-02/`,
+  `docs/NEC_TIMESHEET_RULES.md`, and similar. If unsure whether a file is yours, `git diff` it before touching; never
+  blanket-commit the working tree.
+
+## 3. Architecture entry points
+
+| Topic | Read |
+|---|---|
+| Design system contract (tokens, roles, primitives, patterns, shell) | [`../components/ui-system/README.md`](../components/ui-system/README.md) |
+| UI stack, theme, shell structure | [`UI_ARCHITECTURE.md`](./UI_ARCHITECTURE.md) |
+| Failure handling, wiring rules | [`ENGINEERING_STANDARDS.md`](./ENGINEERING_STANDARDS.md) |
+| Tests, verification scripts | [`TESTING.md`](./TESTING.md) |
+| PWA, service worker, update path | [`PWA_UPDATES.md`](./PWA_UPDATES.md) |
+| Route status | [`MIGRATION_LEDGER.md`](./MIGRATION_LEDGER.md) (generated) |
+| Long narrative, defects found per route | [`CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md`](./CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md) |
+| Doc conventions | [`DOCUMENTATION_STANDARD.md`](./DOCUMENTATION_STANDARD.md) |
+
+Key facts: `<AppShell migrated>` selects the new frame; tokens are `--mo-*` on `:root`; breakpoint is 821 px (Tailwind 4
+`max-*` is exclusive, so write mobile-first `min-[821px]`); coarse pointers get 44 px targets (`pointer-coarse:`); safe areas via
+`--mo-safe-*`; server components must not import the ui-system barrel (import `appearance` by path).
+
+## 4. Implemented vs not yet wired
+
+Implemented: foundation, primitives, patterns, new shell (sidebar with spotlight, top bar, mobile strip and drawer, notifications,
+feedback, settings, account menu), appearance record and pre-paint script, PWA update path, ledger and link checks.
+Not wired: 24 routes still render a legacy page body inside the new shell (they work but keep old components); `/inventory`
+has no backend table behind its migrated UI (decision pending, below).
+
+## 5. Route ledger summary
+
+56 routes: **47 migrated**, 0 legacy body on new shell, 5 redirects, 4 own chrome; 52 browser-verified (the 47, plus the
+`/ppe/allocate`, `/standby`, `/av` and `/leave-management` redirects). Every route is now migrated: the layout pass still needs the geometric overlay audit on the newly migrated routes and a real-device check (below).
+Migrated and verified at 1440/820/390/320 (`/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard` added 3 Oct): `/`, `/contractors`, `/competency`, `/compliance-register`, `/reliability`,
+`/condition-monitoring`, `/engineering-dashboard`, `/job-cards`, `/inventory`, `/training`, `/sop-library`, `/drivers`,
+`/admin/lists`, `/engineering_report`, `/usage-analyzer`, `/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard`. Everything else: not checked. The authoritative per-route table is
+the generated ledger; do not trust this paragraph over it.
+
+Shell parity with Tools (gate passed 3 Oct): `scripts/verify-shell-parity.mjs` compares computed styles against live `/tools`
+(layout, typography, icon family/weight with SVG path equality, spacing, hover/selected, tooltips, collapse, motion, mobile drawer,
+safe areas, portrait/landscape, emulated touch with 44 px targets). Remaining known differences: MyOffice has more modules and
+labels by design; the notification and feedback popovers are MyOffice-only. Not covered: real iOS/Android devices.
+
+## 6. Commands (run from `frontend/`; dev server http://localhost:3000)
+
+```
+npx tsc --noEmit                     # typecheck
+npx eslint .                         # lint
+npx vitest run                       # unit tests (98 files / 685 tests at last run)
+npm run build                        # production build
+npm run docs:check                   # typedoc + ledger current + link check
+npm run docs:ledger                  # regenerate the ledger
+node scripts/verify-routes.mjs       # route specs (browser, fixture session, mocked API)
+node scripts/verify-shell-parity.mjs # shell vs /tools, incl. touch
+node scripts/verify-pwa-update.mjs   # needs a build; serves two stamps on 3201
+```
+
+## 7. Known failures and unverified claims
+
+- No real-device or installed-PWA test has been done (Playwright cannot install a PWA).
+- 34 legacy routes have not been rendered with fixtures; some have the known antipatterns (fail-as-empty, auth-gate spinner).
+- PDF snapshot: [`snapshots/MYOFFICE_REDESIGN_SNAPSHOT.pdf`](./snapshots/MYOFFICE_REDESIGN_SNAPSHOT.pdf), generated 3 Oct 2026 by `node scripts/docs-pdf.mjs` (8 pages). Verified by extracting text from the first and last pages with pdf.js; **page layout was not inspected visually** (no rasteriser installed), so open it once by eye. Regenerate at the next stable milestone.
+- Production build and `verify-pwa-update.mjs` were rerun on the final shell code on 3 Oct 2026 and passed.
+- Capped list routes: pages were showing only the newest 100/200/30 rows. Fixed for `/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/pto`, `/reliability`, `/engineering-dashboard`, `/engineering_report` and the `/sheq` dashboard (see `ENGINEERING_STANDARDS.md` section 6). Legacy pages not yet migrated, and any other page that calls a `limit` route plainly, may still be cut off. `/pachedu` is now on the shared paged hook. `/api/compliance` and `/api/lubrication` rely on the database's own row cap.
+- Those three engineering pages called `/api/breakdowns` (an info object, not records), so live they could never have shown breakdowns. Corrected, but not yet run against real data.
+- The MyOffice `REPORT_TARGETS` values are placeholders awaiting the owner.
+
+Finish ("fine linen") pass: audited nine pages at desktop, tablet and phone (`docs/linen/`), refined shared wrapping, numerals, caption tracking and legacy heading weight; decisions in `components/ui-system/README.md`. Remaining: installed-PWA and touch-device check, and the same audit on each route as it migrates (run `node scripts/linen-audit.mjs --label <name>`).
+
+## 8a. Wireframe and typography review (owner instruction, 3 Oct 2026)
+
+Page-body migration is paused at a milestone boundary (last route: `/tasks-events`) while the layout architecture is reviewed. Done: every route rendered at 1440 and 390 px and its structure measured (`docs/wireframes/before/`), eight page patterns and six overlay patterns defined in [PAGE_PATTERNS.md](./PAGE_PATTERNS.md), each route assigned a pattern in [WIREFRAME_LEDGER.md](./WIREFRAME_LEDGER.md), the typography pairing reviewed on the rendered patterns (kept), and two shared changes made: `Toolbar` collapses its filters behind a Filters button on phones, and `PageHeader` carries a hairline rule. Shared changes made and verified on all 30 migrated routes (after-captures in `docs/wireframes/after/`; route specs pass): `Toolbar` collapses filters behind a Filters button on phones (looks through fragments), `PageHeader` has a hairline rule, `MetricGrid` is one swipeable row on phones and columns from 768 px, and `RecordCard` lets its status badges wrap below a crowded title. Overlays reviewed 4 Oct 2026 on every migrated route (`scripts/overlay-audit.mjs`, results in `docs/overlays/before/`): create, detail, manage and confirm dialogs and the Download menu open at desktop and phone, all fit the screen, take focus, close on Escape and keep their action reachable (the compressor reading dialog scrolls its own Save on a phone). Fixed from that review: the compressor status dialog is a 2x2 option grid, requisition numbers no longer wrap. Not yet done: the 18 legacy routes have not been rebuilt to their pattern, and tablet was only spot-checked. Next: resume migration in pattern order using the ledger (planning grids and workflow pages next, since they are the least covered patterns). The system-wide layout pass is not complete until every route and significant overlay has been reviewed in the rendered app.
+
+## 8. Next bounded item
+
+Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
+
+1. The geometric overlay audit on the newly migrated routes (`MSYS_NO_PATHCONV=1 node scripts/overlay-audit.mjs --label <name> --only /a,/b`).
+2. DONE 4 Oct 2026: a chunked re-run of all 44 route specs passed; the wireframe audit (`docs/wireframes/after-2026-10-04/`) and the linen audit (`docs/linen/after-2026-10-04/`, its fixed page set only, so the routes migrated today are not in it) ran with no contrast, icon-alignment or page-overflow failures (the one "clipped under text spacing" per page is a constant shell element, as before).
+3. DONE 4 Oct 2026: the PDF snapshot was regenerated.
+4. A real-device or installed-PWA check by a person (not possible from the build machine).
+5. DONE 4 Oct 2026: the 45 files nothing imported (the unused shadcn primitives in `components/ui`, the old autocomplete cluster, `PillTabs`, `UnderlineTabs`, `CollapsibleSection`, `RequireAuth`, `components/safety/index.tsx`, `lib/status.ts`, `lib/useEquipment.ts`, the classic design-system index) were deleted with `git rm`, so they are in history if one is ever wanted back. `node scripts/find-orphans.mjs` now lists only three files, all under `app/tools` (the owner's in-progress area). `SignaturePad`, `PhotoUpload` and `SopFormDialog` are still on the old theme bridge.
+
+## 9. Pending product decisions
+
+**Decided by the owner on 4 Oct 2026 (later), and done:**
+- `/quotations` and `/inventory` stay as they are (the browser-only generator; the browser-local inventory with its notice).
+- `/timesheets` roster: PP288 is no longer excluded in code; everyone is on the roster by employment type like everyone else (hide or add a person by hand still works).
+- Loading: a read that fails because the service is slow, waking up or unreachable (408, 429, 500, 502, 503, 504, a lost connection) is retried quietly with a growing delay (1, 2, 4, 8 s, then every 15 s) and the page keeps loading until records appear; a refusal, a not-found, a bad request or a malformed answer is still reported at once. This applies to every list and resource read (`lib/useApiList.ts`, `lib/useApiResource.ts`, the breakdown analytics) and the retrying notice shows the service's last answer. `/timesheets` already did this in its own reads. The route-spec harness now injects a 404 for "failed load" because a 500 is waited out.
+- `/artisan-timesheets`: the saved list asks the backend for a summary (`GET /api/artisan-timesheets?summary=true`: no daily rows, no signatures; every page is read) and a timesheet is fetched in full only when opened. 2 new backend tests.
+- `/leaves` (owner left it to me; backend, not deployed): deleting a leave request is manager-only, and changing a request that has already been approved or rejected (editing it, or reopening it to pending) is manager-only; a pending request can still be amended by anyone signed in. 3 new backend tests.
+- `/compressors`: left alone for now; to be dealt with separately ("Mark as done" and the running meter, item 5 below).
+- Overtime weekly roster: the title exclusions (manager, trainee, foreman, hoist driver) and the named exclusions stay, because those titles are not paid overtime. `/compressors` stays as it is, including "Mark as done" setting the running hours to the service interval.
+- Spares bulk import (backend): left alone for now; the owner still has to check live stock after earlier "update" imports.
+- Approvals use signatures. Maintenance: the artisan and foreman sign-offs are drawn, uploaded or saved signatures (`SignOffField`, stored as an image in `artisan_sign` / `foreman_sign`; an earlier typed name is shown as text until replaced). Services: each approval stage is signed through the signature step (`ApprovalGate`); the signer's name is recorded from their account. The signature image of a service stage is kept in a new `services.stage_signatures` jsonb column (backend `supabase_migration_services_stage_signatures.sql`, authorised by the owner 4 Oct 2026; applied to the live database on 4 Oct 2026 through the Supabase connection, one `ALTER TABLE` and nothing else; the column reads back as `{}` on every existing record; the repo's own tracker table `schema_migrations` does not exist on the live database, so it was not recorded there). The register list leaves the images out; `GET /api/services/{id}/signatures` and `PUT /api/services/{id}/signatures/{stage}` read and keep them (6 new backend tests). `SignatureField` moved to `components/shared`. `ApprovalGate` keeps the signature step mounted while an approval applies, so a refused approval leaves the signature as drawn.
+- The shell's quick-actions code is kept for later use (not removed).
+- Sidebar text is black (`text-ink`) instead of grey; the top bar matches the Tools top bar (lines above and below, shadow, blur, 60px).
+- Employee offences stay out of the employee detail view (they are held on the record and edited in the form only), as it already was.
+
+**Still open:**
+
+1. `/inventory`: kept as is (decided).
+2. `/quotations`: decided to keep (see above).
+3. `REPORT_TARGETS` in `lib/engineeringReport.ts`: owner to supply real targets.
+4. `/sheq` safety score: owner said to leave the SHEQ page alone; no decision needed now.
+5. `/compressors` "Mark as done": decided to keep as is (see above).
+6. DECIDED 4 Oct 2026: `/av` redirects to `/availabilities`; `/availability` is kept and linked as "Availability Overview"; `/leave-management` (a demo prototype with sample data) redirects to `/leaves`; `/leaves` stays; `/employees-preview` is retired once `/employees` is rebuilt. Still open from that item: for equipment with no availability record the backend reports defaults (100% available, MTBF 100 h, MTTR 4 h) as if measured; the page now says so, but the backend could return nulls instead.
+
+7. `/spares/import` DEFECT FIXED (backend repo, uncommitted): the bulk import's "Update existing" mode wrote every model default (stock on hand 0, min 1, max 5, priority medium, no supplier or location) over each existing part, because the update used the whole validated model. The backend now updates only the fields the client sent (`exclude_unset`, `backend/app/routers/spares.py`, 2 new tests in `tests/test_spares_bulk_create.py`) and the page sends only what the file says. Any earlier import in update mode may have reset stock on hand: check live spares if one was run, and decide whether to restore from a backup. Not deployed.
+
+8. `/issues`: recording a stock issue does not reduce the spare's quantity (neither the page nor the issues router touches `spares.current_quantity`; a database trigger cannot be ruled out from the code). The page now says it is a record only. Decide whether issuing should decrement stock. Also the server's issue summary counts at most 1000 rows (an unbounded select), so the "Total records" tile is wrong beyond that.
+
+9. `/leaves` authorisation: decided and done (see above).
+
+10. `/timesheets` roster and retry: decided and done (see above).
+11. `/artisan-timesheets` saved list: summary mode done (see above).
+12. `/ppe` and `/quotations`: the order list (PPE) and the quotation drafts live in this browser only by design; decide whether either should be shared on the server.
+
+## 10. Preserve
+
+The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; the never-auto-refresh rule;
+the failure-state patterns; the owner's constraints in section 1.

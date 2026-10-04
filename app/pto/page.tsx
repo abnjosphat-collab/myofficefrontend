@@ -1,755 +1,460 @@
+// app/pto/page.tsx — Planned Task Observation register
 'use client';
 
-import React, { useState, useEffect, useMemo, ElementType } from "react";
-import { formatDate } from '@/lib/format';
-import { summarizeActions } from '@/lib/actionPlan';
-import {
-  ClipboardList, Target, Plus, Trash2, AlertTriangle,
-  Eye, Pencil, LayoutGrid, Table as TableIcon,
-  RefreshCw, Wrench, Zap, ShieldAlert, BookOpen, Search, X,
-} from "@/components/shared/theme";
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import { UnderlineTabs } from '@/components/shared/UnderlineTabs';
-import { toast } from "sonner";
 import {
-  useTheme, accentText, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, FormField, FormActions,
-  useCollapseSection, CenterModal, ACCENT_HEX, EmptyState, PrimaryButton, GlowCard, SelectField, TYPE_WEIGHT, Button, DetailActions,
-} from '@/components/shared/theme';
+  Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
+  Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { summarizeActions } from '@/lib/actionPlan';
 import { exportFilename } from '@/lib/exportUtils';
-import type {
-  SectionType, ObservationType, YesNoType, ReportStatus, ActionStatus,
-  Reasons, RiskAssessment, SuggestedRemedies, ActionPlanItem, PTOReport,
-} from './types';
-import { usePTOData, createPTOReport, updatePTOReport, deletePTOReport } from './usePTOData';
+import { formatDate } from '@/lib/format';
+import type { ActionPlanItem, ActionStatus, ObservationType, PTOReport, Reasons, ReportStatus, RiskAssessment, SectionType, SuggestedRemedies, YesNoType } from './types';
+import { createPTOReport, deletePTOReport, updatePTOReport, usePTOData } from './usePTOData';
 
-// =============== CONSTANTS ===============
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
-const SECTION_COLORS: Record<SectionType, string> = { Mechanical: '#3b82f6', Electrical: '#f59e0b' };
-// ?? fallback: an unrecognized section (legacy/malformed data) otherwise makes
-// this undefined at 3 call sites below (found live, 2026-08-29 UI audit,
-// audit/07-ui-polish-findings.md).
-function sectionColor(section: SectionType): string { return SECTION_COLORS[section] ?? STATUS_TONE.neutral; }
-const SECTION_ICONS: Record<SectionType, ElementType> = { Mechanical: Wrench, Electrical: Zap };
-// riskAssessment is typed as always-present, but a legacy/malformed record without
-// one crashed 6 call sites below reading .made off undefined (found live, same
-// audit). Central helper instead of guarding each site with ?. individually.
-function hasRiskFlag(ra: RiskAssessment | null | undefined): boolean {
-  return ra?.made === 'No' || ra?.identified === 'No' || ra?.effective === 'No';
-}
-const OBS_COLORS: Record<ObservationType, string> = { Initial: '#a78bfa', 'Follow up': '#f97316' };
-// Partially harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — draft
-// and closed are plain not-started/done endpoints, a clean fit. submitted/reviewed
-// are workflow STEPS, not severity states (STATUS_TONE has no third distinct tone
-// between "info" and "good" without losing the visible distinction between them),
-// so they keep their own colors rather than collapsing into one shared tone.
-const STATUS_COLORS: Record<ReportStatus, string> = {
-  draft: STATUS_TONE.neutral, submitted: '#3b82f6', reviewed: '#a78bfa', closed: STATUS_TONE.good
+const STATUSES: ReportStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
+const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
+const ALL = '__all__';
+const YES_NO = [{ value: 'Yes' as YesNoType, label: 'Yes' }, { value: 'No' as YesNoType, label: 'No' }];
+
+const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
+const STATUS_META: Record<ReportStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
+  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
+  reviewed: { tone: 'brand', icon: 'reviewed', label: 'Reviewed' }, closed: { tone: 'success', icon: 'closed', label: 'Closed' },
 };
-const ACTION_COLORS: Record<ActionStatus, string> = {
-  Pending: STATUS_TONE.warning, 'In Progress': STATUS_TONE.info, Completed: STATUS_TONE.good
-};
+const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
+const STATUS_HEX: Record<ReportStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
 
 const REASON_LABELS: Record<keyof Reasons, string> = {
-  monthly: 'Monthly Observation', newEmployee: 'New Employee',
-  safetyAwareness: 'Safety Awareness', incidentFollowUp: 'Incident Follow up',
-  trainingFollowUp: 'Training Follow up', infrequentTask: 'Infrequently Performed'
+  monthly: 'Monthly observation', newEmployee: 'New employee', safetyAwareness: 'Safety awareness',
+  incidentFollowUp: 'Incident follow-up', trainingFollowUp: 'Training follow-up', infrequentTask: 'Infrequently performed',
 };
 const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
-  newProcedure: 'New Procedure', reviseExisting: 'Revise Existing',
-  differentEquipment: 'Different Equipment', engineeringControls: 'Engineering Controls',
-  retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of Worker'
+  newProcedure: 'New procedure', reviseExisting: 'Revise existing', differentEquipment: 'Different equipment', engineeringControls: 'Engineering controls',
+  retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of worker',
 };
 
-// =============== HELPERS ===============
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
-
 const newId = () => Math.random().toString(36).slice(2, 11);
+// A legacy or malformed record without a risk assessment must not crash the page.
+const hasRiskFlag = (ra: RiskAssessment | null | undefined) => ra?.made === 'No' || ra?.identified === 'No' || ra?.effective === 'No';
+const overdueCount = (r: PTOReport) => (r.actionPlan || []).filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < new Date().toISOString().slice(0, 10)).length;
 
-const defaultForm = (): Partial<PTOReport> => ({
-  date: new Date().toISOString().split('T')[0],
-  observerName: '', section: 'Mechanical', deptSectionContractor: '',
-  workerName: '', occupation: '', jobTaskObserved: '', sheqRefNo: '',
-  observationType: 'Initial', timeOnJob: { months: '', years: '' },
-  notification: { toldInAdvance: 'No' },
+const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>; };
+const StatusTag = ({ status }: { status: ReportStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
+const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
+const YesNoBadge = ({ value, goodWhen = 'Yes' }: { value?: string; goodWhen?: 'Yes' | 'No' }) => (value ? <StatusBadge tone={value === goodWhen ? 'success' : 'danger'}>{value}</StatusBadge> : <span className="text-ink-muted">Not specified</span>);
+const RiskBadge = () => <StatusBadge tone="danger" icon="warning">Risk identified</StatusBadge>;
+
+type Form = Omit<PTOReport, 'id' | 'created_at' | 'updated_at' | 'submitted_at'>;
+const emptyForm = (): Form => ({
+  date: new Date().toISOString().slice(0, 10), observerName: '', section: 'Mechanical', deptSectionContractor: '', workerName: '', occupation: '', jobTaskObserved: '', sheqRefNo: '',
+  observationType: 'Initial', timeOnJob: { months: '', years: '' }, notification: { toldInAdvance: 'No' },
   reasons: { monthly: false, newEmployee: false, safetyAwareness: false, incidentFollowUp: false, trainingFollowUp: false, infrequentTask: false },
-  procedures: { hasProcedure: 'No', familiarWithProcedure: 'No' },
-  riskAssessment: { made: 'No', identified: 'No', effective: 'No' },
+  procedures: { hasProcedure: 'No', familiarWithProcedure: 'No' }, riskAssessment: { made: 'No', identified: 'No', effective: 'No' },
   suggestedRemedies: { newProcedure: 'No', reviseExisting: 'No', differentEquipment: 'No', engineeringControls: 'No', retraining: 'No', improvedPPE: 'No', placementOfWorker: 'No' },
   observationScope: 'All', followUpNeeded: 'No', actionPlan: [], status: 'draft',
 });
+/** Fill any nested group a legacy record lacks, so the form never reads a property off undefined. */
+const normalise = (r: PTOReport): Form => { const e = emptyForm(); return { ...e, ...r, timeOnJob: { ...e.timeOnJob, ...r.timeOnJob }, notification: { ...e.notification, ...r.notification }, reasons: { ...e.reasons, ...r.reasons }, procedures: { ...e.procedures, ...r.procedures }, riskAssessment: { ...e.riskAssessment, ...r.riskAssessment }, suggestedRemedies: { ...e.suggestedRemedies, ...r.suggestedRemedies }, actionPlan: r.actionPlan || [] }; };
 
-// =============== YES/NO ROW ===============
-function YesNoRow({ label, value, onChange, name }: { label: string; value: YesNoType; onChange: (v: YesNoType) => void; name: string }) {
-  const t = useTheme();
+function YesNo({ label, value, onChange }: { label: string; value: YesNoType; onChange: (v: YesNoType) => void }) {
+  return <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line px-3 py-2.5"><span className="font-sans text-body text-ink">{label}</span><Segmented label={label} value={value} onValueChange={onChange} options={YES_NO} /></div>;
+}
+
+function ActionFields({ item, index, touched, onChange, onRemove }: { item: ActionPlanItem; index: number; touched: boolean; onChange: (id: string, patch: Partial<ActionPlanItem>) => void; onRemove: (id: string) => void }) {
+  const n = index + 1;
+  const err = (bad: boolean, text: string) => (touched && bad ? text : undefined);
   return (
-    <div className={`flex justify-between items-center px-3 py-2.5 rounded-lg ${t.chipBg}`}>
-      <span className={`text-sm ${t.textMuted}`}>{label}</span>
-      <div className="flex gap-3.5">
-        {(['Yes', 'No'] as YesNoType[]).map(opt => (
-          <label key={opt} htmlFor={`${name}-${opt}`} className={`flex items-center gap-1.5 cursor-pointer text-sm ${opt === value ? (opt === 'Yes' ? `${accentText('emerald', t.light)} ${TYPE_WEIGHT.bold}` : `text-red-400 ${TYPE_WEIGHT.bold}`) : t.textFaint}`}>
-            <input id={`${name}-${opt}`} type="radio" name={name} value={opt} checked={value === opt} onChange={() => onChange(opt)} aria-label={opt}
-              className="cursor-pointer" style={{ accentColor: opt === 'Yes' ? '#34d399' : '#f87171' }} />
-            {opt}
-          </label>
-        ))}
+    <fieldset className="flex flex-col gap-3 rounded-card border border-line p-4">
+      <legend className="px-1 font-sans text-label font-medium text-ink">Action {n}</legend>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1"><Field label="Status"><Select aria-label={`Action ${n} status`} value={item.status} options={ACTION_STATUSES.map(s => ({ value: s, label: s }))} onValueChange={v => onChange(item.id, { status: v as ActionStatus })} /></Field></div>
+        <IconButton icon="delete" variant="danger" label={`Remove action ${n}`} onClick={() => onRemove(item.id)} />
       </div>
-    </div>
+      <Field label={`Required action (action ${n})`} required error={err(!item.action.trim(), 'Describe the required action.')}><SuggestField historyKey="pto_required_action" placeholder="Describe the required action" value={item.action} onChange={v => onChange(item.id, { action: v })} /></Field>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={`By whom (action ${n})`} required error={err(!item.byWhom.trim(), 'Enter who is responsible.')}><SuggestField historyKey="handover_supervisor" placeholder="Responsible person" value={item.byWhom} onChange={v => onChange(item.id, { byWhom: v })} /></Field>
+        <Field label={`By when (action ${n})`} required error={err(!item.byWhen, 'Enter the due date.')}><Input type="date" value={item.byWhen} onChange={e => onChange(item.id, { byWhen: e.target.value })} /></Field>
+        {item.status === 'Completed' && <Field label={`Completed date (action ${n})`} optional><Input type="date" value={item.completedDate || ''} onChange={e => onChange(item.id, { completedDate: e.target.value })} /></Field>}
+      </div>
+      <Field label={`Remarks (action ${n})`} optional><Textarea rows={2} value={item.remarks || ''} onChange={e => onChange(item.id, { remarks: e.target.value })} placeholder="Additional notes" /></Field>
+    </fieldset>
   );
 }
 
-// =============== ACTION PLAN ITEM CARD ===============
-function ActionPlanCard({ item, index, onChange, onRemove }: { item: ActionPlanItem; index: number; onChange: (id: string, f: keyof ActionPlanItem, v: string) => void; onRemove: (id: string) => void }) {
-  const t = useTheme();
-  const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  return (
-    <div className={`${t.chipBg} rounded-xl p-3.5`}>
-      <div className="flex justify-between items-center mb-2.5">
-        <span className={`text-[11px] ${TYPE_WEIGHT.bold} text-brand-400 uppercase tracking-wide`}>Action #{index + 1}</span>
-        <button type="button" onClick={() => onRemove(item.id)} title="Remove" className="text-red-400 hover:text-red-300 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="col-span-2"><FormField label="Required Action *"><PredictiveInput historyKey="pto_required_action" value={item.action} placeholder="Describe the required action..." onChange={v => onChange(item.id, 'action', v)} inputClassName={inputCls} /></FormField></div>
-        <FormField label="By Whom *"><PredictiveInput historyKey="handover_supervisor" value={item.byWhom} placeholder="Responsible person" onChange={v => onChange(item.id, 'byWhom', v)} inputClassName={inputCls} /></FormField>
-        <FormField label="By When *"><input type="date" className={inputCls} value={item.byWhen} title="Due date" aria-label="Due date" onChange={e => onChange(item.id, 'byWhen', e.target.value)} /></FormField>
-        <FormField label="Status">
-          <SelectField size="form" value={item.status} title="Status" onChange={v => onChange(item.id, 'status', v as ActionStatus)}
-            options={[{ value: 'Pending', label: 'Pending' }, { value: 'In Progress', label: 'In Progress' }, { value: 'Completed', label: 'Completed' }]} />
-        </FormField>
-        {item.status === 'Completed' && (
-          <FormField label="Completed Date"><input type="date" className={inputCls} value={item.completedDate || ''} title="Completed date" aria-label="Completed date" onChange={e => onChange(item.id, 'completedDate', e.target.value)} /></FormField>
-        )}
-        <div className="col-span-2">
-          <FormField label="Remarks (Optional)">
-            <textarea className={`w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors resize-none ${t.inputBg}`} style={{ minHeight: 44 }} value={item.remarks || ''} placeholder="Additional notes..." onChange={e => onChange(item.id, 'remarks', e.target.value)} title="Remarks" aria-label="Remarks" />
-          </FormField>
-        </div>
-      </div>
-    </div>
-  );
-}
+function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTOReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const [form, setForm] = useState<Form>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(report?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) { setTouched(false); setForm(report ? normalise(report) : emptyForm()); }
+  }
+  const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
+  const updateAction = (id: string, patch: Partial<ActionPlanItem>) => set({ actionPlan: form.actionPlan.map(a => (a.id === id ? { ...a, ...patch } : a)) });
+  const progress = summarizeActions(form.actionPlan);
 
-// =============== PTO CARD (Grid) ===============
-interface PTOCardProps { report: PTOReport; index: number; onView: (r: PTOReport) => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; }
-function PTOCard({ report, index, onView, onEdit, onDelete }: PTOCardProps) {
-  const t = useTheme();
-  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
-  // makes SectionIcon undefined and crashes the page — same bug class found and
-  // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
-  // audit/07-ui-polish-findings.md).
-  const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
-  const sColor = sectionColor(report.section);
-  const progress = summarizeActions(report.actionPlan);
-  const hasRisk = hasRiskFlag(report.riskAssessment);
-
-  return (
-    <GlowCard onClick={() => onView(report)} color={sColor} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-      <div className="px-4 pt-3.5 pb-3">
-        <div className="flex justify-between items-start mb-2.5">
-          <div className="flex items-center gap-2.5">
-            <SectionIcon className="h-5 w-5 shrink-0" style={{ color: sColor }} />
-            <div>
-              <div className={`text-[11px] mb-0.5 ${t.textFaint}`}>PTO-{index + 1}</div>
-              <div className={`${TYPE_WEIGHT.bold} text-sm leading-tight max-w-[180px] truncate ${t.textPrimary}`}>{report.jobTaskObserved}</div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 items-end">
-            <StatusBadge color={sColor} label={report.section} />
-            <StatusBadge color={OBS_COLORS[report.observationType]} label={report.observationType} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-          {[`Observer: ${report.observerName || 'Not specified'}`, `Worker: ${report.workerName || 'Not specified'}`, fmtDate(report.date), report.occupation || 'No occupation'].map((label, i) => (
-            <div key={i} className={`text-[11px] px-2 py-1 rounded ${t.chipBg} ${t.textFaint} truncate`}>{label}</div>
-          ))}
-        </div>
-
-        {hasRisk && (
-          <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/25 rounded-lg px-2.5 py-1.5 mb-2.5">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
-            <span className={`text-[11px] text-red-400 ${TYPE_WEIGHT.semibold}`}>Risk Identified — Review Required</span>
-          </div>
-        )}
-
-        {progress.total > 0 && (
-          <div className="mb-2.5">
-            <div className={`flex justify-between text-[10px] mb-1 ${t.textFaint}`}><span>Action Progress</span><span>{progress.pct}%</span></div>
-            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
-            <div className="flex gap-1.5 mt-1.5">
-              <StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} />
-              <StatusBadge color="#3b82f6" label={`${progress.inProgress} Active`} />
-              <StatusBadge color="#10b981" label={`${progress.completed} Done`} />
-            </div>
-          </div>
-        )}
-
-        <div className={`flex justify-between items-center border-t ${t.border} pt-2.5`}>
-          <StatusBadge color={STATUS_COLORS[report.status]} label={report.status.charAt(0).toUpperCase() + report.status.slice(1)} />
-          <div className="flex gap-1.5">
-            <button type="button" onClick={e => { e.stopPropagation(); onView(report); }} title="View" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors ${t.textFaint}`}><Eye className="h-3 w-3" /> View</button>
-            <button type="button" onClick={e => { e.stopPropagation(); onEdit(report); }} title="Edit" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-brand-400`}><Pencil className="h-3 w-3" /> Edit</button>
-            <button type="button" onClick={e => { e.stopPropagation(); onDelete(report.id); }} title="Delete" className={`${t.chipBg} ${t.hoverBg} rounded-md px-2 py-1 text-xs flex items-center gap-1 transition-colors text-red-400`}><Trash2 className="h-3 w-3" /> Delete</button>
-          </div>
-        </div>
-      </div>
-    </GlowCard>
-  );
-}
-
-// =============== DETAIL MODAL ===============
-function PTODetailModal({ report, open, onClose, onEdit, onDelete, onStatusChange }: { report: PTOReport | null; open: boolean; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (id: string) => void; onStatusChange: (id: string, s: ReportStatus) => void }) {
-  const t = useTheme();
-  if (!report) return null;
-  // ?? fallback: an unrecognized section value (legacy/malformed data) otherwise
-  // makes SectionIcon undefined and crashes the page — same bug class found and
-  // fixed on overtime.tsx's TypeBadge (2026-08-29 UI audit,
-  // audit/07-ui-polish-findings.md).
-  const SectionIcon = SECTION_ICONS[report.section] ?? Wrench;
-  const sColor = sectionColor(report.section);
-  const progress = summarizeActions(report.actionPlan);
-  const hasRisk = hasRiskFlag(report.riskAssessment);
-
-  const reasonsList = (Object.keys(report.reasons) as (keyof Reasons)[]).filter(k => report.reasons[k]).map(k => REASON_LABELS[k]);
-  const remediesList = (Object.keys(report.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => report.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]);
-
-  const infoBox = `${t.chipBg} rounded-lg px-3 py-2`;
-
-  return (
-    <CenterModal open={open} onClose={onClose} title="Planned Task Observation Report" accent="violet" width="max-w-2xl">
-      <div className="p-5 space-y-4">
-        <div className={`flex justify-between items-center ${t.chipBg} rounded-xl px-3.5 py-2.5`}>
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg" style={{ background: `${sColor}22` }}><SectionIcon className="h-4 w-4" style={{ color: sColor }} /></div>
-            <div><span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{report.section}</span><span className={`text-[11px] ml-2 ${t.textFaint}`}>{report.observationType}</span></div>
-          </div>
-          <div className="flex gap-2 items-center">
-            {hasRisk && <StatusBadge color="#ef4444" label="Risk Identified" />}
-            <SelectField size="filter" title="Change status"
-              value={report.status} onChange={v => onStatusChange(report.id, v as ReportStatus)}
-              options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-          </div>
-        </div>
-
-        {progress.total > 0 && (
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className="flex justify-between text-xs mb-1.5"><span className={t.textFaint}>Action Plan Progress</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{progress.completed}/{progress.total} completed</span></div>
-            <ProgressBar value={progress.pct} color={progress.pct === 100 ? '#10b981' : '#60a5fa'} showValue={false} />
-            <div className="flex gap-2 mt-2">
-              <StatusBadge color="#f59e0b" label={`${progress.pending} Pending`} />
-              <StatusBadge color="#3b82f6" label={`${progress.inProgress} In Progress`} />
-              <StatusBadge color="#10b981" label={`${progress.completed} Completed`} />
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-2">
-          {[{ label: 'Observer', val: report.observerName || 'Not specified' }, { label: 'Worker', val: report.workerName || 'Not specified' }, { label: 'Date', val: fmtDate(report.date) }, { label: 'Occupation', val: report.occupation || 'N/A' }].map(({ label, val }) => (
-            <div key={label} className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>{label}</div><div className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{val}</div></div>
-          ))}
-        </div>
-
-        <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-          <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Task Details</div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className={`col-span-2 ${infoBox}`}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Job/Task Observed</div><div className={`text-sm ${t.textMuted}`}>{report.jobTaskObserved}</div></div>
-            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>SHEQ Reference</div><div className={`text-sm ${t.textMuted}`}>{report.sheqRefNo || 'N/A'}</div></div>
-            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Dept/Contractor</div><div className={`text-sm ${t.textMuted}`}>{report.deptSectionContractor || 'N/A'}</div></div>
-            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Time on Job</div><div className={`text-sm ${t.textMuted}`}>{report.timeOnJob.months || '0'}m, {report.timeOnJob.years || '0'}y</div></div>
-            <div className={infoBox}><div className={`text-[10px] mb-0.5 ${t.textFaint}`}>Told in Advance</div><StatusBadge color={report.notification.toldInAdvance === 'Yes' ? '#34d399' : '#f87171'} label={report.notification.toldInAdvance} /></div>
-          </div>
-        </div>
-
-        {reasonsList.length > 0 && (
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Reasons for Observation</div>
-            <div className="flex flex-wrap gap-1.5">{reasonsList.map((r, i) => <StatusBadge key={i} color="#a78bfa" label={r} />)}</div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><BookOpen className="h-3 w-3" /> Procedures</div>
-            {[{ label: 'Procedure Available', val: report.procedures.hasProcedure }, { label: 'Employee Familiar', val: report.procedures.familiarWithProcedure }].map(({ label, val }) => (
-              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val} /></div>
-            ))}
-          </div>
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5 ${t.textFaint}`}><ShieldAlert className="h-3 w-3" /> Risk Assessment</div>
-            {[{ label: 'Assessment Made', val: report.riskAssessment?.made }, { label: 'Hazards Identified', val: report.riskAssessment?.identified }, { label: 'Controls Effective', val: report.riskAssessment?.effective }].map(({ label, val }) => (
-              <div key={label} className={`flex justify-between items-center py-1.5 border-b ${t.border} last:border-0`}><span className={`text-xs ${t.textFaint}`}>{label}</span><StatusBadge color={val === 'Yes' ? '#34d399' : '#f87171'} label={val ?? 'Not specified'} /></div>
-            ))}
-          </div>
-        </div>
-
-        {remediesList.length > 0 && (
-          <div className={`${t.chipBg} rounded-xl px-3.5 py-3`}>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2 ${t.textFaint}`}>Suggested Remedies</div>
-            <div className="flex flex-wrap gap-1.5">{remediesList.map((r, i) => <StatusBadge key={i} color="#60a5fa" label={r} />)}</div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-2">
-          <div className={infoBox}><div className={`text-[10px] mb-1 ${t.textFaint}`}>Observation Scope</div><StatusBadge color={report.observationScope === 'All' ? '#34d399' : '#f59e0b'} label={report.observationScope} /></div>
-          <div className={infoBox}><div className={`text-[10px] mb-1 ${t.textFaint}`}>Follow-up Needed</div><StatusBadge color={report.followUpNeeded === 'Yes' ? '#f97316' : '#34d399'} label={report.followUpNeeded} /></div>
-        </div>
-
-        {report.actionPlan?.length > 0 && (
-          <div>
-            <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Action Plan ({report.actionPlan.length})</div>
-            <div className="flex flex-col gap-2">
-              {report.actionPlan.map((action, idx) => {
-                const ac = ACTION_COLORS[action.status];
-                return (
-                  <div key={action.id} className={`${t.chipBg} rounded-lg px-3 py-2.5`} style={{ borderLeft: `3px solid ${ac}` }}>
-                    <div className="flex justify-between mb-1.5"><span className={`text-[11px] ${t.textFaint}`}>Action #{idx + 1}</span><StatusBadge color={ac} label={action.status} /></div>
-                    <div className={`text-sm mb-1.5 ${t.textMuted}`}>{action.action}</div>
-                    <div className={`flex gap-4 text-[11px] ${t.textFaint}`}>
-                      <span>By: {action.byWhom}</span><span>Due: {fmtDate(action.byWhen)}</span>
-                      {action.completedDate && <span>Completed: {fmtDate(action.completedDate)}</span>}
-                    </div>
-                    {action.remarks && <div className={`mt-1.5 text-xs italic ${t.textFaint} border-l-2 border-brand-400 pl-2`}>{action.remarks}</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(report); }} onDelete={() => { onClose(); onDelete(report.id); }} /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={() => { onClose(); onDelete(report.id); }} className={`bg-red-500/15 hover:bg-red-500/25 rounded-xl px-4 py-2.5 text-red-400 text-sm ${TYPE_WEIGHT.semibold} transition-colors`}>Delete</button>
-        <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-        <PrimaryButton size="md" fullWidth onClick={() => { onClose(); onEdit(report); }}>Edit</PrimaryButton>
-      </div>}
-    </CenterModal>
-  );
-}
-
-// =============== FORM MODAL ===============
-function PTOFormModal({ open, editing, onClose, onSave, saving }: { open: boolean; editing: PTOReport | null; onClose: () => void; onSave: (data: Partial<PTOReport>) => Promise<void>; saving: boolean }) {
-  const t = useTheme();
-  const [tab, setTab] = useState<string>('basic');
-  const [form, setForm] = useState<Partial<PTOReport>>(defaultForm());
-
-  useEffect(() => {
-    if (open) { setForm(editing ? { ...editing } : defaultForm()); setTab('basic'); }
-  }, [open, editing]);
-
-  const set = (field: keyof PTOReport, val: unknown) => setForm(prev => ({ ...prev, [field]: val }));
-
-  const addAction = () => setForm(prev => ({
-    ...prev,
-    actionPlan: [...(prev.actionPlan || []), { id: newId(), no: (prev.actionPlan?.length || 0) + 1, action: '', byWhom: '', byWhen: '', status: 'Pending' }],
-  }));
-  const updateAction = (id: string, field: keyof ActionPlanItem, val: string) =>
-    setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.map(a => a.id === id ? { ...a, [field]: val } : a) || [] }));
-  const removeAction = (id: string) =>
-    setForm(prev => ({ ...prev, actionPlan: prev.actionPlan?.filter(a => a.id !== id) || [] }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.observerName?.trim()) { toast.error('Observer name is required'); setTab('basic'); return; }
-    if (!form.workerName?.trim()) { toast.error('Worker name is required'); setTab('basic'); return; }
-    if (!form.jobTaskObserved?.trim()) { toast.error('Job/Task observed is required'); setTab('basic'); return; }
-    if (!form.date) { toast.error('Date is required'); setTab('basic'); return; }
-    await onSave(form);
+  const actionsValid = form.actionPlan.every(a => a.action.trim() && a.byWhom.trim() && a.byWhen);
+  const submit = async () => {
+    setTouched(true);
+    if (!form.observerName.trim() || !form.workerName.trim() || !form.jobTaskObserved.trim() || !form.date || !actionsValid) return false;
+    const payload = { ...form, actionPlan: form.actionPlan.map((a, i) => ({ ...a, no: i + 1 })) };
+    if (report) await updatePTOReport(report.id, { ...payload, updated_at: new Date().toISOString() });
+    // A new observation is always recorded as submitted.
+    else await createPTOReport({ ...payload, status: 'submitted', submitted_at: new Date().toISOString() });
+    toast.success(report ? 'PTO report updated.' : 'PTO report submitted.');
+    onSaved();
   };
 
-  const tabs = [
-    { id: 'basic', label: 'Basic Info' },
-    { id: 'reasons', label: 'Reasons & Procedures' },
-    { id: 'risk', label: 'Risk Assessment' },
-    { id: 'actions', label: 'Action Plan' },
-  ];
-
-  const inputCls = `w-full h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  const checkLabelCls = `flex items-center gap-2 cursor-pointer text-sm py-1.5 ${t.textMuted}`;
-
   return (
-    <CenterModal open={open} onClose={onClose} title={editing ? 'Edit PTO Report' : 'New Planned Task Observation'} accent="violet" width="max-w-2xl">
-      <UnderlineTabs tabs={tabs} value={tab} onChange={setTab} accent="brand" />
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit PTO report' : 'New planned task observation'} description="Date, observer, worker and the task observed are required." submitLabel={report ? 'Save changes' : 'Submit PTO'} onSubmit={submit} size="lg">
+      <div className="flex flex-col gap-5">
+        <section aria-labelledby="pto-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <h3 id="pto-basic" className="font-display text-section font-semibold text-ink sm:col-span-2">Observation</h3>
+          <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
+          <Field label="Observer name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}><Input value={form.observerName} onChange={e => set({ observerName: e.target.value })} placeholder="Observer's full name" /></Field>
+          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          <Field label="Department or contractor" optional><Input value={form.deptSectionContractor} onChange={e => set({ deptSectionContractor: e.target.value })} placeholder="Department or contractor" /></Field>
+          <Field label="Worker name" required error={touched && !form.workerName.trim() ? 'Enter the worker’s name.' : undefined}><Input value={form.workerName} onChange={e => set({ workerName: e.target.value })} placeholder="Worker's full name" /></Field>
+          <Field label="Occupation" optional><Input value={form.occupation} onChange={e => set({ occupation: e.target.value })} placeholder="Job title or occupation" /></Field>
+          <div className="sm:col-span-2"><Field label="Job or task observed" required error={touched && !form.jobTaskObserved.trim() ? 'Describe the task observed.' : undefined}><Input value={form.jobTaskObserved} onChange={e => set({ jobTaskObserved: e.target.value })} placeholder="Describe the task being observed" /></Field></div>
+          <Field label="SHEQ reference no." optional><Input value={form.sheqRefNo} onChange={e => set({ sheqRefNo: e.target.value })} placeholder="For example, SHEQ-001" /></Field>
+          <Field label="Observation type"><Select aria-label="Observation type" value={form.observationType} onValueChange={v => set({ observationType: v as ObservationType })} options={[{ value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} /></Field>
+          <Field label="Time on job (months)" optional><Input inputMode="numeric" value={form.timeOnJob.months} onChange={e => set({ timeOnJob: { ...form.timeOnJob, months: e.target.value } })} placeholder="0" /></Field>
+          <Field label="Time on job (years)" optional><Input inputMode="numeric" value={form.timeOnJob.years} onChange={e => set({ timeOnJob: { ...form.timeOnJob, years: e.target.value } })} placeholder="0" /></Field>
+          <div className="sm:col-span-2"><YesNo label="Was the worker told in advance?" value={form.notification.toldInAdvance} onChange={v => set({ notification: { toldInAdvance: v } })} /></div>
+        </section>
 
-      <form onSubmit={handleSubmit} className="p-5 space-y-4">
-        {tab === 'basic' && (
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Date *"><input type="date" className={inputCls} value={form.date || ''} title="Date" aria-label="Date" onChange={e => set('date', e.target.value)} /></FormField>
-            <FormField label="Observer Name *"><input className={inputCls} value={form.observerName || ''} placeholder="Observer's full name" onChange={e => set('observerName', e.target.value)} title="Observer name" aria-label="Observer name" /></FormField>
-            <FormField label="Section *">
-              <SelectField size="form" value={form.section || 'Mechanical'} title="Section" onChange={v => set('section', v as SectionType)}
-                options={SECTIONS.map(s => ({ value: s, label: s }))} />
-            </FormField>
-            <FormField label="Dept / Contractor"><input className={inputCls} value={form.deptSectionContractor || ''} placeholder="Department or contractor" onChange={e => set('deptSectionContractor', e.target.value)} title="Department or contractor" aria-label="Department or contractor" /></FormField>
-            <FormField label="Worker Name *"><input className={inputCls} value={form.workerName || ''} placeholder="Worker's full name" onChange={e => set('workerName', e.target.value)} title="Worker name" aria-label="Worker name" /></FormField>
-            <FormField label="Occupation"><input className={inputCls} value={form.occupation || ''} placeholder="Job title / occupation" onChange={e => set('occupation', e.target.value)} title="Occupation" aria-label="Occupation" /></FormField>
-            <div className="col-span-2"><FormField label="Job / Task Observed *"><input className={inputCls} value={form.jobTaskObserved || ''} placeholder="Describe the task being observed" onChange={e => set('jobTaskObserved', e.target.value)} title="Job/task observed" aria-label="Job/task observed" /></FormField></div>
-            <FormField label="SHEQ Reference No."><input className={inputCls} value={form.sheqRefNo || ''} placeholder="e.g., SHEQ-001" onChange={e => set('sheqRefNo', e.target.value)} title="SHEQ reference number" aria-label="SHEQ reference number" /></FormField>
-            <FormField label="Observation Type">
-              <SelectField size="form" value={form.observationType || 'Initial'} title="Observation type" onChange={v => set('observationType', v as ObservationType)}
-                options={[{ value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
-            </FormField>
-            <FormField label="Time on Job (Months)"><input className={inputCls} value={form.timeOnJob?.months || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, months: e.target.value })} title="Months on job" aria-label="Months on job" /></FormField>
-            <FormField label="Time on Job (Years)"><input className={inputCls} value={form.timeOnJob?.years || ''} placeholder="0" onChange={e => set('timeOnJob', { ...form.timeOnJob, years: e.target.value })} title="Years on job" aria-label="Years on job" /></FormField>
-            <div className="col-span-2"><YesNoRow label="Was the worker told in advance?" value={form.notification?.toldInAdvance || 'No'} name="toldInAdvance" onChange={v => set('notification', { toldInAdvance: v })} /></div>
+        <section aria-labelledby="pto-reasons" className="flex flex-col gap-3">
+          <h3 id="pto-reasons" className="font-display text-section font-semibold text-ink">Reasons for observation</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(k => <Checkbox key={k} label={REASON_LABELS[k]} checked={!!form.reasons[k]} onChange={e => set({ reasons: { ...form.reasons, [k]: e.target.checked } })} />)}
           </div>
-        )}
+        </section>
 
-        {tab === 'reasons' && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Reasons for Observation</div>
-              <div className="grid grid-cols-2 gap-1">
-                {(Object.keys(REASON_LABELS) as (keyof Reasons)[]).map(key => (
-                  <label key={key} htmlFor={`reason-${key}`} className={checkLabelCls}>
-                    <input id={`reason-${key}`} type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.reasons?.[key] || false} onChange={e => set('reasons', { ...form.reasons, [key]: e.target.checked })} aria-label={REASON_LABELS[key]} />
-                    {REASON_LABELS[key]}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>SHEQ Work Procedure</div>
-              <div className="flex flex-col gap-1.5">
-                <YesNoRow label="Is a SHEQ work procedure available?" value={form.procedures?.hasProcedure || 'No'} name="hasProcedure" onChange={v => set('procedures', { ...form.procedures, hasProcedure: v })} />
-                <YesNoRow label="Is the employee familiar with the procedure?" value={form.procedures?.familiarWithProcedure || 'No'} name="familiarWithProcedure" onChange={v => set('procedures', { ...form.procedures, familiarWithProcedure: v })} />
-              </div>
-            </div>
-            <div>
-              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Suggested Remedies</div>
-              <div className="grid grid-cols-2 gap-1">
-                {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(key => (
-                  <label key={key} htmlFor={`remedy-${key}`} className={checkLabelCls}>
-                    <input id={`remedy-${key}`} type="checkbox" style={{ accentColor: '#60a5fa' }} className="cursor-pointer w-3.5 h-3.5" checked={form.suggestedRemedies?.[key] === 'Yes'} onChange={e => set('suggestedRemedies', { ...form.suggestedRemedies, [key]: e.target.checked ? 'Yes' : 'No' })} aria-label={REMEDY_LABELS[key]} />
-                    {REMEDY_LABELS[key]}
-                  </label>
-                ))}
-              </div>
-            </div>
+        <section aria-labelledby="pto-procedures" className="flex flex-col gap-2">
+          <h3 id="pto-procedures" className="font-display text-section font-semibold text-ink">SHEQ work procedure</h3>
+          <YesNo label="Is a SHEQ work procedure available?" value={form.procedures.hasProcedure} onChange={v => set({ procedures: { ...form.procedures, hasProcedure: v } })} />
+          <YesNo label="Is the employee familiar with the procedure?" value={form.procedures.familiarWithProcedure} onChange={v => set({ procedures: { ...form.procedures, familiarWithProcedure: v } })} />
+        </section>
+
+        <section aria-labelledby="pto-risk" className="flex flex-col gap-2">
+          <h3 id="pto-risk" className="font-display text-section font-semibold text-ink">Risk assessment</h3>
+          <YesNo label="Has a risk assessment been made?" value={form.riskAssessment.made} onChange={v => set({ riskAssessment: { ...form.riskAssessment, made: v } })} />
+          <YesNo label="Have hazards, risks and controls been identified?" value={form.riskAssessment.identified} onChange={v => set({ riskAssessment: { ...form.riskAssessment, identified: v } })} />
+          <YesNo label="Are the controls effective?" value={form.riskAssessment.effective} onChange={v => set({ riskAssessment: { ...form.riskAssessment, effective: v } })} />
+          <p className="font-sans text-caption text-ink-muted">Any “No” above flags the observation as high risk.</p>
+        </section>
+
+        <section aria-labelledby="pto-remedies" className="flex flex-col gap-3">
+          <h3 id="pto-remedies" className="font-display text-section font-semibold text-ink">Suggested remedies</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(Object.keys(REMEDY_LABELS) as (keyof SuggestedRemedies)[]).map(k => <Checkbox key={k} label={REMEDY_LABELS[k]} checked={form.suggestedRemedies[k] === 'Yes'} onChange={e => set({ suggestedRemedies: { ...form.suggestedRemedies, [k]: e.target.checked ? 'Yes' : 'No' } })} />)}
           </div>
-        )}
+        </section>
 
-        {tab === 'risk' && (
-          <div className="flex flex-col gap-5">
-            <div>
-              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Risk Assessment</div>
-              <div className="flex flex-col gap-1.5">
-                <YesNoRow label="Has a risk assessment been made?" value={form.riskAssessment?.made || 'No'} name="raMade" onChange={v => set('riskAssessment', { ...form.riskAssessment, made: v })} />
-                <YesNoRow label="Have hazards/risks/controls been identified?" value={form.riskAssessment?.identified || 'No'} name="raIdentified" onChange={v => set('riskAssessment', { ...form.riskAssessment, identified: v })} />
-                <YesNoRow label="Are the controls effective?" value={form.riskAssessment?.effective || 'No'} name="raEffective" onChange={v => set('riskAssessment', { ...form.riskAssessment, effective: v })} />
-              </div>
-            </div>
-            <div>
-              <div className={`${TYPE_WEIGHT.bold} text-xs uppercase tracking-wide mb-2.5 ${t.textFaint}`}>Observation Scope & Follow-up</div>
-              <div className="flex flex-col gap-1.5">
-                <div className={`flex justify-between items-center px-3 py-2.5 rounded-lg ${t.chipBg}`}>
-                  <span className={`text-sm ${t.textMuted}`}>Observation Scope</span>
-                  <div className="flex gap-3.5">
-                    {(['All', 'Partial'] as const).map(opt => (
-                      <label key={opt} htmlFor={`scope-${opt}`} className={`flex items-center gap-1.5 cursor-pointer text-sm ${form.observationScope === opt ? `text-brand-400 ${TYPE_WEIGHT.bold}` : t.textFaint}`}>
-                        <input id={`scope-${opt}`} type="radio" name="scope" value={opt} checked={form.observationScope === opt} onChange={() => set('observationScope', opt)} style={{ accentColor: '#60a5fa' }} className="cursor-pointer" aria-label={opt} />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <YesNoRow label="Is a follow-up observation needed?" value={form.followUpNeeded || 'No'} name="followUp" onChange={v => set('followUpNeeded', v)} />
-              </div>
-            </div>
-            <FormField label="Report Status">
-              <SelectField size="form" value={form.status || 'draft'} title="Status" onChange={v => set('status', v as ReportStatus)}
-                options={[{ value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-            </FormField>
+        <section aria-labelledby="pto-scope" className="flex flex-col gap-2">
+          <h3 id="pto-scope" className="font-display text-section font-semibold text-ink">Scope and follow-up</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-line px-3 py-2.5">
+            <span className="font-sans text-body text-ink">Observation scope</span>
+            <Segmented label="Observation scope" value={form.observationScope} onValueChange={v => set({ observationScope: v })} options={[{ value: 'All' as const, label: 'All' }, { value: 'Partial' as const, label: 'Partial' }]} />
           </div>
-        )}
+          <YesNo label="Is a follow-up observation needed?" value={form.followUpNeeded} onChange={v => set({ followUpNeeded: v })} />
+          {report && <Field label="Report status"><Select aria-label="Report status" value={form.status} onValueChange={v => set({ status: v as ReportStatus })} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field>}
+        </section>
 
-        {tab === 'actions' && (
-          <div>
-            <div className="flex justify-between items-center mb-3.5">
-              <div><div className={`${TYPE_WEIGHT.bold} text-sm ${t.textPrimary}`}>Action Plan</div><div className={`text-[11px] mt-0.5 ${t.textFaint}`}>Define corrective or improvement actions.</div></div>
-              <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addAction}>Add Action</Button>
-            </div>
-            {(form.actionPlan || []).length === 0 ? (
-              <div className={`text-center py-8 ${t.textFaint}`}>
-                <Target className="h-9 w-9 mx-auto mb-2" />
-                <div className="text-sm">No actions defined yet.</div>
-                <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" className="mt-2.5" onClick={addAction}>Add First Action</Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {(form.actionPlan || []).map((item, idx) => (
-                  <ActionPlanCard key={item.id} item={item} index={idx} onChange={updateAction} onRemove={removeAction} />
-                ))}
-              </div>
-            )}
+        <section aria-labelledby="pto-actions" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div><h3 id="pto-actions" className="font-display text-section font-semibold text-ink">Action plan ({form.actionPlan.length})</h3><p className="font-sans text-caption text-ink-muted">Define corrective or improvement actions.</p></div>
+            <Button size="sm" icon="plus" onClick={() => set({ actionPlan: [...form.actionPlan, { id: newId(), no: form.actionPlan.length + 1, action: '', byWhom: '', byWhen: '', status: 'Pending' }] })}>Add action</Button>
           </div>
-        )}
-
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update PTO' : 'Submit PTO'} accent="violet" />
-      </form>
-    </CenterModal>
+          {form.actionPlan.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">No actions defined yet.</p> : (
+            <>
+              <div><p className="mb-1 font-sans text-caption text-ink-muted">{progress.completed} of {progress.total} completed · {progress.inProgress} in progress · {progress.pending} pending</p><Progress value={progress.pct} label="Action plan progress" /></div>
+              {form.actionPlan.map((a, i) => <ActionFields key={a.id} item={a} index={i} touched={touched} onChange={updateAction} onRemove={id => set({ actionPlan: form.actionPlan.filter(x => x.id !== id) })} />)}
+            </>
+          )}
+        </section>
+      </div>
+    </FormDialog>
   );
 }
 
-// =============== MAIN PAGE ===============
-function PTOPageContent() {
-  const t = useTheme();
-  const sections = useCollapseSection({ hero: true, records: true });
-  const { reports, setReports, loading, loadError, refresh: loadData } = usePTOData();
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
+}
 
-  const [selectedReport, setSelectedReport] = useState<PTOReport | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<PTOReport | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { report: PTOReport | null; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (r: PTOReport) => void; onStatusChange: (id: string, s: ReportStatus) => void }) {
+  const f = report ? normalise(report) : null;
+  const progress = summarizeActions(f?.actionPlan);
+  const reasons = f ? (Object.keys(f.reasons) as (keyof Reasons)[]).filter(k => f.reasons[k]).map(k => REASON_LABELS[k]) : [];
+  const remedies = f ? (Object.keys(f.suggestedRemedies) as (keyof SuggestedRemedies)[]).filter(k => f.suggestedRemedies[k] === 'Yes').map(k => REMEDY_LABELS[k]) : [];
+  return (
+    <Dialog
+      open={!!report}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title="Planned task observation report"
+      description={report ? `${report.jobTaskObserved}, ${fmtDate(report.date)}` : undefined}
+      size="lg"
+      footer={report && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
+        </>
+      )}
+    >
+      {report && f && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap gap-2"><SectionBadge section={report.section} /><StatusBadge tone="neutral">{report.observationType}</StatusBadge><StatusTag status={report.status} />{hasRiskFlag(report.riskAssessment) && <RiskBadge />}</div>
+            <div className="w-44"><Field label="Change status"><Select aria-label="Change status" value={report.status} onValueChange={v => onStatusChange(report.id, v as ReportStatus)} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field></div>
+          </div>
+          {progress.total > 0 && (
+            <div><p className="mb-1 font-sans text-caption text-ink-muted">Action plan progress: {progress.completed} of {progress.total} completed · {progress.inProgress} in progress · {progress.pending} pending</p><Progress value={progress.pct} label="Action plan progress" /></div>
+          )}
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Fact label="Observer">{report.observerName || 'Not specified'}</Fact>
+            <Fact label="Worker">{report.workerName || 'Not specified'}</Fact>
+            <Fact label="Occupation">{report.occupation || 'Not specified'}</Fact>
+            <Fact label="Department or contractor">{report.deptSectionContractor || 'Not specified'}</Fact>
+            <Fact label="SHEQ reference">{report.sheqRefNo || 'Not specified'}</Fact>
+            <Fact label="Time on job">{f.timeOnJob.months || '0'} months, {f.timeOnJob.years || '0'} years</Fact>
+            <Fact label="Told in advance"><YesNoBadge value={f.notification.toldInAdvance} /></Fact>
+            <Fact label="Job or task observed">{report.jobTaskObserved}</Fact>
+          </dl>
+          {reasons.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Reasons for observation</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{reasons.map(r => <StatusBadge key={r} tone="neutral">{r}</StatusBadge>)}</p></div>}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <section aria-labelledby="pto-d-proc" className="rounded-card border border-line p-3">
+              <h3 id="pto-d-proc" className="mb-2 font-sans text-caption text-ink-muted">Procedures</h3>
+              <dl className="flex flex-col gap-1.5"><div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Procedure available</dt><dd><YesNoBadge value={f.procedures.hasProcedure} /></dd></div><div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Employee familiar</dt><dd><YesNoBadge value={f.procedures.familiarWithProcedure} /></dd></div></dl>
+            </section>
+            <section aria-labelledby="pto-d-risk" className="rounded-card border border-line p-3">
+              <h3 id="pto-d-risk" className="mb-2 font-sans text-caption text-ink-muted">Risk assessment</h3>
+              <dl className="flex flex-col gap-1.5">
+                <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Assessment made</dt><dd><YesNoBadge value={report.riskAssessment?.made} /></dd></div>
+                <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Hazards identified</dt><dd><YesNoBadge value={report.riskAssessment?.identified} /></dd></div>
+                <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Controls effective</dt><dd><YesNoBadge value={report.riskAssessment?.effective} /></dd></div>
+              </dl>
+            </section>
+          </div>
+          {remedies.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Suggested remedies</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{remedies.map(r => <StatusBadge key={r} tone="info">{r}</StatusBadge>)}</p></div>}
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Fact label="Observation scope"><StatusBadge tone={report.observationScope === 'All' ? 'success' : 'warning'}>{report.observationScope}</StatusBadge></Fact>
+            <Fact label="Follow-up needed"><StatusBadge tone={report.followUpNeeded === 'Yes' ? 'warning' : 'success'}>{report.followUpNeeded}</StatusBadge></Fact>
+          </dl>
+          {f.actionPlan.length > 0 && (
+            <section aria-labelledby="pto-d-actions">
+              <h3 id="pto-d-actions" className="mb-2 font-sans text-caption text-ink-muted">Action plan ({f.actionPlan.length})</h3>
+              <ol className="flex flex-col gap-2">
+                {f.actionPlan.map((a, i) => (
+                  <li key={a.id} className="rounded-card border border-line p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-sans text-body font-medium text-ink">{i + 1}. {a.action}</p><ActionBadge status={a.status} /></div>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWhom} · due {fmtDate(a.byWhen)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+        </div>
+      )}
+    </Dialog>
+  );
+}
 
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'observerName', label: 'Observer', width: 18 },
+  { key: 'workerName', label: 'Worker', width: 18 },
+  { key: 'jobTaskObserved', label: 'Task', width: 26 },
+  { key: 'section', label: 'Section', width: 14 },
+  { key: 'observationType', label: 'Observation Type', width: 16 },
+  { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
+  { key: 'deptSectionContractor', label: 'Dept/Section/Contractor', width: 22 },
+  { key: 'occupation', label: 'Occupation', width: 18 },
+  { key: 'sheqRefNo', label: 'SHEQ Ref No.', width: 16 },
+  { key: 'riskAssessment', label: 'High Risk', width: 10, format: (_v, row) => (hasRiskFlag(row.riskAssessment as RiskAssessment) ? 'Yes' : 'No') },
+  {
+    key: 'actionPlan', label: 'Actions', width: 14,
+    format: (_v, row) => {
+      const actions = (row.actionPlan as ActionPlanItem[]) ?? [];
+      return `${actions.filter(a => a.status === 'Completed').length}/${actions.length} done`;
+    },
+  },
+];
+
+function PTOContent() {
+  const confirm = useConfirm();
+  const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePTOData();
+  const [view, setView] = useViewPreference('pto', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
-  const [sectionFilter, setSectionFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [obsTypeFilter, setObsTypeFilter] = useState('all');
+  const [sectionF, setSectionF] = useState(ALL);
+  const [statusF, setStatusF] = useState(ALL);
+  const [typeF, setTypeF] = useState(ALL);
+  const [riskOnly, setRiskOnly] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<PTOReport | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const viewing = useMemo(() => reports.find(r => r.id === viewingId) ?? null, [reports, viewingId]);
 
-  useEffect(() => { loadData(); }, []);
-
-  const handleSave = async (form: Partial<PTOReport>) => {
-    setSaving(true);
-    try {
-      if (editing) {
-        const updated = await updatePTOReport(editing.id, { ...form, updated_at: new Date().toISOString() });
-        setReports(prev => prev.map(r => r.id === updated.id ? updated : r));
-        toast.success('PTO report updated');
-      } else {
-        const created = await createPTOReport({ ...form, status: 'submitted', submitted_at: new Date().toISOString() });
-        setReports(prev => [created, ...prev]);
-        toast.success('PTO report submitted');
-      }
-      setFormOpen(false); setEditing(null);
-    } catch { toast.error('Failed to save PTO report'); }
-    finally { setSaving(false); }
-  };
-
-  const handleEdit = (r: PTOReport) => { setEditing(r); setFormOpen(true); };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deletePTOReport(id);
-      setReports(prev => prev.filter(r => r.id !== id));
-      toast.success('PTO report deleted');
-      setDeleteTarget(null);
-    } catch { toast.error('Failed to delete report'); }
-  };
-
-  const handleStatusChange = async (id: string, status: ReportStatus) => {
-    const prev = reports.find(r => r.id === id);
-    if (!prev) return;
-    setReports(ps => ps.map(r => r.id === id ? { ...r, status } : r));
-    try { await updatePTOReport(id, { status }); toast.success(`Status updated to ${status}`); }
-    catch { setReports(ps => ps.map(r => r.id === id ? prev : r)); toast.error('Failed to update status'); }
-  };
-
-  const clearFilters = () => { setSearch(''); setSectionFilter('all'); setStatusFilter('all'); setObsTypeFilter('all'); setDateFrom(''); setDateTo(''); };
-
-  const filtered = useMemo(() => reports.filter(r => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q))
-        && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
-    }
-    if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
-    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-    if (obsTypeFilter !== 'all' && r.observationType !== obsTypeFilter) return false;
-    if (dateFrom && r.date < dateFrom) return false;
-    if (dateTo && r.date > dateTo) return false;
-    return true;
-  }), [reports, search, sectionFilter, statusFilter, obsTypeFilter, dateFrom, dateTo]);
-
-  const total = reports.length;
-  const drafts = reports.filter(r => r.status === 'draft').length;
-  const submitted = reports.filter(r => r.status === 'submitted').length;
-  const reviewed = reports.filter(r => r.status === 'reviewed').length;
-  const closed = reports.filter(r => r.status === 'closed').length;
-  const totalActions = reports.reduce((acc, r) => acc + (r.actionPlan?.length || 0), 0);
-  const completedActions = reports.reduce((acc, r) => acc + (r.actionPlan?.filter(a => a.status === 'Completed').length || 0), 0);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return reports.filter(r => {
+      if (q && ![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q)) && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
+      return (sectionF === ALL || r.section === sectionF) && (statusF === ALL || r.status === statusF) && (typeF === ALL || r.observationType === typeF)
+        && (!riskOnly || hasRiskFlag(r.riskAssessment)) && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo);
+    });
+  }, [reports, search, sectionF, statusF, typeF, riskOnly, dateFrom, dateTo]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'risk' ? (hasRiskFlag(r.riskAssessment) ? '1' : '0') : String(r[id as keyof PTOReport] ?? '').toLowerCase())), [filtered, sort]);
+  const count = (s: ReportStatus) => reports.filter(r => r.status === s).length;
+  const allActions = reports.flatMap(r => r.actionPlan || []);
   const highRisk = reports.filter(r => hasRiskFlag(r.riskAssessment)).length;
 
-  const exportColumns: DLColumn[] = [
-    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
-    { key: 'observerName', label: 'Observer', width: 18 },
-    { key: 'workerName', label: 'Worker', width: 18 },
-    { key: 'jobTaskObserved', label: 'Task', width: 26 },
-    { key: 'section', label: 'Section', width: 14 },
-    { key: 'observationType', label: 'Observation Type', width: 16 },
-    { key: 'status', label: 'Status', width: 12, format: v => (v as string).charAt(0).toUpperCase() + (v as string).slice(1) },
-    { key: 'deptSectionContractor', label: 'Dept/Section/Contractor', width: 22 },
-    { key: 'occupation', label: 'Occupation', width: 18 },
-    { key: 'sheqRefNo', label: 'SHEQ Ref No.', width: 16 },
-    {
-      key: 'riskAssessment', label: 'High Risk', width: 10,
-      format: (_v, row) => {
-        const ra = row.riskAssessment as RiskAssessment;
-        return hasRiskFlag(ra) ? 'Yes' : 'No';
-      },
-    },
-    {
-      key: 'actionPlan', label: 'Actions', width: 14,
-      format: (_v, row) => {
-        const actions = (row.actionPlan as ActionPlanItem[]) ?? [];
-        const done = actions.filter(a => a.status === 'Completed').length;
-        return `${done}/${actions.length} done`;
-      },
-    },
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || sectionF !== ALL || statusF !== ALL || typeF !== ALL || riskOnly || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(''); setSectionF(ALL); setStatusF(ALL); setTypeF(ALL); setRiskOnly(false); setDateFrom(''); setDateTo(''); };
+  const tile = (s: string) => ({ selected: statusF === s, onClick: () => setStatusF(statusF === s ? ALL : s) });
+
+  const openEditor = (r?: PTOReport) => { setViewingId(null); setEditing(r); setDialogOpen(true); };
+  const remove = async (r: PTOReport) => {
+    if (!await confirm({ title: 'Delete this PTO report?', message: `${r.jobTaskObserved}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deletePTOReport(r.id); setViewingId(null); toast.success('PTO report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+  };
+  const changeStatus = async (id: string, next: ReportStatus) => {
+    const before = reports.find(r => r.id === id);
+    if (!before) return;
+    setReports(ps => ps.map(r => (r.id === id ? { ...r, status: next } : r)));
+    try { await updatePTOReport(id, { status: next }); toast.success(`Status changed to ${STATUS_META[next].label.toLowerCase()}.`); }
+    catch (e) { setReports(ps => ps.map(r => (r.id === id ? before : r))); toast.error(`Status was not changed: ${(e as Error).message}`); }
+  };
+
+  const COLUMNS: Column<PTOReport>[] = [
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'observerName', header: 'Observer', sortable: true, hideBelow: 'lg', cell: r => r.observerName },
+    { id: 'workerName', header: 'Worker', sortable: true, cell: r => r.workerName },
+    { id: 'jobTaskObserved', header: 'Task', sortable: true, hideBelow: 'md', cell: r => <span className="line-clamp-2 max-w-[18rem]">{r.jobTaskObserved}</span> },
+    { id: 'section', header: 'Section', sortable: true, hideBelow: 'md', cell: r => <SectionBadge section={r.section} /> },
+    { id: 'status', header: 'Status', sortable: true, cell: r => <StatusTag status={r.status} /> },
+    { id: 'risk', header: 'Risk', sortable: true, cell: r => (hasRiskFlag(r.riskAssessment) ? <RiskBadge /> : <span className="text-ink-muted">None flagged</span>) },
   ];
 
-  const hasFilters = !!(search || sectionFilter !== 'all' || statusFilter !== 'all' || obsTypeFilter !== 'all' || dateFrom || dateTo);
-
-  const selCls = `h-8 rounded-lg px-2.5 text-xs outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
-  const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
-
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={ClipboardList}
-        accent="violet"
-        crumbs={['Safety & Compliance', 'Planned Task Observation']}
-        title="Planned Task Observation"
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Planned task observation' }]}
+        title="Planned task observation"
         description="Complete PTO forms with risk assessment and action tracking."
-        statsOpen={sections.expanded.hero}
-        actions={
+        actions={(
           <>
-            <button type="button" onClick={loadData} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+            <IconButton icon="refresh" label="Refresh PTO reports" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('PTO_Reports')}
                 title="Planned Task Observation"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_COLORS[row.status as ReportStatus]?.replace('#', '')}
+                statusColor={(_v, row) => STATUS_HEX[row.status as ReportStatus]?.replace('#', '')}
               />
             )}
-            <button type="button" onClick={() => setViewMode('grid')} title="Grid view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'grid' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><LayoutGrid className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => setViewMode('table')} title="Table view" className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all ${viewMode === 'table' ? 'bg-brand-500/20 text-brand-400' : `${t.chipBg} ${t.textFaint} ${t.hoverBg}`}`}><TableIcon className="h-3.5 w-3.5" /></button>
-            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New PTO</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>
           </>
-        }
-      >
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-          <StatTile icon={ClipboardList} color={ACCENT_HEX.blue} label="Total" value={total} />
-          <StatTile icon={ClipboardList} color="#94a3b8" label="Draft" value={drafts} />
-          <StatTile icon={ClipboardList} color="#3b82f6" label="Submitted" value={submitted} />
-          <StatTile icon={ClipboardList} color="#a78bfa" label="Reviewed" value={reviewed} />
-          <StatTile icon={ClipboardList} color="#10b981" label="Closed" value={closed} />
-          <StatTile icon={Target} color="#f59e0b" label="Actions" value={totalActions} />
-          <StatTile icon={Target} color="#34d399" label="Completed" value={completedActions} />
-          <StatTile icon={AlertTriangle} color="#ef4444" label="High Risk" value={highRisk} />
-        </div>
-      </PageHero>
-
-      {sections.expanded.records && <>
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search by observer, worker, task..." className="w-56" />
-            <SelectField size="filter" title="Section" value={sectionFilter} onChange={setSectionFilter}
-              options={[{ value: 'all', label: 'All Sections' }, { value: 'Mechanical', label: 'Mechanical' }, { value: 'Electrical', label: 'Electrical' }]} />
-            <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter}
-              options={[{ value: 'all', label: 'All Status' }, { value: 'draft', label: 'Draft' }, { value: 'submitted', label: 'Submitted' }, { value: 'reviewed', label: 'Reviewed' }, { value: 'closed', label: 'Closed' }]} />
-            <SelectField size="filter" title="Type" value={obsTypeFilter} onChange={setObsTypeFilter}
-              options={[{ value: 'all', label: 'All Types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
-            <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={selCls} />
-            <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={selCls} />
-            {hasFilters && <button type="button" onClick={clearFilters} className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><X className="h-3 w-3" /> Clear</button>}
-            <span className={`text-[11px] ml-auto ${t.textFaint}`}>{filtered.length} of {total}</span>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-        ) : loadError ? (
-          // Don't invite a first PTO over data that merely failed to load.
-          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
-            <EmptyState icon={ClipboardList} title="Could not load PTO reports" message={loadError}
-              action={{ label: 'Try again', onClick: () => loadData() }} />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className={`${t.glass} rounded-2xl ${t.shadow}`}>
-            <EmptyState icon={ClipboardList} title="No PTO reports found"
-              message={total === 0 ? 'Start by creating your first Planned Task Observation.' : 'Try adjusting your filters.'}
-              action={{ label: total === 0 ? 'Create First PTO' : 'Clear Filters', onClick: total === 0 ? () => { setEditing(null); setFormOpen(true); } : clearFilters }} />
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-            {filtered.map((r, i) => (
-              <PTOCard key={r.id} report={r} index={i} onView={rep => { setSelectedReport(rep); setDetailOpen(true); }} onEdit={handleEdit} onDelete={id => setDeleteTarget(id)} />
-            ))}
-          </div>
-        ) : (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}>
-                  <tr><th className={thCls}>Date</th><th className={thCls}>Observer</th><th className={thCls}>Worker</th><th className={thCls}>Task</th><th className={thCls}>Section</th><th className={thCls}>Type</th><th className={thCls}>Status</th><th className={thCls}>Risk</th><th className={thCls} aria-label="Actions"></th></tr>
-                </thead>
-                <tbody>
-                  {filtered.map(r => {
-                    const hasRisk = hasRiskFlag(r.riskAssessment);
-                    return (
-                      <tr key={r.id} onClick={() => { setSelectedReport(r); setDetailOpen(true); }} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors cursor-pointer`}>
-                        <td className={tdCls}>{fmtDate(r.date)}</td>
-                        <td className={tdCls}>{r.observerName}</td>
-                        <td className={tdCls}>{r.workerName}</td>
-                        <td className={tdCls}>{r.jobTaskObserved.slice(0, 30)}{r.jobTaskObserved.length > 30 ? '…' : ''}</td>
-                        <td className={tdCls}><StatusBadge color={sectionColor(r.section)} label={r.section} /></td>
-                        <td className={tdCls}><StatusBadge color={OBS_COLORS[r.observationType]} label={r.observationType} /></td>
-                        <td className={tdCls}><StatusBadge color={STATUS_COLORS[r.status]} label={r.status.charAt(0).toUpperCase() + r.status.slice(1)} /></td>
-                        <td className={tdCls}>{hasRisk ? <StatusBadge color="#ef4444" label="⚠ High" /> : <span className={t.textFaint}>—</span>}</td>
-                        <td className={tdCls}>
-                          <div className="flex gap-1 justify-end">
-                            <button type="button" title="Edit" aria-label="Edit PTO report" onClick={e => { e.stopPropagation(); handleEdit(r); }} className={`p-1.5 rounded ${t.chipBg} ${t.hoverBg} ${t.textFaint} transition-colors`}><Pencil className="h-3 w-3" /></button>
-                            <button type="button" title="Delete" aria-label="Delete PTO report" onClick={e => { e.stopPropagation(); setDeleteTarget(r.id); }} className={`p-1.5 rounded ${t.chipBg} hover:bg-rose-500/15 ${t.textFaint} hover:${t.light ? 'text-rose-600' : 'text-rose-400'} transition-colors`}><Trash2 className="h-3 w-3" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
         )}
-      </>}
-
-      <PTODetailModal
-        report={selectedReport}
-        open={detailOpen}
-        onClose={() => { setDetailOpen(false); setSelectedReport(null); }}
-        onEdit={r => { setDetailOpen(false); handleEdit(r); }}
-        onDelete={id => { setDetailOpen(false); setDeleteTarget(id); }}
-        onStatusChange={handleStatusChange}
       />
 
-      <PTOFormModal open={formOpen} editing={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} saving={saving} />
+      <MetricGrid columns={5}>
+        <MetricTile label="Total" icon="task" value={reports.length} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Draft" icon="draft" value={count('draft')} loading={pending} unavailable={unavailable} {...tile('draft')} />
+        <MetricTile label="Submitted" icon="submitted" value={count('submitted')} loading={pending} unavailable={unavailable} {...tile('submitted')} />
+        <MetricTile label="Reviewed" icon="reviewed" value={count('reviewed')} loading={pending} unavailable={unavailable} {...tile('reviewed')} />
+        <MetricTile label="Closed" icon="closed" tone="success" value={count('closed')} loading={pending} unavailable={unavailable} {...tile('closed')} />
+      </MetricGrid>
 
-      <CenterModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Confirm Deletion" accent="amber" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <div className={`flex items-center gap-3 text-sm ${t.textMuted}`}><AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" /> Are you sure you want to delete this PTO report?</div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setDeleteTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <PrimaryButton danger size="md" fullWidth onClick={() => deleteTarget && handleDelete(deleteTarget)}>Delete</PrimaryButton>
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, worker or task" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
+        <Segmented label="Risk" value={riskOnly ? 'risk' : 'all'} onValueChange={v => setRiskOnly(v === 'risk')} options={[{ value: 'all', label: 'All' }, { value: 'risk', label: `High risk (${highRisk})` }]} />
+        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="PTO reports"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No PTO reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} />}
+      >
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {allActions.filter(a => a.status === 'Completed').length} of {allActions.length} actions completed across all reports</p>
+        {view === 'cards' ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map(r => {
+              const p = summarizeActions(r.actionPlan);
+              const o = overdueCount(r);
+              return (
+                <RecordCard
+                  key={r.id}
+                  eyebrow={fmtDate(r.date)}
+                  title={r.jobTaskObserved}
+                  status={<StatusTag status={r.status} />}
+                  facts={[
+                    { label: 'Section', value: <SectionBadge section={r.section} /> },
+                    { label: 'Type', value: r.observationType },
+                    { label: 'Observer', value: r.observerName || 'Not specified' },
+                    { label: 'Worker', value: `${r.workerName || 'Not specified'}${r.occupation ? `, ${r.occupation}` : ''}` },
+                    ...(hasRiskFlag(r.riskAssessment) ? [{ label: 'Risk', value: <RiskBadge /> }] : []),
+                    ...(p.total ? [{ label: 'Actions', value: <><span className="tabular">{p.completed} of {p.total} completed{o ? `, ${o} overdue` : ''}</span><Progress value={p.pct} label={`${r.jobTaskObserved} action progress`} className="mt-1" /></> }] : []),
+                  ]}
+                  action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete PTO report ${r.jobTaskObserved}`} onClick={() => remove(r)} />}
+                  onOpen={() => setViewingId(r.id)}
+                  openLabel={`View PTO report ${r.jobTaskObserved}, ${fmtDate(r.date)}`}
+                />
+              );
+            })}
           </div>
-        </div>
-      </CenterModal>
-    </main>
+        ) : (
+          <DataTable
+            caption="PTO reports"
+            rows={rows}
+            columns={COLUMNS}
+            getRowId={r => r.id}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={r => setViewingId(r.id)}
+            rowActions={r => (
+              <span className="inline-flex gap-1">
+                <IconButton icon="edit" size="sm" label={`Edit PTO report ${r.jobTaskObserved}`} onClick={() => openEditor(r)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Delete PTO report ${r.jobTaskObserved}`} onClick={() => remove(r)} />
+              </span>
+            )}
+          />
+        )}
+      </DataRegion>
+
+      <DetailDialog report={viewing} onClose={() => setViewingId(null)} onEdit={openEditor} onDelete={remove} onStatusChange={changeStatus} />
+      <ReportDialog report={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
 export default function CompletePTOFormPage() {
-  return (
-    <AppShell>
-      <PTOPageContent />
-    </AppShell>
-  );
+  return <AppShell migrated><PTOContent /></AppShell>;
 }

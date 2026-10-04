@@ -108,3 +108,35 @@ export interface OTForm {
   contact_number: string;
   notes: string;
 }
+
+// ── The server's analysis of a set of records (POST /api/overtime/analyze) ──────────────────────────────
+export interface OTProblemArea { title: string; description: string; severity: 'critical' | 'high' | 'medium' | 'low' }
+export interface OTTrend { metric: string; direction: 'worsening' | 'improving' | 'stable'; insight: string; older_hours: number; newer_hours: number }
+export interface OTRecommendation { priority: 'immediate' | 'short_term' | 'long_term'; action: string; rationale: string; target: string }
+export interface OTCategoryDetail {
+  category: string; instances: number; hours: number; avg_hours: number; pct_of_total: number;
+  top_weekday: string | null; top_employee: string | null; top_spare: string | null;
+  records: { employee_name: string; date: string; hours: number; reason: string }[];
+}
+export type PunchRecord = { employee_name: string; hours: number; reason: string; date: string };
+export interface OTAnalysisResult {
+  summary: string;
+  total_hours: number; total_instances: number; employees_involved: number; sections_involved: number;
+  avg_hours_per_instance: number; avg_hours_per_employee: number; double_time_pct: number;
+  top_reasons: { phrase: string; count: number; hours: number }[];
+  category_detail: OTCategoryDetail[];
+  top_machines: { name: string; count: number; hours: number }[];
+  top_employees: { name: string; hours: number }[];
+  top_sections: { section: string; hours: number }[];
+  weekly_series: { week: string; hours: number }[];
+  trend_direction: 'worsening' | 'improving' | 'stable';
+  trends: OTTrend[];
+  hour_weekday_hours: number[][];
+  weekday_labels: string[];
+  punch_records: Record<string, PunchRecord[]>;
+  possible_causes: OTProblemArea[];
+  recommendations: OTRecommendation[];
+  _records_analysed: number;
+  generated_at: string;
+}
+

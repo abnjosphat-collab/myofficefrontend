@@ -34,12 +34,33 @@ expansion, `RecordActions` owns View/Edit/Delete on register cards, and
 `DetailActions` owns the corresponding detail-dialog footer. The Dallaglio
 controls use a 36px standard target, 9px corners, 1px surface border, and
 light-weight stroke icons. Category labels and structure are neutral. In light
-mode violet may identify the active choice or main task; in dark mode those
-interactions are achromatic. Green, amber, and red report actual states, while
-categorical color belongs to charts. Delete stays visually quiet until the confirmation step. These
-measurements are implemented in the shared components and Dallaglio CSS,
-rather than copied into pages. Any deliberate exception needs a reason tied
-to the control's purpose.
+mode the forest action tone (`#233b31`) identifies the active choice or main
+task; in dark mode those interactions are achromatic. Green, amber, and red
+report actual states, while categorical color belongs to charts. Delete stays
+visually quiet until the confirmation step. These measurements are implemented
+in the shared components and Dallaglio CSS, rather than copied into pages.
+Any deliberate exception needs a reason tied to the control's purpose.
+
+### Canonical theme + appearance contracts (Tools-standard rollout)
+
+`tools-theme.css` is the one authoritative token source: canonical `--mo-*`
+variables (Tools values) on `:root`, so body-portalled overlays inherit them
+with no per-portal copying. Dallaglio-light `--d-*` and `--brand-*` are
+aliases onto it; Classic keeps its own values as the preserved archive, and
+dark Dallaglio stays achromatic. Record a token decision in that file's
+header comment, next to the U2/U4 rulings, when you change a value.
+
+`appearance.ts` is the one validated, versioned (`myoffice_appearance_v1`)
+font/size/guidance contract: Inter/Manrope/Plus Jakarta Sans, 85–130% in 5%
+steps, shared by Tools and the wider app with cross-tab sync. Migration
+precedence is shared → Tools prefs → legacy `oz_*` keys → defaults; legacy
+fonts map to Inter. Module view/filter/layout prefs stay separate — never
+put them in the appearance record.
+
+Motion is calm everywhere: stationary cards, color/shadow-only hover,
+`emergeContainer`/`emergeItem`/`emergeProps` for short entrances (180ms,
+25ms stagger capped at 150ms, instant under reduced motion). No lift, tilt,
+scale, or elaborate glow on any new surface.
 
 This directory (`components/shared/design-system/`) is the **single source of
 truth** for styling, theming, and reusable UI primitives across every page of
@@ -75,7 +96,7 @@ needing to be repeated across every page that copied the pattern.**
 
 | File | Contents |
 |---|---|
-| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `design: 'classic' \| 'dallaglio'`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../docs/COLOR_HARMONY.md). |
+| `tokens.tsx` | `useTheme()`, `ThemeProvider`, `design: 'classic' \| 'dallaglio'`, `ACCENT`/`ACCENT_HEX`, `STATUS_TONE`, `decorativeAccentHex`, `isStatusToneHex`, `uiIconClass`, `TYPE_SCALE`, `SPACING`, `RADIUS`. Read colors from here — see [`docs/COLOR_HARMONY.md`](../../../docs/COLOR_HARMONY.md). |
 | `dallaglio/` | Tools-derived canvas, controls, icons, and shell styles. Switching `myoffice_design` restyles AppShell routes through `themeClasses` and shared components. `/tools` keeps its own CSS module. |
 | `color.ts` | Color math helpers (`hexToRgba`, `rgbaFromHexSafe`, etc.) for turning a hex into a themed rgba string. |
 | `motion.ts` | Shared framer-motion variants (`fadeUp`, `staggerContainer`, `fadeTextVariant`, `tileIconItem`/`tileTextContainer`/`tileTextItem`). Reuse these instead of writing a new `variants={{ ... }}` object per component — that's how animation timing/easing drifts out of sync across pages. |
@@ -327,6 +348,19 @@ For per-action glyph consistency (independent of solid/outline): **edit →
 `Pencil`**, **delete → `Trash2`**, **add → `Plus`**, **call/phone → `Phone`**
 (the smartphone). Reuse the established name; don't introduce a second glyph
 for the same action.
+
+**Stage B (Tools-standard rollout):** `app/tools/ToolsIcon.tsx`,
+`app/tools/EquipmentIcon.tsx`, and `dallaglio/icons.ts` resolve through this
+barrel — nothing outside `icons.tsx` imports `@phosphor-icons/react`
+directly anymore. The semantic contract (`shared/icon-meanings.ts`,
+consumed via `DsIcon`) gained the Tools set: `home`, `chat`, `bell`,
+`history`, `pin`, `back`, `swap`, `undo`, `redo`, `attachment`, `image`,
+`pdf`, `upload`, `show`, `hide`, `department`, `font`, `grip`, `zoom-in`,
+`zoom-out`, `accounts`, `app` — mapped in both `classic/icons.ts` and
+`dallaglio/icons.ts`. Weight policy: light for ordinary controls, regular
+green for Tools navigation, fill for the selected spotlight. Tools keeps
+explicit per-icon weights (its nav needs them); everywhere else, let the
+global toggle own weight.
 
 ## Known gotchas (already fixed, but the underlying shape of bug can recur)
 

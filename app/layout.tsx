@@ -1,17 +1,12 @@
 // frontend/app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans, Sora } from "next/font/google";
+import { Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
 import { MyOfficeAccessBoundary } from "@/components/MyOfficeAccessBoundary";
-
-const montserrat = Montserrat({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
+// Server component: import the pure appearance module, not the client barrel.
+import { APPEARANCE_BOOTSTRAP } from "@/components/ui-system/appearance/appearance";
 
 const inter = Inter({
   variable: "--font-body",
@@ -25,23 +20,21 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-// Extra body-typeface choices for the one-click font switcher (Settings > Typography —
-// see FontStyleProvider). Each is exposed as its own CSS variable; FontStyleProvider
-// points --font-active at whichever one the user picked (default: the system font
-// stack, i.e. none of these — see globals.css).
+// The three interface typefaces of the UI system (Inter body, Plus Jakarta Sans display,
+// Manrope as the alternative). Each is exposed as a CSS variable on <html>; the
+// appearance preference picks which one --mo-font-body resolves to (see ui-system tokens.css).
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"], display: "swap" });
 const plusJakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
-const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://myofficefrontend.vercel.app",
   ),
-  title: "Dallaglio Portable Tools and Equipment E-System",
+  title: "MyOffice",
   description:
-    "Find, issue, return and account for portable tools and equipment across Dallaglio departments with searchable registers, clear custody records and a permanent history.",
-  applicationName: "Dallaglio Portable Tools and Equipment E-System",
-  keywords: ["portable tools", "equipment management", "tool register", "equipment custody", "Dallaglio"],
+    "MyOffice mine engineering ERP and MIS: work orders, maintenance, timesheets, equipment, spares, safety and registers in one workspace.",
+  applicationName: "MyOffice",
+  keywords: ["myoffice", "mine engineering", "erp", "mis", "work orders", "maintenance"],
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -54,37 +47,39 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Dallaglio Tools",
+    title: "MyOffice",
   },
   openGraph: {
-    title: "Dallaglio Portable Tools and Equipment E-System",
+    title: "MyOffice",
     description:
-      "Find, issue, return and account for portable tools and equipment with searchable registers, clear custody records and a permanent history.",
-    siteName: "Dallaglio Portable Tools and Equipment E-System",
+    "MyOffice mine engineering ERP and MIS: work orders, maintenance, timesheets, equipment, spares, safety and registers in one workspace.",
+    siteName: "MyOffice",
     type: "website",
-    url: "/tools",
+    url: "/",
     images: [{
-      url: "/icons/tools-share-1200x630.png",
-      width: 1200,
-      height: 630,
-      alt: "Dallaglio Portable Tools and Equipment E-System app preview",
+      url: "/icons/icon-192.png",
+      width: 192,
+      height: 192,
+      alt: "MyOffice app icon",
     }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Dallaglio Portable Tools and Equipment E-System",
+    title: "MyOffice",
     description:
-      "Find, issue, return and account for portable tools and equipment with searchable registers, clear custody records and a permanent history.",
-    images: ["/icons/tools-share-1200x630.png"],
+    "MyOffice mine engineering ERP and MIS: work orders, maintenance, timesheets, equipment, spares, safety and registers in one workspace.",
+    images: ["/icons/icon-192.png"],
   },
 };
 
 // themeColor/viewport live in a separate export (not `metadata`) as of Next.js 14+ —
 // putting themeColor in `metadata` is deprecated and silently ignored.
 export const viewport: Viewport = {
-  themeColor: "#17151f",
+  themeColor: "#f4f6f5",
   width: "device-width",
   initialScale: 1,
+  // Draw under the notch / rounded corners; the shell pads with env(safe-area-inset-*) (tokens.css --mo-safe-*).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -93,28 +88,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning: the inline script below stamps `data-theme` and the
-    // `.dark` class onto <html> before React hydrates, so the client attributes
-    // deliberately differ from the server-rendered ones. Scoped to this element's own
+    // suppressHydrationWarning: the inline scripts below stamp `data-theme`, `data-design`,
+    // `data-font` and `--mo-text-scale` onto <html> before React hydrates, so the client
+    // attributes deliberately differ from the server-rendered ones. Scoped to this element's own
     // attributes only — it does not suppress warnings for any child.
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable}`}>
       <head>
-        {/* Applies the saved theme to <html> before first paint. Without this, every
-            load renders light and only flips once ThemeProvider's effect runs — a
-            white flash on each navigation for anyone using dark mode. Kept in sync
-            with THEME_KEY / the .dark class in design-system/tokens.tsx.
-            Stored `system` (or no value) follows prefers-color-scheme; explicit
-            light/dark always wins. Kept in sync with readThemePreference() in
-            design-system/tokens.tsx. */}
+        {/* Pre-paint: one light appearance (no theme switch), the saved typeface and the saved
+            text size, applied to <html> before first paint so there is no flash or layout jump.
+            /tools keeps its own classic design flag until it migrates. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var v=localStorage.getItem('myoffice_theme');var d=v==='dark'||(v!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=d?'dark':'light';var raw=localStorage.getItem('myoffice_design');document.documentElement.dataset.design=(location.pathname==='/tools'||location.pathname.indexOf('/tools/')===0)?'classic':((raw==='classic'||raw==='studio')?'classic':'dallaglio');document.documentElement.style.colorScheme=d?'dark':'light';var s={small:0.925,'default':1,large:1.075,xlarge:1.15}[localStorage.getItem('oz_fontScale')];if(s){document.documentElement.style.zoom=String(s);}}catch(e){}})();`,
+            __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';h.style.colorScheme='light';h.dataset.design=(location.pathname==='/tools'||location.pathname.indexOf('/tools/')===0)?'classic':'dallaglio';}catch(e){}})();`,
           }}
         />
+        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOTSTRAP }} />
       </head>
-      <body
-        className={`${montserrat.variable} ${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable} ${sora.variable} antialiased`}
-      >
+      <body className="antialiased">
         <Providers>
           <MyOfficeAccessBoundary>{children}</MyOfficeAccessBoundary>
         </Providers>
@@ -123,9 +113,9 @@ export default function RootLayout({
           richColors
           toastOptions={{
             style: {
-              fontFamily: "var(--font-body)",
-              border: "1px solid #e2ecf5",
-              boxShadow: "0 4px 16px rgba(42,77,105,0.10)",
+              fontFamily: "var(--mo-font-body)",
+              border: "1px solid var(--mo-line)",
+              boxShadow: "var(--mo-shadow-popover)",
             },
           }}
         />

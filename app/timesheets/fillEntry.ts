@@ -161,7 +161,7 @@ export function applyNormalHoursFill(
     };
   }
 
-  const { id: _id, _auto, ...rest } = existing;
+  const { id: _id, _auto, _moduleApproval, ...rest } = existing;
   const ot15 = rest.overtime_hours || 0;
   const ot20 = rest.holiday_overtime_hours || 0;
   const regular_hours = normal.regular_hours;
@@ -195,7 +195,7 @@ export function applyNormalHoursFill(
 
 /** Target day is owned by approved leave only — filling would overwrite module leave. */
 export function isFillProtectedTarget(entry?: TimesheetEntry): boolean {
-  return !!entry && entry._auto === 'leave';
+  return !!entry && (LEAVE_STATUSES.has(entry.status) || entry._auto === 'leave' || entry._auto === 'both');
 }
 
 /** Fill from work days (normal hours) or OFF/absent (0h). Not from leave or 2.0× days. */

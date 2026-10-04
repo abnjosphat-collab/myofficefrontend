@@ -7,18 +7,13 @@ import type { ShiftAssignment } from '@/app/shifts/types';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import { syncRosterNightFields } from './calcTotals';
 import { normalizeTimesheetEmployeeCode, timesheetEmployeeCodesMatch } from './employeeCode';
+import { addModuleApproval, moduleRecordIncluded } from './moduleApproval';
+import { isNightRosterTail } from './nightRosterOvertime';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, StatusKey, TimesheetEntry } from './types';
 
 function resolveDbEmployeeId(humanCode: string, employeeIdByHuman: Map<string, string>): string | undefined {
   const norm = normalizeTimesheetEmployeeCode(humanCode);
   return employeeIdByHuman.get(norm) ?? employeeIdByHuman.get(humanCode.trim());
-}
-
-function isEarlyMorningOvertimeRecord(ot: ApprovedOvertimeRecord): boolean {
-  const st = ot.start_time?.trim();
-  if (!st) return false;
-  const h = Number(st.split(':')[0]);
-  return !Number.isNaN(h) && h < 6;
 }
 
 export const OT_TYPE_TO_BUCKET: Record<string, 'ot15' | 'ot20'> = {
@@ -69,12 +64,18 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
   } = input;
 
   const merged = new Map<string, TimesheetEntry>();
-  timesheets.forEach(ts => merged.set(`${ts.employee_id}:${ts.date}`, ts));
+  timesheets.forEach(({ _moduleApproval: _oldApproval, ...ts }) => merged.set(`${ts.employee_id}:${ts.date}`, ts));
 
   const dayStrSet = new Set(dayStrs);
   const tabIdSet = new Set(tabIds);
 
+  const seenLeaveIds = new Set<number>();
   approvedLeaves.forEach(lv => {
+    if (!moduleRecordIncluded(lv.status)) return;
+    if (lv.id != null) {
+      if (seenLeaveIds.has(lv.id)) return;
+      seenLeaveIds.add(lv.id);
+    }
     const dbId = resolveDbEmployeeId(lv.employee_id, employeeIdByHuman);
     if (!dbId || !tabIdSet.has(dbId)) return;
     const status = leaveTypeToStatus[lv.leave_type];
@@ -101,16 +102,18 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
         notes: existing?.notes?.includes(tag) ? existing.notes : existing?.notes ? `${existing.notes}; ${tag}` : tag,
         id: existing?.id,
         _auto: existing?.id ? undefined : 'leave',
+        _moduleApproval: addModuleApproval(existing?._moduleApproval, lv.status),
       });
     });
   });
 
   // Overtime module is authoritative per day — SET totals from approved records (deduped by id).
   // Do not add on top of saved row overtime_hours (that double-counts when rows already persisted module OT).
-  type ModuleOtDay = { ot15: number; ot20: number; tags: string[] };
+  type ModuleOtDay = { ot15: number; ot20: number; tags: string[]; approval?: TimesheetEntry['_moduleApproval'] };
   const moduleOtByKey = new Map<string, ModuleOtDay>();
   const seenOvertimeIds = new Set<number>();
   approvedOvertime.forEach(ot => {
+    if (!moduleRecordIncluded(ot.status)) return;
     if (ot.id != null) {
       if (seenOvertimeIds.has(ot.id)) return;
       seenOvertimeIds.add(ot.id);
@@ -125,6 +128,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     const acc = moduleOtByKey.get(key) ?? { ot15: 0, ot20: 0, tags: [] };
     if (bucket === 'ot20') acc.ot20 += hours;
     else acc.ot15 += hours;
+    acc.approval = addModuleApproval(acc.approval, ot.status);
     if (ot.reason?.trim()) {
       const tag = `OT (${ot.overtime_type}): ${ot.reason.trim()}`;
       if (!acc.tags.some(t => t === tag)) acc.tags.push(tag);
@@ -158,6 +162,10 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
         + (base.nightshift_hours || 0) + (base.callout_overtime_hours || 0),
       notes: notes || base.notes,
       _auto: base._auto === 'leave' ? 'both' : base.id ? base._auto : 'overtime',
+      _moduleApproval: {
+        approved: (base._moduleApproval?.approved ?? 0) + (totals.approval?.approved ?? 0),
+        pending: (base._moduleApproval?.pending ?? 0) + (totals.approval?.pending ?? 0),
+      },
     });
   });
 
@@ -218,9 +226,9 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
 
   const earlyMorningOtKeys = new Set<string>();
   approvedOvertime.forEach(ot => {
-    if (ot.status === 'rejected') return;
+    if (!moduleRecordIncluded(ot.status)) return;
     if (OT_TYPE_TO_BUCKET[ot.overtime_type] !== 'ot15') return;
-    if (!isEarlyMorningOvertimeRecord(ot)) return;
+    if (!isNightRosterTail(ot)) return;
     const dbId = resolveDbEmployeeId(ot.employee_id, employeeIdByHuman);
     if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
     if (approvedOvertimeHours(ot) <= 0) return;

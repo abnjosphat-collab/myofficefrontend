@@ -70,7 +70,7 @@ async function safeJson(url: string): Promise<any> {
   }
 }
 
-interface DashboardLoadResult { stats: DashboardStats; activity: ActivityItem[] }
+interface DashboardLoadResult { stats: DashboardStats; activity: ActivityItem[]; activityFailed: boolean }
 
 // This hook has 5 independent call sites (app/page.tsx twice, BottomBar,
 // SidebarNavigation, useNotifications) — the last three all live inside AppShell,
@@ -154,6 +154,8 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
   return {
     stats: { employeeCount, activeWorkOrders, equipmentAvailablePct, openBreakdowns },
     activity,
+    // A null response means the request failed (safeJson swallows it); an empty feed is a valid answer.
+    activityFailed: workOrders === null || breakdowns === null,
   };
 }
 
@@ -161,6 +163,7 @@ export function useDashboardData() {
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activityFailed, setActivityFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,11 +180,12 @@ export function useDashboardData() {
       if (cancelled) return;
       setStats(result.stats);
       setActivity(result.activity);
+      setActivityFailed(result.activityFailed);
       setLoading(false);
     });
 
     return () => { cancelled = true; };
   }, []);
 
-  return { stats, activity, loading };
+  return { stats, activity, loading, activityFailed };
 }

@@ -1,16 +1,15 @@
 // app/requisitions/useRequisitionsData.ts — the requisitions page's data-fetching
-// layer: the backend<->frontend shape converter, record CRUD, and a hook owning the
-// list plus its loading/refreshing flag pair. Split out of page.tsx as part of the
-// standing "decompose on touch" convention. One resource, one load cycle — same
-// load(quiet) shape as sheq_inspection.
+// layer: the backend<->frontend shape converter, record CRUD, and the list hook. Writes throw so the form dialog can show the reason (for example a duplicate
+// requisition number); a failed load is reported through useApiList, never shown as an empty list.
+// The list route takes no limit or offset, so it cannot be paged: it returns whatever the database's own
+// row cap (1000) allows.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
 import type { Requisition } from './types';
 
-function fromBackend(d: Record<string, unknown>): Requisition {
+export function fromBackend(d: Record<string, unknown>): Requisition {
   return {
     id: String(d.id),
     date: String(d.date ?? ''),
@@ -33,10 +32,6 @@ function fromBackend(d: Record<string, unknown>): Requisition {
   };
 }
 
-export async function apiGet(): Promise<Requisition[]> {
-  const data = await api.get<unknown[]>('/api/requisitions');
-  return (Array.isArray(data) ? data : []).map(d => fromBackend(d as Record<string, unknown>));
-}
 export async function apiCreate(body: object): Promise<Requisition> {
   return fromBackend(await api.post<Record<string, unknown>>('/api/requisitions', body));
 }
@@ -48,18 +43,6 @@ export async function apiDelete(id: string): Promise<void> {
 }
 
 export function useRequisitionsData() {
-  const [reqs, setReqs] = useState<Requisition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true); else setRefreshing(true);
-    try { setReqs(await apiGet()); }
-    catch (e) { toast.error(`Load failed: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { reqs, setReqs, loading, refreshing, refresh: load };
+  const list = useApiList<Record<string, unknown>, Requisition>('/api/requisitions', fromBackend);
+  return { reqs: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
 }

@@ -1,55 +1,91 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { authFetch } from '@/lib/api';
+import { api, ApiError } from '@/lib/apiClient';
 import { useCompressorsData } from './useCompressorsData';
 
-vi.mock('@/lib/api', () => ({ authFetch: vi.fn() }));
-vi.mock('@/lib/apiClient', () => ({ api: { post: vi.fn(), blob: vi.fn() } }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
+vi.mock('@/lib/apiClient', async () => {
+  class ApiError extends Error { status: number; constructor(m: string, s: number) { super(m); this.status = s; } }
+  return { ApiError, api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), blob: vi.fn() } };
+});
 
-const compressor = { id: 1, name: 'Audit compressor', model: 'AC-100', capacity: '100 CFM', location: 'Main Plant', status: 'running', total_running_hours: 1200, total_loaded_hours: 900, initial_total_running: 1000, initial_total_loaded: 750, color: 'bg-brand-500' };
-const response = (data: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, statusText: status === 200 ? 'OK' : 'Unavailable', json: vi.fn().mockResolvedValue(data) }) as unknown as Response;
+const compressor = { id: 1, name: 'Audit compressor', model: 'AC-100', capacity: '100 CFM', location: 'Main Plant', status: 'running', total_running_hours: 1200, total_loaded_hours: 900, initial_total_running: 1000, initial_total_loaded: 750 };
+const STATS = { total_compressors: 1, total_running_hours: 1200, avg_efficiency: 75, upcoming_services: 0, urgent_alerts: 0, active_compressors: 1 };
 
-function installFetch(primary: () => Response) {
-  vi.mocked(authFetch).mockImplementation(async input => {
-    const url = String(input);
-    if (url.endsWith('/api/compressors/compressors')) return primary();
-    if (url.includes('/readings/')) return response({ data: [] });
-    if (url.endsWith('/stats')) return response({ total_compressors: 1, total_running_hours: 1200, avg_efficiency: 75, upcoming_services: 0, urgent_alerts: 0, active_compressors: 1 });
-    if (url.endsWith('/service-due')) return response([]);
-    if (url.includes('/performance-metrics')) return response([]);
-    if (url.includes('/analytics/trends')) return response({ success: true, data: [], message: '', has_data: false });
-    if (url.includes('/analytics/comparison')) return response({ success: true, data: [], message: '', count: 0 });
-    if (url.includes('/management/summary')) return response({});
-    return response([]);
-  });
+function install(overrides: Record<string, () => unknown> = {}) {
+  vi.mocked(api.get).mockImplementation((async (path: string) => {
+    for (const [needle, fn] of Object.entries(overrides)) if (path.includes(needle)) return fn();
+    if (path.endsWith('/api/compressors/compressors')) return [compressor];
+    if (path.includes('/readings/')) return { data: [{ date: '2026-09-27', total_running_hours: 1190, total_loaded_hours: 890 }] };
+    if (path.endsWith('/stats')) return STATS;
+    if (path.endsWith('/service-due')) return [];
+    if (path.includes('/performance-metrics')) return [];
+    if (path.includes('/analytics/trends')) return { success: true, data: [], message: '', has_data: false };
+    if (path.includes('/analytics/comparison')) return { success: true, data: [], message: '', count: 0 };
+    if (path.includes('/management/summary')) return {};
+    return [];
+  }) as never);
 }
 
-describe('Compressor register loading', () => {
+describe('compressor data', () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it('marks an initial register failure unavailable', async () => {
-    installFetch(() => response({ detail: 'Service unavailable' }, 503));
-    const { result } = renderHook(() => useCompressorsData(new Date('2026-09-28T08:00:00Z')));
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(result.current.compressorsLoaded).toBe(false);
+  it('marks an initial register failure unavailable instead of empty', async () => {
+    install({ '/api/compressors/compressors': () => { throw new ApiError('Service unavailable', 403); } });
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.register.loading).toBe(false));
+    expect(result.current.register.loaded).toBe(false);
     expect(result.current.compressors).toEqual([]);
-    expect(result.current.loadError).toBe('Service unavailable');
+    expect(result.current.register.error).toBe('Service unavailable');
   });
 
-  it('preserves loaded compressors when a quiet refresh fails', async () => {
-    let failPrimary = false;
-    installFetch(() => failPrimary ? response({ detail: 'Temporary outage' }, 503) : response([compressor]));
-    const { result } = renderHook(() => useCompressorsData(new Date('2026-09-28T08:00:00Z')));
-    await waitFor(() => expect(result.current.compressorsLoaded).toBe(true));
-
-    failPrimary = true;
-    await act(async () => result.current.refresh());
-
+  it('keeps loaded compressors when a refresh fails', async () => {
+    let fail = false;
+    install({ '/api/compressors/compressors': () => { if (fail) throw new ApiError('Temporary outage', 403); return [compressor]; } });
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.register.loaded).toBe(true));
+    fail = true;
+    await act(async () => { await result.current.refresh(); });
     expect(result.current.compressors[0]?.name).toBe('Audit compressor');
-    expect(result.current.compressorsLoaded).toBe(true);
-    expect(result.current.loadError).toBe('Temporary outage');
+    expect(result.current.register.error).toBe('Temporary outage');
+  });
+
+  it('reports a failed analytics section as an error, not as no data', async () => {
+    install({ '/performance-metrics': () => { throw new ApiError('Metrics are down', 500); } });
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.metrics.loading).toBe(false));
+    expect(result.current.metrics.error).toBe('Metrics are down');
+    expect(result.current.metrics.loaded).toBe(false);
+  });
+
+  it('takes the previous reading from before the chosen day, and reloads when the day changes', async () => {
+    install();
+    const { result, rerender } = renderHook(({ day }) => useCompressorsData(day), { initialProps: { day: '2026-09-28' } });
+    await waitFor(() => expect(result.current.previous.byId[1]?.total_running_hours).toBe(1190));
+    rerender({ day: '2026-09-27' }); // the only reading is now not before the chosen day: falls back to the initial totals
+    await waitFor(() => expect(result.current.previous.byId[1]?.date).toBe('Initial'));
+    expect(result.current.previous.byId[1]?.total_running_hours).toBe(1000);
+  });
+
+  it('lists a compressor whose history failed to load instead of treating it as having none', async () => {
+    install({ '/readings/': () => { throw new ApiError('boom', 500); } });
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.previous.failed).toEqual([1]));
+    expect(result.current.previous.byId[1]).toBeUndefined();
+  });
+
+  it('refuses a reading that is below the previous total, without calling the server', async () => {
+    install();
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.previous.byId[1]).toBeDefined());
+    await expect(result.current.saveReading(1, { running: 1100, loaded: 890, pressure: 0, temperature: 0, notes: '' })).rejects.toThrow(/previous total/);
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('reports which step failed when a service is recorded but the hours are not updated', async () => {
+    install();
+    vi.mocked(api.post).mockImplementation((async (path: string) => { if (path.includes('daily-entries')) throw new ApiError('Hours rejected', 400); return {}; }) as never);
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.register.loaded).toBe(true));
+    await expect(result.current.completeService(1, 2000)).rejects.toThrow(/The service was recorded, but the running hours were not updated: Hours rejected/);
   });
 });

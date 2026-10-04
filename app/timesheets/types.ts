@@ -6,6 +6,7 @@
 // are included here (not prop types) since, like ppe's FormState, they mirror a
 // create/display data shape rather than describing a component's own props.
 import type { ElementType } from 'react';
+import type { ModuleApprovalSummary } from './moduleApproval';
 
 export interface Employee {
   id: string; employeeId: string; name: string; position: string;
@@ -32,6 +33,8 @@ export interface TimesheetEntry {
    *  person. No `id`, so it isn't in the DB yet: clicking it opens the editor pre-filled,
    *  and saving turns it into a real entry. Never sent to the backend. */
   _auto?: 'leave' | 'overtime' | 'both' | 'holiday';
+  /** Rebuilt from source modules on each merge; never persisted or drag-copied. */
+  _moduleApproval?: ModuleApprovalSummary;
 }
 
 /** Minimal shape pulled from the Leaves page's records — only what's needed to project an

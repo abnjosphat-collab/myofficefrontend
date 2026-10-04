@@ -1,1862 +1,205 @@
+// app/ppe/page.tsx — personal protective equipment: who holds what, what is overdue or about to be, an order list for restocking, the
+// replacement matrix that sets expiry dates, and the summaries and downloads. Everything on the page comes from the issued records.
 'use client';
 
-import React, { useState, useMemo, useEffect, Fragment } from 'react';
-import { api } from '@/lib/apiClient';
-import { motion } from 'framer-motion';
-import {
-  Shield, Plus, Search, RefreshCw, ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, FileText, Eye,
-  Trash2, Pencil, HardHat, AlertTriangle,
-  Users, UserRound,
-  Award, ChevronRight,
-  Shirt, ChevronsUp, ChevronsDown, X,
-  BoxingGlove, Goggles, Boot, Seatbelt, FaceMask, Hoodie, ShirtFolded, Pants, Belt, Umbrella, Link,
-  CalendarRange, ShoppingCart,
-} from '@/components/shared/theme';
-import { AppShell } from '@/components/app-shell';
-import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
-import { formatDate } from '@/lib/format';
-import { addMonths, todayLocal } from '@/lib/dates';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
+import { AppShell } from '@/components/app-shell';
 import {
-  useTheme, STATUS_TONE, Collapse, AnimatedText, PulsingIcon, CenterModal, GlowCard,
-  staggerContainer, fadeUp, ACCENT, ACCENT_HEX,
-  StatusBadge, RecordCard, RecordActions, StatTile, ProgressBar, FormField, FormActions,
-  useCollapseSection, SelectField, AutofillInput, SearchInput, useConfirm, accentText, TYPE_WEIGHT, PrimaryButton, Button, IconAction, DetailActions,
-} from '@/components/shared/theme';
-import type { PPETypeInfo, PPERecord, EmployeeRow, EmployeeWithPPE, EnhancedStats, FormState } from './types';
-import {
-  usePPEData,
-  createPPERecord, updatePPERecord, deletePPERecord,
-} from './usePPEData';
-import { isExpiringSoon, isExpired, computeComplianceRate, computeSizeBreakdown, thisWeekRange, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
+  Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
+  deriveDataStatus, isTransientStatus, useConfirm,
+} from '@/components/ui-system';
+import { todayLocal } from '@/lib/dates';
+import { normalizeSection } from '@/lib/sections';
+import { enrichPPERecords, type OrderListEntry } from './calcPPE';
+import { DueItems } from './DueItems';
+import { MatrixDialog } from './MatrixDialog';
+import { OrderListView } from './OrderListView';
+import { PPEIssueForm } from './PPEIssueForm';
+import { EmployeePPEDetail, PPEItemDetail, type ItemActions } from './PPEItemViews';
+import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, sectionCounts, selectableEmployees, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
+import { typeName } from './ppeMeta';
+import { SummaryView } from './SummaryView';
+import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
 import { useOrderList } from './useOrderList';
-import { OrderListPanel } from './OrderListPanel';
-import { SECTION_ORDER, normalizeSection, sectionColor } from '@/lib/sections';
-import { PillTabs } from '@/components/shared/PillTabs';
+import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 
-// Data-model types (PPERecord, EmployeeRow, PPEStats, etc.) now live in ./types —
-// imported above. Component prop interfaces below stay page-local.
+const ALL = 'all';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-
-const PPE_TYPES: Record<string, PPETypeInfo> = {
-  helmet:        { name: 'Safety Helmet',        shortName: 'Helmet',     color: '#172554', icon: HardHat,     bgColor: 'bg-slate-500/15',   textColor: 'text-slate-300',   borderColor: 'border-slate-400/25',   description: 'Head protection for underground and surface operations' },
-  gloves:        { name: 'Safety Gloves',        shortName: 'Gloves',     color: '#f87171', icon: BoxingGlove, bgColor: 'bg-rose-500/15',    textColor: 'text-rose-300',    borderColor: 'border-rose-500/25',    description: 'Hand protection for handling materials and chemicals' },
-  glasses:       { name: 'Safety Glasses',       shortName: 'Glasses',    color: '#60a5fa', icon: Goggles,     bgColor: 'bg-brand-500/15',    textColor: 'text-brand-300',    borderColor: 'border-brand-500/25',    description: 'Eye protection from dust and debris' },
-  vest:          { name: 'High-Vis Vest',         shortName: 'Vest',       color: '#fbbf24', icon: Shirt,      bgColor: 'bg-amber-500/15',   textColor: 'text-amber-300',   borderColor: 'border-amber-500/25',   description: 'High visibility clothing for surface operations' },
-  gumboots:      { name: 'Safety Gum Boots',     shortName: 'GumBoots',   color: '#a78bfa', icon: Boot,        bgColor: 'bg-violet-500/15',  textColor: 'text-violet-300',  borderColor: 'border-violet-500/25',  description: 'Steel-toe foot protection' },
-  safety_shoes:  { name: 'Safety Shoes',         shortName: 'Shoes',      color: '#38bdf8', icon: Boot,        bgColor: 'bg-sky-500/15',     textColor: 'text-sky-300',     borderColor: 'border-sky-500/25',     description: 'Protective footwear for various work environments' },
-  harness:       { name: 'Safety Harness',       shortName: 'Harness',    color: '#34d399', icon: Seatbelt,    bgColor: 'bg-emerald-500/15', textColor: 'text-emerald-300', borderColor: 'border-emerald-500/25', description: 'Fall protection for heights and shafts' },
-  safety_chain_belt: { name: 'Safety Chain & Belt', shortName: 'Chain & Belt', color: '#fb923c', icon: Link, bgColor: 'bg-orange-500/15', textColor: 'text-orange-300', borderColor: 'border-orange-500/25', description: 'Chain and belt for securing workers underground' },
-  respirator:    { name: 'Respirator',           shortName: 'Respirator', color: '#2dd4bf', icon: FaceMask,    bgColor: 'bg-teal-500/15',    textColor: 'text-teal-300',    borderColor: 'border-teal-500/25',    description: 'Respiratory protection from dust and chemicals' },
-  Cap_lamp_belt: { name: 'Cap Lamp Belt',        shortName: 'Lamp Belt',  color: '#f472b6', icon: Belt,        bgColor: 'bg-pink-500/15',    textColor: 'text-pink-300',    borderColor: 'border-pink-500/25',    description: 'Lighting for underground operations' },
-  worksuit:      { name: 'Protective Work Suit', shortName: 'Work Suit',  color: '#4169E1', icon: Hoodie,      bgColor: 'bg-orange-500/15',  textColor: 'text-orange-300',  borderColor: 'border-orange-500/25',  description: 'Full body protection for various work environments' },
-  rainsuit:      { name: 'Rain Suit',            shortName: 'Rain Suit',  color: '#22d3ee', icon: Umbrella,    bgColor: 'bg-cyan-500/15',    textColor: 'text-cyan-300',    borderColor: 'border-cyan-500/25',    description: 'Waterproof protection for wet conditions' },
-  overall:       { name: 'Protective Overall',   shortName: 'Overall',    color: '#c084fc', icon: Pants,       bgColor: 'bg-purple-500/15',  textColor: 'text-purple-300',  borderColor: 'border-purple-500/25',  description: 'One-piece coverall worn going underground' },
-  pneumo_jacket: { name: 'Pneumo Jacket',        shortName: 'Pneumo Jkt', color: '#818cf8', icon: ShirtFolded, bgColor: 'bg-indigo-500/15',  textColor: 'text-indigo-300',  borderColor: 'border-indigo-500/25',  description: 'Pneumatic / insulated jacket' },
-};
-
-// PPE_MATRIX_DEFAULTS now lives in ./usePPEData (imported above) — same data,
-// single source of truth for both the hook's initial state and this page's UI.
-
-// Partially harmonized onto STATUS_TONE (2026-08-29 palette consolidation) — the two
-// clean-fit endpoints (best/worst) are shared; 'good'/'poor' keep their own distinct
-// shades on purpose. This is a real 5-step severity scale (excellent > good > fair >
-// poor > damaged) and STATUS_TONE only has 5 tones total — collapsing 'good' into
-// STATUS_TONE.info or 'poor' into STATUS_TONE.critical would make two genuinely
-// different conditions render identically. '#86BBD8' is also the app's established
-// secondary-brand blue reused elsewhere (ApprovalGate's "sign" variant), not a
-// one-off pick worth losing.
-const CONDITION_COLORS: Record<string, string> = { excellent: STATUS_TONE.good, good: '#86BBD8', fair: STATUS_TONE.warning, poor: '#f97316', damaged: STATUS_TONE.critical };
-const CONDITION_LABELS: Record<string, string> = { excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', damaged: 'Damaged' };
-// Same reasoning: 'lost' and 'damaged' are distinct alert states worth keeping
-// visually separate from plain 'expired', not collapsed onto STATUS_TONE.critical.
-const STATUS_COLORS_PPE: Record<string, string> = { active: STATUS_TONE.good, expired: STATUS_TONE.critical, returned: STATUS_TONE.neutral, lost: '#a78bfa', damaged: '#f97316', not_required: STATUS_TONE.neutral };
-const STATUS_LABELS: Record<string, string> = { active: 'Active', expired: 'Due', returned: 'Returned', lost: 'Lost', damaged: 'Damaged', not_required: 'Not required' };
-
-// ─── UTILITIES ────────────────────────────────────────────────────────────────
-
-const fmtDate = (s?: string | null) => (s ? formatDate(s) : 'Not specified');
-
-// isExpiringSoon/isExpired/computeComplianceRate/computeSizeBreakdown now live in
-// ./calcPPE (imported above) — extracted per the "extract + test business logic"
-// standard (app/timesheets/calcTotals.ts precedent), tested in calcPPE.test.ts.
-
-// fetchPPERecords/fetchPPEStats/fetchAllEmployees/createPPERecord/updatePPERecord/
-// deletePPERecord now live in ./usePPEData (imported above).
-
-// ─── BADGES ───────────────────────────────────────────────────────────────────
-// Rendered via the shared `StatusBadge` component now (see imports) —
-// `STATUS_COLORS_PPE`/`CONDITION_COLORS`/labels below remain page-local data.
-
-// ─── EMPLOYEE AUTOCOMPLETE ────────────────────────────────────────────────────
-
-const normalizeSearchText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
-
-interface EmployeeAutocompleteProps {
-  value: string;
-  onChange: (v: string) => void;
-  options: EmployeeRow[];
-  placeholder?: string;
-  onSelect: (opt: EmployeeRow) => void;
-  /** What the field shows/searches primarily — the ID field vs the Name field. */
-  display?: 'id' | 'name';
-}
-
-function EmployeeAutocomplete({ value, onChange, options, placeholder, onSelect, display = 'id' }: EmployeeAutocompleteProps) {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState(value || '');
-  const [highlight, setHighlight] = useState(0);
-
-  // Keep the local text in sync when the field is filled from elsewhere (e.g. selecting
-  // an employee in the ID field fills the name, and vice versa).
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setQ(value || ''); }, [value]);
-
-  const filtered = useMemo(() => {
-    const searchValue = normalizeSearchText(q);
-    return options.filter(o =>
-      normalizeSearchText(o.employee_id).includes(searchValue) ||
-      normalizeSearchText(o.employee_name).includes(searchValue)
-    ).slice(0, 10);
-  }, [options, q]);
-
-  const pick = (opt: EmployeeRow) => {
-    setQ(display === 'name' ? opt.employee_name : opt.employee_id);
-    onSelect(opt);
-    setOpen(false);
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || filtered.length === 0) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => Math.min(h + 1, filtered.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => Math.max(h - 1, 0)); }
-    else if (e.key === 'Enter' || e.key === 'Tab') {
-      // Tab (or Enter) accepts the highlighted match — quick keyboard entry.
-      const opt = filtered[Math.min(highlight, filtered.length - 1)];
-      if (opt) { e.preventDefault(); pick(opt); }
-    } else if (e.key === 'Escape') { setOpen(false); }
-  };
-
-  return (
-    <div className="relative">
-      <input type="text" value={q} placeholder={placeholder}
-        aria-label={display === 'name' ? 'Employee Name' : 'Employee ID'}
-        className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
-        onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); setHighlight(0); }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-        onBlur={() => setTimeout(() => setOpen(false), 160)} />
-      {open && filtered.length > 0 && (
-        <ul className={`absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0 ${t.glass}`}>
-          {filtered.map((opt, i) => (
-            <li key={i}>
-              <button type="button"
-                onMouseDown={e => { e.preventDefault(); pick(opt); }}
-                onMouseEnter={() => setHighlight(i)}
-                className={`w-full text-left px-3 py-2.5 text-xs border-b ${t.border} last:border-0 transition-all ${i === highlight ? 'bg-brand-500/15' : t.hoverBg}`}>
-                <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{display === 'name' ? opt.employee_name : opt.employee_id}</div>
-                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{display === 'name' ? `${opt.employee_id} · ${opt.position}` : `${opt.employee_name} · ${opt.position}`}</div>
-              </button>
-            </li>
-          ))}
-          <li className={`px-3 py-1.5 text-[10px] ${t.textFaint} border-t ${t.border}`}>↑↓ to move · Tab to select</li>
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ─── ISSUED BY — hybrid: pick employee or free-type ──────────────────────────
-
-interface IssuedByInputProps {
-  value: string;
-  onChange: (v: string) => void;
-  employees: EmployeeRow[];
-}
-
-function IssuedByInput({ value, onChange, employees }: IssuedByInputProps) {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState(value || '');
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setQ(value || ''); }, [value]);
-
-  const filtered = useMemo(() => {
-    const searchValue = normalizeSearchText(q);
-    return (searchValue
-      ? employees.filter(e =>
-          normalizeSearchText(e.employee_name).includes(searchValue) ||
-          normalizeSearchText(e.employee_id).includes(searchValue) ||
-          normalizeSearchText(e.position).includes(searchValue))
-      : employees
-    ).slice(0, 10);
-  }, [employees, q]);
-
-  return (
-    <div className="relative">
-      <input type="text" value={q} placeholder="Type a name or pick from employees…"
-        aria-label="Issued By"
-        className={`${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`}
-        onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 160)} />
-      {open && filtered.length > 0 && (
-        <ul className={`absolute top-full left-0 right-0 z-50 mt-1 rounded-xl shadow-2xl max-h-56 overflow-y-auto list-none p-0 ${t.glass}`}>
-          {q.length === 0 && (
-            <li className={`px-3 py-1.5 text-[10px] ${t.textFaint} uppercase tracking-wider border-b ${t.border}`}>
-              All employees — or keep typing to filter
-            </li>
-          )}
-          {filtered.map((emp, i) => (
-            <li key={i}>
-              <button type="button"
-                onMouseDown={e => { e.preventDefault(); setQ(emp.employee_name); onChange(emp.employee_name); setOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 text-xs ${t.hoverBg} border-b ${t.border} last:border-0 transition-all`}>
-                <div className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{emp.employee_name}</div>
-                <div className={`text-[11px] ${t.textFaint} mt-0.5`}>{emp.position} · {emp.employee_id}</div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ─── PPE ITEM CARD ────────────────────────────────────────────────────────────
-
-interface PPEItemCardProps {
-  record: PPERecord;
-  onEdit: (r: PPERecord) => void;
-  onDelete: (id: string) => void;
-  onView: (r: PPERecord) => void;
-  onToggleNotRequired: (r: PPERecord) => void;
-}
-
-function PPEItemCard({ record, onEdit, onDelete, onView, onToggleNotRequired }: PPEItemCardProps) {
-  const t = useTheme();
-  const ppeType = PPE_TYPES[record.ppe_type] || PPE_TYPES.helmet;
-  const notRequired = record.status === 'not_required';
-  const expiring = !notRequired && isExpiringSoon(record.expiry_date);
-  const expired  = !notRequired && isExpired(record.expiry_date);
-
-  return (
-    <RecordCard
-      icon={ppeType.icon}
-      accentHex={ppeType.color}
-      title={record.item_name}
-      subtitle={ppeType.name}
-      badges={<>
-        <StatusBadge color={CONDITION_COLORS[record.condition] || '#86BBD8'} label={CONDITION_LABELS[record.condition] || record.condition} />
-        <StatusBadge color={STATUS_COLORS_PPE[record.status] || '#86BBD8'} label={STATUS_LABELS[record.status] || record.status} dot />
-      </>}
-      summary={
-        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
-          <span>Issued: {fmtDate(record.issue_date)}</span>
-          {record.expiry_date && (
-            <span className={`${TYPE_WEIGHT.semibold} ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textMuted}`}>Expires: {fmtDate(record.expiry_date)}</span>
-          )}
-          {record.size && <span>Size: {record.size}</span>}
-        </div>
-      }
-      actions={t.design === 'dallaglio' ? <>
-        <RecordActions onView={() => onView(record)} onEdit={() => onEdit(record)} onDelete={() => onDelete(record.id)} />
-      </> : <>
-        <button onClick={() => onView(record)} type="button" className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
-          <Eye className="h-3.5 w-3.5" /> View
-        </button>
-        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={() => onEdit(record)}>Edit</PrimaryButton>
-        <button onClick={() => onDelete(record.id)} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
-          <Trash2 className="h-3.5 w-3.5" /> Delete
-        </button>
-      </>}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className={`text-xs ${expired ? 'text-rose-500' : expiring ? 'text-amber-500' : t.textFaint}`}>
-          {notRequired ? 'Marked not required' : expired ? 'Overdue for replacement' : expiring ? 'Expiring soon' : 'In date'}
-        </div>
-        {/* Mark an overdue item as intentionally not-needed (drops it from Overdue counts),
-            or restore a not-required item to active. */}
-        {(expired || notRequired) && (
-          t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={() => onToggleNotRequired(record)}>{notRequired ? 'Mark as active' : 'Not required'}</Button>
-            : <button type="button" onClick={() => onToggleNotRequired(record)}
-              className={`text-[11px] ${TYPE_WEIGHT.medium} px-2 py-1 rounded-md ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors shrink-0`}>
-              {notRequired ? 'Mark as active' : 'Not required'}
-            </button>
-        )}
-      </div>
-    </RecordCard>
-  );
-}
-
-// ─── EMPLOYEE PPE CARD ────────────────────────────────────────────────────────
-
-interface EmployeePPECardProps {
-  employee: EmployeeWithPPE;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onIssueNew: (emp: EmployeeWithPPE) => void;
-  onEditItem: (r: PPERecord) => void;
-  onDeleteItem: (id: string) => void;
-  onViewItem: (r: PPERecord) => void;
-  onToggleNotRequired: (r: PPERecord) => void;
-}
-
-function EmployeePPECard({ employee, isExpanded, onToggle, onIssueNew, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired }: EmployeePPECardProps) {
-  const t = useTheme();
-
-  const active   = employee.records.filter(r => r.status === 'active');
-  const expired  = employee.records.filter(r => isExpired(r.expiry_date) && r.status === 'active');
-  const expiring = employee.records.filter(r => isExpiringSoon(r.expiry_date) && r.status === 'active');
-  // Accent = worst outstanding state (overdue → expiring → healthy blue). Drives the
-  // homepage-tile treatment: the bare person icon, the GlowCard hover-glow, the accents.
-  const accent = expired.length > 0 ? '#f43f5e' : expiring.length > 0 ? '#f59e0b' : ACCENT_HEX.blue;
-
-  return (
-    <RecordCard
-      icon={UserRound}
-      accentHex={accent}
-      title={employee.employee_name}
-      subtitle={`${employee.position} · ${employee.employee_id}`}
-      open={isExpanded}
-      onToggle={onToggle}
-      unmountOnCollapse
-      badges={<>
-        <StatusBadge color={sectionColor(employee.section)} label={normalizeSection(employee.section)} />
-        <StatusBadge color="#10b981" label={`${active.length} Active`} dot />
-        {expired.length > 0 && <StatusBadge color="#f43f5e" label={`${expired.length} Overdue`} />}
-        {expiring.length > 0 && <StatusBadge color="#f59e0b" label={`${expiring.length} Expiring`} />}
-        {employee.records.length === 0 && <StatusBadge color="#94a3b8" label="No items" />}
-      </>}
-      headerActions={
-        <PrimaryButton icon={Plus} size={t.design === 'dallaglio' ? 'sm' : 'xs'} title="Issue new PPE" onClick={e => { e.stopPropagation(); onIssueNew(employee); }}>Issue</PrimaryButton>
-      }
-    >
-      {employee.records.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {employee.records.map(record => (
-            <PPEItemCard key={record.id} record={record}
-              onEdit={onEditItem} onDelete={onDeleteItem} onView={onViewItem} onToggleNotRequired={onToggleNotRequired} />
-          ))}
-        </div>
-      ) : (
-        <div className={`text-center py-8 rounded-xl ${t.glassSoft}`}>
-          <Shield className={`h-9 w-9 mx-auto mb-2 ${t.textTertiary}`} />
-          <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No PPE items issued yet</p>
-          <p className={`text-xs ${t.textFaint} mt-1`}>Click &quot;Issue&quot; to add equipment for this employee</p>
-        </div>
-      )}
-    </RecordCard>
-  );
-}
-
-// ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
-
-interface DetailModalProps {
-  item: PPERecord | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onEdit: (r: PPERecord) => void;
-}
-
-function PPEDetailModal({ item, isOpen, onClose, onEdit }: DetailModalProps) {
-  const t = useTheme();
-  if (!item) return null;
-  const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
-  const Icon = ppeType.icon;
-  const fields = [
-    { label: 'Employee', value: `${item.employee_name} (${item.employee_id})` },
-    { label: 'Position',    value: item.position || '—' },
-    { label: 'Department',  value: item.department || '—' },
-    { label: 'PPE Type',    value: ppeType.name },
-    { label: 'Item Name',   value: item.item_name },
-    { label: 'Size',        value: item.size || '—' },
-    { label: 'Issue Date',  value: fmtDate(item.issue_date) },
-    { label: 'Expiry Date', value: fmtDate(item.expiry_date) },
-    { label: 'Condition',   value: CONDITION_LABELS[item.condition] || item.condition },
-    { label: 'Status',      value: STATUS_LABELS[item.status] || item.status },
-    { label: 'Location',    value: item.location || '—' },
-    { label: 'Mine Section',value: item.mine_section || '—' },
-    { label: 'Issued By',   value: item.issued_by || '—' },
-  ];
-
-  return (
-    <CenterModal open={isOpen} onClose={onClose} title="PPE Item Details" subtitle={item.item_name} accent="violet" width="max-w-3xl">
-      <motion.div variants={staggerContainer} initial="hidden" animate="show" className="p-5 space-y-4">
-        <motion.div variants={fadeUp} className="flex items-center gap-3">
-          <PulsingIcon className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${t.chipBg}`}>
-            <Icon className={`h-5 w-5 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: ppeType.color }} />
-          </PulsingIcon>
-          <div>
-            <h3 className={`${TYPE_WEIGHT.semibold} ${t.textPrimary} text-base tracking-tight`}>{item.item_name}</h3>
-            <AnimatedText as="p" trigger="mount" text={ppeType.description} className={`text-[12.5px] ${t.textSecondary} mt-0.5`} />
-          </div>
-        </motion.div>
-
-        <motion.div variants={staggerContainer} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {fields.map(f => (
-            <motion.div key={f.label} variants={fadeUp} whileHover={{ y: -2 }} className={`rounded-xl p-3 ${t.glassSoft} ${t.shadow} transition-shadow duration-300`}>
-              <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint}`}>{f.label}</div>
-              <div className={`text-sm ${TYPE_WEIGHT.medium} break-words mt-1 ${t.textMuted}`}>{f.value}</div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {item.notes && (
-          <motion.div variants={fadeUp} className={`rounded-xl p-3 ${t.glassSoft}`}>
-            <div className={`text-xs ${TYPE_WEIGHT.medium} ${t.textFaint} mb-1`}>Notes</div>
-            <AnimatedText as="p" trigger="mount" text={item.notes} className={`text-sm ${t.textMuted}`} />
-          </motion.div>
-        )}
-      </motion.div>
-      {t.design === 'dallaglio' ? <div className={`px-5 py-4 border-t ${t.border}`}><DetailActions onClose={onClose} onEdit={() => { onEdit(item); onClose(); }} editLabel="Edit record" /></div> : <div className={`flex gap-2 px-5 py-4 border-t ${t.border}`}>
-        <button type="button" onClick={onClose}
-          className={`flex-1 py-2 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>
-          Close
-        </button>
-        <PrimaryButton icon={Pencil} fullWidth size="md" accent="blue" onClick={() => { onEdit(item); onClose(); }}>Edit Record</PrimaryButton>
-      </div>}
-    </CenterModal>
-  );
-}
-
-// ─── ISSUE FORM MODAL ─────────────────────────────────────────────────────────
-
-interface IssueFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: FormState) => Promise<void>;
-  initialData: PPERecord | null;
-  /** Prefill a new issue (creates a record on submit — does not update initialData). */
-  prefill?: PPERecord | null;
-  employee: EmployeeWithPPE | null;
-  allEmployees: EmployeeRow[];
-  matrix: Record<string, number>;
-}
-
-const blankForm = (): FormState => ({
-  employee_name: '', employee_id: '', position: '',
-  ppe_type: 'helmet', item_name: '', size: '',
-  issue_date: todayLocal(),
-  expiry_date: '', condition: 'good', status: 'active',
-  notes: '', issued_by: '', location: 'Workshop', mine_section: '',
-});
-
-// `FormField`/`FormActions` now come from the shared design-system (promoted from
-// this page's own local versions — see the design-system migration plan).
-
-function PPEIssueForm({ isOpen, onClose, onSubmit, initialData, prefill, employee, allEmployees, matrix }: IssueFormProps) {
-  const t = useTheme();
+function PPEContent() {
   const confirm = useConfirm();
-  const [form, setForm] = useState<FormState>(blankForm());
-  const [saving, setSaving] = useState(false);
-  // Auto-calc expiry from issue date + the matrix interval, unless the user has typed
-  // an expiry themselves THIS session. Editing an existing record starts untouched too
-  // (not "touched because it already has a stored expiry") — so correcting an issue
-  // date, or fixing stale data from an old matrix interval, recalculates expiry the
-  // same way a brand-new entry does, instead of freezing at whatever was last saved.
-  const [expiryTouched, setExpiryTouched] = useState(false);
+  const recs = usePPERecords();
+  const roster = useRosterRows();
+  const matrix = usePPEMatrix();
+  const order = useOrderList();
+  const [tab, setTab] = useState('employees');
+  const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
+  const [form, setForm] = useState<{ record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; fulfils: string | null } | null>(null);
+  const [holderId, setHolderId] = useState<string | null>(null);
+  const [itemId, setItemId] = useState<string | null>(null);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setExpiryTouched(false);
-      const seed = initialData ?? prefill;
-      setForm({
-        ...blankForm(),
-        employee_name: employee?.employee_name || seed?.employee_name || '',
-        employee_id:   employee?.employee_id   || seed?.employee_id   || '',
-        position:      employee?.position      || seed?.position      || '',
-        ppe_type:      seed?.ppe_type      || 'helmet',
-        item_name:     seed?.item_name     || '',
-        size:          seed?.size          || '',
-        issue_date:    seed?.issue_date    || todayLocal(),
-        expiry_date:   seed?.expiry_date   || '',
-        condition:     seed?.condition     || 'good',
-        status:        seed?.status        || 'active',
-        notes:         seed?.notes         || '',
-        issued_by:     seed?.issued_by     || '',
-        location:      seed?.location      || 'Workshop',
-        mine_section:  seed?.mine_section  || '',
-      });
-    }
-  }, [isOpen, initialData, prefill, employee]);
+  const records = useMemo(() => enrichPPERecords(recs.items, roster.items), [recs.items, roster.items]);
+  const holders = useMemo(() => groupByEmployee(records, roster.items), [records, roster.items]);
+  const people = useMemo(() => selectableEmployees(roster.items, holders), [roster.items, holders]);
+  const sections = useMemo(() => sectionCounts(holders), [holders]);
+  const inSection = useMemo(() => (f.section === ALL ? holders : holders.filter(h => normalizeSection(h.section) === f.section)), [holders, f.section]);
+  const sectionRecords = useMemo(() => inSection.flatMap(h => h.records), [inSection]);
+  const shown = useMemo(() => filterEmployees(holders, f), [holders, f]);
+  const stats = useMemo(() => summarise(records, holders), [records, holders]);
+  const scoped = useMemo(() => summarise(sectionRecords, inSection), [sectionRecords, inSection]);
+  const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
+  const item = useMemo(() => records.find(r => String(r.id) === itemId) ?? null, [records, itemId]);
+  const status = deriveDataStatus({ loaded: recs.loaded, loading: recs.loading, error: recs.error, errorStatus: recs.errorStatus, count: shown.length, transient: isTransientStatus(recs.errorStatus) });
+  const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
+  const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
+  const filtered = f.view !== 'all' || f.section !== ALL || f.search !== '';
+  const reload = () => { void recs.refetch(); };
 
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm(p => ({ ...p, [k]: v }));
-
-  // Recompute expiry when type/issue-date change (matrix-driven), unless the user set it.
-  useEffect(() => {
-    if (expiryTouched || !form.issue_date) return;
-    const months = matrix[form.ppe_type];
-    if (months === undefined) return; // no matrix entry for this type — leave expiry alone
-    // 0 months = no expiry (e.g. gloves) — clears any stale value from a prior interval.
-    const calc = months > 0 ? addMonths(form.issue_date, months) : '';
-    if (calc !== form.expiry_date) setForm(p => ({ ...p, expiry_date: calc }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.ppe_type, form.issue_date, expiryTouched, matrix]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.employee_id.trim()) { toast.error('Employee ID is required'); return; }
-    if (!form.employee_name.trim()) { toast.error('Employee name is required'); return; }
-    if (!form.position.trim()) { toast.error('Position is required'); return; }
-    if (!form.item_name.trim()) { toast.error('Item name is required'); return; }
-    // Employee ID can be typed freely rather than picked from the autocomplete — that's
-    // how a mismatched/placeholder ID ends up saved even though the name shown alongside
-    // it is correct (the name field syncs its own ID independently on select). Catch it
-    // here rather than silently saving something that doesn't match the real register.
-    const idKnown = allEmployees.some(e => e.employee_id === form.employee_id.trim());
-    if (!idKnown) {
-      const proceed = await confirm({
-        title: 'Employee ID not found',
-        message: `"${form.employee_id.trim()}" doesn't match anyone currently in the Employees register. Save anyway?`,
-      });
-      if (!proceed) return;
-    }
-    setSaving(true);
-    try {
-      await onSubmit({ ...form, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim() });
-      onClose();
-    } catch (err: any) { toast.error(err.message); }
-    finally { setSaving(false); }
+  const openIssue = (employee: EmployeeWithPPE | null = null) => { setHolderId(null); setForm({ record: null, prefill: null, employee, fulfils: null }); };
+  const openEdit = (r: PPERecord) => { setItemId(null); setHolderId(null); setForm({ record: r, prefill: null, employee: holders.find(h => h.employee_id === r.employee_id) ?? null, fulfils: null }); };
+  const issueFromOrder = (e: OrderListEntry) => {
+    const h = holders.find(x => x.employee_id === e.employee_id) ?? null;
+    setForm({ record: null, employee: h, fulfils: e.record_id, prefill: { id: '', employee_id: e.employee_id, employee_name: e.employee_name, position: h?.position ?? '', department: '', ppe_type: e.ppe_type, item_name: e.item_name, size: e.size, issue_date: todayLocal(), expiry_date: null, condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop', mine_section: h?.section ?? '' } });
   };
-
-  const sel = (k: keyof FormState) => ({
-    value: form[k] as string,
-    onChange: (v: string) => set(k, v as any),
-    size: 'form' as const,
-  });
-
-  const inputCls = `${t.inputBg} rounded-lg text-sm px-3 py-2 w-full transition-all focus:outline-none`;
-
-  return (
-    <CenterModal open={isOpen} onClose={onClose} accent="violet"
-      title={initialData ? 'Edit PPE Record' : 'Issue New PPE'} width="max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-
-          {/* Employee lookup */}
-          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>Employee</p>
-            <FormField label="Employee ID" required>
-              <EmployeeAutocomplete value={form.employee_id} options={allEmployees}
-                placeholder="Type employee ID or name to search…"
-                onChange={v => set('employee_id', v)}
-                onSelect={opt => {
-                  set('employee_id', opt.employee_id);
-                  set('employee_name', opt.employee_name);
-                  set('position', opt.position);
-                  if (opt.department) set('mine_section', opt.section || '');
-                }} />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Full Name" required>
-                <EmployeeAutocomplete value={form.employee_name} options={allEmployees} display="name"
-                  placeholder="Type a name to search…"
-                  onChange={v => set('employee_name', v)}
-                  onSelect={opt => {
-                    set('employee_id', opt.employee_id);
-                    set('employee_name', opt.employee_name);
-                    set('position', opt.position);
-                    if (opt.department) set('mine_section', opt.section || '');
-                  }} />
-              </FormField>
-              <FormField label="Position" required>
-                <AutofillInput field="position" value={form.position} onChange={v => set('position', v)}
-                  className={inputCls} placeholder="Job title" />
-              </FormField>
-            </div>
-          </div>
-
-          {/* PPE details */}
-          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>PPE Details</p>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="PPE Type" required>
-                <SelectField title="PPE Type" {...sel('ppe_type')}
-                  options={Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))} />
-              </FormField>
-              <FormField label="Item Name / Brand" required>
-                <AutofillInput field="ppe_item_name" value={form.item_name} onChange={v => set('item_name', v)}
-                  className={inputCls} placeholder="e.g. MSA V-Gard Helmet" />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <FormField label="Size">
-                <AutofillInput field="ppe_size" value={form.size} onChange={v => set('size', v)}
-                  className={inputCls} placeholder="L, XL, 42…" />
-              </FormField>
-              <FormField label="Condition">
-                <SelectField title="Condition" {...sel('condition')}
-                  options={Object.entries(CONDITION_LABELS).map(([k, l]) => ({ value: k, label: l }))} />
-              </FormField>
-              <FormField label="Status">
-                <SelectField title="Status" {...sel('status')}
-                  options={Object.entries(STATUS_LABELS).map(([k, l]) => ({ value: k, label: l }))} />
-              </FormField>
-            </div>
-          </div>
-
-          {/* Dates & location */}
-          <div className={`rounded-xl ${t.glassSoft} p-4 space-y-3`}>
-            <p className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint} uppercase tracking-wider`}>Dates & Location</p>
-            <div className="grid grid-cols-3 gap-3">
-              <FormField label="Issue Date" required>
-                <input type="date" value={form.issue_date} onChange={e => set('issue_date', e.target.value)}
-                  title="Issue date" aria-label="Issue Date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
-              </FormField>
-              <FormField label={expiryTouched ? 'Expiry Date' : matrix[form.ppe_type] === 0 ? 'Expiry Date · no expiry' : `Expiry Date · auto (${matrix[form.ppe_type] || '—'}mo)`}>
-                <input type="date" value={form.expiry_date}
-                  onChange={e => { setExpiryTouched(true); set('expiry_date', e.target.value); }}
-                  title="Expiry date — auto-calculated from the matrix; edit to override" aria-label="Expiry Date" className={inputCls} style={{ colorScheme: t.light ? 'light' : 'dark' }} />
-              </FormField>
-              <FormField label="Location">
-                <ListAutocomplete listName="location" value={form.location} onChange={v => set('location', v as any)} />
-              </FormField>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Mine Section">
-                <input type="text" value={form.mine_section} onChange={e => set('mine_section', e.target.value)}
-                  aria-label="Mine Section" className={inputCls} placeholder="Optional section" />
-              </FormField>
-              <FormField label="Issued By">
-                <IssuedByInput value={form.issued_by} onChange={v => set('issued_by', v)} employees={allEmployees} />
-              </FormField>
-            </div>
-          </div>
-
-          <FormField label="Notes">
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-              aria-label="Notes" rows={2} className={`${inputCls} resize-none`} placeholder="Any additional notes…" />
-          </FormField>
-        </div>
-        <FormActions onCancel={onClose} submitting={saving}
-          submitLabel={initialData ? 'Update Record' : 'Issue PPE'} />
-      </form>
-    </CenterModal>
-  );
-}
-
-// ─── DUE ITEMS TABLE ──────────────────────────────────────────────────────────
-
-interface DueItemsProps {
-  employees: EmployeeWithPPE[];
-  filterType: 'due' | 'soon-to-due';
-  sectionFilterActive?: boolean;
-  onEditItem: (r: PPERecord) => void;
-  onDeleteItem: (id: string) => void;
-  onViewItem: (r: PPERecord) => void;
-  onToggleNotRequired: (r: PPERecord) => void;
-  onBulkMarkNotRequired: (ids: string[]) => void;
-  onAddToOrderList: (items: OrderListEntry[]) => void;
-  isOnOrderList: (id: string) => boolean;
-}
-
-function DueItemsList({ employees, filterType, sectionFilterActive = false, onEditItem, onDeleteItem, onViewItem, onToggleNotRequired, onBulkMarkNotRequired, onAddToOrderList, isOnOrderList }: DueItemsProps) {
-  const t = useTheme();
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [sizeFilter, setSizeFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  // Date-range narrowing on top of the tab's own overdue/expiring-soon window — e.g.
-  // "expiring soon" already means "within 30 days," and this lets someone narrow that
-  // down further to "specifically this week" for a more targeted reorder/chase-up list.
-  // Both ends are inclusive comparisons against expiry_date's ISO string, so a range
-  // wider than the tab's own window is a no-op rather than an error.
-  const [showDateRange, setShowDateRange] = useState(false);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const dateRangeActive = !!(dateFrom || dateTo);
-  // Bulk triage for the Overdue tab specifically — with many items flagged by the
-  // replacement-interval matrix but not actually needing reorder, marking each one
-  // "not required" individually isn't practical. Same checkbox-multi-select pattern as
-  // the Overtime/Leaves bulk-approve toolbars elsewhere in this app.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  type DueItem = PPERecord & { employee_name: string; employee_id: string };
-
-  // Filtered by status/type/search but NOT by size yet — this is what the size dropdown
-  // and the reorder-by-size quick stats below are both built from, so switching type
-  // never leaves a size selected that no longer applies, and the counts always answer
-  // "of the items I'm currently looking at, how many per size."
-  const typeFilteredItems = useMemo<DueItem[]>(() => {
-    const out: DueItem[] = [];
-    employees.forEach(emp => {
-      emp.records.forEach(rec => {
-        if (filterType === 'soon-to-due' && !(isExpiringSoon(rec.expiry_date) && rec.status === 'active')) return;
-        if (filterType === 'due'         && !(isExpired(rec.expiry_date)      && rec.status === 'active')) return;
-        if (typeFilter !== 'all' && rec.ppe_type !== typeFilter) return;
-        if (dateFrom && (!rec.expiry_date || rec.expiry_date < dateFrom)) return;
-        if (dateTo   && (!rec.expiry_date || rec.expiry_date > dateTo))   return;
-        if (search) {
-          const searchValue = normalizeSearchText(search);
-          if (!normalizeSearchText(emp.employee_name).includes(searchValue) && !normalizeSearchText(rec.item_name).includes(searchValue)) return;
-        }
-        out.push({ ...rec, employee_name: emp.employee_name, employee_id: emp.employee_id });
-      });
-    });
-    return out;
-  }, [employees, filterType, typeFilter, dateFrom, dateTo, search]);
-
-  // Reorder-by-size quick stats: how many of each size are due/expiring right now among
-  // the currently type-filtered items — e.g. select "Boots" and this directly answers
-  // "how many size 8 do we need to order." Sorted by count so the biggest reorder need
-  // surfaces first.
-  const sizeCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    typeFilteredItems.forEach(item => {
-      const size = (item.size || '').trim() || 'Unspecified';
-      counts.set(size, (counts.get(size) ?? 0) + 1);
-    });
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [typeFilteredItems]);
-
-  const items = useMemo(() => {
-    return typeFilteredItems
-      .filter(item => sizeFilter === 'all' || ((item.size || '').trim() || 'Unspecified') === sizeFilter)
-      .sort((a, b) => new Date(a.expiry_date ?? 0).getTime() - new Date(b.expiry_date ?? 0).getTime());
-  }, [typeFilteredItems, sizeFilter]);
-
-  // A size that no longer appears for the newly selected type (or status tab) would
-  // otherwise silently filter the list to empty — reset it whenever the set of
-  // available sizes changes out from under it.
-  useEffect(() => {
-    if (sizeFilter !== 'all' && !sizeCounts.some(([size]) => size === sizeFilter)) setSizeFilter('all');
-  }, [sizeCounts, sizeFilter]);
-
-  useEffect(() => {
-    setTypeFilter('all');
-    setSizeFilter('all');
-    setSearch('');
-    setDateFrom('');
-    setDateTo('');
-    setShowDateRange(false);
-    setSelectedIds(new Set());
-  }, [filterType]);
-
-  const localFiltersActive = typeFilter !== 'all' || sizeFilter !== 'all' || !!search || dateRangeActive;
-  const accentClasses = filterType === 'due'
-    ? { chip: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-600 dark:text-rose-400' }
-    : { chip: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' };
-  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allSelected = items.length > 0 && items.every(i => selectedIds.has(String(i.id)));
-  const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => String(i.id))));
-  const handleBulkMarkNotRequired = () => { onBulkMarkNotRequired([...selectedIds]); setSelectedIds(new Set()); };
-  const toOrderEntry = (item: DueItem): OrderListEntry => ({
-    record_id: String(item.id), employee_id: item.employee_id, employee_name: item.employee_name,
-    ppe_type: item.ppe_type, item_name: item.item_name, size: item.size,
-    expiry_date: item.expiry_date, added_at: new Date().toISOString(),
-  });
-  const handleBulkAddToOrderList = () => {
-    const toAdd = items.filter(i => selectedIds.has(String(i.id))).map(toOrderEntry);
-    onAddToOrderList(toAdd);
-    toast.success(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} to the order list`);
-    setSelectedIds(new Set());
+  const save = async (data: FormState, id?: string) => {
+    if (id) { await updatePPERecord(id, data); order.remove(id); } else await createPPERecord(data);
+    if (form?.fulfils) order.remove(form.fulfils);
+    order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
+    reload();
   };
-
-  if (items.length === 0 && !localFiltersActive) {
-    return (
-      <div className={`text-center py-12 ${t.glassSoft} rounded-xl`}>
-        <CheckCircle2 className={`h-12 w-12 mx-auto mb-3 ${t.light ? 'text-emerald-600/60' : 'text-emerald-400/60'}`} />
-        <p className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>
-          {sectionFilterActive
-            ? `No ${filterType === 'due' ? 'overdue' : 'expiring soon'} items in this section`
-            : `No ${filterType === 'due' ? 'overdue' : 'expiring soon'} items`}
-        </p>
-        <p className={`text-sm ${t.textFaint} mt-1`}>
-          {sectionFilterActive ? 'Set Section to All Sections above to see the full list' : 'All PPE is up to date'}
-        </p>
-      </div>
-    );
-  }
-
-  const clearLocalFilters = () => {
-    setTypeFilter('all');
-    setSizeFilter('all');
-    setSearch('');
-    setDateFrom('');
-    setDateTo('');
-    setShowDateRange(false);
+  const remove = async (r: PPERecord) => {
+    if (!await confirm({ title: 'Delete this PPE record?', message: `${typeName(r.ppe_type)} for ${r.employee_name}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deletePPERecord(r.id); setItemId(null); toast.success('Record deleted.'); await recs.refetch(); }
+    catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
   };
-
-  return (
-    <div className="space-y-3">
-      {items.length === 0 && localFiltersActive && (
-        <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-3 ${t.chipBg}`}>
-          <p className={`text-sm ${t.textMuted}`}>No items match the active filters.</p>
-          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={clearLocalFilters}>Clear filters</Button> : <button type="button" onClick={clearLocalFilters}
-            className={`text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} ${accentClasses.chip} ${accentClasses.text}`}>
-            Clear filters
-          </button>}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {t.design === 'dallaglio' ? <SearchInput value={search} onChange={setSearch} placeholder="Search employee or item…" className="flex-1 min-w-[180px] max-w-64" /> : <div className="relative flex-1 max-w-56">
-          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-          <input type="text" placeholder="Search employee or item…" aria-label="Search employee or item" value={search}
-            onChange={e => setSearch(e.target.value)}
-            className={`pl-7 pr-3 py-1.5 w-full text-xs rounded-lg ${t.inputBg} transition-all`} />
-        </div>}
-        <SelectField size="filter" value={typeFilter} onChange={setTypeFilter} title="PPE Type filter"
-          options={[{ value: 'all', label: 'All Types' }, ...Object.entries(PPE_TYPES).map(([k, pt]) => ({ value: k, label: pt.name }))]} />
-        <SelectField size="filter" value={sizeFilter} onChange={setSizeFilter} title="Size filter"
-          options={[{ value: 'all', label: 'All Sizes' }, ...sizeCounts.map(([size]) => ({ value: size, label: size }))]} />
-        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={CalendarRange} pressed={showDateRange || dateRangeActive} onClick={() => setShowDateRange(p => !p)}>
-          Date Range{dateRangeActive && <span className={`w-1.5 h-1.5 rounded-full ${filterType === 'due' ? 'bg-rose-500' : 'bg-amber-500'}`} />}
-        </Button> : <button type="button" onClick={() => setShowDateRange(p => !p)}
-          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
-            showDateRange || dateRangeActive ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
-          }`}>
-          <CalendarRange className="h-3.5 w-3.5" /> Date Range
-          {dateRangeActive && <span className={`w-1.5 h-1.5 rounded-full ${filterType === 'due' ? 'bg-rose-500' : 'bg-amber-500'}`} />}
-        </button>}
-        {items.length > 0 && (
-          <label htmlFor="ppe-due-select-all" className={`flex items-center gap-1.5 text-xs ${t.textFaint} cursor-pointer ml-auto`}>
-            <input id="ppe-due-select-all" type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="Select all" className="rounded" /> Select all
-          </label>
-        )}
-      </div>
-      {/* Narrows the tab's own overdue/expiring-soon window down to a specific range —
-          e.g. "Expiring Soon" already means "within 30 days"; this lets someone chase up
-          specifically this week's due dates instead of the whole 30-day list. */}
-      {showDateRange && (
-        <div className={`flex flex-wrap items-end gap-3 ${t.chipBg} rounded-xl p-3`}>
-          <FormField label="From"><input type="date" title="From date" aria-label="From date" value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
-          <FormField label="To"><input type="date" title="To date" aria-label="To date" value={dateTo}
-            onChange={e => setDateTo(e.target.value)} className={`h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} /></FormField>
-          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}>This Week</Button> : <button type="button" onClick={() => { const { from, to } = thisWeekRange(); setDateFrom(from); setDateTo(to); }}
-            className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.glassSoft} ${t.hoverText}`}>This Week</button>
-          }
-          {dateRangeActive && (
-            t.design === 'dallaglio' ? <Button variant="ghost" size="sm" icon={X} onClick={() => { setDateFrom(''); setDateTo(''); }}>Clear</Button> : <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className={`h-9 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} ${t.hoverText} flex items-center gap-1`}>
-              <X className="h-3 w-3" /> Clear
-            </button>
-          )}
-        </div>
-      )}
-      {/* Reorder-by-size quick stats — how many of each size are due/expiring among the
-          currently type-filtered items, e.g. select "Boots" to see "8 × 5, 9 × 3…" at a
-          glance. Doubles as a size-filter shortcut: click a chip to filter to just that
-          size, click again (or "All Sizes" above) to clear it. */}
-      {sizeCounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`text-[11px] ${TYPE_WEIGHT.medium} ${t.textFaint} shrink-0`}>Reorder by size:</span>
-          {sizeCounts.map(([size, count]) => (
-            <button key={size} type="button"
-              onClick={() => setSizeFilter(prev => prev === size ? 'all' : size)}
-              title={`${count} ${filterType === 'due' ? 'overdue' : 'expiring soon'} — size ${size}`}
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${t.design === 'dallaglio' ? 'min-h-9' : ''} ${
-                sizeFilter === size ? `${accentClasses.chip} ${accentClasses.text}` : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText} border-transparent`
-              }`}>
-              {size}
-              <span className={`px-1 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${sizeFilter === size ? 'bg-white/20' : t.chipBg} ${sizeFilter === size ? '' : t.textFaint}`}>{count}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {selectedIds.size > 0 && (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${t.chipBg}`}>
-          <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{selectedIds.size} selected</span>
-          {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ShoppingCart} className="ml-auto" onClick={handleBulkAddToOrderList}>Add {selectedIds.size} to order list</Button> : <button type="button" onClick={handleBulkAddToOrderList}
-            className={`ml-auto text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all flex items-center gap-1`}>
-            <ShoppingCart className="h-3 w-3" /> Add {selectedIds.size} to order list
-          </button>}
-          {filterType === 'due' && (
-            t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={handleBulkMarkNotRequired}>Mark {selectedIds.size} as not required</Button> : <button type="button" onClick={handleBulkMarkNotRequired}
-              className={`text-[11px] ${TYPE_WEIGHT.semibold} px-2.5 py-1 rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-              Mark {selectedIds.size} as not required
-            </button>
-          )}
-          {t.design === 'dallaglio' ? <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button> : <button type="button" onClick={() => setSelectedIds(new Set())} className={`text-[11px] ${t.textFaint} ${t.hoverText} transition-colors`}>Clear</button>}
-        </div>
-      )}
-      {items.length === 0 ? (
-        <div className={`text-center py-8 ${t.textFaint} text-sm rounded-xl ${t.glassSoft}`}>No items match the current filters</div>
-      ) : (
-        <div className="space-y-2">
-          {items.map(item => {
-            const ppeType = PPE_TYPES[item.ppe_type] || PPE_TYPES.helmet;
-            const Icon = ppeType.icon;
-            const glowColor = filterType === 'due' ? '#f43f5e' : '#f59e0b';
-            return (
-              <div key={item.id}>
-                <GlowCard color={glowColor} onClick={() => onViewItem(item)} className="p-3.5 flex items-center gap-3">
-                  <input type="checkbox" checked={selectedIds.has(String(item.id))} onChange={() => toggleSelect(String(item.id))}
-                    onClick={e => e.stopPropagation()} aria-label={`Select ${item.employee_name}'s ${item.item_name}`} className="rounded shrink-0" />
-                  <div className={`p-2 rounded-lg shrink-0 ${t.chipBg}`}><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: ppeType.color }} /></div>
-
-                  <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-1 items-center">
-                    <div className="min-w-0">
-                      <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary} truncate`}>{item.employee_name}</p>
-                      <p className={`text-[11px] ${t.textFaint} truncate`}>{item.employee_id}</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`text-sm ${t.textSecondary} ${TYPE_WEIGHT.medium} truncate`}>{item.item_name}</p>
-                      <p className={`text-[11px] ${t.textFaint} truncate`}>{ppeType.name}{item.size ? ` · ${item.size}` : ''}</p>
-                    </div>
-                    <div>
-                      <p className={`text-[11px] ${t.textFaint} uppercase tracking-wide`}>Expires</p>
-                      <p className={`text-sm ${TYPE_WEIGHT.semibold}`} style={{ color: glowColor }}>{fmtDate(item.expiry_date)}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <StatusBadge color={CONDITION_COLORS[item.condition] || '#86BBD8'} label={CONDITION_LABELS[item.condition] || item.condition} />
-                      <StatusBadge color={STATUS_COLORS_PPE[item.status] || '#86BBD8'} label={STATUS_LABELS[item.status] || item.status} dot />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    {filterType === 'due' && (
-                      t.design === 'dallaglio' ? <Button variant="ghost" size="sm" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}>Not required</Button> : <button type="button" title="Mark as not required" onClick={e => { e.stopPropagation(); onToggleNotRequired(item); }}
-                        className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-                        Not required
-                      </button>
-                    )}
-                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={ShoppingCart}
-                      title={isOnOrderList(String(item.id)) ? 'Already on the order list' : 'Add to order list'}
-                      disabled={isOnOrderList(String(item.id))}
-                      onClick={e => { e.stopPropagation(); onAddToOrderList([toOrderEntry(item)]); toast.success('Added to the order list'); }} /> : <button type="button"
-                      title={isOnOrderList(String(item.id)) ? 'Already on the order list' : 'Add to order list'}
-                      disabled={isOnOrderList(String(item.id))}
-                      onClick={e => { e.stopPropagation(); onAddToOrderList([toOrderEntry(item)]); toast.success('Added to the order list'); }}
-                      className={`h-7 px-2 flex items-center justify-center rounded-lg text-[11px] ${TYPE_WEIGHT.medium} transition-all ${
-                        isOnOrderList(String(item.id)) ? `${accentClasses.text} cursor-default` : `${t.hoverBg} ${t.textFaint} ${t.hoverText}`
-                      }`}>
-                      <ShoppingCart className="h-3.5 w-3.5" />
-                    </button>}
-                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={Pencil} title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }} /> : <button type="button" title="Edit" onClick={e => { e.stopPropagation(); onEditItem(item); }}
-                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-brand-500 transition-all`}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>}
-                    {t.design === 'dallaglio' ? <Button variant="icon" size="sm" icon={Trash2} title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }} /> : <button type="button" title="Delete" onClick={e => { e.stopPropagation(); onDeleteItem(item.id); }}
-                      className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all`}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>}
-                  </div>
-                </GlowCard>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── PPE MATRIX MODAL ─────────────────────────────────────────────────────────
-// The company replacement matrix: months-until-expiry per item type. Editing an interval
-// saves it (shared); "Recalculate" resets every active item of that type to
-// issue_date + interval, so you never edit cards one by one.
-
-function PPEMatrixModal({ isOpen, onClose, matrix, records, matrixLoading, matrixError, onRetryMatrix, onSetInterval, onRecalculate, onRecalculateAll }: {
-  isOpen: boolean;
-  onClose: () => void;
-  matrix: Record<string, number>;
-  records: PPERecord[];
-  matrixLoading: boolean;
-  matrixError: string;
-  onRetryMatrix: () => void;
-  onSetInterval: (ppeType: string, months: number) => Promise<boolean>;
-  onRecalculate: (ppeType: string) => void;
-  onRecalculateAll: () => void;
-}) {
-  const t = useTheme();
-  const [draft, setDraft] = useState<Record<string, number>>({});
-  const [savingType, setSavingType] = useState<string | null>(null);
-
-  const setDraftInterval = (ppeType: string, months: number) => {
-    setDraft(current => ({ ...current, [ppeType]: months }));
-  };
-
-  const saveInterval = async (ppeType: string) => {
-    setSavingType(ppeType);
-    const saved = await onSetInterval(ppeType, draft[ppeType] ?? matrix[ppeType] ?? 0);
-    if (saved) setDraft(current => {
-      const next = { ...current };
-      delete next[ppeType];
-      return next;
-    });
-    setSavingType(null);
-  };
-
-  const closeModal = () => {
-    setDraft({});
-    setSavingType(null);
-    onClose();
-  };
-
-  const matrixUnavailable = matrixLoading || Boolean(matrixError);
-  return (
-    <CenterModal open={isOpen} onClose={closeModal} title="PPE Replacement Matrix"
-      subtitle="Set how long each item lasts — saving an interval recalculates every existing item of that type" accent="violet" width="max-w-2xl">
-      {(matrixLoading || matrixError) && (
-        <div className={`mx-5 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${t.border} ${t.glassSoft}`} role={matrixError ? 'alert' : 'status'} data-ppe-state={matrixError ? 'matrix-error' : 'matrix-loading'}>
-          <span className={`flex items-center gap-2 text-sm ${matrixError ? accentText('rose', t.light) : t.textMuted}`}>
-            {matrixLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-            {matrixLoading ? 'Loading the saved replacement matrix…' : 'The saved replacement matrix is unavailable. Editing and recalculation are disabled.'}
-          </span>
-          {matrixError && (t.design === 'dallaglio'
-            ? <Button variant="secondary" size="sm" icon={RefreshCw} onClick={onRetryMatrix}>Try again</Button>
-            : <button type="button" onClick={onRetryMatrix} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Try again</button>)}
-        </div>
-      )}
-      <div className="px-5 pt-3 flex justify-end">
-        {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" onClick={onRecalculateAll} disabled={matrixUnavailable} title="Recalculate expiry for every active record against the current matrix">Recalculate all types</Button> : <button type="button" onClick={onRecalculateAll} disabled={matrixUnavailable}
-          title="Recalculate expiry for every active record of every type against the current matrix — fixes anything left stale by a past interval change"
-          className={`h-8 px-3 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText} transition-colors`}>
-          Recalculate all types
-        </button>}
-      </div>
-      <div className="px-5 py-3 space-y-1.5 max-h-[65vh] overflow-y-auto">
-        {Object.entries(PPE_TYPES).map(([key, info]) => {
-          const Icon = info.icon;
-          const activeCount = records.filter(r => r.ppe_type === key && r.status === 'active').length;
-          const months = t.design === 'dallaglio' ? draft[key] ?? matrix[key] ?? 0 : matrix[key] ?? 0;
-          const changed = Object.prototype.hasOwnProperty.call(draft, key) && months !== (matrix[key] ?? 0);
-          return (
-            <div key={key} className={`flex flex-col gap-2.5 px-3 py-3 rounded-lg sm:flex-row sm:items-center sm:gap-3 ${t.hoverBgSoft}`}>
-              <div className="flex min-w-0 items-center gap-3 flex-1">
-                <div className={`p-1.5 rounded-lg ${t.chipBg} shrink-0`}><Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: info.color }} /></div>
-                <div className="min-w-0">
-                  <div className={`text-[13px] ${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{info.name}</div>
-                  <div className={`text-[11px] ${t.textFaint}`}>{activeCount} active item{activeCount === 1 ? '' : 's'}</div>
-                </div>
-              </div>
-              <div className={t.design === 'dallaglio'
-                ? 'grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-1.5 sm:flex sm:shrink-0'
-                : 'flex items-center gap-1.5 sm:shrink-0'}>
-                <input type="number" min={0} max={120} value={months} disabled={matrixUnavailable || savingType === key}
-                  onChange={e => {
-                    const next = Math.max(0, Math.min(120, parseInt(e.target.value) || 0));
-                    if (t.design === 'dallaglio') setDraftInterval(key, next);
-                    else void onSetInterval(key, next);
-                  }}
-                  title={`${info.name} — months until expiry (0 = no expiry)`}
-                  aria-label={`${info.name} — months until expiry`}
-                  className={`w-16 ${t.design === 'dallaglio' ? 'h-9' : 'h-8'} px-2 rounded-lg text-sm text-center ${t.inputBg} focus:outline-none disabled:opacity-50`} />
-                <span className={`text-[11px] ${t.textFaint} min-w-12`}>{months === 0 ? 'no expiry' : 'mo'}</span>
-                {t.design === 'dallaglio' && <Button size="sm" onClick={() => void saveInterval(key)} disabled={matrixUnavailable || !changed || savingType === key} submitting={savingType === key}>Save</Button>}
-                {t.design === 'dallaglio' ? <Button variant="secondary" size="sm" className="col-span-3 justify-self-end sm:col-auto" onClick={() => onRecalculate(key)} disabled={matrixUnavailable || activeCount === 0 || changed}>Recalculate</Button> : <button type="button" onClick={() => onRecalculate(key)} disabled={matrixUnavailable || activeCount === 0}
-                  className={`h-8 px-2.5 rounded-lg text-[12px] ${TYPE_WEIGHT.medium} transition-colors ${activeCount === 0 ? `${t.chipBg} ${t.textFaint} opacity-50` : `${t.chipBg} ${t.hoverBg} ${t.textMuted} ${t.hoverText}`}`}>
-                  Recalculate
-                </button>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </CenterModal>
-  );
-}
-
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
-
-export default function PPEManagement() {
-  const t = useTheme();
-  const confirm = useConfirm();
-  // records/apiEmployees/stats/loading/refreshing/matrix + the load cycle now live in
-  // usePPEData (./usePPEData) — `refresh` is aliased back to `load` since every call
-  // site below already calls load()/load(true).
-  const {
-    records, setRecords, apiEmployees, stats, statsError, employeesError, recordsError,
-    loading, refreshing, matrix, setMatrix, matrixLoading, matrixError, refreshMatrix, refresh: load,
-  } = usePPEData();
-  const orderList = useOrderList();
-
-  // PPE records snapshot employee_name at issue time — overlay the live personnel
-  // register so a stale/garbled name on an old record doesn't diverge from Employees.
-  const displayRecords = useMemo(
-    () => enrichPPERecords(records, apiEmployees),
-    [records, apiEmployees],
-  );
-
-  // UI state
-  const [showForm,      setShowForm]      = useState(false);
-  const [showMatrix,    setShowMatrix]    = useState(false);
-  const [editData,      setEditData]      = useState<PPERecord | null>(null);
-  const [issuePrefill,  setIssuePrefill]  = useState<PPERecord | null>(null);
-  const [orderFulfillId, setOrderFulfillId] = useState<string | null>(null);
-  const [selEmployee,   setSelEmployee]   = useState<EmployeeWithPPE | null>(null);
-  const [detailItem,    setDetailItem]    = useState<PPERecord | null>(null);
-  const [showDetail,    setShowDetail]    = useState(false);
-  // Master collapse — all page sections. Read sections.expanded[key] / sections.toggle(key).
-  const sections = useCollapseSection({ heroStats: false, typeBreakdown: false, sizeBreakdown: false, records: true, orderList: true });
-  const [filterType,    setFilterType]    = useState<'all' | 'active' | 'soon-to-due' | 'due'>('all');
-  const [searchTerm,    setSearchTerm]    = useState('');
-  // Mechanical/Electrical/Civil/Instrumentation — same categorization as
-  // app/employees/page.tsx (lib/sections.ts), sourced from EmployeeWithPPE.section.
-  const [sectionFilter, setSectionFilter] = useState('all');
-  // All employee cards start collapsed (empty object = all false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  // Expiring Soon / Overdue are useless with Records collapsed — open it automatically.
-  useEffect(() => {
-    if (filterType === 'soon-to-due' || filterType === 'due') {
-      sections.expand('records');
-    }
-  }, [filterType, sections.expand]);
-
-  // Data loading (records/stats/employees fetch + matrix load) now happens inside
-  // usePPEData — see the destructure above.
-
-  // ── Derived data ───────────────────────────────────────────────────────────
-
-  const ppeEmployees = useMemo(() => {
-    const map = new Map<string, EmployeeRow>();
-    displayRecords.forEach(r => {
-      if (!map.has(r.employee_id))
-        map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, department: r.department || '', section: r.mine_section || '' });
-    });
-    return Array.from(map.values());
-  }, [displayRecords]);
-
-  const allEmployeesForForm = useMemo(() => {
-    const map = new Map<string, EmployeeRow>();
-    apiEmployees.forEach(e => map.set(e.employee_id, e));
-    ppeEmployees.forEach(e => { if (!map.has(e.employee_id)) map.set(e.employee_id, e); });
-    return Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
-  }, [apiEmployees, ppeEmployees]);
-
-  const employeesWithPPE = useMemo<EmployeeWithPPE[]>(() => {
-    const live = new Map(apiEmployees.map(e => [normalizeEmployeeId(e.employee_id), e]));
-    const map = new Map<string, EmployeeWithPPE>();
-    displayRecords.forEach(r => {
-      if (!map.has(r.employee_id)) {
-        const emp = live.get(normalizeEmployeeId(r.employee_id));
-        map.set(r.employee_id, {
-          employee_id: r.employee_id,
-          employee_name: r.employee_name,
-          position: r.position,
-          section: emp?.section || r.mine_section || '',
-          records: [],
-        });
-      }
-      map.get(r.employee_id)!.records.push(r);
-    });
-    return Array.from(map.values());
-  }, [displayRecords, apiEmployees]);
-
-  // Sections actually present among the currently loaded PPE employees — drives the
-  // Section filter's options so it never offers a section nobody here belongs to.
-  const sectionCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    employeesWithPPE.forEach(e => {
-      const s = normalizeSection(e.section);
-      counts.set(s, (counts.get(s) ?? 0) + 1);
-    });
-    return SECTION_ORDER.filter(s => counts.has(s)).map(s => [s, counts.get(s)!] as const)
-      .concat(counts.has('Unassigned') ? [['Unassigned', counts.get('Unassigned')!]] : []);
-  }, [employeesWithPPE]);
-
-  // Applied once, upstream of every view (employee cards AND the Overdue/Expiring Soon
-  // tabs) so one Section control governs the whole page rather than needing a second
-  // copy inside DueItemsList's own local filter bar.
-  const sectionFilteredEmployees = useMemo(() => {
-    if (sectionFilter === 'all') return employeesWithPPE;
-    return employeesWithPPE.filter(e => normalizeSection(e.section) === sectionFilter);
-  }, [employeesWithPPE, sectionFilter]);
-
-  const filteredEmployees = useMemo(() => {
-    let list = sectionFilteredEmployees;
-    if (filterType === 'active')     list = list.filter(e => e.records.some(r => r.status === 'active'));
-    if (filterType === 'soon-to-due') list = list.filter(e => e.records.some(r => isExpiringSoon(r.expiry_date) && r.status === 'active'));
-    if (filterType === 'due')         list = list.filter(e => e.records.some(r => isExpired(r.expiry_date) && r.status === 'active'));
-    if (searchTerm) {
-      const searchValue = normalizeSearchText(searchTerm);
-      list = list.filter(e =>
-        normalizeSearchText(e.employee_name).includes(searchValue) ||
-        normalizeSearchText(e.employee_id).includes(searchValue) ||
-        normalizeSearchText(e.position).includes(searchValue));
-    }
-    return list;
-  }, [sectionFilteredEmployees, filterType, searchTerm]);
-
-  const enhancedStats = useMemo<EnhancedStats | null>(() => {
-    if (!stats) return null;
-    const activeRecords        = records.filter(r => r.status === 'active').length;
-    const expiringSoon         = records.filter(r => isExpiringSoon(r.expiry_date) && r.status === 'active').length;
-    const expiredCount         = records.filter(r => isExpired(r.expiry_date) && r.status === 'active').length;
-    const employeesWithExpiring = employeesWithPPE.filter(e => e.records.some(r => isExpiringSoon(r.expiry_date) && r.status === 'active')).length;
-    const employeesWithExpired  = employeesWithPPE.filter(e => e.records.some(r => isExpired(r.expiry_date) && r.status === 'active')).length;
-    return { ...stats, activeRecords, expiringSoon, expired: expiredCount, employeesWithExpiring, employeesWithExpired };
-  }, [stats, records, employeesWithPPE]);
-
-  const complianceRate = useMemo(() => computeComplianceRate(records), [records]);
-
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    records.filter(r => r.status === 'active').forEach(r => { counts[r.ppe_type] = (counts[r.ppe_type] || 0) + 1; });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [records]);
-
-  // Order breakdown: active items grouped by PPE type → size, with a count in use and a
-  // "to reorder" count (past expiry, i.e. needs replacing). Lets a purchaser see e.g.
-  // "Helmet · L × 12 (3 to reorder)" at a glance. Returns [type, [size, {inUse, reorder}][]][].
-  const sizeBreakdown = useMemo(() => computeSizeBreakdown(records), [records]);
-
-  // ── Expand / collapse ─────────────────────────────────────────────────────
-
-  const toggle    = (id: string) => setExpanded(p => ({ ...p, [id]: !p[id] }));
-  const expandAll = () => setExpanded(Object.fromEntries(filteredEmployees.map(e => [e.employee_id, true])));
-  const collapseAll = () => setExpanded({});
-  const anyExpanded = filteredEmployees.some(e => expanded[e.employee_id]);
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  const openIssueForm = (emp?: EmployeeWithPPE) => {
-    setIssuePrefill(null);
-    setOrderFulfillId(null);
-    setSelEmployee(emp ?? null);
-    setEditData(null);
-    setShowForm(true);
-  };
-
-  const openIssueFromOrder = (entry: OrderListEntry) => {
-    const emp = employeesWithPPE.find(e => e.employee_id === entry.employee_id) ?? null;
-    setSelEmployee(emp ? { ...emp, employee_name: entry.employee_name } : {
-      employee_id: entry.employee_id,
-      employee_name: entry.employee_name,
-      position: '',
-      section: '',
-      records: [],
-    });
-    setEditData(null);
-    setOrderFulfillId(entry.record_id);
-    setIssuePrefill({
-      id: '',
-      employee_id: entry.employee_id,
-      employee_name: entry.employee_name,
-      position: emp?.position ?? '',
-      department: '',
-      ppe_type: entry.ppe_type,
-      item_name: entry.item_name,
-      size: entry.size,
-      issue_date: todayLocal(),
-      expiry_date: null,
-      condition: 'good',
-      status: 'active',
-      notes: '',
-      issued_by: '',
-      location: 'Workshop',
-      mine_section: emp?.section ?? '',
-    });
-    setShowForm(true);
-  };
-
-  const closeIssueForm = () => {
-    setShowForm(false);
-    setEditData(null);
-    setIssuePrefill(null);
-    setOrderFulfillId(null);
-    setSelEmployee(null);
-  };
-
-  const handleSubmit = async (formData: FormState) => {
-    if (editData) {
-      await updatePPERecord(editData.id, formData);
-      toast.success('PPE record updated');
-      orderList.remove(editData.id);
-    } else {
-      await createPPERecord(formData);
-      toast.success('PPE issued successfully');
-    }
-    if (orderFulfillId) orderList.remove(orderFulfillId);
-    orderList.removeFulfilled(formData.employee_id, formData.ppe_type, formData.size);
-    closeIssueForm();
-    load(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!await confirm({ title: 'Delete this PPE record?', message: 'This cannot be undone.', destructive: true })) return;
-    try { await deletePPERecord(id); setRecords(p => p.filter(r => r.id !== id)); toast.success('Record deleted'); }
-    catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
-  };
-
-  // Mark an item "not required" (or back to active). Sends status only — the backend
-  // PATCH is exclude_unset so no other field is touched. Not-required items drop out of
-  // the Overdue/Expiring counts (which only tally status === 'active'). Reversible.
-  const handleToggleNotRequired = async (r: PPERecord) => {
+  const toggleNotRequired = async (r: PPERecord) => {
     const next = r.status === 'not_required' ? 'active' : 'not_required';
-    try {
-      await api.patch(`/api/ppe/${r.id}`, { status: next });
-      toast.success(next === 'not_required' ? 'Marked as not required' : 'Marked as active');
-      load(true);
-    } catch (err: any) { toast.error(`Update failed: ${err.message}`); }
+    try { await setPPEStatus(r.id, next); toast.success(next === 'not_required' ? 'Marked as not required.' : 'Marked active again.'); await recs.refetch(); }
+    catch (e) { toast.error(`The status was not changed: ${(e as Error).message}`); }
+  };
+  const bulkNotRequired = async (ids: string[]) => {
+    const results = await Promise.allSettled(ids.map(id => setPPEStatus(id, 'not_required')));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    const first = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (ok) toast.success(`${ok} ${ok === 1 ? 'item' : 'items'} marked not required.`);
+    if (first) toast.error(`${ids.length - ok} could not be updated: ${(first.reason as Error).message}`);
+    await recs.refetch();
+  };
+  const addToOrder = (entries: OrderListEntry[]) => { const fresh = entries.filter(e => !order.has(e.record_id)).length; order.addMany(entries); toast.success(fresh ? `${fresh} ${fresh === 1 ? 'item' : 'items'} added to the order list.` : 'Already on the order list.'); };
+  const actions: ItemActions = {
+    onView: r => setItemId(String(r.id)), onEdit: openEdit, onDelete: remove, onToggleNotRequired: toggleNotRequired,
+    onOrder: r => { addToOrder([{ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date }]); }, ordered: r => order.has(String(r.id)),
   };
 
-  // Same as above, applied to a whole batch from the Overdue tab's checkbox selection —
-  // for triaging the false positives (items past their matrix interval that don't
-  // actually need reordering) without clicking through them one at a time.
-  const handleBulkMarkNotRequired = async (ids: string[]) => {
-    const results = await Promise.allSettled(ids.map(id => api.patch(`/api/ppe/${id}`, { status: 'not_required' })));
-    const okCount = results.filter(r => r.status === 'fulfilled').length;
-    const failCount = results.length - okCount;
-    if (okCount > 0) toast.success(`Marked ${okCount} item${okCount !== 1 ? 's' : ''} as not required`);
-    if (failCount > 0) toast.warning(`${failCount} failed to update`);
-    load(true);
+  const setInterval = async (type: string, months: number) => {
+    const res = await setMatrixInterval(type, months);
+    matrix.setMatrix(m => ({ ...m, [type]: months }));
+    toast.success(res?.updated ? `Interval saved. ${res.updated} existing ${res.updated === 1 ? 'item' : 'items'} recalculated.` : 'Interval saved.');
+    if (res?.updated) reload();
+  };
+  const recalc = async (type: string) => {
+    const count = records.filter(r => r.ppe_type === type && r.status === 'active').length;
+    const months = matrix.matrix[type];
+    if (!await confirm({ title: months === 0 ? `Clear the expiry on ${count} active ${typeName(type)} items?` : `Reset the expiry of ${count} active ${typeName(type)} items to issue date plus ${months} months?`, message: 'This overwrites their current expiry dates.', confirmLabel: 'Recalculate', destructive: true })) return;
+    const res = await applyMatrixType(type);
+    toast.success(`Recalculated ${res?.updated ?? count} ${typeName(type)} items.`); reload();
+  };
+  const recalcAll = async () => {
+    const n = records.filter(r => r.status === 'active').length;
+    if (!await confirm({ title: `Recalculate the expiry of all ${n} active items?`, message: 'Uses the current matrix for every type and overwrites their current expiry dates.', confirmLabel: 'Recalculate all', destructive: true })) return;
+    const res = await applyMatrixAll();
+    toast.success(`Recalculated ${res?.total_updated ?? 0} items across all types.`);
+    if (res?.failed?.length) throw new Error(`These types could not be recalculated: ${res.failed.map(typeName).join(', ')}.`);
+    reload();
   };
 
-  // Matrix: save an interval (shared) — the backend now also recalculates expiry for
-  // every existing active record of that type as part of the same save, so stored data
-  // never drifts from the matrix (no separate "apply" step required).
-  const handleSetInterval = async (ppeType: string, months: number) => {
-    const previous = matrix[ppeType] ?? 0;
-    setMatrix(m => ({ ...m, [ppeType]: months }));   // optimistic
-    try {
-      const res = await api.put<{ updated: number }>('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months });
-      toast.success(res?.updated ? `Interval saved — recalculated ${res.updated} existing item(s)` : 'Interval saved');
-      if (res?.updated) load(true);
-      return true;
-    } catch {
-      setMatrix(current => ({ ...current, [ppeType]: previous }));
-      toast.error('Interval not saved — the ppe_matrix table may not exist yet (see migration).');
-      return false;
-    }
+  const badges = (h: EmployeeWithPPE) => {
+    const o = h.records.filter(r => standing(r) === 'overdue').length; const s = h.records.filter(r => standing(r) === 'soon').length;
+    return <>{o > 0 && <StatusBadge tone="danger">{o} overdue</StatusBadge>}{s > 0 && <StatusBadge tone="warning">{s} expiring soon</StatusBadge>}{o === 0 && s === 0 && <StatusBadge tone="success">Up to date</StatusBadge>}</>;
   };
-  const handleRecalculate = async (ppeType: string) => {
-    const label = PPE_TYPES[ppeType]?.name || ppeType;
-    const count = records.filter(r => r.ppe_type === ppeType && r.status === 'active').length;
-    const months = matrix[ppeType];
-    const what = months === 0
-      ? `Clear the expiry date on ${count} active ${label} item(s)? (no expiry)`
-      : `Reset expiry for ${count} active ${label} item(s) to issue date + ${months} months?`;
-    if (!await confirm({ title: what, message: 'This overwrites their current expiry dates.', destructive: true })) return;
-    try {
-      const res = await api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {});
-      toast.success(`Recalculated ${res?.updated ?? count} ${label} item(s)`);
-      load(true);
-    } catch { toast.error('Recalculate failed — needs manager access (and the ppe_matrix table).'); }
-  };
-  const handleRecalculateAll = async () => {
-    const activeCount = records.filter(r => r.status === 'active').length;
-    if (!await confirm({ title: `Recalculate expiry for all ${activeCount} active PPE item(s)?`, message: 'Uses the current matrix across every type — this overwrites their current expiry dates.', destructive: true })) return;
-    try {
-      const res = await api.post<{ total_updated: number; failed?: string[] }>('/api/ppe/matrix/apply-all', {});
-      toast.success(`Recalculated ${res?.total_updated ?? 0} item(s) across all types`);
-      if (res?.failed && res.failed.length > 0) {
-        toast.error(`Failed to recalculate: ${res.failed.map(t => PPE_TYPES[t]?.shortName || t).join(', ')}`);
-      }
-      load(true);
-    } catch { toast.error('Recalculate failed — needs manager access.'); }
-  };
-
-  const compColor = complianceRate == null ? ACCENT_HEX.blue : complianceRate >= 80 ? '#10b981' : complianceRate >= 60 ? ACCENT_HEX.blue : '#f43f5e';
-
-  const fmtExportDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-
-  // Expiry cell color depends on the raw expiry_date, not the formatted
-  // display string, so it's computed from the row, not the column value.
-  const ppeExpiryColor = (_v: string, row: Record<string, unknown>) => {
-    const expiry = row.expiry_date as string | null | undefined;
-    if (!expiry) return undefined;
-    if (isExpired(expiry)) return 'F43F5E';
-    if (isExpiringSoon(expiry)) return 'F59E0B';
-    return undefined;
-  };
-
-  // ── PPE Summary ── a minimal, publicly-postable snapshot (name / item / size /
-  // last issue / next issue), meant to be printed and pinned on a noticeboard so
-  // people can check their own status instead of asking. Separate from the full
-  // PPE Register export above (every field, every status) — this one is active
-  // issues only (a returned/lost/damaged item has no live "next issue" date to
-  // show) and colors every row, not just the ones that need attention, so it
-  // reads at a glance: red = already due, amber = due soon, green = fine.
-  const summaryRecords = displayRecords
-    .filter(r => r.status === 'active')
-    .slice()
-    .sort((a, b) => {
-      const ea = a.expiry_date ? new Date(a.expiry_date).getTime() : Infinity;
-      const eb = b.expiry_date ? new Date(b.expiry_date).getTime() : Infinity;
-      return ea - eb;
-    });
-
-  const ppeSummaryColor = (_v: string, row: Record<string, unknown>) => {
-    const expiry = row.expiry_date as string | null | undefined;
-    if (!expiry) return '6B7280';
-    if (isExpired(expiry)) return 'F43F5E';
-    if (isExpiringSoon(expiry)) return 'F59E0B';
-    return '10B981';
-  };
-
-  const ppeSummaryColumns: DLColumn[] = [
-    { key: 'employee_name', label: 'Name', width: 26 },
-    { key: 'ppe_type', label: 'PPE Item', width: 22, format: v => PPE_TYPES[v as string]?.name || (v as string) },
-    { key: 'size', label: 'Size', width: 10 },
-    { key: 'issue_date', label: 'Last Issue Date', width: 18, format: v => fmtExportDate(v as string) },
-    { key: 'expiry_date', label: 'Next Issue Date', width: 18, format: v => fmtExportDate(v as string) },
+  const VIEWS: { value: EmployeeView; label: string }[] = [
+    { value: 'all', label: `Everyone (${holders.length})` }, { value: 'active', label: `Has active (${holders.filter(h => h.records.some(r => r.status === 'active')).length})` },
+    { value: 'soon', label: `Expiring soon (${stats.employeesSoon})` }, { value: 'overdue', label: `Overdue (${stats.employeesOverdue})` },
   ];
-
-  // Excel gets every field; the PDF's landscape table omits Location and
-  // Mine Section (matches the original hand-rolled exports' divergent
-  // column sets). PPE Type also uses a shorter label in the PDF.
-  const exportColumns: DLColumn[] = [
-    { key: 'employee_name', label: 'Employee Name', width: 26 },
-    { key: 'employee_id', label: 'Employee ID', width: 14 },
-    { key: 'position', label: 'Position', width: 22 },
-    { key: 'ppe_type', label: 'PPE Type', width: 22, format: v => PPE_TYPES[v as string]?.name || (v as string) },
-    { key: 'item_name', label: 'Item / Brand', width: 30 },
-    { key: 'size', label: 'Size', width: 10 },
-    { key: 'issue_date', label: 'Issue Date', width: 14, format: v => fmtExportDate(v as string) },
-    { key: 'expiry_date', label: 'Expiry Date', width: 14, format: v => fmtExportDate(v as string) },
-    { key: 'condition', label: 'Condition', width: 13, format: v => CONDITION_LABELS[v as string] || (v as string) },
-    { key: 'status', label: 'Status', width: 13, format: v => STATUS_LABELS[v as string] || (v as string) },
-    { key: 'issued_by', label: 'Issued By', width: 22 },
-    { key: 'location', label: 'Location', width: 16 },
-    { key: 'mine_section', label: 'Mine Section', width: 16 },
-  ];
-  const exportPdfColumns: DLColumn[] = [
-    { key: 'employee_name', label: 'Employee' },
-    { key: 'employee_id', label: 'ID' },
-    { key: 'position', label: 'Position' },
-    { key: 'ppe_type', label: 'PPE Type', format: v => PPE_TYPES[v as string]?.shortName || (v as string) },
-    { key: 'item_name', label: 'Item / Brand' },
-    { key: 'size', label: 'Size' },
-    { key: 'issue_date', label: 'Issued', format: v => fmtExportDate(v as string) },
-    { key: 'expiry_date', label: 'Expires', format: v => fmtExportDate(v as string) },
-    { key: 'condition', label: 'Condition', format: v => CONDITION_LABELS[v as string] || (v as string) },
-    { key: 'status', label: 'Status', format: v => STATUS_LABELS[v as string] || (v as string) },
-    { key: 'issued_by', label: 'Issued By' },
-  ];
-
-  const recordsUnavailable = Boolean(recordsError && records.length === 0);
-  const loadWarnings = [
-    recordsError && records.length > 0 ? 'The PPE register could not be refreshed. Showing the last loaded records.' : '',
-    statsError ? 'PPE statistics are unavailable.' : '',
-    employeesError ? 'Personnel details are unavailable. Names and roles may use the PPE register snapshot.' : '',
-  ].filter(Boolean);
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <AppShell>
-      <main className={`${t.design === 'dallaglio' ? 'w-full' : 'container mx-auto'} px-4 py-8 space-y-4`}>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
+        title="PPE management"
+        description="Who holds what, what is due, and what to order."
+        actions={(
+          <>
+            <IconButton icon="refresh" label="Refresh PPE" variant="outline" pending={recs.loading && recs.loaded} onClick={reload} />
+            <Button icon="settings" onClick={() => setMatrixOpen(true)}>Replacement matrix</Button>
+            <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
+          </>
+        )}
+      />
+      {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from it; the issue form still works by typing.</Notice>}
 
-        {/* ── HERO ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}
-          style={{ boxShadow: t.light ? '0 8px 30px -14px rgba(15,23,42,0.14)' : undefined }}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <PulsingIcon className={`p-2.5 rounded-xl shrink-0 ${ACCENT.blue.chip} border ${t.border}`}>
-                <HardHat className={`h-5 w-5 ${ACCENT.blue.icon}`} />
-              </PulsingIcon>
-              <div className="min-w-0">
-                <nav className={`flex items-center gap-1.5 text-xs ${t.textFaint} mb-0.5`}>
-                  <span>Home</span><ChevronRight className="h-3 w-3" />
-                  <span className={`${t.textMuted} ${TYPE_WEIGHT.medium}`}>PPE Management</span>
-                </nav>
-                <h1 className={`text-xl ${TYPE_WEIGHT.bold} ${t.textPrimary} font-heading tracking-tight`}>PPE Management</h1>
-                <AnimatedText
-                  as="p"
-                  trigger="mount"
-                  text="Personal protective equipment tracking and compliance"
-                  className={`text-xs ${t.textFaint} mt-0.5`}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {t.design === 'dallaglio' ? <>
-                <Button variant="ghost" size="sm" icon={sections.allOpen ? ChevronsUp : ChevronsDown} onClick={sections.toggleAll}>{sections.allOpen ? 'Collapse all' : 'Expand all'}</Button>
-                <IconAction meaning="eye" title={sections.expanded.heroStats ? 'Hide overview' : 'Show overview'} onClick={() => sections.toggle('heroStats')} active={sections.expanded.heroStats} />
-                <Button variant="secondary" size="sm" icon={HardHat} onClick={() => setShowMatrix(true)} title="PPE replacement matrix">Matrix</Button>
-                <IconAction meaning="refresh" title="Refresh PPE records" onClick={() => load(true)} disabled={refreshing} spinning={refreshing} />
-              </> : <>
-              <button type="button" onClick={sections.toggleAll} title={sections.allOpen ? 'Collapse all sections' : 'Expand all sections'}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
-                {sections.allOpen ? <ChevronsUp className="h-3.5 w-3.5" /> : <ChevronsDown className="h-3.5 w-3.5" />}
-              </button>
-              <button type="button" title={sections.expanded.heroStats ? 'Hide stats' : 'Show stats'} onClick={() => sections.toggle('heroStats')}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all`}>
-                {sections.expanded.heroStats ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-              <button type="button" title="PPE replacement matrix — set expiry intervals & recalculate" onClick={() => setShowMatrix(true)}
-                className={`h-8 px-3 flex items-center gap-1.5 text-xs rounded-xl ${TYPE_WEIGHT.semibold} ${t.textMuted} ${t.hoverText} transition-all hover:-translate-y-0.5 ${t.glassSoft} ${t.hoverBg}`}>
-                <HardHat className="h-3.5 w-3.5" /> Matrix
-              </button>
-              <button type="button" title="Refresh" onClick={() => load(true)} disabled={refreshing}
-                className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.glassSoft} ${t.hoverBg} ${t.textMuted} transition-all disabled:opacity-40`}>
-                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
-              </>}
+      <MetricGrid columns={5}>
+        <MetricTile label="People" icon="employees" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
+        <MetricTile label="Active items" icon="ppe" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
+        <MetricTile label="Expiring soon" icon="due-soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
+        <MetricTile label="Overdue" icon="overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
+        <MetricTile label="On the order list" icon="cart" value={order.entries.length} selected={tab === 'order'} onClick={() => setTab('order')} />
+      </MetricGrid>
 
-              {records.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[10px] ${TYPE_WEIGHT.medium} ${t.textFaint} hidden sm:inline`}>Register</span>
-                  <DownloadButton
-                    data={displayRecords as unknown as Record<string, unknown>[]}
-                    columns={exportColumns}
-                    pdfColumns={exportPdfColumns}
-                    filename={exportFilename('PPE_Register')}
-                    title="PPE Register"
-                    subtitle={`${employeesWithPPE.length} employees`}
-                    statusColumn="expiry_date"
-                    statusColor={ppeExpiryColor}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList aria-label="PPE sections">
+          <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
+          <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
+          <TabsTrigger value="order" icon="cart">{`Order list${order.entries.length ? ` (${order.entries.length})` : ''}`}</TabsTrigger>
+          <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="employees" className="mt-4 flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search name, ID or position" wrapperClassName="min-w-48 max-w-sm flex-1" />
+            <Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
+            {filtered && <Button variant="ghost" icon="close" onClick={() => setF(NO_EMPLOYEE_FILTERS)}>Clear filters</Button>}
+          </div>
+          <Segmented label="Show" value={f.view} onValueChange={v => set({ view: v as EmployeeView })} options={VIEWS} />
+          <DataRegion
+            status={status} subject="PPE records" error={recs.error} onRetry={reload}
+            empty={filtered
+              ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => setF(NO_EMPLOYEE_FILTERS)}>Clear filters</Button>} />
+              : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
+          >
+            <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== holders.length ? ` of ${holders.length}` : ''}</p>
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees with PPE">
+              {shown.map(h => (
+                <li key={h.employee_id} className="relative">
+                  <RecordCard
+                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={badges(h)}
+                    facts={[{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }, ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
+                    action={<IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}
                   />
-                </div>
-              )}
+                </li>
+              ))}
+            </ul>
+          </DataRegion>
+        </TabsContent>
 
-              {summaryRecords.length > 0 && (
-                <div className="flex items-center gap-1.5" title="Printable summary — name, item, size, last/next issue date, color-coded by due status">
-                  <span className={`text-[10px] ${TYPE_WEIGHT.medium} ${t.textFaint} hidden sm:inline`}>Summary</span>
-                  <DownloadButton
-                    data={summaryRecords as unknown as Record<string, unknown>[]}
-                    columns={ppeSummaryColumns}
-                    filename={exportFilename('PPE_Summary')}
-                    title="PPE Summary"
-                    subtitle="Who has what, and when it's due"
-                    statusColumn="expiry_date"
-                    statusColor={ppeSummaryColor}
-                  />
-                </div>
-              )}
+        <TabsContent value="due" className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
+          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}
+        </TabsContent>
 
-              {/* Primary "create" CTA uses ACCENT.violet, matching every other page's
-                  equivalent button (New Breakdown, Add Employee, New Work Order, ...) —
-                  this one was the one outlier still on ACCENT.blue (2026-08-29 UI audit,
-                  audit/07-ui-polish-findings.md). */}
-              <PrimaryButton icon={Plus} onClick={() => openIssueForm()} disabled={recordsUnavailable} title={recordsUnavailable ? 'Retry the PPE register before issuing equipment' : undefined}>Issue PPE</PrimaryButton>
-            </div>
-          </div>
+        <TabsContent value="order" className="mt-4"><OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} /></TabsContent>
+        <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={records} employeeCount={holders.length} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}</TabsContent>
+      </Tabs>
 
-          {sections.expanded.heroStats && enhancedStats && (
-            <div className={`border-t ${t.border} px-6 py-3 space-y-3`}>
-              {/* KPI chips */}
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="flex flex-wrap items-center gap-1">
-                {([
-                  { icon: Users,        color: ACCENT_HEX.blue, val: enhancedStats.unique_employees, label: 'Employees',   filter: 'all' as const },
-                  { icon: CheckCircle2, color: '#10b981', val: enhancedStats.activeRecords,    label: 'Active PPE',  filter: 'active' as const },
-                  enhancedStats.expiringSoon > 0 && { icon: AlertTriangle, color: '#f59e0b', val: enhancedStats.expiringSoon, label: `Expiring (${enhancedStats.employeesWithExpiring} emp)`, filter: 'soon-to-due' as const },
-                  enhancedStats.expired > 0      && { icon: XCircle,       color: '#f43f5e', val: enhancedStats.expired,      label: `Overdue (${enhancedStats.employeesWithExpired} emp)`,  filter: 'due' as const },
-                  complianceRate != null && { icon: Award, color: compColor, val: `${complianceRate}%`, label: 'Compliance', filter: null },
-                ] as const).filter(Boolean).map((item: any, i: number, arr: any[]) => (
-                  <motion.div key={i} variants={fadeUp} className="contents">
-                    <StatTile icon={item.icon} color={item.color} value={item.val} label={item.label}
-                      onClick={item.filter ? () => setFilterType(item.filter) : undefined} />
-                    {i < arr.length - 1 && <span className={`${t.textTertiary} hidden sm:block`}>|</span>}
-                  </motion.div>
-                ))}
-              </motion.div>
-              {/* Compliance bar */}
-              {complianceRate != null && (
-                <ProgressBar value={complianceRate} color={compColor} label="Compliance rate" />
-              )}
-              {/* PPE type chips */}
-              {typeCounts.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pb-0.5">
-                  {typeCounts.slice(0, 8).map(([type, count]) => {
-                    const info = PPE_TYPES[type] || PPE_TYPES.helmet;
-                    const Icon = info.icon;
-                    return (
-                      <span key={type} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.textMuted}`}>
-                        <Icon className="h-3 w-3" style={t.design === 'dallaglio' ? undefined : { color: info.color }} />{info.shortName} <span className={t.textPrimary}>{count}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </motion.div>
-
-        {loadWarnings.length > 0 && (
-          <div className={`flex flex-wrap items-start justify-between gap-3 rounded-2xl border px-4 py-3 ${t.border} ${t.glass}`} role="alert" data-ppe-state="supporting-data-error">
-            <div className="flex min-w-0 gap-2">
-              <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${accentText('rose', t.light)}`} />
-              <div className="space-y-0.5">
-                {loadWarnings.map(message => <p key={message} className={`text-sm ${t.textMuted}`}>{message}</p>)}
-              </div>
-            </div>
-            {t.design === 'dallaglio'
-              ? <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => load(true)} disabled={refreshing}>Try again</Button>
-              : <button type="button" onClick={() => load(true)} disabled={refreshing} className={`h-8 px-3 rounded-lg text-xs ${TYPE_WEIGHT.semibold} ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>Try again</button>}
-          </div>
-        )}
-
-        {/* ── PPE TYPE BREAKDOWN (collapsed by default) ── */}
-        {records.length > 0 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <button type="button" onClick={() => sections.toggle('typeBreakdown')}
-              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
-              <div className="flex items-center gap-2">
-                <HardHat className="h-3.5 w-3.5 text-brand-500" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>PPE Type Breakdown</span>
-                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
-                  {typeCounts.length} types active
-                </span>
-              </div>
-              {sections.expanded.typeBreakdown
-                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
-                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
-            </button>
-            <Collapse open={!!sections.expanded.typeBreakdown}>
-              <div className={`px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 border-t ${t.border}`}>
-                {Object.entries(PPE_TYPES).map(([key, type]) => {
-                  const Icon = type.icon;
-                  const active  = records.filter(r => r.ppe_type === key && r.status === 'active').length;
-                  if (active === 0) return null;
-                  const expiredC = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpired(r.expiry_date)).length;
-                  const soonC    = records.filter(r => r.ppe_type === key && r.status === 'active' && isExpiringSoon(r.expiry_date)).length;
-                  return (
-                    <GlowCard key={key} color={ACCENT_HEX.violet} className="p-4 mt-3">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className="h-3.5 w-3.5" style={{ color: type.color }} /></div>
-                        <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{type.shortName}</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs"><span className={t.textFaint}>Active</span><span className={`${TYPE_WEIGHT.bold} text-emerald-500`}>{active}</span></div>
-                        {soonC    > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Expiring</span><span className={`${TYPE_WEIGHT.bold} text-amber-500`}>{soonC}</span></div>}
-                        {expiredC > 0 && <div className="flex justify-between text-xs"><span className={t.textFaint}>Overdue</span><span className={`${TYPE_WEIGHT.bold} text-rose-500`}>{expiredC}</span></div>}
-                        <div className={`h-1 rounded-full ${t.chipBg} overflow-hidden mt-2`}>
-                          <div className="h-full bg-emerald-400/70 rounded-full"
-                            style={{ width: `${active > 0 ? Math.max(8, Math.round(((active - expiredC) / active) * 100)) : 0}%` }} />
-                        </div>
-                      </div>
-                    </GlowCard>
-                  );
-                })}
-              </div>
-            </Collapse>
-          </div>
-        )}
-
-        {/* ── ORDER BREAKDOWN BY SIZE (collapsed by default) ── */}
-        {sizeBreakdown.length > 0 && (
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <button type="button" onClick={() => sections.toggle('sizeBreakdown')}
-              className={`w-full flex items-center justify-between px-5 py-3 ${t.hoverBgSoft} transition-all`}>
-              <div className="flex items-center gap-2">
-                <HardHat className="h-3.5 w-3.5 text-brand-500" />
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Order Breakdown — by size</span>
-                <span className={`text-[11px] ${t.textFaint} font-normal normal-case tracking-normal`}>
-                  what to reorder, per size
-                </span>
-              </div>
-              {sections.expanded.sizeBreakdown
-                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint}`} />
-                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint}`} />}
-            </button>
-            <Collapse open={!!sections.expanded.sizeBreakdown}>
-              <div className={`px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 border-t ${t.border}`}>
-                {sizeBreakdown.map(([type, sizes]) => {
-                  const info = PPE_TYPES[type] || PPE_TYPES.helmet;
-                  const Icon = info.icon;
-                  const reorderTotal = sizes.reduce((s, [, v]) => s + v.reorder, 0);
-                  return (
-                    <div key={type} className={`rounded-xl ${t.glassSoft} p-3`}>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`p-1.5 rounded-lg ${t.chipBg}`}><Icon className={`h-3.5 w-3.5 ${t.design === 'dallaglio' ? t.textMuted : ''}`} style={t.design === 'dallaglio' ? undefined : { color: info.color }} /></div>
-                          <span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary} truncate`}>{info.shortName}</span>
-                        </div>
-                        {reorderTotal > 0 && <StatusBadge color="#f43f5e" label={`${reorderTotal} to reorder`} />}
-                      </div>
-                      <div className={`grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1 text-xs ${t.textMuted}`}>
-                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint}`}>Size</span>
-                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint} text-right`}>In use</span>
-                        <span className={`text-[10px] uppercase tracking-wide ${t.textFaint} text-right`}>Reorder</span>
-                        {sizes.map(([size, v]) => (
-                          <Fragment key={size}>
-                            <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary} truncate`}>{size}</span>
-                            <span className="text-right tabular-nums">{v.inUse}</span>
-                            <span className={`text-right tabular-nums ${TYPE_WEIGHT.semibold} ${v.reorder > 0 ? 'text-rose-500' : t.textFaint}`}>{v.reorder || '—'}</span>
-                          </Fragment>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Collapse>
-          </div>
-        )}
-
-        {/* ── ORDER LIST — items flagged from Overdue/Expiring Soon to actually order ── */}
-        <OrderListPanel
-          entries={orderList.entries}
-          ppeTypes={PPE_TYPES}
-          expanded={!!sections.expanded.orderList}
-          onToggleExpanded={() => sections.toggle('orderList')}
-          onRemove={orderList.remove}
-          onClear={orderList.clear}
-          onIssue={openIssueFromOrder}
-        />
-
-        {/* ── FILTER + EXPAND/COLLAPSE BAR ── */}
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
-            {/* Filter pills */}
-            {t.design === 'dallaglio' ? (
-              <PillTabs tabs={[
-                { key: 'all' as const, label: 'All Employees', icon: Users, count: employeesWithPPE.length },
-                { key: 'active' as const, label: 'Has Active', icon: CheckCircle2, count: employeesWithPPE.filter(e => e.records.some(r => r.status === 'active')).length },
-                { key: 'soon-to-due' as const, label: 'Expiring Soon', icon: AlertTriangle, count: enhancedStats?.employeesWithExpiring ?? 0 },
-                { key: 'due' as const, label: 'Overdue', icon: XCircle, count: enhancedStats?.employeesWithExpired ?? 0 },
-              ]} value={filterType} onChange={setFilterType} wrap="scroll" />
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {([
-                  { value: 'all',         label: 'All Employees', count: employeesWithPPE.length },
-                  { value: 'active',      label: 'Has Active',    count: employeesWithPPE.filter(e => e.records.some(r => r.status === 'active')).length },
-                  { value: 'soon-to-due', label: 'Expiring Soon', count: enhancedStats?.employeesWithExpiring ?? 0 },
-                  { value: 'due',         label: 'Overdue',       count: enhancedStats?.employeesWithExpired  ?? 0 },
-                ] as const).map(({ value, label, count }) => (
-                  <button key={value} type="button" onClick={() => setFilterType(value)}
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border ${TYPE_WEIGHT.medium} transition-all ${
-                      filterType === value
-                        ? `${ACCENT.blue.chip} ${ACCENT.blue.text}`
-                        : `${t.glassSoft} ${t.textMuted} ${t.hoverBg} ${t.hoverText}`
-                    }`}>
-                    {label}
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${TYPE_WEIGHT.bold} ${filterType === value ? 'bg-white/20' : t.chipBg} ${filterType === value ? '' : t.textFaint}`}>{count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              {/* Mechanical/Electrical/Civil/Instrumentation — same categorization as
-                  app/employees/page.tsx (lib/sections.ts). Governs every view below,
-                  not just "All Employees": the employee cards, and the Overdue/Expiring
-                  Soon tabs (DueItemsList gets the already section-filtered list). */}
-              {sectionCounts.length > 1 && (
-                <SelectField size="filter" value={sectionFilter} onChange={setSectionFilter} title="Section filter"
-                  options={[{ value: 'all', label: 'All Sections' }, ...sectionCounts.map(([s, count]) => ({ value: s, label: `${s} (${count})` }))]} />
-              )}
-            {/* Search */}
-            {(filterType === 'all' || filterType === 'active') && (
-              <div className="relative">
-                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-                <input type="text" placeholder="Search employee…" aria-label="Search employee" value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className={`pl-7 pr-8 text-xs w-44 rounded-lg ${t.inputBg} transition-all ${t.design === 'dallaglio' ? 'h-9' : 'py-1.5'}`} />
-                {searchTerm && (
-                  <button type="button" onClick={() => setSearchTerm('')}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 ${t.textFaint} ${t.hoverText} transition-colors`}>
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── RECORDS ── */}
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          {/* Collapsible header — click title area to toggle panel; Collapse All lives here */}
-          <div className="flex items-center gap-2 px-5 py-3">
-            <button type="button" onClick={() => sections.toggle('records')}
-              className="flex items-center gap-2.5 min-w-0 flex-1 text-left hover:opacity-90 transition-opacity">
-              <FileText className={`h-3.5 w-3.5 ${ACCENT.blue.icon} shrink-0`} />
-              <span className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textSecondary} uppercase tracking-wider`}>Records</span>
-              <span className={`text-xs ${t.textFaint} font-normal normal-case tracking-normal`}>
-                {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} items
-              </span>
-              {sections.expanded.records
-                ? <ChevronUp className={`h-3.5 w-3.5 ${t.textFaint} ml-1`} />
-                : <ChevronDown className={`h-3.5 w-3.5 ${t.textFaint} ml-1`} />}
-            </button>
-            {/* Collapse All / Expand All — only visible when the panel is open and cards are shown */}
-            {sections.expanded.records && (filterType === 'all' || filterType === 'active') && filteredEmployees.length > 0 && (
-              anyExpanded ? (
-                t.design === 'dallaglio' ? <Button variant="secondary" size="sm" icon={ChevronsUp} onClick={collapseAll}>Collapse All</Button> : <button type="button" onClick={collapseAll}
-                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${TYPE_WEIGHT.semibold} transition-all shrink-0 ${t.glassSoft} ${t.textMuted} ${t.hoverText}`}>
-                  <ChevronsUp className="h-3.5 w-3.5" /> Collapse All
-                </button>
-              ) : (
-                <PrimaryButton icon={ChevronsDown} size={t.design === 'dallaglio' ? 'sm' : 'xs'} className="shrink-0" onClick={expandAll}>Expand All</PrimaryButton>
-              )
-            )}
-          </div>
-
-          <Collapse open={!!sections.expanded.records}>
-            <div className={`border-t ${t.border} p-4`}>
-              {refreshing && records.length > 0 && (
-                <p className={`flex items-center gap-2 text-xs ${t.textFaint} mb-3`}>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Refreshing…
-                </p>
-              )}
-              {loading && records.length === 0 ? (
-                <div className={`flex items-center justify-center py-16 gap-2 ${t.textFaint}`}>
-                  <RefreshCw className="h-5 w-5 animate-spin" /> Loading PPE records…
-                </div>
-              ) : recordsUnavailable ? (
-                // Distinct from the genuinely-empty-table state below: records stays at
-                // its [] default on a failed fetch (a Render cold-start timeout, a
-                // dropped connection, anything), which used to render the identical
-                // "No PPE records yet" copy — indistinguishable from real data loss.
-                <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
-                  <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
-                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load PPE records</p>
-                  <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
-                  <PrimaryButton icon={RefreshCw} size="md" onClick={() => load()}>Retry</PrimaryButton>
-                </div>
-              ) : (filterType === 'soon-to-due' || filterType === 'due') ? (
-                <DueItemsList key={filterType} employees={sectionFilteredEmployees} filterType={filterType}
-                  sectionFilterActive={sectionFilter !== 'all'}
-                  onEditItem={r => { setEditData(r); setShowForm(true); }}
-                  onDeleteItem={handleDelete}
-                  onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
-                  onToggleNotRequired={handleToggleNotRequired}
-                  onBulkMarkNotRequired={handleBulkMarkNotRequired}
-                  onAddToOrderList={orderList.addMany}
-                  isOnOrderList={orderList.has} />
-              ) : filteredEmployees.length === 0 ? (
-                <div className={`text-center py-16 rounded-xl ${t.glassSoft}`}>
-                  <HardHat className={`h-12 w-12 mx-auto mb-4 ${t.textTertiary}`} />
-                  <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>
-                    {records.length === 0 ? 'No PPE records yet' : 'No employees match your search'}
-                  </p>
-                  <p className={`text-xs ${t.textFaint}`}>
-                    {records.length === 0 ? 'Issue PPE to an employee to get started' : 'Try adjusting the search or filter'}
-                  </p>
-                  {records.length === 0 && (
-                    <PrimaryButton icon={Plus} size="md" className="mt-4" onClick={() => openIssueForm()}>Issue First PPE</PrimaryButton>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {filteredEmployees.map(emp => (
-                    <EmployeePPECard key={emp.employee_id} employee={emp}
-                      isExpanded={!!expanded[emp.employee_id]}
-                      onToggle={() => toggle(emp.employee_id)}
-                      onIssueNew={openIssueForm}
-                      onEditItem={r => { setEditData(r); setShowForm(true); }}
-                      onDeleteItem={handleDelete}
-                      onViewItem={item => { setDetailItem(item); setShowDetail(true); }}
-                      onToggleNotRequired={handleToggleNotRequired} />
-                  ))}
-                  <p className={`text-center text-[11px] ${t.textFaint} pt-1`}>
-                    {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} · {records.length} PPE records total
-                  </p>
-                </div>
-              )}
-            </div>
-          </Collapse>
-        </div>
-      </main>
-
-      <PPEIssueForm isOpen={showForm}
-        onClose={closeIssueForm}
-        onSubmit={handleSubmit} initialData={editData} prefill={issuePrefill} employee={selEmployee}
-        allEmployees={allEmployeesForForm} matrix={matrix} />
-
-      <PPEMatrixModal isOpen={showMatrix} onClose={() => setShowMatrix(false)}
-        matrix={matrix} records={records} matrixLoading={matrixLoading} matrixError={matrixError} onRetryMatrix={() => void refreshMatrix()}
-        onSetInterval={handleSetInterval} onRecalculate={handleRecalculate} onRecalculateAll={handleRecalculateAll} />
-
-      <PPEDetailModal item={detailItem} isOpen={showDetail}
-        onClose={() => setShowDetail(false)}
-        onEdit={item => { setEditData(item); setShowForm(true); }} />
-    </AppShell>
+      <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} />
+      <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} />
+      <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} employees={people} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
+      <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
+    </div>
   );
+}
+
+export default function PPEPage() {
+  return <AppShell migrated><PPEContent /></AppShell>;
 }

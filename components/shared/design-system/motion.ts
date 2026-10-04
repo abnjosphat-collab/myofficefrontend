@@ -59,3 +59,26 @@ export const iconPop: Variants = {
   hidden: { scale: 0.5, rotate: -8, opacity: 0 },
   show: { scale: 1, rotate: 0, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 16, delay: 0.15 } },
 };
+
+/** Tools-standard calm entrance (Stage B): short fade + 8px rise, 25ms stagger
+ *  capped at 150ms so long lists settle together. Mount-only, instant under
+ *  reduced motion. Migrated routes use this instead of lift/tilt/scale entrances. */
+export const emergeContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.025 } },
+};
+
+export const emergeItem: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.18, ease: EASE_OUT } },
+};
+
+/** Prop-spread form of the calm entrance (same values as `tileEmergeProps`,
+ *  which now delegates here). Spread onto any motion element. */
+export function emergeProps(index = 0, reduced: boolean | null = false) {
+  return {
+    initial: { opacity: 0, y: reduced ? 0 : 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: reduced ? 0 : 0.18, delay: reduced ? 0 : Math.min(index * 0.025, 0.15) },
+  };
+}

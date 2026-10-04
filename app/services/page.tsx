@@ -1,991 +1,172 @@
-// app/services/page.tsx — Services Tracker with backend, pipeline, attachments & OCR
+// app/services/page.tsx — third party services: contractor jobs and where each is in the six-step approval circuit
+// (planning, engineering manager, finance, GM, stores/GRV, payment). Cards, table or a one-row-per-job sheet.
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import {
-  Wrench, ClipboardList, DollarSign, Package, CheckCheck, Tag,
-  Building2, Hash, Calendar, Phone,
-  Trash2, Edit2, ChevronDown, ChevronUp, CheckCircle2, Circle,
-  Filter, ArrowRight, Paperclip, Upload, X, FileDown, Download,
-  ChevronsDown, ChevronsUp, Table2, LayoutGrid, FileSpreadsheet,
-  Eye, AlertCircle, Loader2, Plus, Scan, RefreshCw,
-} from '@/components/shared/theme';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { formatDate } from '@/lib/format';
 import {
-  useTheme, accentText, PageHero, StatTile, StatusBadge, SearchInput, ViewToggle,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, TYPE_WEIGHT, PrimaryButton, Button,
-} from '@/components/shared/theme';
-import { Toaster, toast } from 'sonner';
-import type { Attachment, PaymentStage, ServiceRecord, StageData, StoresStage } from './types';
-import {
-  createService, deleteAttachment, deleteService, fetchAttachments,
-  ocrExtract, emptyRecord, updateService, uploadAttachment, useServicesData,
-} from './useServicesData';
+  Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge,
+  Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
+} from '@/components/ui-system';
+import { fmtDate } from '@/components/shared/utils';
+import { useAuth } from '@/lib/auth-context';
+import { ImportDialog } from './ImportDialog';
+import { ServiceDetail } from './ServiceDetail';
+import { ServiceForm } from './ServiceForm';
+import { CATEGORIES, STAGES, STAGE_COUNT, STATUS, type StageKey } from './meta';
+import { NO_FILTERS, filterRecords, isFiltered, references, sortRecords, statusOf, summarise, isStageDone, withStage, type ServiceFilters, type SortKey, type StageDraft } from './serviceLogic';
+import { createService, deleteService, saveStageSignature, updateService, useServices } from './useServicesData';
+import type { ServiceRecord } from './types';
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const CATS = [
-  'Maintenance', 'Electrical', 'Civil / Construction', 'IT / Technology',
-  'Cleaning', 'Security', 'Transport', 'Catering', 'Consulting', 'Other',
+const VIEWS = [
+  { value: 'cards', label: 'Card view', icon: 'grid-view' }, { value: 'table', label: 'Table view', icon: 'table-view' }, { value: 'sheet', label: 'Sheet view', icon: 'sheet-view' },
+] as const;
+const SORTS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'Recently added' }, { value: 'oldest', label: 'Oldest added' }, { value: 'date_desc', label: 'Service date, newest' }, { value: 'date_asc', label: 'Service date, oldest' },
+  { value: 'supplier', label: 'Supplier, A to Z' }, { value: 'progress_desc', label: 'Furthest along' },
 ];
+const ALL = '__all__';
+const PAGE_SIZE = 24;
 
-const STAGES = [
-  { key: 'planning'            as const, label: 'Planning',           short: 'Plan',    icon: ClipboardList },
-  { key: 'engineering_manager' as const, label: 'Engineering Manager',short: 'Eng Mgr', icon: Tag           },
-  { key: 'finance'             as const, label: 'Finance',            short: 'Finance', icon: DollarSign    },
-  { key: 'gm'                  as const, label: 'General Manager',    short: 'GM',      icon: CheckCheck    },
-  { key: 'stores'              as const, label: 'Stores / GRV',       short: 'Stores',  icon: Package       },
-  { key: 'payment'             as const, label: 'Payment',            short: 'Payment', icon: DollarSign    },
-];
-type StageKey = typeof STAGES[number]['key'];
+const Tick = ({ done }: { done: boolean }) => (done ? <span className="text-success" role="img" aria-label="Complete">✓</span> : <span className="text-ink-muted" role="img" aria-label="Not complete">–</span>);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function stagesDone(r: ServiceRecord): number {
-  return [r.planning.signed, r.engineering_manager.signed, r.finance.signed,
-    r.gm.signed, r.stores.signed, r.payment.done].filter(Boolean).length;
-}
-function isStageDone(r: ServiceRecord, key: StageKey): boolean {
-  return key === 'payment' ? r.payment.done : (r[key] as StageData).signed;
-}
-function thisMonth(d: string): boolean {
-  const now = new Date(); const dt = new Date(d);
-  return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
-}
-function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-// fmtDate was identical to the shared formatDate — alias to the single source.
-const fmtDate = formatDate;
-
-// ─── Stage Row ────────────────────────────────────────────────────────────────
-
-function StageRow({ stage, record, onUpdate }: { stage: typeof STAGES[number]; record: ServiceRecord; onUpdate: (r: ServiceRecord) => void; }) {
-  const t = useTheme();
-  const [open, setOpen] = useState(false);
-  const isPay = stage.key === 'payment';
-  const isStores = stage.key === 'stores';
-  const done = isStageDone(record, stage.key);
-  const Icon = stage.icon;
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
-
-  const data = isPay ? null
-    : record[stage.key as keyof Pick<ServiceRecord, 'planning' | 'engineering_manager' | 'finance' | 'gm' | 'stores'>] as StageData | StoresStage;
-
-  function toggle() {
-    if (isPay) {
-      const next = !record.payment.done;
-      onUpdate({ ...record, payment: { ...record.payment, done: next } });
-      if (next) setOpen(true);
-    } else {
-      const cur = record[stage.key as 'planning'] as StageData;
-      const next = !cur.signed;
-      onUpdate({ ...record, [stage.key]: { ...cur, signed: next } });
-      if (next) setOpen(true);
-    }
-  }
-  function setPay(f: string, v: string) { onUpdate({ ...record, payment: { ...record.payment, [f]: v } }); }
-  function setData(f: string, v: string) {
-    const cur = record[stage.key as 'planning'] as StageData | StoresStage;
-    onUpdate({ ...record, [stage.key]: { ...cur, [f]: v } });
-  }
-
-  const summary = isPay
-    ? [record.payment.paid_by, record.payment.payment_date ? fmtDate(record.payment.payment_date) : '', record.payment.payment_reference ? `Ref: ${record.payment.payment_reference}` : ''].filter(Boolean).join(' · ')
-    : data ? [data.signed_by, data.signed_date ? fmtDate(data.signed_date) : '', isStores ? ((data as StoresStage).grv_number ? `GRV: ${(data as StoresStage).grv_number}` : '') : ''].filter(Boolean).join(' · ') : '';
-
-  return (
-    <div className={`rounded-xl overflow-hidden transition-all ${done ? 'bg-brand-500/[0.07]' : t.chipBg}`}>
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        <button type="button" onClick={toggle} title={done ? `Unmark ${stage.label}` : `Mark ${stage.label} as complete`} className="shrink-0 transition-transform hover:scale-110">
-          {done ? <CheckCircle2 className="h-5 w-5 text-brand-400" /> : <Circle className={`h-5 w-5 ${t.textFaint}`} />}
-        </button>
-        <div className={`p-1.5 rounded-md ${t.chipBg} shrink-0`}>
-          <Icon className="h-3.5 w-3.5 text-brand-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm ${TYPE_WEIGHT.medium} ${done ? t.textPrimary : t.textFaint}`}>{stage.label}</p>
-          {done && summary && <p className={`text-[11px] mt-0.5 truncate ${t.textFaint}`}>{summary}</p>}
-          {!done && <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Tap the circle when this stage is complete</p>}
-        </div>
-        <button type="button" onClick={() => setOpen(o => !o)} title={open ? 'Hide details' : 'Show details'}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all shrink-0`}>
-          {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-      {open && (
-        <div className={`px-4 pb-4 pt-2 space-y-3 border-t ${t.border}`}>
-          {isPay ? (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Paid by"><input aria-label="Paid by" className={inputCls} placeholder="Name of person who made payment" value={record.payment.paid_by} onChange={e => setPay('paid_by', e.target.value)} /></FormField>
-                <FormField label="Date of payment"><input type="date" title="Date of payment" aria-label="Date of payment" className={inputCls} value={record.payment.payment_date} onChange={e => setPay('payment_date', e.target.value)} /></FormField>
-              </div>
-              <FormField label="Payment reference / transaction number"><input aria-label="Payment reference / transaction number" className={inputCls} placeholder="e.g. EFT-2024-001 or cheque number" value={record.payment.payment_reference} onChange={e => setPay('payment_reference', e.target.value)} /></FormField>
-              <FormField label="Payment comments"><textarea aria-label="Payment comments" rows={2} placeholder="Any notes about this payment…" value={record.payment.comments} onChange={e => setPay('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Signed / approved by"><input aria-label="Signed / approved by" className={inputCls} placeholder="Full name of approver" value={(data as StageData).signed_by} onChange={e => setData('signed_by', e.target.value)} /></FormField>
-                <FormField label="Date signed"><input type="date" title="Date signed" aria-label="Date signed" className={inputCls} value={(data as StageData).signed_date} onChange={e => setData('signed_date', e.target.value)} /></FormField>
-              </div>
-              {isStores && (
-                <FormField label="GRV Number (Goods Received Voucher)"><input aria-label="GRV Number (Goods Received Voucher)" className={inputCls} placeholder="e.g. GRV-2024-001" value={(data as StoresStage).grv_number} onChange={e => setData('grv_number', e.target.value)} /></FormField>
-              )}
-              <FormField label="Comments for this stage"><textarea aria-label="Comments for this stage" rows={2} placeholder="e.g. Document handed to [name], awaiting countersignature…" value={(data as StageData).comments} onChange={e => setData('comments', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Attachment Panel ─────────────────────────────────────────────────────────
-
-function AttachmentPanel({ serviceId }: { serviceId: string }) {
-  const t = useTheme();
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetchAttachments(serviceId)
-      .then(data => { setAttachments(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [serviceId]);
-
-  async function upload(file: File) {
-    setUploading(true);
-    try {
-      const att = await uploadAttachment(serviceId, file);
-      setAttachments(prev => [att, ...prev]);
-      toast.success('File attached');
-    } catch (e) { toast.error(`Upload failed: ${e}`); }
-    finally { setUploading(false); }
-  }
-  async function remove() {
-    if (!deleteId) return;
-    try {
-      await deleteAttachment(serviceId, deleteId);
-      setAttachments(prev => prev.filter(a => a.id !== deleteId));
-      toast.success('Attachment removed');
-    } catch { toast.error('Delete failed'); }
-    finally { setDeleteId(null); }
-  }
-
-  if (loading) return <div className={`py-6 text-center text-xs flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…</div>;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className={`text-xs ${TYPE_WEIGHT.medium} ${t.textMuted}`}>Scanned hard copies &amp; supporting documents</p>
-          <p className={`text-[11px] mt-0.5 ${t.textFaint}`}>Upload completion certificates, invoices, GRVs, or any other documents.</p>
-        </div>
-        <PrimaryButton icon={Upload} size="xs" submitting={uploading} onClick={() => inputRef.current?.click()}>
-          Attach file
-        </PrimaryButton>
-        <input ref={inputRef} type="file" title="Attach file" aria-label="Attach file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
-      </div>
-
-      {attachments.length === 0 ? (
-        <div className={`py-6 text-center border border-dashed ${t.border} rounded-xl`}>
-          <Paperclip className={`h-6 w-6 mx-auto mb-2 ${t.textFaint}`} />
-          <p className={`text-xs ${t.textFaint}`}>No attachments yet</p>
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {attachments.map(a => (
-            <div key={a.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${t.chipBg} group`}>
-              <Paperclip className="h-3.5 w-3.5 text-brand-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textMuted}`}>{a.filename}</p>
-                <p className={`text-[11px] ${t.textFaint}`}>{fmtBytes(a.file_size)} · {fmtDate(a.created_at)}</p>
-              </div>
-              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                {a.file_url && (
-                  <a href={a.file_url} target="_blank" rel="noopener noreferrer" title="Download" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-brand-400`}>
-                    <Download className="h-3 w-3" />
-                  </a>
-                )}
-                <button type="button" onClick={() => setDeleteId(a.id)} title="Remove attachment" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}>
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <CenterModal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Remove Attachment" accent="amber" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <p className={`text-sm ${t.textMuted}`}>This file will be permanently deleted.</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <PrimaryButton danger size="md" fullWidth onClick={remove}>Remove</PrimaryButton>
-          </div>
-        </div>
-      </CenterModal>
-    </div>
-  );
-}
-
-// ─── Service Card ──────────────────────────────────────────────────────────────
-
-function ServiceCard({ record, expanded, onToggle, onUpdate, onEdit, onDelete }: {
-  record: ServiceRecord; expanded: boolean; onToggle: () => void; onUpdate: (r: ServiceRecord) => void; onEdit: (r: ServiceRecord) => void; onDelete: (id: string) => void;
-}) {
-  const t = useTheme();
-  const [pipeTab, setPipeTab] = useState<'pipeline' | 'attachments'>('pipeline');
-  const done = stagesDone(record);
-  const statusInfo = done === 6 ? { color: '#34d399', label: 'Completed' } : done === 0 ? { color: '#94a3b8', label: 'Not Started' } : { color: '#f59e0b', label: `Stage ${done + 1} of 6` };
-
-  return (
-    <GlowCard color={statusInfo.color} surface={`${t.glass} rounded-2xl`} className="overflow-hidden flex flex-col">
-      <div className="px-4 sm:px-5 pt-4 pb-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <StatusBadge color={statusInfo.color} label={statusInfo.label} dot />
-            {record.category && <StatusBadge color={ACCENT_HEX.blue} label={record.category} />}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button type="button" onClick={() => onEdit(record)} title="Edit record" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} ${t.hoverText}`}><Edit2 className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => onDelete(record.id)} title="Delete record" className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.chipBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
-          </div>
-        </div>
-
-        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} leading-snug mb-1.5 ${t.textPrimary}`}>{record.description || '—'}</h3>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {record.supplier && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Building2 className="h-3 w-3 shrink-0" />{record.supplier}</span>}
-          {record.contact_person && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Phone className="h-3 w-3 shrink-0" />{record.contact_person}</span>}
-          {record.date && <span className={`flex items-center gap-1 text-xs ${t.textFaint}`}><Calendar className="h-3 w-3 shrink-0" />{fmtDate(record.date)}</span>}
-          {record.amount && <span className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400 ml-auto`}>{record.amount}</span>}
-        </div>
-
-        {(record.requisition_number || record.invoice_number || record.order_number) && (
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-            {record.requisition_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />REQ: {record.requisition_number}</span>}
-            {record.invoice_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />INV: {record.invoice_number}</span>}
-            {record.order_number && <span className={`text-[11px] flex items-center gap-1 ${t.textFaint}`}><Hash className="h-2.5 w-2.5" />PO: {record.order_number}</span>}
-          </div>
-        )}
-
-        <div className="mt-3">
-          <ProgressBar value={(done / 6) * 100} color={done === 6 ? '#34d399' : done > 0 ? ACCENT_HEX.blue : '#94a3b8'} label="Approval pipeline" />
-          <div className="flex items-center gap-1 mt-2">
-            {STAGES.map(s => (
-              <div key={s.key} className="flex-1 text-center">
-                <div className={`mx-auto h-2 w-2 rounded-full transition-all ${isStageDone(record, s.key) ? 'bg-brand-400' : t.chipBg}`} title={s.label} />
-                <span className={`hidden sm:block text-[9px] mt-0.5 truncate ${t.textFaint}`}>{s.short}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={`border-t ${t.border}`}>
-        <button type="button" onClick={onToggle} className={`w-full flex items-center justify-between px-4 sm:px-5 py-2.5 text-xs ${t.textFaint} ${t.hoverText} ${t.hoverBgSoft} transition-all`}>
-          <span className={`${TYPE_WEIGHT.medium}`}>{expanded ? 'Collapse' : 'Pipeline & Attachments'}</span>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-        {expanded && (
-          <div className={`px-4 sm:px-5 pb-5 pt-1 border-t ${t.border}`}>
-            <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit mb-3`}>
-              {(['pipeline', 'attachments'] as const).map(k => (
-                <button key={k} type="button" onClick={() => setPipeTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} capitalize transition-colors ${pipeTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-                  {k}
-                </button>
-              ))}
-            </div>
-            {pipeTab === 'pipeline' ? (
-              <div className="space-y-2">
-                <p className={`text-[11px] mb-3 ${t.textFaint}`}>Tap the circle on each stage to mark it complete, then expand to record details.</p>
-                {STAGES.map(s => <StageRow key={s.key} stage={s} record={record} onUpdate={onUpdate} />)}
-                {record.general_comments && (
-                  <div className={`mt-1 p-3 rounded-xl ${t.chipBg}`}>
-                    <p className={`text-[11px] uppercase tracking-wider mb-1 ${t.textFaint}`}>General Comments</p>
-                    <p className={`text-xs ${t.textMuted}`}>{record.general_comments}</p>
-                  </div>
-                )}
-              </div>
-            ) : <AttachmentPanel serviceId={record.id} />}
-          </div>
-        )}
-      </div>
-    </GlowCard>
-  );
-}
-
-// ─── List View ─────────────────────────────────────────────────────────────────
-
-function ListView({ records, onEdit, onDelete, onView }: { records: ServiceRecord[]; onEdit: (r: ServiceRecord) => void; onDelete: (id: string) => void; onView: (r: ServiceRecord) => void; }) {
-  const t = useTheme();
-  if (records.length === 0) return <p className={`py-12 text-center text-sm ${t.textFaint}`}>No service records found.</p>;
-  return (
-    <div className={`${t.glass} rounded-2xl overflow-x-auto`}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className={`border-b ${t.border}`}>
-            {['Date', 'Description', 'REQ #', 'Amount', 'Pipeline', 'Category', ''].map(h => (
-              <th key={h} className={`text-left p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {records.map(r => {
-            const d = stagesDone(r);
-            return (
-              <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
-                <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
-                <td className="p-3 min-w-0">
-                  <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{r.description || '—'}</p>
-                  {r.supplier && <p className={`text-[11px] truncate flex items-center gap-1 ${t.textFaint}`}><Building2 className="h-2.5 w-2.5 shrink-0" />{r.supplier}</p>}
-                </td>
-                <td className={`p-3 text-xs ${t.textFaint}`}>{r.requisition_number || '—'}</td>
-                <td className={`p-3 text-xs ${TYPE_WEIGHT.semibold} text-brand-400 text-right`}>{r.amount || '—'}</td>
-                <td className="p-3">
-                  <div className="flex items-center gap-2">
-                    <ProgressBar value={(d / 6) * 100} color={d === 6 ? '#34d399' : d > 0 ? ACCENT_HEX.blue : '#94a3b8'} showValue={false} />
-                    <span className={`text-[11px] shrink-0 ${t.textFaint}`}>{d}/6</span>
-                  </div>
-                </td>
-                <td className="p-3">{r.category ? <StatusBadge color={ACCENT_HEX.blue} label={r.category} /> : <span className={`text-xs ${t.textFaint}`}>—</span>}</td>
-                <td className="p-3" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    <button type="button" onClick={() => onView(r)} title="View pipeline" aria-label="View pipeline" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-brand-400 ${t.hoverBg}`}><Eye className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => onEdit(r)} title="Edit" aria-label="Edit record" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} ${t.hoverBg}`}><Edit2 className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => onDelete(r.id)} title="Delete" aria-label="Delete record" className={`h-6 w-6 flex items-center justify-center rounded-md ${t.textFaint} hover:text-rose-500 ${t.hoverBg}`}><Trash2 className="h-3 w-3" /></button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ─── Sheet View ───────────────────────────────────────────────────────────────
-// One row per record, every approval-circuit column visible at once — mirrors the
-// layout of the source Excel tracker (Item/Date/Contractor/Task/PR#/PO#/Invoice#/
-// Planning/Eng Mgr/Finance/GM/Stores/GRV#) instead of the card/progress-bar views
-// above, for a fast whole-register scan rather than per-record drill-down.
-
-const SHEET_COLS = ['No.', 'Date', 'Contractor', 'Task Description', 'PR#', 'PO#', 'Invoice #', 'Planning', 'Eng. Mgr', 'Finance', 'GM', 'Stores', 'GRV#'] as const;
-
-function SheetView({ records, onView }: { records: ServiceRecord[]; onView: (r: ServiceRecord) => void }) {
-  const t = useTheme();
-  if (records.length === 0) return <p className={`py-12 text-center text-sm ${t.textFaint}`}>No service records found.</p>;
-  const Check = ({ done }: { done: boolean }) => done
-    ? <CheckCircle2 className={`h-3.5 w-3.5 mx-auto ${accentText('emerald', t.light)}`} />
-    : <Circle className={`h-3.5 w-3.5 mx-auto ${t.textFaint}`} />;
-  return (
-    <div className={`${t.glass} rounded-2xl overflow-x-auto`}>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className={`border-b ${t.border}`}>
-            {SHEET_COLS.map((h, i) => (
-              <th key={h} className={`p-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wide whitespace-nowrap ${i >= 7 ? 'text-center' : 'text-left'} ${t.textFaint}`}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((r, i) => (
-            <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => onView(r)}>
-              <td className={`p-2.5 ${t.textFaint}`}>{i + 1}</td>
-              <td className={`p-2.5 whitespace-nowrap ${t.textMuted}`}>{r.date ? fmtDate(r.date) : '—'}</td>
-              <td className={`p-2.5 ${TYPE_WEIGHT.medium} whitespace-nowrap ${t.textPrimary}`}>{r.supplier || '—'}</td>
-              <td className="p-2.5 min-w-[220px] max-w-[320px] truncate" title={r.description}>{r.description || '—'}</td>
-              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.requisition_number || '—'}</td>
-              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.order_number || '—'}</td>
-              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.invoice_number || '—'}</td>
-              <td className="p-2.5"><Check done={r.planning.signed} /></td>
-              <td className="p-2.5"><Check done={r.engineering_manager.signed} /></td>
-              <td className="p-2.5"><Check done={r.finance.signed} /></td>
-              <td className="p-2.5"><Check done={r.gm.signed} /></td>
-              <td className="p-2.5"><Check done={r.stores.signed} /></td>
-              <td className={`p-2.5 whitespace-nowrap ${t.textFaint}`}>{r.stores.grv_number || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ─── Service Form ──────────────────────────────────────────────────────────────
-
-function ServiceForm({ initial, onSave, onClose }: { initial: ServiceRecord; onSave: (r: ServiceRecord) => void; onClose: () => void; }) {
-  const t = useTheme();
-  const [form, setForm] = useState(initial);
-  const set = (f: keyof ServiceRecord) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(p => ({ ...p, [f]: e.target.value }));
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
-
-  return (
-    <form onSubmit={e => { e.preventDefault(); onSave(form); }} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <FormField label="Date of service"><input type="date" title="Date of service" aria-label="Date of service" className={inputCls} value={form.date} onChange={set('date')} /></FormField>
-        <FormField label="Category">
-          <SelectField size="form" title="Category" value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))}
-            placeholder="Select a category…" options={CATS.map(c => ({ value: c, label: c }))} />
-        </FormField>
-      </div>
-      <FormField label="Description of service" required>
-        <textarea aria-label="Description of service" placeholder="Describe what service was performed — e.g. 'Replaced hydraulic pump on Compressor #3'" rows={3} value={form.description} onChange={set('description')} className={`${inputCls} h-auto py-2 resize-none`} />
-      </FormField>
-      <div className="grid grid-cols-2 gap-3">
-        <FormField label="Supplier / Contractor"><input aria-label="Supplier / Contractor" className={inputCls} placeholder="Company name" value={form.supplier} onChange={set('supplier')} /></FormField>
-        <FormField label="Contact person"><input aria-label="Contact person" className={inputCls} placeholder="Representative's name" value={form.contact_person} onChange={set('contact_person')} /></FormField>
-      </div>
-      <div className={`p-3 rounded-xl ${t.chipBg} space-y-3`}>
-        <p className={`text-[11px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Reference Numbers</p>
-        <div className="grid grid-cols-3 gap-3">
-          <FormField label="Requisition No."><input aria-label="Requisition No." className={inputCls} placeholder="REQ-..." value={form.requisition_number} onChange={set('requisition_number')} /></FormField>
-          <FormField label="Invoice No."><input aria-label="Invoice No." className={inputCls} placeholder="INV-..." value={form.invoice_number} onChange={set('invoice_number')} /></FormField>
-          <FormField label="Order / PO No."><input aria-label="Order / PO No." className={inputCls} placeholder="PO-..." value={form.order_number} onChange={set('order_number')} /></FormField>
-        </div>
-      </div>
-      <FormField label="Total amount"><input aria-label="Total amount" className={inputCls} placeholder="e.g. $1,500.00" value={form.amount} onChange={set('amount')} /></FormField>
-      <FormField label="General comments / notes"><textarea aria-label="General comments / notes" placeholder="Any additional context…" rows={2} value={form.general_comments} onChange={set('general_comments')} className={`${inputCls} h-auto py-2 resize-none`} /></FormField>
-      <FormActions onCancel={onClose} submitLabel={initial.description ? 'Save Changes' : 'Add Service Record'} accent="violet" />
-    </form>
-  );
-}
-
-// ─── Excel Import Modal ────────────────────────────────────────────────────────
-
-const EXCEL_MAP: Record<string, keyof ServiceRecord> = {
-  date: 'date', 'service date': 'date',
-  description: 'description', service: 'description', 'service description': 'description', 'task description': 'description',
-  supplier: 'supplier', contractor: 'supplier', vendor: 'supplier', 'contractor name': 'supplier',
-  contact: 'contact_person', 'contact person': 'contact_person',
-  req: 'requisition_number', requisition: 'requisition_number', 'req #': 'requisition_number', 'req no': 'requisition_number', 'pr#': 'requisition_number', 'pr #': 'requisition_number',
-  inv: 'invoice_number', invoice: 'invoice_number', 'inv #': 'invoice_number', 'invoice no': 'invoice_number', 'invoice #': 'invoice_number',
-  po: 'order_number', order: 'order_number', 'purchase order': 'order_number', 'po #': 'order_number', 'po#': 'order_number',
-  amount: 'amount', cost: 'amount', price: 'amount', value: 'amount', total: 'amount',
-  category: 'category', type: 'category',
-  comments: 'general_comments', comment: 'general_comments', notes: 'general_comments', note: 'general_comments', remarks: 'general_comments',
-};
-// The approval-stage columns (Planning/Engineering Manager/Finance Manager/General
-// Manager/Stores) can't go through EXCEL_MAP above — they land on a nested stage
-// object (rec.planning.signed), not a flat ServiceRecord field.
-const STAGE_BOOL_MAP: Record<string, 'planning' | 'engineering_manager' | 'finance' | 'gm' | 'stores'> = {
-  planning: 'planning',
-  'engineering manager': 'engineering_manager', 'eng mgr': 'engineering_manager',
-  finance: 'finance', 'finance manager': 'finance',
-  gm: 'gm', 'general manager': 'gm',
-  stores: 'stores',
-};
-const GRV_HEADERS = new Set(['grv#', 'grv #', 'grv number', 'grv']);
-const toBool = (v: unknown) => v === true || String(v ?? '').trim().toUpperCase() === 'TRUE';
-// SheetJS (with cellDates: true) hands back a JS Date built from Date.UTC for a real
-// Excel date cell — read its UTC fields, not local ones, or the day can shift by one
-// depending on the machine's timezone. Text cells (this file mixes both for the same
-// column) are left to the plain DD/MM/YYYY-or-passthrough branch below.
-function parseExcelDate(v: unknown): string {
-  if (v instanceof Date) {
-    const y = v.getUTCFullYear(), m = String(v.getUTCMonth() + 1).padStart(2, '0'), d = String(v.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  const s = String(v ?? '').trim();
-  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-  if (m) { const [, dd, mm, yy] = m; return `${yy.length === 2 ? '20' + yy : yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`; }
-  return s;
-}
-const SPREADSHEET_EXTS = new Set(['.xlsx', '.xls', '.csv']);
-function fileMode(file: File): 'spreadsheet' | 'document' {
-  const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
-  return SPREADSHEET_EXTS.has(ext) ? 'spreadsheet' : 'document';
-}
-
-function ExcelImportModal({ onImport, onExtracted, onClose }: {
-  onImport: (rows: ServiceRecord[]) => Promise<void>; onExtracted: (partial: Partial<ServiceRecord>) => void; onClose: () => void;
-}) {
-  const t = useTheme();
-  const [rows, setRows] = useState<ServiceRecord[]>([]);
-  const [preview, setPreview] = useState<string[][]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
+function ServicesContent() {
+  const confirm = useConfirm();
+  const { profile } = useAuth();
+  const list = useServices();
+  const records = list.items;
+  const [view, setView] = useViewPreference('services', VIEWS);
+  const [filters, setFilters] = useState<ServiceFilters>(NO_FILTERS);
+  const [sort, setSort] = useState<SortKey>('newest');
+  const [page, setPage] = useState(1);
+  const [formFor, setFormFor] = useState<{ record: ServiceRecord | null } | null>(null);
   const [importing, setImporting] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState('');
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const set = (patch: Partial<ServiceFilters>) => { setFilters(f => ({ ...f, ...patch })); setPage(1); };
 
-  async function handleFile(file: File) {
-    setScanError('');
-    if (fileMode(file) === 'document') {
-      setScanning(true);
-      try {
-        const data = await ocrExtract(file);
-        const partial: Partial<ServiceRecord> = {
-          date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
-          contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
-          invoice_number: data.invoice_number ?? '', order_number: data.order_number ?? '', amount: data.amount ?? '',
-          category: data.category ?? '', general_comments: data.general_comments ?? '',
-        };
-        if (data.grv_number) partial.stores = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
-        if (data.payment_reference) partial.payment = { done: false, paid_by: '', payment_date: '', payment_reference: data.payment_reference, comments: '' };
-        onExtracted(partial);
-        onClose();
-      } catch (e: unknown) { setScanError(e instanceof Error ? e.message : 'Extraction failed — try a clearer scan.'); }
-      finally { setScanning(false); }
-      return;
-    }
-    const XLSX = await import('xlsx');
-    const buf = await file.arrayBuffer();
-    // cellDates: true — without it, a genuine Excel date-type cell comes back as a raw
-    // serial number (e.g. 46020) instead of a Date, which then got blindly String()-ed
-    // into the date field as garbage. Text-formatted dates in the same column (some
-    // source files mix both) still arrive as plain strings and go through the
-    // DD/MM/YYYY branch in parseExcelDate below.
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-    if (!raw.length) { toast.error('No data found in the file'); return; }
-    const hdrs = Object.keys(raw[0]);
-    setHeaders(hdrs);
-    setPreview(raw.slice(0, 5).map(r => hdrs.map(h => { const v = r[h]; return v instanceof Date ? parseExcelDate(v) : String(v ?? ''); })));
-    setRows(raw.map(row => {
-      const rec = emptyRecord();
-      Object.entries(row).forEach(([col, val]) => {
-        const key = col.toLowerCase().trim();
-        const field = EXCEL_MAP[key];
-        if (field) { (rec as unknown as Record<string, unknown>)[field] = field === 'date' ? parseExcelDate(val) : String(val ?? '').trim(); return; }
-        const stage = STAGE_BOOL_MAP[key];
-        if (stage) { rec[stage].signed = toBool(val); return; }
-        if (GRV_HEADERS.has(key)) rec.stores.grv_number = String(val ?? '').trim();
-      });
-      return rec;
-    }));
-  }
+  const viewing = useMemo(() => records.find(r => r.id === viewingId) ?? null, [records, viewingId]);
+  const matches = useMemo(() => sortRecords(filterRecords(records, filters), sort), [records, filters, sort]);
+  const visible = pageSlice(matches, page, PAGE_SIZE);
+  const counts = useMemo(() => summarise(records), [records]);
+  const filtered = isFiltered(filters);
+  const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: matches.length, transient: isTransientStatus(list.errorStatus) });
+  const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
+  const who = profile?.full_name || profile?.email || '';
+  const open = (r: ServiceRecord) => setViewingId(r.id);
 
-  async function doImport(e: React.FormEvent) { e.preventDefault(); setImporting(true); try { await onImport(rows); onClose(); } finally { setImporting(false); } }
+  const save = async (r: ServiceRecord) => {
+    if (r.id) { const saved = await updateService(r); list.setItems(prev => prev.map(x => (x.id === saved.id ? saved : x))); }
+    else { await createService(r); await list.refetch(); }
+  };
+  const saveStage = async (id: string, key: StageKey, d: StageDraft, signature?: string) => {
+    const current = records.find(r => r.id === id);
+    if (!current) throw new Error('This job is no longer in the register.');
+    // The signature is kept first: if it cannot be stored the stage is not completed, so a signed stage always has its image.
+    if (signature) await saveStageSignature(id, key, signature);
+    const saved = await updateService(withStage(current, key, d));
+    list.setItems(prev => prev.map(x => (x.id === saved.id ? saved : x)));
+    toast.success(d.done ? `${STAGES.find(s => s.key === key)!.label} marked complete.` : 'Stage reopened.');
+  };
+  const remove = async (r: ServiceRecord) => {
+    if (!await confirm({ title: 'Delete this job?', message: `${r.description || 'This job'} and its record are removed. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteService(r.id); setViewingId(null); toast.success('Job deleted.'); await list.refetch(); }
+    catch (e) { toast.error(`The job was not deleted: ${(e as Error).message}`); }
+  };
+
+  const rowActions = (r: ServiceRecord) => (
+    <span className="inline-flex gap-1">
+      <IconButton icon="edit" size="sm" variant="ghost" label={`Edit ${r.description || 'job'}`} onClick={() => setFormFor({ record: r })} />
+      <IconButton icon="delete" size="sm" variant="ghost" label={`Delete ${r.description || 'job'}`} onClick={() => remove(r)} />
+    </span>
+  );
+  const TABLE: Column<ServiceRecord>[] = [
+    { id: 'date', header: 'Date', sticky: true, cell: r => <span className="whitespace-nowrap tabular">{r.date ? fmtDate(r.date) : <span className="text-ink-muted">No date</span>}</span> },
+    { id: 'job', header: 'Job', cell: r => <div className="min-w-0"><p className="font-medium text-ink [overflow-wrap:anywhere]">{r.description || 'No description'}</p>{r.supplier && <p className="text-caption text-ink-muted">{r.supplier}</p>}</div> },
+    { id: 'refs', header: 'References', hideBelow: 'md', cell: r => <span className="text-ink-muted">{references(r).join(', ') || 'None'}</span> },
+    { id: 'amount', header: 'Amount', numeric: true, hideBelow: 'md', cell: r => r.amount || <span className="text-ink-muted">Not set</span> },
+    { id: 'progress', header: 'Approvals', cell: r => { const s = statusOf(r); return <div className="flex min-w-36 flex-col gap-1"><StatusBadge tone={s.tone}>{s.label}</StatusBadge><span className="font-sans text-caption text-ink-muted tabular">{s.done} of {STAGE_COUNT}</span></div>; } },
+    { id: 'category', header: 'Category', hideBelow: 'lg', cell: r => r.category || <span className="text-ink-muted">None</span> },
+  ];
+  const SHEET: Column<ServiceRecord>[] = [
+    { id: 'no', header: 'No.', cell: r => <span className="tabular text-ink-muted">{matches.indexOf(r) + 1}</span> },
+    { id: 'date', header: 'Date', cell: r => <span className="whitespace-nowrap tabular">{r.date ? fmtDate(r.date) : ''}</span> },
+    { id: 'supplier', header: 'Contractor', sticky: true, cell: r => <span className="whitespace-nowrap font-medium">{r.supplier}</span> },
+    { id: 'task', header: 'Task description', cell: r => <span className="line-clamp-2 min-w-56 max-w-xs">{r.description}</span> },
+    { id: 'pr', header: 'PR#', cell: r => r.requisition_number }, { id: 'po', header: 'PO#', cell: r => r.order_number }, { id: 'inv', header: 'Invoice #', cell: r => r.invoice_number },
+    ...(['planning', 'engineering_manager', 'finance', 'gm', 'stores'] as const).map(k => ({ id: k, header: STAGES.find(s => s.key === k)!.short, cell: (r: ServiceRecord) => <Tick done={isStageDone(r, k)} /> })),
+    { id: 'grv', header: 'GRV#', cell: r => r.stores.grv_number },
+  ];
 
   return (
-    <form onSubmit={doImport} className="space-y-5">
-      <div className="grid grid-cols-2 gap-3">
-        <div className={`p-3 rounded-xl ${t.chipBg}`}>
-          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 flex items-center gap-1.5 ${t.textMuted}`}><FileSpreadsheet className="h-3.5 w-3.5" /> Spreadsheet</p>
-          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>Excel (.xlsx, .xls) or CSV with headers: Date, Description, Supplier/Contractor, Contact, PR #/REQ #, INV #, PO #, Amount, Category, Comments — plus Planning, Engineering Manager, Finance Manager, General Manager, Stores (TRUE/FALSE) and GRV # to bring in the approval circuit too.</p>
-        </div>
-        <div className={`p-3 rounded-xl ${t.chipBg}`}>
-          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 flex items-center gap-1.5 ${t.textMuted}`}><Eye className="h-3.5 w-3.5" /> Document / Scan</p>
-          <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>PDF, JPEG, PNG, TIFF, WEBP — OCR will read the text and pre-fill the form for you to review.</p>
-        </div>
-      </div>
-
-      <div className={`border-2 border-dashed ${t.border} rounded-xl p-6 text-center hover:border-brand-400/40 transition-colors`}>
-        {scanning ? (
-          <div className="space-y-2"><Loader2 className="h-8 w-8 text-brand-400 mx-auto animate-spin" /><p className={`text-sm ${t.textMuted}`}>Reading document…</p></div>
-        ) : (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Third party services' }]}
+        title="Third party services"
+        description="Contractor jobs, and where each one is in the approval circuit from planning to payment."
+        actions={(
           <>
-            <Upload className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
-            <p className={`text-sm mb-1 ${t.textMuted}`}>Choose a spreadsheet, PDF, or image</p>
-            <p className={`text-[11px] mb-3 ${t.textFaint}`}>.xlsx · .xls · .csv · .pdf · .jpg · .png · .tiff · .webp</p>
-            <label htmlFor="services-import-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${t.cta}`}>
-              <Upload className="h-4 w-4" /> Browse file
-              <input id="services-import-file-input" aria-label="Browse file" type="file" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif,.bmp" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ''; }} />
-            </label>
+            <IconButton icon="refresh" label="Refresh services" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <Button icon="upload" disabled={!list.loaded} onClick={() => setImporting(true)}>Import or scan</Button>
+            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button>
           </>
         )}
-      </div>
+      />
 
-      {scanError && <div className={`flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 ${accentText('rose', t.light)} text-xs`}><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {scanError}</div>}
+      <MetricGrid columns={5}>
+        <MetricTile label="Jobs" icon="service" value={counts.total} selected={filters.status === ''} onClick={() => set({ status: '' })} {...tile} />
+        <MetricTile label={STATUS.in_progress.label} icon="pending" tone={counts.in_progress ? 'warning' : 'default'} value={counts.in_progress} selected={filters.status === 'in_progress'} onClick={() => set({ status: filters.status === 'in_progress' ? '' : 'in_progress' })} {...tile} />
+        <MetricTile label={STATUS.completed.label} icon="success" tone="success" value={counts.completed} selected={filters.status === 'completed'} onClick={() => set({ status: filters.status === 'completed' ? '' : 'completed' })} {...tile} />
+        <MetricTile label={STATUS.not_started.label} icon="draft" value={counts.not_started} selected={filters.status === 'not_started'} onClick={() => set({ status: filters.status === 'not_started' ? '' : 'not_started' })} {...tile} />
+        <MetricTile label="This month" icon="month" value={counts.thisMonth} detail="By service date" {...tile} />
+      </MetricGrid>
 
-      {preview.length > 0 && (
-        <div>
-          <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-2 ${t.textMuted}`}>Preview — first {preview.length} rows ({rows.length} total will be imported)</p>
-          <div className={`overflow-x-auto rounded-xl ${t.chipBg}`}>
-            <table className="w-full text-xs">
-              <thead><tr className={`border-b ${t.border}`}>{headers.map(h => <th key={h} className={`px-3 py-2 text-left ${TYPE_WEIGHT.semibold} whitespace-nowrap ${t.textFaint}`}>{h}</th>)}</tr></thead>
-              <tbody>{preview.map((row, i) => <tr key={i} className={`border-b ${t.border}`}>{row.map((cell, j) => <td key={j} className={`px-3 py-2 whitespace-nowrap max-w-[160px] truncate ${t.textMuted}`}>{cell}</td>)}</tr>)}</tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <Toolbar filtered={filtered} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEWS} />}>
+        <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search jobs and references" wrapperClassName="min-w-48 max-w-md flex-1" />
+        <Select aria-label="Category" className="w-44" value={filters.category || ALL} onValueChange={v => set({ category: v === ALL ? '' : v })} options={[{ value: ALL, label: 'Every category' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
+        <Input type="date" aria-label="From date" className="w-40" value={filters.from} onChange={e => set({ from: e.target.value })} />
+        <Input type="date" aria-label="To date" className="w-40" value={filters.to} onChange={e => set({ to: e.target.value })} />
+        <Select aria-label="Order" className="w-48" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
+        {filtered && <Button variant="ghost" icon="close" onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>}
+      </Toolbar>
 
-      <FormActions onCancel={onClose} submitting={importing} submitLabel={`Import ${rows.length > 0 ? `${rows.length} records` : ''}`} accent="violet" />
-    </form>
-  );
-}
-
-// ─── OCR Upload Modal ──────────────────────────────────────────────────────────
-
-function OcrUploadModal({ onExtracted, onClose }: { onExtracted: (partial: Partial<ServiceRecord>) => void; onClose: () => void; }) {
-  const t = useTheme();
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleFile(file: File) {
-    setScanning(true); setError('');
-    try {
-      const data = await ocrExtract(file);
-      const partial: Partial<ServiceRecord> = {
-        date: data.date ?? '', description: data.description ?? '', supplier: data.supplier ?? '',
-        contact_person: data.contact_person ?? '', requisition_number: data.requisition_number ?? '',
-        invoice_number: data.invoice_number ?? '', order_number: data.order_number ?? '', amount: data.amount ?? '',
-        category: data.category ?? '', general_comments: data.general_comments ?? '',
-      };
-      if (data.grv_number) partial.stores = { signed: false, signed_by: '', signed_date: '', comments: '', grv_number: data.grv_number };
-      if (data.payment_reference) partial.payment = { done: false, paid_by: '', payment_date: '', payment_reference: data.payment_reference, comments: '' };
-      onExtracted(partial);
-      onClose();
-    } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Extraction failed. Please try a clearer scan.'); }
-    finally { setScanning(false); }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className={`p-4 rounded-xl ${t.chipBg}`}>
-        <p className={`text-xs ${TYPE_WEIGHT.semibold} mb-1 ${t.textMuted}`}>How this works</p>
-        <p className={`text-[11px] leading-relaxed ${t.textFaint}`}>
-          Upload a scanned completion certificate, invoice, or any service document. OCR will extract the text and pre-fill the form — review and edit before saving.
-          <br />Supported: PDF, JPEG, PNG, WEBP · Max 20 MB
-        </p>
-      </div>
-      <div className={`border-2 border-dashed ${t.border} rounded-xl p-8 text-center hover:border-brand-400/40 transition-colors`}>
-        {scanning ? (
-          <div className="space-y-3">
-            <Loader2 className="h-8 w-8 text-brand-400 mx-auto animate-spin" />
-            <p className={`text-sm ${t.textMuted}`}>Reading document…</p>
-            <p className={`text-[11px] ${t.textFaint}`}>This may take a few seconds</p>
-          </div>
-        ) : (
-          <>
-            <FileDown className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
-            <p className={`text-sm mb-3 ${t.textMuted}`}>Choose a scanned document to extract data from</p>
-            <label htmlFor="services-ocr-file-input" className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${t.cta}`}>
-              <Upload className="h-4 w-4" /> Choose file
-              <input id="services-ocr-file-input" aria-label="Choose file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-            </label>
-          </>
-        )}
-      </div>
-      {error && <div className={`flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 ${accentText('rose', t.light)} text-xs`}><AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {error}</div>}
-      <div className="flex justify-end">
-        <button type="button" onClick={onClose} className={`h-9 px-4 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Page ──────────────────────────────────────────────────────────────────────
-
-function ServicesPageContent() {
-  const t = useTheme();
-  const sections = useCollapseSection({ hero: true });
-  const { records, setRecords, loading, apiError, recordsLoaded, refresh } = useServicesData();
-  const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [filterCat, setFilterCat] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const [viewMode, setViewMode] = useState<'grid' | 'table' | 'sheet'>('grid');
-  const [showFilters, setShowFilters] = useState(true);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [formOpen, setFormOpen] = useState(false);
-  const [editRecord, setEditRecord] = useState<ServiceRecord | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const [ocrOpen, setOcrOpen] = useState(false);
-  const [viewRecord, setViewRecord] = useState<ServiceRecord | null>(null);
-  const [viewTab, setViewTab] = useState<'pipeline' | 'attachments'>('pipeline');
-
-  const syncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  const total = records.length;
-  const inProg = records.filter(r => { const d = stagesDone(r); return d > 0 && d < 6; }).length;
-  const completed = records.filter(r => stagesDone(r) === 6).length;
-  const notStarted = records.filter(r => stagesDone(r) === 0).length;
-  const monthCount = records.filter(r => thisMonth(r.date)).length;
-
-  const q = search.toLowerCase();
-  const processed = records
-    .filter(r => {
-      if (q && ![r.description, r.supplier, r.requisition_number, r.invoice_number, r.order_number, r.stores.grv_number, r.contact_person].some(v => v.toLowerCase().includes(q))) return false;
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo && r.date > dateTo) return false;
-      if (filterCat && r.category !== filterCat) return false;
-      if (filterStatus) {
-        const d = stagesDone(r);
-        if (filterStatus === 'not_started' && d !== 0) return false;
-        if (filterStatus === 'in_progress' && (d === 0 || d === 6)) return false;
-        if (filterStatus === 'completed' && d !== 6) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'newest') return b.created_at.localeCompare(a.created_at);
-      if (sortBy === 'oldest') return a.created_at.localeCompare(b.created_at);
-      if (sortBy === 'date_desc') return b.date.localeCompare(a.date);
-      if (sortBy === 'date_asc') return a.date.localeCompare(b.date);
-      if (sortBy === 'supplier') return a.supplier.localeCompare(b.supplier);
-      if (sortBy === 'progress_desc') return stagesDone(b) - stagesDone(a);
-      return 0;
-    });
-
-  const allExpanded = processed.length > 0 && processed.every(r => expandedIds.has(r.id));
-  function expandAll() { setExpandedIds(new Set(processed.map(r => r.id))); }
-  function collapseAll() { setExpandedIds(new Set()); }
-  function toggleCard(id: string) { setExpandedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
-
-  async function handleSave(r: ServiceRecord) {
-    const isNew = !records.find(x => x.id === r.id);
-    try {
-      if (isNew) {
-        const saved = await createService(r);
-        setRecords(prev => [saved, ...prev]);
-        toast.success('Service record added');
-      } else {
-        const saved = await updateService(r);
-        setRecords(prev => prev.map(x => x.id === saved.id ? saved : x));
-        toast.success('Record updated');
-      }
-    } catch (e) { toast.error(`Save failed: ${e}`); }
-    setFormOpen(false); setEditRecord(null);
-  }
-
-  function handleUpdate(r: ServiceRecord) {
-    setRecords(prev => prev.map(x => x.id === r.id ? r : x));
-    if (syncTimers.current[r.id]) clearTimeout(syncTimers.current[r.id]);
-    syncTimers.current[r.id] = setTimeout(async () => {
-      try {
-        await updateService(r);
-      } catch { toast.error('Auto-save failed — your changes may not be synced'); }
-    }, 1200);
-  }
-
-  async function handleDelete() {
-    if (!deleteId) return;
-    try {
-      await deleteService(deleteId);
-      setRecords(prev => prev.filter(r => r.id !== deleteId));
-      toast.success('Record deleted');
-    } catch { toast.error('Delete failed'); }
-    setDeleteId(null);
-  }
-
-  async function handleBulkImport(rows: ServiceRecord[]) {
-    let ok = 0;
-    for (const row of rows) {
-      try {
-        const saved = await createService(row);
-        setRecords(prev => [saved, ...prev]); ok++;
-      } catch { /* continue */ }
-    }
-    toast.success(`Imported ${ok} of ${rows.length} records`);
-  }
-
-  function handleOcrExtracted(partial: Partial<ServiceRecord>) {
-    setEditRecord({ ...emptyRecord(), ...partial } as ServiceRecord);
-    setFormOpen(true);
-    toast.success('Document scanned — review and save the extracted data');
-  }
-  function openEdit(r: ServiceRecord) { setEditRecord(r); setFormOpen(true); setViewRecord(null); }
-
-  const anyFilter = !!(search || dateFrom || dateTo || filterCat || filterStatus);
-  const clearFilters = () => { setSearch(''); setDateFrom(''); setDateTo(''); setFilterCat(''); setFilterStatus(''); };
-
-  return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <Toaster position="top-right" richColors />
-
-      <PageHero
-        icon={Wrench}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Third Party Services']}
-        title="Third Party Services Tracker"
-        description="Contractor jobs through the PR/PO/GRV approval circuit"
-        statsOpen={sections.expanded.hero}
-        actions={
-          <>
-            <Button variant="secondary" icon={RefreshCw} onClick={() => void refresh()} disabled={loading} submitting={loading}>Refresh</Button>
-            <PrimaryButton icon={Scan} title="Scan a document to extract data" disabled={!recordsLoaded} onClick={() => setOcrOpen(true)}>Scan</PrimaryButton>
-            <Button variant="secondary" icon={FileSpreadsheet} disabled={!recordsLoaded} onClick={() => setImportOpen(true)} title="Import records from Excel">Import</Button>
-            <PrimaryButton icon={Plus} disabled={!recordsLoaded} onClick={() => { setEditRecord(null); setFormOpen(true); }}>New Service</PrimaryButton>
-          </>
-        }
+      <DataRegion
+        status={status} subject="services" error={list.error} onRetry={() => list.refetch()}
+        empty={filtered
+          ? <EmptyState icon="search" title="No jobs match" description="Try a different search or clear the filters." action={<Button onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>} />
+          : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} />}
       >
-        <div className="flex flex-wrap gap-1">
-          <StatTile icon={Wrench} color={ACCENT_HEX.blue} value={recordsLoaded ? total : '—'} label="Total" />
-          <StatTile icon={Loader2} color="#f59e0b" value={recordsLoaded ? inProg : '—'} label="In Progress" />
-          <StatTile icon={CheckCircle2} color="#34d399" value={recordsLoaded ? completed : '—'} label="Completed" />
-          <StatTile icon={Circle} color="#94a3b8" value={recordsLoaded ? notStarted : '—'} label="Not Started" />
-          <StatTile icon={Calendar} color={ACCENT_HEX.violet} value={recordsLoaded ? monthCount : '—'} label="This Month" />
-        </div>
-      </PageHero>
-
-      {apiError && (
-        <div className={`flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 ${accentText('rose', t.light)} text-sm`}>
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <div className="flex-1"><p className={`${TYPE_WEIGHT.semibold}`}>{recordsLoaded ? 'Services may be out of date' : 'Services register unavailable'}</p><p className="text-xs opacity-80 mt-0.5">{apiError}</p></div>
-          <Button variant="secondary" size="xs" onClick={() => void refresh()}>Try again</Button>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search description, supplier, REQ, INV, GRV…" className="w-full sm:flex-1" />
-          <div className="flex gap-2 flex-wrap items-center">
-            <Button variant={showFilters ? 'subtle' : 'secondary'} icon={Filter} onClick={() => setShowFilters(v => !v)}>Filters</Button>
-            {anyFilter && <Button variant="ghost" icon={X} onClick={clearFilters}>Clear</Button>}
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: Table2, label: 'Table view' }, { value: 'sheet', icon: FileSpreadsheet, label: 'Sheet view — everything at once, like the Excel tracker' }]} />
-          </div>
-        </div>
-        {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-4 gap-3`}>
-            <FormField label="Date from"><input type="date" title="Date from" aria-label="Date from" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
-            <FormField label="Date to"><input type="date" title="Date to" aria-label="Date to" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} /></FormField>
-            <FormField label="Category">
-              <SelectField size="filter" title="Category" value={filterCat} onChange={setFilterCat}
-                options={[{ value: '', label: 'All categories' }, ...CATS.map(c => ({ value: c, label: c }))]} />
-            </FormField>
-            <FormField label="Pipeline status">
-              <SelectField size="filter" title="Pipeline status" value={filterStatus} onChange={setFilterStatus}
-                options={[{ value: '', label: 'All statuses' }, { value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'completed', label: 'Completed' }]} />
-            </FormField>
-          </div>
-        )}
-      </div>
-
-      {/* Records */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className={`text-sm ${t.textFaint}`}>{recordsLoaded ? <>Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{processed.length}</span> of {total}</> : 'Records unavailable'}</p>
-          <div className="flex items-center gap-2">
-            <SelectField size="filter" title="Sort by" value={sortBy} onChange={setSortBy}
-              options={[
-                { value: 'newest', label: 'Newest first' },
-                { value: 'oldest', label: 'Oldest first' },
-                { value: 'date_desc', label: 'Date ↓' },
-                { value: 'date_asc', label: 'Date ↑' },
-                { value: 'supplier', label: 'Supplier A–Z' },
-                { value: 'progress_desc', label: 'Most progress' },
-              ]} />
-            {viewMode === 'grid' && processed.length > 0 && (
-              <Button variant="secondary" icon={allExpanded ? ChevronsUp : ChevronsDown} onClick={allExpanded ? collapseAll : expandAll}>
-                {allExpanded ? 'Collapse all' : 'Expand all'}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {loading && !recordsLoaded ? (
-          <div className={`${t.glass} rounded-2xl p-16 text-center flex items-center justify-center gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /> Loading services…</div>
-        ) : apiError && !recordsLoaded ? null : processed.length === 0 ? (
-          <div className={`${t.glass} rounded-2xl p-12 text-center`}>
-            <Wrench className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-            <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>{anyFilter ? 'No records match your filters' : 'No service records yet'}</h3>
-            <p className={`text-sm mb-4 ${t.textFaint}`}>{anyFilter ? 'Adjust your search or clear the filters.' : 'Click "New Service" to log the first record, or import from Excel.'}</p>
-            {!anyFilter && (
-              <PrimaryButton icon={Plus} size="md" onClick={() => { setEditRecord(null); setFormOpen(true); }}>Add Service</PrimaryButton>
-            )}
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-            {processed.map(r => (
-              <ServiceCard key={r.id} record={r} expanded={expandedIds.has(r.id)} onToggle={() => toggleCard(r.id)} onUpdate={handleUpdate} onEdit={openEdit} onDelete={setDeleteId} />
-            ))}
-          </div>
-        ) : viewMode === 'table' ? (
-          <ListView records={processed} onEdit={openEdit} onDelete={setDeleteId} onView={r => setViewRecord(r)} />
+        <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'job' : 'jobs'}{matches.length !== records.length ? ` of ${records.length}` : ''}</p>
+        {view === 'cards' ? (
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Services">
+            {visible.map(r => {
+              const s = statusOf(r);
+              return (
+                <li key={r.id} className="relative">
+                  <RecordCard
+                    eyebrow={r.date ? fmtDate(r.date) : 'No date'} title={r.description || 'No description'} subtitle={r.supplier || undefined} openLabel={`Open ${r.description || 'job'}`} onOpen={() => open(r)}
+                    status={<><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{r.category && <StatusBadge tone="info">{r.category}</StatusBadge>}</>}
+                    facts={[...(r.amount ? [{ label: 'Amount', value: r.amount }] : []), ...(references(r).length ? [{ label: 'References', value: references(r).join(', ') }] : [])]}
+                    meta={<div className="w-full min-w-40"><Progress value={(s.done / STAGE_COUNT) * 100} label={`${r.description || 'Job'}: ${s.done} of ${STAGE_COUNT} approvals`} /></div>}
+                    action={rowActions(r)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         ) : (
-          <SheetView records={processed} onView={r => setViewRecord(r)} />
+          <DataTable caption={view === 'sheet' ? 'Services sheet' : 'Services register'} rows={visible} columns={view === 'sheet' ? SHEET : TABLE} getRowId={r => r.id} density={view === 'sheet' ? 'compact' : 'comfortable'} onRowActivate={open} rowActions={view === 'sheet' ? undefined : rowActions} />
         )}
-      </div>
+        {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
+      </DataRegion>
 
-      {/* Pipeline legend */}
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-1 ${t.textPrimary}`}>Approval Pipeline — Stage Order</h3>
-        <p className={`text-[11px] mb-3 ${t.textFaint}`}>Records progress through these stages in order. Each stage must be signed off before payment is processed.</p>
-        <div className="flex flex-wrap gap-2">
-          {STAGES.map((s, i) => (
-            <div key={s.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${t.chipBg}`}>
-              <span className={`text-[11px] ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>{i + 1}.</span>
-              <s.icon className="h-3.5 w-3.5 text-brand-400" />
-              <span className={`text-xs ${t.textMuted}`}>{s.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Add / Edit form */}
-      <CenterModal open={formOpen} onClose={() => { setFormOpen(false); setEditRecord(null); }} title={editRecord?.description ? 'Edit Service Record' : 'New Service Record'} accent="violet" width="max-w-2xl">
-        <div className="p-5">
-          <ServiceForm initial={editRecord ?? emptyRecord()} onSave={handleSave} onClose={() => { setFormOpen(false); setEditRecord(null); }} />
-        </div>
-      </CenterModal>
-
-      {/* View / pipeline modal */}
-      <CenterModal open={viewRecord !== null} onClose={() => setViewRecord(null)} title={viewRecord?.description ?? 'Service Record'} accent="violet" width="max-w-2xl">
-        {viewRecord && (
-          <div className="p-5 space-y-3">
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              {(() => { const d = stagesDone(viewRecord);
-                const info = d === 6 ? { color: '#34d399', label: 'Completed' } : d === 0 ? { color: '#94a3b8', label: 'Not Started' } : { color: '#f59e0b', label: `Stage ${d + 1} of 6` };
-                return <StatusBadge color={info.color} label={info.label} dot />;
-              })()}
-              {viewRecord.category && <StatusBadge color={ACCENT_HEX.blue} label={viewRecord.category} />}
-              {viewRecord.amount && <span className={`text-sm ${TYPE_WEIGHT.semibold} text-brand-400`}>{viewRecord.amount}</span>}
-            </div>
-            <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
-              {(['pipeline', 'attachments'] as const).map(k => (
-                <button key={k} type="button" onClick={() => setViewTab(k)}
-                  className={`px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} capitalize transition-colors ${viewTab === k ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>{k}</button>
-              ))}
-            </div>
-            {viewTab === 'pipeline' ? (
-              <div className="space-y-2">
-                {STAGES.map(s => <StageRow key={s.key} stage={s} record={viewRecord} onUpdate={r => { handleUpdate(r); setViewRecord(r); }} />)}
-              </div>
-            ) : <AttachmentPanel serviceId={viewRecord.id} />}
-            <div className={`flex justify-end gap-2 pt-2 border-t ${t.border}`}>
-              <button type="button" onClick={() => openEdit(viewRecord)} className={`h-9 px-4 rounded-xl text-sm ${t.textMuted} ${t.glassSoft} ${t.hoverText} inline-flex items-center gap-1.5`}><Edit2 className="h-3.5 w-3.5" /> Edit Info</button>
-            </div>
-          </div>
-        )}
-      </CenterModal>
-
-      {/* Import */}
-      <CenterModal open={importOpen} onClose={() => setImportOpen(false)} title="Import Records" accent="violet" width="max-w-2xl">
-        <div className="p-5"><ExcelImportModal onImport={handleBulkImport} onExtracted={handleOcrExtracted} onClose={() => setImportOpen(false)} /></div>
-      </CenterModal>
-
-      {/* OCR scan */}
-      <CenterModal open={ocrOpen} onClose={() => setOcrOpen(false)} title="Scan Document — Extract Data" accent="violet" width="max-w-lg">
-        <div className="p-5"><OcrUploadModal onExtracted={handleOcrExtracted} onClose={() => setOcrOpen(false)} /></div>
-      </CenterModal>
-
-      {/* Delete confirm */}
-      <CenterModal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Delete Service Record" accent="amber" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <p className={`text-sm ${t.textMuted}`}>This service record and all its pipeline data will be permanently deleted.</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setDeleteId(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={handleDelete}>Delete</PrimaryButton>
-          </div>
-        </div>
-      </CenterModal>
-    </main>
+      <ServiceDetail record={viewing} who={who} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onSaveStage={saveStage} />
+      <ServiceForm open={!!formFor} record={formFor?.record ?? null} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
+      <ImportDialog open={importing} onOpenChange={setImporting} onScanned={r => { toast.success('Document read. Check the details before saving.'); setFormFor({ record: r }); }} onImported={() => list.refetch()} />
+    </div>
   );
 }
 
 export default function ServicesPage() {
-  return (
-    <AppShell>
-      <ServicesPageContent />
-    </AppShell>
-  );
+  return <AppShell migrated><ServicesContent /></AppShell>;
 }

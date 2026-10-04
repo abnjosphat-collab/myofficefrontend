@@ -4,16 +4,17 @@
 'use client';
 
 import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+
 import {
   type DesignLanguage,
   DESIGN_KEY,
   readDesignLanguage,
   persistDesignLanguage,
-  isToolsPath,
+
   applyDesignToDocument,
 } from './shared/design';
 import { dallaglioClasses } from './dallaglio/tokens';
+import { APPEARANCE_KEY, migrateAppearance, persistAppearance } from './appearance';
 
 export type { DesignLanguage };
 export { DESIGN_KEY, readDesignLanguage };
@@ -143,11 +144,15 @@ export function applyThemeToDocument(light: boolean, design: DesignLanguage = 'c
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // Server + first client paint stay light; app/layout.tsx inline script applies the
   // real mode before paint. This state catches up on mount, then stays authoritative.
-  const pathname = usePathname();
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+
+  // There is one appearance: light, Dallaglio-neutral surfaces for not-yet-migrated pages
+  // (migrated pages use components/ui-system and read neither value). The stored
+  // theme/design preferences are no longer read.
+  const [preference, setPreferenceState] = useState<ThemePreference>('light');
   const [light, setLight] = useState(true);
-  const [design, setDesignState] = useState<DesignLanguage>('classic');
-  const appliedDesign: DesignLanguage = isToolsPath(pathname) ? 'classic' : design;
+  const [design, setDesignState] = useState<DesignLanguage>('dallaglio');
+  // Stage D: the Tools classic-forcing is gone — Tools renders from its own
+  // .surface contract and consumes no theme values, so no exception is needed.
 
   const syncAppearance = useCallback((pref: ThemePreference, nextDesign: DesignLanguage) => {
     const nextLight = resolveLightFromPreference(pref);
@@ -156,12 +161,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const pref = readThemePreference();
-    const nextDesign = readDesignLanguage();
+    const pref: ThemePreference = 'light';
+    const nextDesign: DesignLanguage = 'dallaglio';
     setPreferenceState(pref);
     setDesignState(nextDesign);
-    syncAppearance(pref, isToolsPath(pathname) ? 'classic' : nextDesign);
-  }, [syncAppearance, pathname]);
+    syncAppearance(pref, nextDesign);
+  }, [syncAppearance]);
 
   useEffect(() => {
     if (preference !== 'system') return;
@@ -180,12 +185,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setDesign = useCallback((next: DesignLanguage) => {
     setDesignState(next);
     persistDesignLanguage(next);
-    applyThemeToDocument(light, isToolsPath(pathname) ? 'classic' : next);
-  }, [light, pathname]);
+    applyThemeToDocument(light, next);
+  }, [light]);
 
   useEffect(() => {
-    applyThemeToDocument(light, appliedDesign);
-  }, [light, appliedDesign]);
+    applyThemeToDocument(light, design);
+  }, [light, design]);
 
   const value = useMemo(() => ({
     light,
@@ -194,8 +199,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     toggle: () => setPreference(light ? 'dark' : 'light'),
     design,
     setDesign,
-    ...themeClasses(light, appliedDesign),
-  }), [light, preference, setPreference, design, setDesign, appliedDesign]);
+    ...themeClasses(light, design),
+  }), [light, preference, setPreference, design, setDesign]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
@@ -237,8 +242,23 @@ export function FontStyleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(FONT_KEY) as FontChoice | null;
-      if (saved && FONT_OPTIONS.some(o => o.id === saved)) setFontState(saved);
+      // Grandfather an explicit system/sora choice; otherwise the shared
+      // appearance contract (v1 > Tools > legacy > defaults) decides.
+      if (saved === 'system' || saved === 'sora') setFontState(saved);
+      else setFontState(migrateAppearance(localStorage).font);
     } catch { /* storage unavailable — keep default */ }
+  }, []);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== APPEARANCE_KEY && event.key !== FONT_KEY) return;
+      try {
+        const saved = localStorage.getItem(FONT_KEY) as FontChoice | null;
+        if (saved === 'system' || saved === 'sora') setFontState(saved);
+        else setFontState(migrateAppearance(localStorage).font);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
   useEffect(() => {
     const opt = FONT_OPTIONS.find(o => o.id === font);
@@ -247,12 +267,13 @@ export function FontStyleProvider({ children }: { children: ReactNode }) {
     // set on the root element never reaches descendants. Setting it directly on the
     // element the `body { font-family: var(--font-active, …) }` rule targets sidesteps
     // that entirely (no inheritance needed).
-    document.body.style.setProperty('--font-active', opt?.cssVar ?? 'ui-sans-serif, system-ui, -apple-system, sans-serif');
+    // The UI system's appearance provider owns the typeface now (--mo-font-body); this legacy provider only records the choice.
+    void opt;
     document.documentElement.dataset.font = font;
   }, [font]);
   const setFont = (f: FontChoice) => {
     setFontState(f);
-    try { localStorage.setItem(FONT_KEY, f); } catch { /* non-fatal */ }
+    try { localStorage.setItem(FONT_KEY, f); persistAppearance(localStorage, { ...migrateAppearance(localStorage), font: f === 'system' || f === 'sora' ? 'inter' : f }); } catch { /* non-fatal */ }
   };
   const value = useMemo<FontStyleContextValue>(() => ({ font, setFont }), [font]);
   return <FontStyleContext.Provider value={value}>{children}</FontStyleContext.Provider>;
@@ -284,22 +305,52 @@ export function applyFontScale(scale: FontScale) {
   const opt = FONT_SCALE_OPTIONS.find(o => o.id === scale);
   // `zoom` isn't in the typed CSSStyleDeclaration but is widely supported (Chromium/WebKit,
   // Firefox 126+). Setting it on <html> scales the whole document including fixed elements.
-  (document.documentElement.style as unknown as { zoom: string }).zoom = String(opt?.value ?? 1);
+  // CSS zoom is retired: text size is applied through --mo-text-scale by the UI system's appearance provider.
+  void opt;
   document.documentElement.dataset.fontScale = scale;
+}
+
+function nearestPreset(pct: number): FontScale {
+  let best: FontScale = 'default';
+  let bestDiff = Infinity;
+  for (const opt of FONT_SCALE_OPTIONS) {
+    const diff = Math.abs(opt.value * 100 - pct);
+    if (diff < bestDiff) { bestDiff = diff; best = opt.id; }
+  }
+  return best;
 }
 
 export function FontScaleProvider({ children }: { children: ReactNode }) {
   const [scale, setScaleState] = useState<FontScale>('default');
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(FONT_SCALE_KEY) as FontScale | null;
-      if (saved && FONT_SCALE_OPTIONS.some(o => o.id === saved)) setScaleState(saved);
+      // Shared appearance (v1 > Tools > legacy > defaults) owns the value;
+      // the preset only labels the nearest step in the switcher UI.
+      const preset = nearestPreset(migrateAppearance(localStorage).fontSize);
+      setScaleState(preset);
+      document.documentElement.dataset.fontScale = preset;
     } catch { /* storage unavailable — keep default */ }
+  }, []);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== APPEARANCE_KEY && event.key !== FONT_SCALE_KEY) return;
+      try {
+        const preset = nearestPreset(migrateAppearance(localStorage).fontSize);
+        setScaleState(preset);
+        document.documentElement.dataset.fontScale = preset;
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
   useEffect(() => { applyFontScale(scale); }, [scale]);
   const setScale = (s: FontScale) => {
     setScaleState(s);
-    try { localStorage.setItem(FONT_SCALE_KEY, s); } catch { /* non-fatal */ }
+    try {
+      localStorage.setItem(FONT_SCALE_KEY, s);
+      const pct = { small: 95, default: 100, large: 110, xlarge: 115 }[s];
+      persistAppearance(localStorage, { ...migrateAppearance(localStorage), fontSize: pct });
+    } catch { /* non-fatal */ }
   };
   const value = useMemo<FontScaleContextValue>(() => ({ scale, setScale }), [scale]);
   return <FontScaleContext.Provider value={value}>{children}</FontScaleContext.Provider>;
@@ -346,7 +397,7 @@ export const ACCENT: Record<Accent, {
   // "violet" is the app's default brand/action accent — it reads from the central
   // `brand` color scale (globals.css --brand-*), so it and every page swept to
   // `brand-*` share ONE definition. Re-theme by editing --brand-* in one place.
-  violet:  { chip: 'bg-brand-50',   icon: 'text-brand-600',   text: 'text-brand-700',   gradient: 'from-brand-500 to-brand-700',     glow: 'hover:shadow-[0_20px_45px_-18px_rgba(147,51,234,0.45)]',  solidGlow: 'shadow-[0_16px_32px_-12px_rgba(147,51,234,0.45)]' },
+  violet:  { chip: 'bg-brand-50',   icon: 'text-brand-600',   text: 'text-brand-700',   gradient: 'from-brand-500 to-brand-700',     glow: 'hover:shadow-[0_20px_45px_-18px_rgba(58,99,82,0.45)]',  solidGlow: 'shadow-[0_16px_32px_-12px_rgba(58,99,82,0.45)]' },
 };
 
 /** RGBA strings for inline colored box-shadows (e.g. a centered modal's 3D glow). */
@@ -356,13 +407,13 @@ export const ACCENT_RGBA: Record<Accent, string> = {
   indigo: 'rgba(79,70,229,0.35)',
   emerald: 'rgba(5,150,105,0.35)',
   cyan: 'rgba(8,145,178,0.35)',
-  violet: 'rgba(147,51,234,0.35)',
+  violet: 'rgba(58,99,82,0.35)',
 };
 
 /** Hex equivalents of ACCENT_RGBA, for callers that need a plain hex (e.g. GlowCard/glowShadow). */
 export const ACCENT_HEX: Record<Accent, string> = {
   blue: '#2563eb', amber: '#d97706', indigo: '#4f46e5',
-  emerald: '#059669', cyan: '#0891b2', violet: '#9333ea',
+  emerald: '#059669', cyan: '#0891b2', violet: '#3a6352',
 };
 
 /** Default GlowCard / hover accent when tile icons use neutral tones. */
@@ -415,12 +466,13 @@ export const ACCENT_TEXT: Record<Accent | 'rose' | 'purple' | 'brand' | 'red' | 
   indigo:  { light: 'text-indigo-600',  dark: 'text-indigo-400' },
   emerald: { light: 'text-emerald-600', dark: 'text-emerald-400' },
   cyan:    { light: 'text-cyan-600',    dark: 'text-cyan-400' },
-  violet:  { light: 'text-violet-600',  dark: 'text-violet-400' },
+  violet:  { light: 'text-brand-600',   dark: 'text-brand-400' },
   rose:    { light: 'text-rose-600',    dark: 'text-rose-400' },
   purple:  { light: 'text-purple-600',  dark: 'text-purple-400' },
   // The app's default brand/action accent — reads from --brand-* (globals.css),
   // not a literal Tailwind hue, so re-theming stays a one-place edit. Kept
-  // separate from 'violet' above (which IS a literal Tailwind violet) on purpose.
+  // separate from the other hues on purpose (Stage B: violet itself now also
+  // resolves to --brand-*, so the default accent is forest everywhere).
   brand:   { light: 'text-brand-600',   dark: 'text-brand-400' },
   // Plain Tailwind red/green/yellow — used for status KPIs (breakdown/planned/
   // completion counts) alongside the named accent palette above.

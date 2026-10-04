@@ -10,17 +10,20 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { getAllPages } from '@/lib/paged';
 import { toast } from 'sonner';
 import type { RawData } from './types';
 
 export async function fetchAllModules(): Promise<RawData> {
   const [nm, ws, vfl, pto, insp, pach] = await Promise.all([
-    api.get<unknown>('/api/nearmiss/'),
-    api.get<unknown>('/api/work-stoppage/'),
-    api.get<unknown>('/api/vfl/'),
-    api.get<unknown>('/api/pto/'),
+    // These routes return only the newest 100 rows unless paged; a dashboard built on a cut-off list would
+    // understate every count. The inspections route takes no limit, so it is read as one request.
+    getAllPages<unknown>('/api/nearmiss/', { label: 'Near Miss' }),
+    getAllPages<unknown>('/api/work-stoppage/', { label: 'Work Stoppage' }),
+    getAllPages<unknown>('/api/vfl/', { label: 'VFL' }),
+    getAllPages<unknown>('/api/pto/', { label: 'PTO' }),
     api.get<unknown>('/api/sheq/'),
-    api.get<unknown>('/api/pachedu/'),
+    getAllPages<unknown>('/api/pachedu/', { label: 'Pachedu' }),
   ]);
 
   const rows = (value: unknown, label: string) => {
@@ -38,7 +41,7 @@ export async function fetchAllModules(): Promise<RawData> {
   };
 }
 
-export async function postSafetyAnalysis(payload: Record<string, unknown>): Promise<Record<string, any>> {
+export async function postSafetyAnalysis(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   return api.post('/api/ai/safety-analysis', payload);
 }
 

@@ -1,711 +1,349 @@
-// app/requisitions/page.tsx
+// app/requisitions/page.tsx — Purchase requisitions
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { api } from '@/lib/apiClient';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { AppShell } from '@/components/app-shell';
+import {
+  Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField,
+  Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { useEmployees } from '@/hooks/useLookups';
+import { useApiList } from '@/lib/useApiList';
+import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { formatCurrency } from '@/components/shared/utils';
-import {
-  ShoppingCart, Plus, Pencil, Trash2, Eye, Search, Filter,
-  Zap, Wrench, Flag, DollarSign, FileText, BarChart3, X,
-  CheckCircle2, Clock, XCircle,
-} from '@/components/shared/theme';
-import { AppShell } from '@/components/app-shell';
-import { PredictiveInput } from '@/components/shared/PredictiveInput';
-import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, SearchInput,
-  FormField, FormActions, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, SelectField, LoadingState, AutofillInput, TYPE_WEIGHT, PrimaryButton, Button, DetailActions,
-} from '@/components/shared/theme';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
-import { toast } from 'sonner';
-import type { RequisitionItem, Requisition } from './types';
-import { useRequisitionsData, apiCreate, apiUpdate, apiDelete } from './useRequisitionsData';
+import type { Requisition, RequisitionItem } from './types';
+import { apiCreate, apiDelete, apiUpdate, useRequisitionsData } from './useRequisitionsData';
 import { itemTotal } from './calcRequisitions';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-const STATUSES:   Requisition['status'][]   = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
+const STATUSES: Requisition['status'][] = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
 const PRIORITIES: Requisition['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
-const SECTIONS:   Requisition['section'][]  = ['Electrical', 'Mechanical'];
+const SECTIONS: Requisition['section'][] = ['Electrical', 'Mechanical'];
+const ALL = '__all__';
 
-const STATUS_CONFIG: Record<Requisition['status'], { color: string; icon: typeof CheckCircle2 }> = {
-  Approved:   { color: '#34d399', icon: CheckCircle2 },
-  Completed:  { color: '#34d399', icon: CheckCircle2 },
-  Pending:    { color: '#f59e0b', icon: Clock },
-  Processing: { color: '#f59e0b', icon: Clock },
-  Rejected:   { color: '#f43f5e', icon: XCircle },
-  Draft:      { color: '#94a3b8', icon: FileText },
+const STATUS_META: Record<Requisition['status'], { tone: Tone; icon: IconMeaning }> = {
+  Draft: { tone: 'neutral', icon: 'draft' }, Pending: { tone: 'warning', icon: 'pending' }, Approved: { tone: 'success', icon: 'check' },
+  Rejected: { tone: 'danger', icon: 'cancel' }, Processing: { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' },
 };
-// STATUS_CONFIG[status] was read unguarded at several call sites below — an
-// unrecognized status value (legacy/malformed data) crashed the whole page
-// with "Cannot read properties of undefined" (found live, 2026-08-29 UI
-// audit, audit/07-ui-polish-findings.md — same bug class as overtime.tsx's
-// TypeBadge).
-function getStatusConfig(status: Requisition['status']) {
-  return STATUS_CONFIG[status] ?? STATUS_CONFIG.Draft;
-}
-
-const PRIORITY_COLOR: Record<Requisition['priority'], string> = {
-  Critical: STATUS_TONE.critical, High: STATUS_TONE.warning, Medium: STATUS_TONE.info, Low: STATUS_TONE.neutral,
+const PRIORITY_META: Record<Requisition['priority'], { tone: Tone; icon: IconMeaning }> = {
+  Critical: { tone: 'danger', icon: 'critical' }, High: { tone: 'warning', icon: 'warning' }, Medium: { tone: 'info', icon: 'info' }, Low: { tone: 'neutral', icon: 'flag' },
 };
+const STATUS_HEX: Record<Requisition['status'], string> = { Approved: '#34d399', Completed: '#34d399', Pending: '#f59e0b', Processing: '#f59e0b', Rejected: '#f43f5e', Draft: '#94a3b8' };
 
 const fmtDate = (d?: string) => formatDate(d);
+// An unrecognised status or priority (legacy or malformed data) must not crash the page.
+const StatusTag = ({ status }: { status: Requisition['status'] }) => { const m = STATUS_META[status] ?? STATUS_META.Draft; return <StatusBadge tone={m.tone} icon={m.icon}>{status}</StatusBadge>; };
+const PriorityTag = ({ priority }: { priority: Requisition['priority'] }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{priority}</StatusBadge>; };
+const SectionTag = ({ section }: { section: Requisition['section'] }) => <StatusBadge tone={section === 'Electrical' ? 'warning' : 'info'} icon={section === 'Electrical' ? 'electrical' : 'mechanical'}>{section}</StatusBadge>;
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-// itemTotal now lives in ./calcRequisitions (imported above) — extracted per the
-// "extract + test business logic" standard, tested in calcRequisitions.test.ts.
 const newItem = (): RequisitionItem => ({ description: '', costPerUnit: 0, quantity: 1, reason: '' });
-const blankForm = (): Partial<Requisition> => ({
-  date: new Date().toISOString().slice(0, 10),
-  requester: '', section: 'Mechanical', required_for: '',
-  priority: 'Medium', status: 'Draft',
-  requisitionNumber: `REQ-${Date.now().toString().slice(-6)}`,
-  items: [newItem()], notes: '',
+type Form = { date: string; requester: string; section: Requisition['section']; required_for: string; priority: Requisition['priority']; status: Requisition['status']; requisitionNumber: string; items: RequisitionItem[]; notes: string };
+const emptyForm = (): Form => ({
+  date: new Date().toISOString().slice(0, 10), requester: '', section: 'Mechanical', required_for: '', priority: 'Medium', status: 'Draft',
+  requisitionNumber: `REQ-${Date.now().toString().slice(-6)}`, items: [newItem()], notes: '',
 });
 
-// ─── Linked lookups ───────────────────────────────────────────────────────────
-
-interface EmpOption { id: string; label: string; section: string; }
-interface EquipOption { id: string; label: string; section: string; }
-
-function useReqData(open: boolean) {
-  const [employees, setEmployees] = useState<EmpOption[]>([]);
-  const [equipment, setEquipment] = useState<EquipOption[]>([]);
-
-  const [error, setError] = useState(false);
-
-  const load = useCallback(() => {
-    setError(false);
-    Promise.all([
-      api.get<any[]>('/api/employees').catch(() => { setError(true); return []; }),
-      api.get<any[]>('/api/equipment').catch(() => { setError(true); return []; }),
-    ]).then(([emps, equip]) => {
-      setEmployees((Array.isArray(emps) ? emps : []).map((e: Record<string, unknown>) => ({
-        id: String(e.employee_id ?? e.id ?? ''),
-        label: `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || String(e.name ?? ''),
-        section: String(e.department ?? e.section ?? ''),
-      })));
-      setEquipment((Array.isArray(equip) ? equip : []).map((e: Record<string, unknown>) => ({
-        id: String(e.id ?? ''),
-        label: String(e.name ?? ''),
-        section: String(e.location ?? e.department ?? e.category ?? ''),
-      })));
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    load();
-  }, [open, load]);
-
-  useEffect(() => {
-    // A separate effect (not inline in the catch above) so it fires once per failed
-    // load rather than once per rejected promise — Promise.all above already resolves
-    // successfully (with an empty array) on either lookup failing, it just also flags it.
-    if (error) toast.error('Failed to load employees/equipment for this form — try reopening it');
-  }, [error]);
-
-  return { employees, equipment, lookupError: error, retryLookups: load };
-}
-
-// ─── Form modal ───────────────────────────────────────────────────────────────
-
-function ReqModal({ open, onClose, onSave, editing }: {
-  open: boolean; onClose: () => void; onSave: (data: object) => Promise<void>; editing: Requisition | null;
-}) {
-  const t = useTheme();
-  const [form, setForm] = useState<Partial<Requisition>>(blankForm());
-  const [saving, setSaving] = useState(false);
-  const [empSearch, setEmpSearch] = useState('');
-  const { employees, equipment, lookupError, retryLookups } = useReqData(open);
-
-  useEffect(() => {
-    setForm(editing ? { ...editing, items: editing.items.length ? editing.items : [newItem()] } : blankForm());
-  }, [editing, open]);
-
-  const set = (p: Partial<Requisition>) => setForm(f => ({ ...f, ...p }));
-  const setItem = (i: number, p: Partial<RequisitionItem>) =>
-    setForm(f => ({ ...f, items: f.items!.map((it, idx) => idx === i ? { ...it, ...p } : it) }));
-  const addItem = () => setForm(f => ({ ...f, items: [...(f.items ?? []), newItem()] }));
-  const rmItem = (i: number) => setForm(f => ({ ...f, items: f.items!.filter((_, idx) => idx !== i) }));
-
-  const total = itemTotal(form.items ?? []);
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.requester?.trim()) { toast.error('Requester is required'); return; }
-    if (!form.date) { toast.error('Date is required'); return; }
-    if (!form.items?.length) { toast.error('Add at least one item'); return; }
-    for (const [i, it] of (form.items ?? []).entries()) {
-      if (!it.description.trim()) { toast.error(`Item ${i + 1}: description required`); return; }
-    }
-    setSaving(true);
-    try {
-      const payload = {
-        date: form.date, requester: form.requester, section: form.section,
-        required_for: form.required_for, priority: form.priority, status: form.status,
-        requisition_number: form.requisitionNumber, notes: form.notes,
-        items: (form.items ?? []).map(it => ({
-          description: it.description, cost_per_unit: it.costPerUnit, quantity: it.quantity, reason: it.reason,
-        })),
-      };
-      await onSave(payload);
-      onClose();
-    } catch (e2) { toast.error((e2 as Error).message); }
-    finally { setSaving(false); }
-  }
-
+function ItemFields({ item, index, count, touched, onChange, onRemove }: { item: RequisitionItem; index: number; count: number; touched: boolean; onChange: (i: number, p: Partial<RequisitionItem>) => void; onRemove: (i: number) => void }) {
+  const n = index + 1;
   return (
-    <CenterModal open={open} onClose={onClose} title={editing ? `Edit ${editing.requisitionNumber}` : 'New Purchase Requisition'} accent="violet" width="max-w-3xl">
-      <form onSubmit={handleSave} className="p-5 space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 relative">
-            <FormField label="Requester" required>
-              <input
-                className={inputCls} placeholder="Type name to search employees…" autoComplete="off" aria-label="Requester"
-                value={form.requester ?? ''}
-                onChange={e => { set({ requester: e.target.value }); setEmpSearch(e.target.value); }}
-                onFocus={e => setEmpSearch(e.target.value)}
-                onBlur={() => setTimeout(() => setEmpSearch(''), 200)}
-              />
-            </FormField>
-            {empSearch.length >= 1 && (() => {
-              const q = empSearch.toLowerCase();
-              const hits = employees.filter(e => e.label.toLowerCase().includes(q)).slice(0, 6);
-              if (!hits.length) return null;
-              return (
-                <div className={`absolute z-50 top-full left-0 right-0 mt-1 rounded-xl ${t.glass} ${t.shadow} overflow-hidden`}>
-                  {hits.map(e => (
-                    <button key={e.id} type="button"
-                      onMouseDown={() => { set({ requester: e.label, section: (SECTIONS.includes(e.section as Requisition['section']) ? e.section : form.section) as Requisition['section'] }); setEmpSearch(''); }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs ${t.hoverBgSoft} transition-colors text-left`}>
-                      <span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{e.label}</span>
-                      <span className={`ml-3 truncate ${t.textFaint}`}>{e.id}{e.section ? ` · ${e.section}` : ''}</span>
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
-            {lookupError && (
-              <p className="mt-1 text-[11px] text-rose-500 flex items-center gap-1.5">
-                Couldn&apos;t load the employee/equipment lists — you can still type manually, or
-                <button type="button" onClick={retryLookups} className="underline hover:no-underline">retry</button>
-              </p>
-            )}
-          </div>
-
-          <FormField label="Date" required>
-            <input type="date" title="Requisition date" aria-label="Requisition date" className={inputCls} value={form.date ?? ''} onChange={e => set({ date: e.target.value })} />
-          </FormField>
-
-          <FormField label="Section">
-            <SelectField size="form" title="Section" value={form.section ?? 'Mechanical'} onChange={v => set({ section: v as Requisition['section'] })}
-              options={SECTIONS.map(s => ({ value: s, label: s }))} />
-          </FormField>
-          <FormField label="Priority">
-            <SelectField size="form" title="Priority" value={form.priority ?? 'Medium'} onChange={v => set({ priority: v as Requisition['priority'] })}
-              options={PRIORITIES.map(p => ({ value: p, label: p }))} />
-          </FormField>
-          <FormField label="Status">
-            <SelectField size="form" title="Status" value={form.status ?? 'Draft'} onChange={v => set({ status: v as Requisition['status'] })}
-              options={STATUSES.map(s => ({ value: s, label: s }))} />
-          </FormField>
-
-          <div className="md:col-span-2">
-            <FormField label="Required For (Equipment / Asset)">
-              <SelectField size="form" title="Required for" value={form.required_for ?? ''}
-                onChange={v => {
-                  const eq = equipment.find(x => x.label === v);
-                  set({ required_for: v, ...(eq && SECTIONS.includes(eq.section as Requisition['section']) ? { section: eq.section as Requisition['section'] } : {}) });
-                }}
-                options={[{ value: '', label: '— Select equipment or type below —' }, ...equipment.map(eq => ({ value: eq.label, label: `${eq.label}${eq.section ? ` (${eq.section})` : ''}` }))]} />
-              <input className={`${inputCls} mt-1.5`} placeholder="Or type manually (project, work order, other…)" aria-label="Required for (manual entry)"
-                value={equipment.find(eq => eq.label === form.required_for) ? '' : (form.required_for ?? '')}
-                onChange={e => set({ required_for: e.target.value })} />
-            </FormField>
-          </div>
-
-          <FormField label="Requisition #">
-            <input className={inputCls} placeholder="e.g. REQ-001" aria-label="Requisition number" value={form.requisitionNumber ?? ''} onChange={e => set({ requisitionNumber: e.target.value })} />
-          </FormField>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Line Items</span>
-            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={addItem}>Add Item</Button>
-          </div>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {(form.items ?? []).map((it, i) => (
-              <div key={i} className={`grid grid-cols-12 gap-2 p-3 rounded-xl ${t.chipBg}`}>
-                <div className="col-span-5">
-                  <FormField label="Description" required>
-                    <AutofillInput field="item_description" className={inputCls} placeholder="Item description" value={it.description} onChange={v => setItem(i, { description: v })} />
-                  </FormField>
-                </div>
-                <div className="col-span-2">
-                  <FormField label="Unit Cost">
-                    <input type="number" min="0" step="0.01" title="Unit cost" aria-label="Unit cost" placeholder="0.00" className={inputCls} value={it.costPerUnit} onChange={e => setItem(i, { costPerUnit: parseFloat(e.target.value) || 0 })} />
-                  </FormField>
-                </div>
-                <div className="col-span-2">
-                  <FormField label="Qty">
-                    <input type="number" min="1" title="Quantity" aria-label="Quantity" placeholder="1" className={inputCls} value={it.quantity} onChange={e => setItem(i, { quantity: parseInt(e.target.value) || 1 })} />
-                  </FormField>
-                </div>
-                <div className="col-span-2">
-                  <FormField label="Reason">
-                    <PredictiveInput historyKey="requisition_item_reason" placeholder="Optional" value={it.reason} onChange={v => setItem(i, { reason: v })} inputClassName={t.inputBg} />
-                  </FormField>
-                </div>
-                <div className="col-span-1 flex items-end pb-0.5">
-                  <button type="button" title="Remove item" aria-label="Remove item" onClick={() => rmItem(i)} disabled={(form.items?.length ?? 0) <= 1}
-                    className={`h-9 w-9 flex items-center justify-center rounded-lg ${t.textFaint} hover:text-rose-500 hover:bg-rose-500/10 transition-all disabled:opacity-20`}>
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end mt-2">
-            <span className={`text-xs ${t.textFaint}`}>
-              {(form.items ?? []).length} item{(form.items ?? []).length !== 1 ? 's' : ''} · <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(total)}</span>
-            </span>
-          </div>
-        </div>
-
-        <FormField label="Notes (optional)">
-          <textarea value={form.notes ?? ''} onChange={e => set({ notes: e.target.value })} rows={2} placeholder="Any additional notes…" aria-label="Notes" className={`${inputCls} h-auto py-2 resize-none`} />
-        </FormField>
-
-        <div className={`flex items-center justify-between pt-2 border-t ${t.border}`}>
-          <span className={`text-sm ${t.textFaint}`}>Total: <span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(total)}</span></span>
-        </div>
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={editing ? 'Update' : 'Create'} accent="violet" />
-      </form>
-    </CenterModal>
-  );
-}
-
-// ─── Detail modal ─────────────────────────────────────────────────────────────
-
-function ReqDetailModal({ req, onClose, onEdit }: { req: Requisition; onClose: () => void; onEdit: () => void; }) {
-  const t = useTheme();
-  const total = itemTotal(req.items);
-  const SIcon = req.section === 'Electrical' ? Zap : Wrench;
-  const sCfg = getStatusConfig(req.status);
-
-  return (
-    <CenterModal open onClose={onClose} title={`Requisition ${req.requisitionNumber}`} accent="violet" width="max-w-2xl">
-      <div className="p-5 space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Requester', value: req.requester },
-            { label: 'Date', value: fmtDate(req.date) },
-            { label: 'Required For', value: req.required_for || '—' },
-            { label: 'Ref#', value: `#${req.lineNumber}` },
-          ].map(({ label, value }) => (
-            <div key={label} className={`${t.chipBg} rounded-xl p-3`}>
-              <p className={`text-[10px] uppercase tracking-wide mb-0.5 ${t.textFaint}`}>{label}</p>
-              <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          <StatusBadge color={sCfg.color} label={req.status} dot />
-          <StatusBadge color={PRIORITY_COLOR[req.priority]} label={req.priority} />
-          <StatusBadge color={ACCENT_HEX.blue} label={req.section} />
-          <StatusBadge color="#34d399" label={formatCurrency(total)} />
-        </div>
-
-        <div className={`rounded-xl ${t.chipBg} overflow-hidden`}>
-          <table className="w-full text-xs">
-            <thead>
-              <tr className={`border-b ${t.border}`}>
-                {['Description', 'Reason', 'Unit Cost', 'Qty', 'Total'].map(h => (
-                  <th key={h} className={`px-3 py-2 text-left ${TYPE_WEIGHT.semibold} uppercase tracking-wider text-[10px] ${t.textFaint}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {req.items.map((it, i) => (
-                <tr key={i} className={`border-b ${t.border} ${t.hoverBgSoft}`}>
-                  <td className={`px-3 py-2 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{it.description}</td>
-                  <td className={`px-3 py-2 ${t.textFaint}`}>{it.reason || '—'}</td>
-                  <td className={`px-3 py-2 ${t.textMuted}`}>{formatCurrency(it.costPerUnit)}</td>
-                  <td className={`px-3 py-2 ${t.textMuted}`}>{it.quantity}</td>
-                  <td className={`px-3 py-2 ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{formatCurrency(it.costPerUnit * it.quantity)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className={`border-t ${t.border}`}>
-                <td colSpan={4} className={`px-3 py-2 text-right text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint}`}>TOTAL</td>
-                <td className={`px-3 py-2 ${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{formatCurrency(total)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {req.notes && (
-          <div className={`${t.chipBg} rounded-xl p-3`}>
-            <p className={`text-[10px] uppercase tracking-wide mb-1 ${t.textFaint}`}>Notes</p>
-            <p className={`text-sm ${t.textMuted}`}>{req.notes}</p>
-          </div>
-        )}
-
-        {t.design === 'dallaglio' ? <DetailActions onClose={onClose} onEdit={() => { onClose(); onEdit(); }} /> : <div className="flex gap-2">
-          <button type="button" onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Close</button>
-          <PrimaryButton icon={Pencil} size="md" fullWidth onClick={() => { onClose(); onEdit(); }}>Edit</PrimaryButton>
-        </div>}
+    <fieldset className="grid grid-cols-1 gap-3 rounded-card border border-line p-4 sm:grid-cols-6">
+      <legend className="px-1 font-sans text-label font-medium text-ink">Item {n}</legend>
+      <div className="sm:col-span-6"><Field label={`Description (item ${n})`} required error={touched && !item.description.trim() ? 'Describe the item.' : undefined}><SuggestField historyKey="item_description" placeholder="Item description" value={item.description} onChange={v => onChange(index, { description: v })} /></Field></div>
+      <div className="sm:col-span-2"><Field label={`Unit cost (item ${n})`} optional><Input type="number" min="0" step="0.01" inputMode="decimal" value={item.costPerUnit} onChange={e => onChange(index, { costPerUnit: parseFloat(e.target.value) || 0 })} /></Field></div>
+      <div className="sm:col-span-1"><Field label={`Qty (item ${n})`} optional><Input type="number" min="1" inputMode="numeric" value={item.quantity} onChange={e => onChange(index, { quantity: parseInt(e.target.value, 10) || 1 })} /></Field></div>
+      <div className="sm:col-span-2"><Field label={`Reason (item ${n})`} optional><SuggestField historyKey="requisition_item_reason" placeholder="Optional" value={item.reason} onChange={v => onChange(index, { reason: v })} /></Field></div>
+      <div className="flex items-end justify-between gap-2 sm:col-span-1 sm:justify-end">
+        <span className="font-sans text-caption tabular text-ink-muted sm:hidden">{formatCurrency(item.costPerUnit * item.quantity)}</span>
+        <IconButton icon="delete" variant="danger" label={`Remove item ${n}`} disabled={count <= 1} onClick={() => onRemove(index)} />
       </div>
-    </CenterModal>
+    </fieldset>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const employees = useEmployees();
+  const equipment = useApiList<{ id?: number | string; name?: string; location?: string; department?: string; category?: string }>('/api/equipment');
+  const [form, setForm] = useState<Form>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(req?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
+      setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items : [newItem()], notes: req.notes ?? '' } : emptyForm());
+    }
+  }
+  const set = (p: Partial<Form>) => setForm(f => ({ ...f, ...p }));
+  const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), section: e.department })), [employees]);
+  const assets = useMemo(() => equipment.items.filter(e => e.name).map(e => ({ name: String(e.name), section: String(e.location ?? e.department ?? e.category ?? '') })), [equipment.items]);
+  const setRequester = (name: string) => { const m = people.find(p => p.name === name); set({ requester: name, ...(m && SECTIONS.includes(m.section as Requisition['section']) ? { section: m.section as Requisition['section'] } : {}) }); };
+  const setRequiredFor = (value: string) => { const a = assets.find(x => x.name === value); set({ required_for: value, ...(a && SECTIONS.includes(a.section as Requisition['section']) ? { section: a.section as Requisition['section'] } : {}) }); };
+  const setItem = (i: number, p: Partial<RequisitionItem>) => set({ items: form.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
+  const total = itemTotal(form.items);
 
-function RequisitionsPageContent() {
-  const t = useTheme();
-  const sections = useCollapseSection({ hero: true });
+  const submit = async () => {
+    setTouched(true);
+    if (!form.requester.trim() || !form.date || form.items.some(i => !i.description.trim())) return false;
+    const payload = {
+      date: form.date, requester: form.requester, section: form.section, required_for: form.required_for, priority: form.priority, status: form.status,
+      requisition_number: form.requisitionNumber, notes: form.notes,
+      items: form.items.map(it => ({ description: it.description, cost_per_unit: it.costPerUnit, quantity: it.quantity, reason: it.reason })),
+    };
+    if (req) await apiUpdate(req.id, payload); else await apiCreate(payload);
+    toast.success(req ? 'Requisition updated.' : 'Requisition created.');
+    onSaved();
+  };
 
-  const { reqs, setReqs, loading, refresh: load } = useRequisitionsData();
-  const [tab, setTab] = useState<'records' | 'analytics'>('records');
+  return (
+    <FormDialog open={open} onOpenChange={onOpenChange} title={req ? `Edit ${req.requisitionNumber}` : 'New purchase requisition'} description="Requester, date and at least one described item are required." submitLabel={req ? 'Save changes' : 'Create requisition'} onSubmit={submit} size="xl">
+      <div className="flex flex-col gap-5">
+        <section aria-labelledby="rq-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <h3 id="rq-basic" className="font-display text-section font-semibold text-ink sm:col-span-3">Requisition</h3>
+          <div className="sm:col-span-2">
+            <Field label="Requester" required error={touched && !form.requester.trim() ? 'Enter the requester.' : undefined}>
+              <Input list="rq-people" value={form.requester} onChange={e => setRequester(e.target.value)} autoComplete="off" placeholder="Type a name to search employees" />
+              <datalist id="rq-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+            </Field>
+          </div>
+          <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
+          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as Requisition['section'] })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          <Field label="Priority"><Select aria-label="Priority" value={form.priority} onValueChange={v => set({ priority: v as Requisition['priority'] })} options={PRIORITIES.map(p => ({ value: p, label: p }))} /></Field>
+          <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v as Requisition['status'] })} options={STATUSES.map(s => ({ value: s, label: s }))} /></Field>
+          <div className="sm:col-span-2">
+            <Field label="Required for" optional description={equipment.error ? 'The equipment list could not be loaded; type the asset, project or work order instead.' : 'Pick equipment or type a project, work order or other reason.'}>
+              <Input list="rq-assets" value={form.required_for} onChange={e => setRequiredFor(e.target.value)} autoComplete="off" placeholder="Equipment, project or work order" />
+              <datalist id="rq-assets">{assets.map(a => <option key={a.name} value={a.name} label={a.section || undefined} />)}</datalist>
+            </Field>
+          </div>
+          <Field label="Requisition number"><Input value={form.requisitionNumber} onChange={e => set({ requisitionNumber: e.target.value })} placeholder="For example, REQ-001" /></Field>
+        </section>
 
+        <section aria-labelledby="rq-items" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="rq-items" className="font-display text-section font-semibold text-ink">Line items ({form.items.length})</h3>
+            <Button size="sm" icon="plus" onClick={() => set({ items: [...form.items, newItem()] })}>Add item</Button>
+          </div>
+          {form.items.map((it, i) => <ItemFields key={i} item={it} index={i} count={form.items.length} touched={touched} onChange={setItem} onRemove={idx => set({ items: form.items.filter((_, j) => j !== idx) })} />)}
+          <p className="text-right font-sans text-body text-ink">Total: <span className="font-semibold tabular">{formatCurrency(total)}</span></p>
+        </section>
+
+        <Field label="Notes" optional><Textarea rows={2} value={form.notes} onChange={e => set({ notes: e.target.value })} placeholder="Any additional notes" /></Field>
+      </div>
+    </FormDialog>
+  );
+}
+
+function DetailDialog({ req, onClose, onEdit, onDelete }: { req: Requisition | null; onClose: () => void; onEdit: (r: Requisition) => void; onDelete: (r: Requisition) => void }) {
+  const total = req ? itemTotal(req.items) : 0;
+  const itemColumns: Column<RequisitionItem & { id: string }>[] = [
+    { id: 'description', header: 'Description', cell: i => i.description },
+    { id: 'reason', header: 'Reason', hideBelow: 'md', cell: i => i.reason || <span className="text-ink-muted">None</span> },
+    { id: 'cost', header: 'Unit cost', numeric: true, cell: i => formatCurrency(i.costPerUnit) },
+    { id: 'qty', header: 'Qty', numeric: true, cell: i => i.quantity },
+    { id: 'total', header: 'Total', numeric: true, cell: i => formatCurrency(i.costPerUnit * i.quantity) },
+  ];
+  return (
+    <Dialog
+      open={!!req}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title={req ? `Requisition ${req.requisitionNumber}` : 'Requisition'}
+      description={req ? `${req.requester}, ${fmtDate(req.date)}` : undefined}
+      size="lg"
+      footer={req && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(req)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(req)}>Edit</Button>
+        </>
+      )}
+    >
+      {req && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-2"><StatusTag status={req.status} /><PriorityTag priority={req.priority} /><SectionTag section={req.section} /><StatusBadge tone="success">{formatCurrency(total)}</StatusBadge></div>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div><dt className="font-sans text-caption text-ink-muted">Requester</dt><dd className="mt-0.5 font-sans text-body text-ink">{req.requester}</dd></div>
+            <div><dt className="font-sans text-caption text-ink-muted">Date</dt><dd className="mt-0.5 font-sans text-body text-ink">{fmtDate(req.date)}</dd></div>
+            <div><dt className="font-sans text-caption text-ink-muted">Required for</dt><dd className="mt-0.5 font-sans text-body text-ink">{req.required_for || 'Not specified'}</dd></div>
+            <div><dt className="font-sans text-caption text-ink-muted">Reference</dt><dd className="mt-0.5 font-sans text-body text-ink tabular">#{req.lineNumber}</dd></div>
+          </dl>
+          <DataTable caption="Requisition items" rows={req.items.map((i, n) => ({ ...i, id: String(n) }))} columns={itemColumns} getRowId={i => i.id} density="compact" />
+          <p className="text-right font-sans text-body text-ink">Total: <span className="font-semibold tabular">{formatCurrency(total)}</span></p>
+          {req.notes && <div><h3 className="font-sans text-caption text-ink-muted">Notes</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{req.notes}</p></div>}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'requisitionNumber', label: 'Req #', width: 14 },
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
+  { key: 'requester', label: 'Requester', width: 18 },
+  { key: 'section', label: 'Section', width: 14 },
+  { key: 'priority', label: 'Priority', width: 12 },
+  { key: 'status', label: 'Status', width: 14 },
+  { key: 'required_for', label: 'Required For', width: 22 },
+  { key: 'items', label: 'Cost', width: 14, format: (_v, row) => formatCurrency(itemTotal((row.items as RequisitionItem[]) ?? [])) },
+  { key: 'notes', label: 'Notes', width: 26 },
+];
+
+function RequisitionsContent() {
+  const confirm = useConfirm();
+  const { reqs, loading, loaded, error, errorStatus, refetch } = useRequisitionsData();
+  const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
-  const [priority, setPriority] = useState('all');
-  const [section, setSection] = useState('all');
+  const [statusF, setStatusF] = useState(ALL);
+  const [priorityF, setPriorityF] = useState(ALL);
+  const [sectionF, setSectionF] = useState(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [showFilters, setShowFilters] = useState(true);
-
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Requisition | null>(null);
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<Requisition | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [viewing, setViewing] = useState<Requisition | null>(null);
-  const [delTarget, setDelTarget] = useState<Requisition | null>(null);
 
-  const filtered = useMemo(() => reqs.filter(r => {
-    if (status !== 'all' && r.status !== status) return false;
-    if (priority !== 'all' && r.priority !== priority) return false;
-    if (section !== 'all' && r.section !== section) return false;
-    if (dateFrom && r.date < dateFrom) return false;
-    if (dateTo && r.date > dateTo) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!r.requester.toLowerCase().includes(q) &&
-          !r.requisitionNumber.toLowerCase().includes(q) &&
-          !r.required_for.toLowerCase().includes(q) &&
-          !r.items.some(i => i.description.toLowerCase().includes(q))) return false;
-    }
-    return true;
-  }), [reqs, status, priority, section, dateFrom, dateTo, search]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return reqs.filter(r =>
+      (statusF === ALL || r.status === statusF) && (priorityF === ALL || r.priority === priorityF) && (sectionF === ALL || r.section === sectionF)
+      && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
+      && (!q || r.requester.toLowerCase().includes(q) || r.requisitionNumber.toLowerCase().includes(q) || r.required_for.toLowerCase().includes(q) || r.items.some(i => i.description.toLowerCase().includes(q))));
+  }, [reqs, statusF, priorityF, sectionF, dateFrom, dateTo, search]);
+  const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'cost' ? String(Math.round(itemTotal(r.items) * 100)).padStart(14, '0') : String(r[id as keyof Requisition] ?? '').toLowerCase())), [filtered, sort]);
+  const sum = (list: Requisition[]) => list.reduce((s, r) => s + itemTotal(r.items), 0);
+  const stats = useMemo(() => ({ total: filtered.length, value: sum(filtered), pending: filtered.filter(r => r.status === 'Pending').length, approved: filtered.filter(r => r.status === 'Approved').length, critical: filtered.filter(r => r.priority === 'Critical').length }), [filtered]);
+  const byStatus = STATUSES.map(s => { const l = filtered.filter(r => r.status === s); return { id: s, status: s, count: l.length, value: sum(l) }; }).filter(r => r.count > 0);
+  const byPriority = PRIORITIES.map(p => ({ name: p, value: filtered.filter(r => r.priority === p).length })).filter(r => r.value > 0);
+  const bySection = SECTIONS.map(s => { const l = filtered.filter(r => r.section === s); return { name: s, value: l.length, cost: sum(l) }; });
 
-  const exportColumns: DLColumn[] = [
-    { key: 'requisitionNumber', label: 'Req #', width: 14 },
-    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
-    { key: 'requester', label: 'Requester', width: 18 },
-    { key: 'section', label: 'Section', width: 14 },
-    { key: 'priority', label: 'Priority', width: 12 },
-    { key: 'status', label: 'Status', width: 14 },
-    { key: 'required_for', label: 'Required For', width: 22 },
-    { key: 'items', label: 'Cost', width: 14, format: (_v, row) => formatCurrency(itemTotal((row.items as RequisitionItem[]) ?? [])) },
-    { key: 'notes', label: 'Notes', width: 26 },
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || statusF !== ALL || priorityF !== ALL || sectionF !== ALL || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearch(''); setStatusF(ALL); setPriorityF(ALL); setSectionF(ALL); setDateFrom(''); setDateTo(''); };
+
+  const openEditor = (r?: Requisition) => { setViewing(null); setEditing(r); setDialogOpen(true); };
+  const remove = async (r: Requisition) => {
+    if (!await confirm({ title: `Delete requisition ${r.requisitionNumber}?`, message: 'This cannot be undone. Only managers can delete requisitions.', confirmLabel: 'Delete', destructive: true })) return;
+    try { await apiDelete(r.id); setViewing(null); toast.success('Requisition deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+  };
+
+  const COLUMNS: Column<Requisition>[] = [
+    { id: 'requisitionNumber', header: 'Req #', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{r.requisitionNumber}<span className="ml-2 text-ink-muted">#{r.lineNumber}</span></span> },
+    { id: 'date', header: 'Date', sortable: true, hideBelow: 'md', cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'requester', header: 'Requester', sortable: true, cell: r => r.requester },
+    { id: 'section', header: 'Section', sortable: true, hideBelow: 'lg', cell: r => <SectionTag section={r.section} /> },
+    { id: 'priority', header: 'Priority', sortable: true, hideBelow: 'md', cell: r => <PriorityTag priority={r.priority} /> },
+    { id: 'status', header: 'Status', sortable: true, cell: r => <StatusTag status={r.status} /> },
+    { id: 'cost', header: 'Cost', sortable: true, numeric: true, cell: r => formatCurrency(itemTotal(r.items)) },
   ];
 
-  const stats = useMemo(() => {
-    const totalCost = filtered.reduce((s, r) => s + itemTotal(r.items), 0);
-    const pending = filtered.filter(r => r.status === 'Pending').length;
-    const approved = filtered.filter(r => r.status === 'Approved').length;
-    const critical = filtered.filter(r => r.priority === 'Critical').length;
-    return { totalCost, pending, approved, critical, total: filtered.length };
-  }, [filtered]);
-
-  const byStatus = useMemo(() => STATUSES.map(s => ({
-    label: s, count: filtered.filter(r => r.status === s).length,
-    cost: filtered.filter(r => r.status === s).reduce((a, r) => a + itemTotal(r.items), 0),
-  })).filter(s => s.count > 0), [filtered]);
-
-  const byPriority = useMemo(() => PRIORITIES.map(p => ({
-    label: p, count: filtered.filter(r => r.priority === p).length,
-  })).filter(p => p.count > 0), [filtered]);
-
-  async function handleSave(payload: object) {
-    if (editing) {
-      const updated = await apiUpdate(editing.id, payload);
-      setReqs(prev => prev.map(r => r.id === updated.id ? updated : r));
-      toast.success('Requisition updated');
-    } else {
-      const created = await apiCreate(payload);
-      setReqs(prev => [created, ...prev]);
-      toast.success('Requisition created');
-    }
-  }
-
-  async function handleDelete() {
-    if (!delTarget) return;
-    await apiDelete(delTarget.id);
-    setReqs(prev => prev.filter(r => r.id !== delTarget.id));
-    toast.success('Deleted');
-    setDelTarget(null);
-  }
-
-  const clearFilters = () => { setSearch(''); setStatus('all'); setPriority('all'); setSection('all'); setDateFrom(''); setDateTo(''); };
-  const hasFilters = search !== '' || status !== 'all' || priority !== 'all' || section !== 'all' || !!dateFrom || !!dateTo;
-
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={ShoppingCart}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Requisitions']}
-        title="Purchase Requisitions"
-        description="Raise, track and approve purchase requests"
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Requisitions' }]}
+        title="Purchase requisitions"
+        description="Raise, track and approve purchase requests."
+        actions={(
           <>
+            <IconButton icon="refresh" label="Refresh requisitions" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('Purchase_Requisitions')}
                 title="Purchase Requisitions"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_CONFIG[row.status as Requisition['status']]?.color.replace('#', '')}
+                statusColor={(_v, row) => STATUS_HEX[row.status as Requisition['status']]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Plus} onClick={() => { setEditing(null); setFormOpen(true); }}>New Requisition</PrimaryButton>
+            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button>
           </>
-        }
-      >
-        <div className="flex flex-wrap gap-1">
-          <StatTile icon={ShoppingCart} color={ACCENT_HEX.blue} value={stats.total} label="Total" />
-          <StatTile icon={Clock} color="#f59e0b" value={stats.pending} label="Pending" onClick={() => setStatus('Pending')} />
-          <StatTile icon={CheckCircle2} color="#34d399" value={stats.approved} label="Approved" onClick={() => setStatus('Approved')} />
-          <StatTile icon={Flag} color="#f43f5e" value={stats.critical} label="Critical" onClick={() => setPriority('Critical')} />
-          <StatTile icon={DollarSign} color={ACCENT_HEX.violet} value={formatCurrency(stats.totalCost)} label="Total Value" />
-        </div>
-      </PageHero>
-
-      {/* Filters */}
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search requisitions…" className="flex-1" />
-          <div className="flex gap-2 flex-wrap items-center">
-            <button type="button" onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.glassSoft} ${t.hoverText}`}`}>
-              <Filter className="h-3.5 w-3.5" /> Filters
-            </button>
-            {hasFilters && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
-                <X className="h-3.5 w-3.5" /> Clear
-              </button>
-            )}
-          </div>
-        </div>
-        {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3`}>
-            <FormField label="Status">
-              <SelectField size="filter" title="Status" value={status} onChange={setStatus}
-                options={[{ value: 'all', label: 'All Statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
-            </FormField>
-            <FormField label="Priority">
-              <SelectField size="filter" title="Priority" value={priority} onChange={setPriority}
-                options={[{ value: 'all', label: 'All Priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
-            </FormField>
-            <FormField label="Section">
-              <SelectField size="filter" title="Section" value={section} onChange={setSection}
-                options={[{ value: 'all', label: 'All Sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
-            </FormField>
-            <FormField label="From">
-              <input type="date" title="From date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
-            </FormField>
-            <FormField label="To">
-              <input type="date" title="To date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`w-full h-8 px-2 rounded text-[13px] ${t.inputBg} focus:outline-none`} />
-            </FormField>
-          </div>
         )}
-      </div>
+      />
 
-      {/* Tabs */}
-      <div className={`flex gap-1 ${t.glassSoft} rounded-lg p-1 w-fit`}>
-        {([{ id: 'records', label: 'Records', icon: FileText }, { id: 'analytics', label: 'Analytics', icon: BarChart3 }] as const).map(tb => (
-          <button key={tb.id} type="button" onClick={() => setTab(tb.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs ${TYPE_WEIGHT.medium} transition-colors ${tab === tb.id ? 'bg-brand-500/20 text-brand-400' : `${t.textFaint} ${t.hoverText}`}`}>
-            <tb.icon className="h-3.5 w-3.5" /> {tb.label}
-          </button>
-        ))}
-      </div>
+      <MetricGrid columns={5}>
+        <MetricTile label="Total" icon="requisition" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Pending" icon="pending" tone="warning" value={stats.pending} loading={pending} unavailable={unavailable} selected={statusF === 'Pending'} onClick={() => setStatusF(statusF === 'Pending' ? ALL : 'Pending')} />
+        <MetricTile label="Approved" icon="check" tone="success" value={stats.approved} loading={pending} unavailable={unavailable} selected={statusF === 'Approved'} onClick={() => setStatusF(statusF === 'Approved' ? ALL : 'Approved')} />
+        <MetricTile label="Critical" icon="critical" tone="danger" value={stats.critical} loading={pending} unavailable={unavailable} selected={priorityF === 'Critical'} onClick={() => setPriorityF(priorityF === 'Critical' ? ALL : 'Critical')} />
+        <MetricTile label="Total value" icon="value" value={formatCurrency(stats.value)} loading={pending} unavailable={unavailable} />
+      </MetricGrid>
 
-      {loading ? (
-        <div className={`${t.glass} rounded-2xl p-16 text-center`}>
-          <LoadingState />
-        </div>
-      ) : tab === 'records' ? (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center justify-between px-4 py-3 border-b ${t.border}`}>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>Requisitions ({filtered.length})</h3>
-            <Button type="button" variant="subtle" size="xs" icon={Plus} iconPosition="end" onClick={() => { setEditing(null); setFormOpen(true); }}>New Req</Button>
-          </div>
-          {filtered.length === 0 ? (
-            <div className="p-12 text-center">
-              <ShoppingCart className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-              <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>No requisitions</h3>
-              <p className={`text-sm mb-4 ${t.textFaint}`}>Adjust filters or create your first requisition.</p>
-              <PrimaryButton icon={Plus} size="md" onClick={() => { setEditing(null); setFormOpen(true); }}>New Req</PrimaryButton>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className={`border-b ${t.border}`}>
-                    {['Req #', 'Date', 'Requester', 'Section', 'Priority', 'Status', 'Cost', ''].map(h => (
-                      <th key={h} className={`text-left p-3 text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide ${t.textFaint}`}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(r => {
-                    const c = getStatusConfig(r.status);
-                    const SecIcon = r.section === 'Electrical' ? Zap : Wrench;
-                    return (
-                      <tr key={r.id} className={`border-b ${t.border} ${t.hoverBgSoft} cursor-pointer`} onClick={() => setViewing(r)}>
-                        <td className="p-3">
-                          <p className={`font-mono text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>{r.requisitionNumber}</p>
-                          <p className={`text-[10px] ${t.textFaint}`}>#{r.lineNumber}</p>
-                        </td>
-                        <td className={`p-3 text-xs ${t.textMuted}`}>{fmtDate(r.date)}</td>
-                        <td className={`p-3 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{r.requester}</td>
-                        <td className="p-3"><span className={`inline-flex items-center gap-1 text-xs ${t.textFaint}`}><SecIcon className="h-3 w-3" />{r.section}</span></td>
-                        <td className="p-3"><StatusBadge color={PRIORITY_COLOR[r.priority]} label={r.priority} /></td>
-                        <td className="p-3"><StatusBadge color={c.color} label={r.status} dot /></td>
-                        <td className={`p-3 ${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{formatCurrency(itemTotal(r.items))}</td>
-                        <td className="p-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex gap-1 justify-end">
-                            <button type="button" title="View" aria-label={`View requisition ${r.requisitionNumber}`} onClick={() => setViewing(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}><Eye className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Edit" aria-label={`Edit requisition ${r.requisitionNumber}`} onClick={() => { setEditing(r); setFormOpen(true); }} className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button type="button" title="Delete" aria-label={`Delete requisition ${r.requisitionNumber}`} onClick={() => setDelTarget(r)} className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500`}><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>By Status</h3>
-            <div className="space-y-3">
-              {byStatus.map(({ label, count, cost }) => {
-                const c = getStatusConfig(label as Requisition['status']);
-                const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
-                return (
-                  <div key={label}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <StatusBadge color={c.color} label={label} />
-                      <div className="text-right">
-                        <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{count}</span>
-                        <span className={`ml-2 ${t.textFaint}`}>{formatCurrency(cost)}</span>
-                      </div>
-                    </div>
-                    <ProgressBar value={pct} color={c.color} showValue={false} />
-                  </div>
-                );
-              })}
-              {byStatus.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
-            </div>
-          </div>
+      <Toolbar filtered={hasFilters}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search requester, number, asset or item" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
+        <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
+        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
 
-          <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>By Priority</h3>
-            <div className="space-y-3">
-              {byPriority.map(({ label, count }) => {
-                const maxP = Math.max(1, ...byPriority.map(p => p.count));
-                return (
-                  <div key={label}>
-                    <div className="flex justify-between mb-1 text-xs">
-                      <span className={`${TYPE_WEIGHT.semibold}`} style={{ color: PRIORITY_COLOR[label as Requisition['priority']] }}>{label}</span>
-                      <span className={`${TYPE_WEIGHT.bold} ${t.textPrimary}`}>{count}</span>
-                    </div>
-                    <ProgressBar value={(count / maxP) * 100} color={PRIORITY_COLOR[label as Requisition['priority']]} showValue={false} />
-                  </div>
-                );
-              })}
-              {byPriority.length === 0 && <p className={`text-sm text-center py-6 ${t.textFaint}`}>No data</p>}
-            </div>
-          </div>
+      <DataRegion
+        status={status}
+        subject="requisitions"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No requisitions match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="requisition" title="No requisitions yet" description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} />}
+      >
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList aria-label="Requisition views">
+            <TabsTrigger value="records" icon="requisition">Requisitions</TabsTrigger>
+            <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
+          </TabsList>
+          <TabsContent value="records" className="mt-5 flex flex-col gap-3">
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'requisition' : 'requisitions'}{filtered.length !== reqs.length ? ` of ${reqs.length}` : ''}</p>
+            <DataTable
+              caption="Purchase requisitions"
+              rows={rows}
+              columns={COLUMNS}
+              getRowId={r => r.id}
+              sort={sort}
+              onSortChange={setSort}
+              onRowActivate={setViewing}
+              rowActions={r => (
+                <span className="inline-flex gap-1">
+                  <IconButton icon="edit" size="sm" label={`Edit requisition ${r.requisitionNumber}`} onClick={() => openEditor(r)} />
+                  <IconButton icon="delete" variant="danger" size="sm" label={`Delete requisition ${r.requisitionNumber}`} onClick={() => remove(r)} />
+                </span>
+              )}
+            />
+          </TabsContent>
+          <TabsContent value="analytics" className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ChartPanel title="By status" description="Count and value of the filtered requisitions" summary={`By status: ${byStatus.map(r => `${r.status} ${r.count} worth ${formatCurrency(r.value)}`).join('; ') || 'no data'}.`}>
+              {byStatus.length === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No data</p> : (
+                <ul className="flex flex-col gap-2">{byStatus.map(r => <li key={r.id} className="flex items-center justify-between gap-3"><StatusTag status={r.status} /><span className="font-sans text-body-sm tabular text-ink">{r.count} · {formatCurrency(r.value)}</span></li>)}</ul>
+              )}
+            </ChartPanel>
+            <ChartPanel title="By priority" summary={`By priority: ${byPriority.map(r => `${r.name} ${r.value}`).join(', ') || 'no data'}.`}><Distribution rows={byPriority} /></ChartPanel>
+            <ChartPanel title="Section split" summary={`By section: ${bySection.map(r => `${r.name} ${r.value} worth ${formatCurrency(r.cost)}`).join('; ')}.`}>
+              <ul className="flex flex-col gap-2">{bySection.map(r => <li key={r.name} className="flex items-center justify-between gap-3"><SectionTag section={r.name} /><span className="font-sans text-body-sm tabular text-ink">{r.value} · {formatCurrency(r.cost)}</span></li>)}</ul>
+            </ChartPanel>
+            <ChartPanel title="Value summary" summary={`Total ${formatCurrency(stats.value)}, average ${formatCurrency(stats.total ? stats.value / stats.total : 0)}, pending ${formatCurrency(sum(filtered.filter(r => r.status === 'Pending')))}, approved ${formatCurrency(sum(filtered.filter(r => r.status === 'Approved')))}.`}>
+              <dl className="flex flex-col gap-2 font-sans text-body-sm">
+                {[['Total filtered value', stats.value], ['Average per requisition', stats.total ? stats.value / stats.total : 0], ['Pending value', sum(filtered.filter(r => r.status === 'Pending'))], ['Approved value', sum(filtered.filter(r => r.status === 'Approved'))]].map(([label, v]) => (
+                  <div key={label as string} className="flex justify-between gap-3"><dt className="text-ink-muted">{label as string}</dt><dd className="tabular text-ink">{formatCurrency(v as number)}</dd></div>
+                ))}
+              </dl>
+            </ChartPanel>
+          </TabsContent>
+        </Tabs>
+      </DataRegion>
 
-          <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Section Split</h3>
-            <div className="space-y-4">
-              {SECTIONS.map(s => {
-                const cnt = filtered.filter(r => r.section === s).length;
-                const cost = filtered.filter(r => r.section === s).reduce((a, r) => a + itemTotal(r.items), 0);
-                const pct = stats.total > 0 ? (cnt / stats.total) * 100 : 0;
-                const Icon = s === 'Electrical' ? Zap : Wrench;
-                return (
-                  <div key={s}>
-                    <div className="flex items-center justify-between mb-1 text-xs">
-                      <span className={`flex items-center gap-1.5 ${t.textMuted}`}><Icon className="h-3 w-3" />{s}</span>
-                      <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{cnt} <span className={t.textFaint}>({formatCurrency(cost)})</span></span>
-                    </div>
-                    <ProgressBar value={pct} color={ACCENT_HEX.blue} showValue={false} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Value Summary</h3>
-            <div className="space-y-2 text-sm">
-              {[
-                { label: 'Total filtered value', val: formatCurrency(stats.totalCost), c: ACCENT_HEX.violet },
-                { label: 'Avg per requisition', val: formatCurrency(stats.total > 0 ? stats.totalCost / stats.total : 0), c: undefined },
-                { label: 'Pending value', val: formatCurrency(filtered.filter(r => r.status === 'Pending').reduce((a, r) => a + itemTotal(r.items), 0)), c: '#f59e0b' },
-                { label: 'Approved value', val: formatCurrency(filtered.filter(r => r.status === 'Approved').reduce((a, r) => a + itemTotal(r.items), 0)), c: '#34d399' },
-              ].map(({ label, val, c }) => (
-                <div key={label} className={`flex justify-between ${t.textMuted}`}>
-                  <span>{label}</span>
-                  <span className={`${TYPE_WEIGHT.bold}`} style={c ? { color: c } : undefined}>{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ReqModal open={formOpen} onClose={() => { setFormOpen(false); setEditing(null); }} onSave={handleSave} editing={editing} />
-
-      {viewing && (
-        <ReqDetailModal req={viewing} onClose={() => setViewing(null)} onEdit={() => { setEditing(viewing); setFormOpen(true); setViewing(null); }} />
-      )}
-
-      <CenterModal open={!!delTarget} onClose={() => setDelTarget(null)} title="Delete Requisition" accent="amber" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <p className={`text-sm ${t.textMuted}`}>Delete requisition {delTarget?.requisitionNumber}? This cannot be undone.</p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setDelTarget(null)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border} transition-all`}>Cancel</button>
-            <PrimaryButton danger size="md" fullWidth icon={Trash2} onClick={handleDelete}>Delete</PrimaryButton>
-          </div>
-        </div>
-      </CenterModal>
-    </main>
+      <DetailDialog req={viewing} onClose={() => setViewing(null)} onEdit={openEditor} onDelete={remove} />
+      <ReqDialog req={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
 export default function RequisitionsPage() {
-  return (
-    <AppShell>
-      <RequisitionsPageContent />
-    </AppShell>
-  );
+  return <AppShell migrated><RequisitionsContent /></AppShell>;
 }

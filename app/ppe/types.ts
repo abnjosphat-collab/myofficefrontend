@@ -5,14 +5,6 @@
 // Phase 7. Component *prop* interfaces (EmployeeAutocompleteProps, IssueFormProps,
 // etc.) stay in page.tsx; they're tightly coupled to their one component, not the
 // page's actual data contract.
-import type React from 'react';
-
-export interface PPETypeInfo {
-  name: string; shortName: string; color: string;
-  icon: React.ElementType; bgColor: string; textColor: string;
-  borderColor: string; description: string;
-}
-
 export interface PPERecord {
   id: string; employee_id: string; employee_name: string;
   position: string; department: string;
@@ -35,20 +27,6 @@ export interface EmployeeWithPPE {
   // Not yet normalized here; normalize at the point of display/filter (matches how the
   // rest of this file leaves raw strings as-is and lets calcPPE.ts do the shaping).
   section: string;
-}
-
-export interface PPEStats {
-  total_records: number;
-  unique_employees: number;
-  status_breakdown: Record<string, number>;
-  condition_breakdown: Record<string, number>;
-  expiring_soon: number;
-  expired: number;
-}
-
-export interface EnhancedStats extends PPEStats {
-  activeRecords: number; expiringSoon: number;
-  employeesWithExpiring: number; employeesWithExpired: number;
 }
 
 export interface FormState {

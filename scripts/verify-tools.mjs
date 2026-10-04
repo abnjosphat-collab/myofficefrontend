@@ -298,9 +298,8 @@ try{
   await page.getByRole('button',{name:'Compliance',exact:true}).click();
   await waitForText('Inspection and maintenance control');
   const complianceVisible=await page.getByText('Current competency register',{exact:true}).isVisible();
-  await page.getByRole('button',{name:'Gate passes',exact:true}).click();
-  await waitForText('Gate pass control');
-  const gatePassesVisible=await page.getByText('Gate pass control',{exact:true}).isVisible();
+  // Gate passes removed from the UI (component, backend, and data retained for restoration); assert no entry point remains.
+  const gatePassesAbsent=await page.getByRole('button',{name:'Gate passes',exact:true}).count()===0&&await page.getByText('Gate pass control',{exact:true}).count()===0;
   let analyticsVisualsVisible=null;
   if(session.role==='admin'){
     await page.getByRole('button',{name:'Analytics',exact:true}).first().click();
@@ -322,7 +321,7 @@ try{
   await waitForSettled();
   await page.evaluate(({preferencesKey,preferences,sessionKey,session,sessionKeyV2,sessionV2,browserKey,browser})=>{if(preferences===null)localStorage.removeItem(preferencesKey);else localStorage.setItem(preferencesKey,preferences);if(session===null)localStorage.removeItem(sessionKey);else localStorage.setItem(sessionKey,session);if(sessionV2===null)localStorage.removeItem(sessionKeyV2);else localStorage.setItem(sessionKeyV2,sessionV2);if(browser===null)localStorage.removeItem(browserKey);else localStorage.setItem(browserKey,browser);},{preferencesKey,preferences:originalPreferences,sessionKey,session:originalSession,sessionKeyV2,sessionV2:originalSessionV2,browserKey,browser:originalBrowser});
 
-  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,focusStyle,cardHoverStyle,headerAligned,toolbarAligned,profileVisible,sectionNavigated,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesVisible,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey),restoredSessionV2:await page.evaluate(key=>localStorage.getItem(key),sessionKeyV2),restoredBrowser:await page.evaluate(key=>localStorage.getItem(key),browserKey)};
+  const evidence={fixtureMode,live,progressiveDelivery,initialFailure,quietFailure,notificationFailure,adminFailure,wakeStayedLoading,vendorLoadingCopyAbsent,equipmentLoaderCount,focusStyle,cardHoverStyle,headerAligned,toolbarAligned,profileVisible,sectionNavigated,issueForm,departmentGrouped,eligibilityMatrixVisible,complianceVisible,gatePassesAbsent,analyticsVisualsVisible,detailOpened,mobile,blockedWrites,consoleErrors,responses:{total:responses.length,successful:responses.filter(item=>item.status===200).length,simulatedFailures:responses.filter(item=>item.status>=500).length,paths:[...new Set(responses.map(item=>item.pathname))]},restoredPreferences:await page.evaluate(key=>localStorage.getItem(key),preferencesKey),restoredSession:await page.evaluate(key=>localStorage.getItem(key),sessionKey),restoredSessionV2:await page.evaluate(key=>localStorage.getItem(key),sessionKeyV2),restoredBrowser:await page.evaluate(key=>localStorage.getItem(key),browserKey)};
   fs.writeSync(1,`${JSON.stringify(evidence,null,2)}\n`);
   check(initialFailure.errorVisible&&!initialFailure.falseEmpty,'History failure looked like a genuine empty history.');
   check(progressiveDelivery.equipmentVisible&&progressiveDelivery.historyStillLoading,'Equipment waited for the delayed history source.');
@@ -341,7 +340,7 @@ try{
   check(issueForm.employeeSelected==='Tariro Moyo · E-001'&&issueForm.suggestionPointerEvents==='auto','The issue-form employee suggestion was not directly clickable.');
   check(issueForm.pickerOpened,'Clicking the expected-return field did not invoke the native picker.');
   check(departmentGrouped&&eligibilityMatrixVisible,'The department-grouped employee eligibility register did not render correctly.');
-  check(complianceVisible&&gatePassesVisible,'Compliance or Gate passes did not render.');
+  check(complianceVisible&&gatePassesAbsent,'Compliance did not render or a Gate passes entry point is still present.');
   check(analyticsVisualsVisible!==false,'The polished Analytics visualizations did not render.');
   check(mobile.documentOverflow===0&&mobile.mainOverflow===0,'The Tools workspace overflowed at 390px.');
   check(evidence.restoredPreferences===originalPreferences,'Tools appearance preferences were not restored.');

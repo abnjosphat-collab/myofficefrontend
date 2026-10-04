@@ -1,13 +1,11 @@
-// app/overtime/useOvertimeData.ts — the overtime page's data-fetching layer: record CRUD,
-// the fast-path/exact-times payload builder, and a hook owning the record list plus its
-// loading/refreshing flag pair. Split out of page.tsx as part of the standing "decompose
-// on touch" convention. One resource, one load(quiet) cycle — same shape as sheq_inspection.
+// app/overtime/useOvertimeData.ts — the overtime page's data layer: the register read (timeout and one retry, honest load state),
+// the writes (they throw, so a dialog shows the reason and keeps what was typed), the payload builder and the server analysis.
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
-import type { OTRecord, OTForm } from './types';
+import { useApiList } from '@/lib/useApiList';
+import type { OTAnalysisResult, OTRecord, OTForm } from './types';
 
 export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
   const requestOnce = async () => {
@@ -40,13 +38,14 @@ export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
   }
 }
 
-/** `useHours`: send `hours` and omit start/end (the fast path); otherwise send
- *  start/end and omit hours — never both, matching the backend's either/or validator. */
-export function buildOvertimePayload(form: OTForm, useHours: boolean) {
+/** `useHours`: send `hours` and omit start/end (the fast path); otherwise send start/end and omit hours, never both, matching the
+ *  backend's either/or validator. When EDITING, the other pair is sent as null: the server only changes what it is sent, so a record
+ *  switched from hours to times would otherwise keep its old hours, and those win over the times everywhere. */
+export function buildOvertimePayload(form: OTForm, useHours: boolean, editing = false) {
   const { start_time, end_time, hours, ...rest } = form;
   return useHours
-    ? { ...rest, hours: parseFloat(hours) || undefined }
-    : { ...rest, start_time, end_time };
+    ? { ...rest, hours: parseFloat(hours) || undefined, ...(editing ? { start_time: null, end_time: null } : {}) }
+    : { ...rest, start_time, end_time, ...(editing ? { hours: null } : {}) };
 }
 
 export async function createOT(body: Record<string, unknown>): Promise<OTRecord> {
@@ -86,36 +85,36 @@ export async function deleteOT(id: number | string): Promise<void> {
  *  app/sheq/useSheqDashboardData.ts's postSafetyAnalysis: a separate export, not part of
  *  the load cycle, since it's a manually-triggered action with its own result/loading
  *  state in the component. */
-export async function postOvertimeAnalysis(payload: Record<string, unknown>): Promise<Record<string, any>> {
-  return api.post('/api/overtime/analyze', payload);
+export async function postOvertimeAnalysis(payload: Record<string, unknown>): Promise<OTAnalysisResult> {
+  return api.post<OTAnalysisResult>('/api/overtime/analyze', payload);
 }
 
-export function useOvertimeData() {
-  const [records, setRecords] = useState<OTRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+const fetchRegister = () => fetchOT();
+/** The register, with honest load state: a failed load is an error with the rows already shown kept, never an empty list. */
+export const useOvertime = () => useApiList<OTRecord>('/api/overtime', undefined, { fetcher: fetchRegister });
+
+/** The server's analysis of whatever is currently filtered, re-run about half a second after the selection settles. */
+export function useOvertimeAnalysis(records: OTRecord[], enabled: boolean) {
+  const [result, setResult] = useState<OTAnalysisResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const latestLoad = useRef(0);
-
-  const load = useCallback(async (quiet = false) => {
-    const loadId = ++latestLoad.current;
-    if (!quiet) setLoading(true); else setRefreshing(true);
+  const latest = useRef(0);
+  const hadResult = useRef(false);
+  const run = useCallback(async (recs: OTRecord[]) => {
+    const id = ++latest.current;
     setError(null);
+    if (hadResult.current) setUpdating(true); else setLoading(true);
     try {
-      const rows = await fetchOT();
-      if (loadId === latestLoad.current) setRecords(rows);
-    } catch (e) {
-      if (loadId === latestLoad.current) {
-        const message = e instanceof Error ? e.message : 'Could not load overtime records';
-        setError(message);
-        toast.error(`Load failed: ${message}`);
-      }
-    } finally {
-      if (loadId === latestLoad.current) { setLoading(false); setRefreshing(false); }
-    }
+      const r = await postOvertimeAnalysis({ records: recs, period_label: 'current selection' });
+      if (id === latest.current) { setResult(r); hadResult.current = true; }
+    } catch (e) { if (id === latest.current) setError(e instanceof Error ? e.message : 'The analysis failed.'); }
+    finally { if (id === latest.current) { setLoading(false); setUpdating(false); } }
   }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  return { records, setRecords, loading, refreshing, error, refresh: load };
+  useEffect(() => {
+    if (!enabled) return;
+    const timer = setTimeout(() => { void run(records); }, 500);
+    return () => clearTimeout(timer);
+  }, [records, enabled, run]);
+  return { result, loading, updating, error, refresh: () => run(records) };
 }

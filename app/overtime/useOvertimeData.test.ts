@@ -31,3 +31,25 @@ describe('fetchOT', () => {
     await expect(fetchOT(5)).rejects.toThrow('taking too long');
   });
 });
+
+import { buildOvertimePayload } from './useOvertimeData';
+import type { OTForm } from './types';
+
+const form: OTForm = {
+  employee_name: 'Jane', employee_id: 'C1', position: 'Fitter', department: '', cost_centre: 'Engineering', overtime_type: 'regular', planning_status: 'planned', payout_method: 'cash',
+  date: '2026-09-01', start_time: '17:00', end_time: '20:00', hours: '3.5', reason: '', contact_number: '', notes: '',
+};
+
+describe('buildOvertimePayload', () => {
+  it('sends times and omits hours on create, and the reverse on the hours-only path', () => {
+    expect(buildOvertimePayload(form, false)).toMatchObject({ start_time: '17:00', end_time: '20:00' });
+    expect('hours' in buildOvertimePayload(form, false)).toBe(false);
+    const fast = buildOvertimePayload(form, true);
+    expect(fast).toMatchObject({ hours: 3.5 });
+    expect('start_time' in fast).toBe(false);
+  });
+  it('clears the other pair when editing, so a record switched between the two never keeps stale values that would win', () => {
+    expect(buildOvertimePayload(form, false, true)).toMatchObject({ start_time: '17:00', end_time: '20:00', hours: null });
+    expect(buildOvertimePayload(form, true, true)).toMatchObject({ hours: 3.5, start_time: null, end_time: null });
+  });
+});

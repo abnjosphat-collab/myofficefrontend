@@ -5,6 +5,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { GlobalMfaGate } from '@/components/app-shell/mfa-ui';
 import { ThemeProvider, IconStyleProvider, FontStyleProvider, FontScaleProvider, ConfirmProvider } from '@/components/shared/theme';
 import { ServiceWorkerRegistrar } from '@/components/app-shell/ServiceWorkerRegistrar';
+import { AppearanceProvider, ConfirmProvider as UiConfirmProvider, TooltipProvider } from '@/components/ui-system';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <IconStyleProvider>
           <FontStyleProvider>
             <FontScaleProvider>
-              <ConfirmProvider>{children}</ConfirmProvider>
+              <ConfirmProvider>
+                <AppearanceProvider>
+                  <TooltipProvider>
+                    <UiConfirmProvider>{children}</UiConfirmProvider>
+                  </TooltipProvider>
+                </AppearanceProvider>
+              </ConfirmProvider>
             </FontScaleProvider>
           </FontStyleProvider>
         </IconStyleProvider>

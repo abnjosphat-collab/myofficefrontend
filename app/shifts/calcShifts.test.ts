@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildHolidayMap, computeDayStatus, cycleProgress, d2s, findEvent, stripTime, todayStatus } from './calcShifts';
+import { buildHolidayMap, computeDayStatus, cycleProgress, d2s, daysUntilNextOn, findEvent, stripTime, todayStatus } from './calcShifts';
 import type { ShiftAssignment } from './types';
 
 function assignment(over: Partial<ShiftAssignment> = {}): ShiftAssignment {
@@ -137,5 +137,21 @@ describe('buildHolidayMap — reuses lib/zimHolidays.ts (the bug this extraction
     const map = buildHolidayMap([new Date(2025, 0, 1), new Date(2026, 0, 1)]);
     expect(map.get('2025-01-01')).toBe("New Year's Day");
     expect(map.get('2026-01-01')).toBe("New Year's Day");
+  });
+});
+
+describe('daysUntilNextOn', () => {
+  it('is 0 on an on day and counts real days to the next on day, not a percentage', () => {
+    const a = assignment({ cycle_start_date: '2026-08-01', on_days: 10, off_days: 4 });
+    expect(daysUntilNextOn(a, new Date(2026, 7, 5))).toBe(0);
+    expect(daysUntilNextOn(a, new Date(2026, 7, 11))).toBe(4); // first off day: four off days, back on the 15th
+    expect(daysUntilNextOn(a, new Date(2026, 7, 14))).toBe(1);
+  });
+  it('follows a scheduled leave event', () => {
+    const a = assignment({ cycle_start_date: '2026-08-01', on_days: 10, off_days: 4, day_overrides: [{ id: 'l', from: '2026-08-05', to: '2026-08-06', type: 'annual_leave' }] });
+    expect(daysUntilNextOn(a, new Date(2026, 7, 5))).toBe(2);
+  });
+  it('is null for a standby assignment that is never on duty', () => {
+    expect(daysUntilNextOn(assignment({ shift_type: 'standby' }), new Date(2026, 7, 5))).toBeNull();
   });
 });

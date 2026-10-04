@@ -1,424 +1,246 @@
 // app/inventory/page.tsx
 "use client";
 
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { formatDate } from '@/lib/format';
-import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
-import Link from "next/link";
 import {
-  Package, Truck, Plus, Filter, MapPin,
-  DollarSign, FilterX, Grid, List, RefreshCw, Pencil, Trash2, Eye, Hash,
-} from "@/components/shared/theme";
-import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ProgressBar,
-  SearchInput, ViewToggle, useCollapseSection, ACCENT_HEX,
-  GroupSection, RecordCard, RecordActions, staggerContainer, fadeUp, InfoRow, SummaryItem, useConfirm, TYPE_WEIGHT, PrimaryButton,
-} from '@/components/shared/theme';
+  Button, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
+  Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, sortRows, useConfirm, useViewPreference,
+  type Column, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
+import { formatDate } from '@/lib/format';
 import type { InventoryItem } from './types';
-import { useInventoryData } from './useInventoryData';
+import { stockStatus, useInventoryData } from './useInventoryData';
 
-const CATEGORIES = ['Electronics', 'Mechanical', 'Consumables', 'Safety', 'Tools', 'Office Supplies'];
-const SUPPLIERS = ['TechSupply Inc', 'Industrial Parts Co', 'SafetyFirst Ltd', 'Global Tools', 'Office Depot'];
-
-const STATUS_COLORS: Record<string, string> = {
-  'in-stock': STATUS_TONE.good,
-  'low-stock': STATUS_TONE.warning,
-  'out-of-stock': STATUS_TONE.critical,
+type StockStatus = ReturnType<typeof stockStatus>;
+const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | 'low-stock' | 'out-of-stock'; hex: string }> = {
+  'in-stock': { label: 'In stock', tone: 'success', icon: 'valid', hex: '34d399' },
+  'low-stock': { label: 'Low stock', tone: 'warning', icon: 'low-stock', hex: 'f59e0b' },
+  'out-of-stock': { label: 'Out of stock', tone: 'danger', icon: 'out-of-stock', hex: 'f43f5e' },
 };
-const STATUS_LABELS: Record<string, string> = {
-  'in-stock': 'In Stock',
-  'low-stock': 'Low Stock',
-  'out-of-stock': 'Out of Stock',
-};
+const STATUS_FILTERS: { value: 'all' | StockStatus; label: string }[] = [{ value: 'all', label: 'All' }, ...(Object.keys(STATUS) as StockStatus[]).map(s => ({ value: s, label: STATUS[s].label }))];
+const ALL = '__all__';
+const EMPTY_FORM = { name: '', sku: '', category: '', description: '', currentStock: '0', minStock: '0', maxStock: '0', unit: 'pcs', cost: '0', supplier: '', location: '' };
 
-function getStockStatus(item: InventoryItem) {
-  if (item.currentStock === 0) return 'out-of-stock';
-  if (item.currentStock <= item.minStock) return 'low-stock';
-  return 'in-stock';
-}
+const StatusTag = ({ item }: { item: InventoryItem }) => { const s = STATUS[stockStatus(item)]; return <StatusBadge tone={s.tone} icon={s.icon}>{s.label}</StatusBadge>; };
+const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const stockPct = (i: InventoryItem) => (i.maxStock > 0 ? Math.min(100, Math.round((i.currentStock / i.maxStock) * 100)) : 0);
+const wholeNumber = (text: string) => text.trim() !== '' && Number.isInteger(Number(text)) && Number(text) >= 0;
 
-// Palette for categories — drawn from the shared ACCENT_HEX brand palette (not
-// arbitrary hexes), hashed so each distinct category name gets a stable color.
-const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
-function categoryColor(category?: string) {
-  if (!category) return '#94a3b8';
-  let h = 0;
-  for (let i = 0; i < category.length; i++) h = (h * 31 + category.charCodeAt(i)) >>> 0;
-  return GROUP_PALETTE[h % GROUP_PALETTE.length];
-}
+const exportColumns: DLColumn[] = [
+  { key: 'name', label: 'Item', width: 24 }, { key: 'sku', label: 'SKU', width: 16 }, { key: 'category', label: 'Category', width: 16 },
+  { key: 'currentStock', label: 'Current Stock', width: 14 }, { key: 'minStock', label: 'Min Stock', width: 12 }, { key: 'maxStock', label: 'Max Stock', width: 12 },
+  { key: 'unit', label: 'Unit', width: 10 }, { key: 'cost', label: 'Unit Cost', width: 12 }, { key: 'supplier', label: 'Supplier', width: 20 }, { key: 'location', label: 'Location', width: 18 },
+  { key: 'status', label: 'Status', width: 14, format: (_v, row) => STATUS[stockStatus(row as unknown as InventoryItem)].label },
+  { key: 'lastRestocked', label: 'Last Restocked', width: 16, format: v => (v ? formatDate(v as string) : '') },
+];
 
-// InfoRow/SummaryItem now come from the shared design system (promoted from
-// this page's own local versions — see the design-system migration).
+function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: InventoryItem | null; existing: readonly InventoryItem[]; open: boolean; onOpenChange: (open: boolean) => void; onSave: (item: InventoryItem) => void }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
+  // Load the form when the dialog opens for a different item (or for a new one).
+  const key = open ? (item?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
+      setForm(item ? { name: item.name, sku: item.sku, category: item.category, description: item.description, currentStock: String(item.currentStock), minStock: String(item.minStock), maxStock: String(item.maxStock), unit: item.unit, cost: String(item.cost), supplier: item.supplier, location: item.location } : EMPTY_FORM);
+    }
+  }
+  const set = (patch: Partial<typeof EMPTY_FORM>) => setForm(current => ({ ...current, ...patch }));
 
-// ─── InventoryCard — built on the shared RecordCard so it inherits the exact
-// homepage module-card treatment (bare accent icon, Montserrat title, GlowCard
-// lift/glow). Key summary always visible; the rest expands in place. ──
-function InventoryCard({ item, onDelete }: { item: InventoryItem; onDelete: () => void }) {
-  const t = useTheme();
-  const status = getStockStatus(item);
-  const statusColor = STATUS_COLORS[status];
-  const stockPct = Math.min((item.currentStock / item.maxStock) * 100, 100);
+  const duplicateSku = existing.some(i => i.id !== item?.id && i.sku.trim().toLowerCase() === form.sku.trim().toLowerCase() && form.sku.trim() !== '');
+  const errors = {
+    name: form.name.trim() ? undefined : 'Enter the item name.',
+    sku: !form.sku.trim() ? 'Enter the SKU.' : duplicateSku ? 'Another item already uses this SKU.' : undefined,
+    currentStock: wholeNumber(form.currentStock) ? undefined : 'Enter a whole number, 0 or more.',
+    minStock: wholeNumber(form.minStock) ? undefined : 'Enter a whole number, 0 or more.',
+    maxStock: wholeNumber(form.maxStock) ? undefined : 'Enter a whole number, 0 or more.',
+    cost: form.cost.trim() !== '' && Number.isFinite(Number(form.cost)) && Number(form.cost) >= 0 ? undefined : 'Enter an amount, 0 or more.',
+  };
+  const show = (field: keyof typeof errors) => (touched ? errors[field] : undefined);
+
+  const submit = async () => {
+    setTouched(true);
+    if (Object.values(errors).some(Boolean)) return false;
+    const currentStock = Number(form.currentStock);
+    const restocked = !item || currentStock > item.currentStock;
+    onSave({
+      ...(item ?? { id: `inv-${Date.now()}`, status: 'in-stock', lastRestocked: new Date().toISOString() }),
+      name: form.name.trim(), sku: form.sku.trim(), category: form.category.trim(), description: form.description.trim(),
+      currentStock, minStock: Number(form.minStock), maxStock: Number(form.maxStock), unit: form.unit.trim() || 'pcs',
+      cost: Number(form.cost), supplier: form.supplier.trim(), location: form.location.trim(),
+      status: stockStatus({ currentStock, minStock: Number(form.minStock) }),
+      // A higher stock level than before counts as a restock.
+      lastRestocked: restocked ? new Date().toISOString() : item!.lastRestocked,
+    });
+    toast.success(`${form.name.trim()} was saved.`);
+  };
 
   return (
-    <RecordCard
-      icon={Package}
-      accentHex={statusColor}
-      title={item.name}
-      subtitle={`SKU: ${item.sku}`}
-      badges={<>
-        <StatusBadge color={statusColor} label={STATUS_LABELS[status]} dot />
-        {status === 'low-stock' && <StatusBadge color="#f59e0b" label="Needs Reorder" />}
-      </>}
-      summary={
-        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
-          <SummaryItem icon={MapPin} label="Location" value={item.location} color={statusColor} />
-          <SummaryItem icon={Truck} label="Supplier" value={item.supplier} color={statusColor} />
-        </div>
-      }
-      actions={t.design === 'dallaglio' ? <RecordActions viewHref={`/inventory/view/${item.id}`} editHref={`/inventory/edit/${item.id}`} onDelete={onDelete} /> : <>
-        <Link href={`/inventory/view/${item.id}`} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} ${t.textMuted} ${t.hoverText} text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
-          <Eye className="h-3.5 w-3.5" /> View
-        </Link>
-        <PrimaryButton href={`/inventory/edit/${item.id}`} icon={Pencil} fullWidth size="xs">Edit</PrimaryButton>
-        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
-          <Trash2 className="h-3.5 w-3.5" /> Delete
-        </button>
-      </>}
-    >
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <InfoRow label="Stock" value={`${item.currentStock}/${item.maxStock} ${item.unit}`} />
-        <InfoRow label="Unit Cost" value={`$${item.cost.toFixed(2)}`} />
-        <InfoRow label="Category" value={item.category} />
-        <InfoRow label="Last Restocked" value={formatDate(item.lastRestocked)} />
+    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit item' : 'Add item'} description="Name and SKU are required." submitLabel={item ? 'Save changes' : 'Add item'} onSubmit={submit} size="lg">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Item name" required error={show('name')}><Input value={form.name} onChange={e => set({ name: e.target.value })} /></Field>
+        <Field label="SKU" required error={show('sku')}><Input value={form.sku} onChange={e => set({ sku: e.target.value })} /></Field>
+        <Field label="Category" optional><Input value={form.category} onChange={e => set({ category: e.target.value })} /></Field>
+        <Field label="Supplier" optional><Input value={form.supplier} onChange={e => set({ supplier: e.target.value })} /></Field>
+        <Field label="Current stock" required error={show('currentStock')}><Input inputMode="numeric" value={form.currentStock} onChange={e => set({ currentStock: e.target.value })} /></Field>
+        <Field label="Unit"><Input value={form.unit} onChange={e => set({ unit: e.target.value })} /></Field>
+        <Field label="Reorder level" required description="Low stock is flagged at or below this level." error={show('minStock')}><Input inputMode="numeric" value={form.minStock} onChange={e => set({ minStock: e.target.value })} /></Field>
+        <Field label="Maximum stock" required error={show('maxStock')}><Input inputMode="numeric" value={form.maxStock} onChange={e => set({ maxStock: e.target.value })} /></Field>
+        <Field label="Unit cost" required error={show('cost')}><Input inputMode="decimal" value={form.cost} onChange={e => set({ cost: e.target.value })} /></Field>
+        <Field label="Location" optional><Input value={form.location} onChange={e => set({ location: e.target.value })} /></Field>
+        <div className="sm:col-span-2"><Field label="Description" optional><Textarea rows={2} value={form.description} onChange={e => set({ description: e.target.value })} /></Field></div>
       </div>
-      <ProgressBar value={Math.round(stockPct)} color={statusColor} label="Stock level" />
-      {item.description && <p className={`text-xs ${t.textMuted}`}>{item.description}</p>}
-    </RecordCard>
-  );
-}
-
-// ─── InventoryRow — compact list-view row, mirroring EmployeeRow's pattern. ──
-function InventoryRow({ item, onDelete }: { item: InventoryItem; onDelete: () => void }) {
-  const t = useTheme();
-  const status = getStockStatus(item);
-  const statusColor = STATUS_COLORS[status];
-
-  return (
-    <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
-        <div className="shrink-0"><Package className="h-5 w-5" style={{ color: statusColor }} /></div>
-
-        <Link href={`/inventory/view/${item.id}`} className="flex-1 min-w-0 text-left">
-          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{item.name}</div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className={`text-xs font-mono ${t.textFaint}`}>{item.sku}</span>
-            {item.category && <span className={`text-xs ${t.textFaint}`}>· {item.category}</span>}
-            <StatusBadge color={statusColor} label={STATUS_LABELS[status]} dot />
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`hidden sm:flex items-center gap-1 text-[11px] ${t.textFaint}`}><Hash className="h-3 w-3" style={{ color: statusColor }} />{item.currentStock}/{item.maxStock} {item.unit}</span>
-          {item.location && <span className={`hidden md:flex items-center gap-1 text-[11px] ${t.textFaint}`}><MapPin className="h-3 w-3" style={{ color: statusColor }} />{item.location}</span>}
-        </div>
-
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link href={`/inventory/edit/${item.id}`} title="Edit item"
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
-            <Pencil className="h-3.5 w-3.5" />
-          </Link>
-          <button type="button" title="Delete item" onClick={onDelete}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-    </div>
+    </FormDialog>
   );
 }
 
 function InventoryPageContent() {
-  const t = useTheme();
   const confirm = useConfirm();
-  const sections = useCollapseSection({ hero: true, filters: true });
-  const { inventory, isRefreshing, loadInventory, deleteItem } = useInventoryData();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
-  // Records are grouped by category (homepage category-accordion vocabulary); this
-  // tracks which category groups the user has collapsed (default: all open).
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const { inventory, upsertItem, deleteItem } = useInventoryData();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | StockStatus>('all');
+  const [category, setCategory] = useState(ALL);
+  const [supplier, setSupplier] = useState(ALL);
+  const [view, setView] = useViewPreference('inventory', VIEW_CARDS_TABLE);
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const stats = useMemo(() => ({
-    totalItems: inventory.length,
-    inStock: inventory.filter(i => getStockStatus(i) === 'in-stock').length,
-    lowStock: inventory.filter(i => getStockStatus(i) === 'low-stock').length,
-    outOfStock: inventory.filter(i => getStockStatus(i) === 'out-of-stock').length,
-    totalValue: inventory.reduce((s, i) => s + i.currentStock * i.cost, 0),
-    categories: new Set(inventory.map(i => i.category)).size,
+  const categories = useMemo(() => [...new Set(inventory.map(i => i.category).filter(Boolean))].sort(), [inventory]);
+  const suppliers = useMemo(() => [...new Set(inventory.map(i => i.supplier).filter(Boolean))].sort(), [inventory]);
+  const counts = useMemo(() => ({
+    total: inventory.length,
+    inStock: inventory.filter(i => stockStatus(i) === 'in-stock').length,
+    lowStock: inventory.filter(i => stockStatus(i) === 'low-stock').length,
+    outOfStock: inventory.filter(i => stockStatus(i) === 'out-of-stock').length,
+    value: inventory.reduce((sum, i) => sum + i.currentStock * i.cost, 0),
   }), [inventory]);
 
-  const statusCounts: Record<string, number> = {
-    'in-stock': stats.inStock,
-    'low-stock': stats.lowStock,
-    'out-of-stock': stats.outOfStock,
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inventory.filter(item =>
+      (!q || item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q) || (item.description ?? '').toLowerCase().includes(q))
+      && (statusFilter === 'all' || stockStatus(item) === statusFilter)
+      && (category === ALL || item.category === category)
+      && (supplier === ALL || item.supplier === supplier));
+  }, [inventory, search, statusFilter, category, supplier]);
+  const rows = useMemo(() => sortRows(filtered, sort, (i, id) => (id === 'status' ? stockStatus(i) : typeof i[id as keyof InventoryItem] === 'string' ? String(i[id as keyof InventoryItem]).toLowerCase() : i[id as keyof InventoryItem])), [filtered, sort]);
+  const hasFilters = !!search || statusFilter !== 'all' || category !== ALL || supplier !== ALL;
+
+  const openEditor = (item: InventoryItem | null) => { setEditing(item); setDialogOpen(true); };
+  const remove = async (item: InventoryItem) => {
+    if (!await confirm({ title: `Delete ${item.name}?`, message: 'This removes the item from this browser. It cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
+    try { deleteItem(item.id); toast.success(`${item.name} was deleted.`); } catch (e) { toast.error(e instanceof Error ? e.message : 'The item could not be deleted.'); }
   };
+  const save = (item: InventoryItem) => upsertItem(item);
 
-  const filtered = useMemo(() => inventory.filter(item => {
-    const q = searchTerm.toLowerCase();
-    if (q && !item.name.toLowerCase().includes(q) && !item.sku.toLowerCase().includes(q) && !item.description.toLowerCase().includes(q)) return false;
-    if (selectedCategories.length && !selectedCategories.includes(item.category)) return false;
-    if (selectedStatus.length && !selectedStatus.includes(getStockStatus(item))) return false;
-    if (selectedSuppliers.length && !selectedSuppliers.includes(item.supplier)) return false;
-    return true;
-  }), [inventory, searchTerm, selectedCategories, selectedStatus, selectedSuppliers]);
+  const rowActions = (item: InventoryItem) => (
+    <span className="inline-flex gap-1">
+      <IconButton icon="edit" label={`Edit ${item.name}`} size="sm" onClick={() => openEditor(item)} />
+      <IconButton icon="delete" label={`Delete ${item.name}`} size="sm" variant="danger" onClick={() => remove(item)} />
+    </span>
+  );
 
-  const exportColumns: DLColumn[] = [
-    { key: 'name', label: 'Item', width: 24 },
-    { key: 'sku', label: 'SKU', width: 16 },
-    { key: 'category', label: 'Category', width: 16 },
-    { key: 'currentStock', label: 'Current Stock', width: 14 },
-    { key: 'minStock', label: 'Min Stock', width: 12 },
-    { key: 'maxStock', label: 'Max Stock', width: 12 },
-    { key: 'unit', label: 'Unit', width: 10 },
-    { key: 'cost', label: 'Unit Cost', width: 12 },
-    { key: 'supplier', label: 'Supplier', width: 20 },
-    { key: 'location', label: 'Location', width: 18 },
-    { key: 'status', label: 'Status', width: 14, format: (_v, row) => STATUS_LABELS[getStockStatus(row as unknown as InventoryItem)] },
-    { key: 'lastRestocked', label: 'Last Restocked', width: 16, format: v => v ? formatDate(v as string) : '' },
-  ];
+  // The card itself opens the editor, so its own action is only Delete (no duplicate "Edit" control).
+  const cardActions = (item: InventoryItem) => <IconButton icon="delete" label={`Delete ${item.name}`} size="sm" variant="danger" onClick={() => remove(item)} />;
 
-  const hasActiveFilters = !!(searchTerm || selectedCategories.length || selectedStatus.length || selectedSuppliers.length);
-
-  // Group the filtered list by category — alphabetically, "Uncategorized" last.
-  const grouped = useMemo(() => {
-    const map = new Map<string, InventoryItem[]>();
-    for (const item of filtered) {
-      const key = item.category || 'Uncategorized';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(item);
-    }
-    return [...map.keys()]
-      .sort((a, b) => (a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)))
-      .map(category => ({ category, color: categoryColor(category === 'Uncategorized' ? undefined : category), items: map.get(category)! }));
-  }, [filtered]);
-
-  const handleDelete = async (id: string) => {
-    if (!await confirm({ title: 'Delete this item?', destructive: true })) return;
-    deleteItem(id);
-  };
-
-  const isGroupOpen = (category: string) => !!searchTerm || !collapsedGroups.has(category);
-  const toggleGroup = (category: string) => setCollapsedGroups(prev => {
-    const next = new Set(prev);
-    next.has(category) ? next.delete(category) : next.add(category);
-    return next;
-  });
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedCategories([]);
-    setSelectedStatus([]);
-    setSelectedSuppliers([]);
-  };
-
-  const heroTiles = [
-    { icon: Package, color: ACCENT_HEX.blue, value: stats.totalItems, label: 'Total', onClick: () => setSelectedStatus([]) },
-    { icon: Package, color: STATUS_COLORS['in-stock'], value: stats.inStock, label: 'In Stock', onClick: () => setSelectedStatus(['in-stock']) },
-    { icon: Package, color: STATUS_COLORS['low-stock'], value: stats.lowStock, label: 'Low Stock', onClick: () => setSelectedStatus(['low-stock']) },
-    { icon: Package, color: STATUS_COLORS['out-of-stock'], value: stats.outOfStock, label: 'Out of Stock', onClick: () => setSelectedStatus(['out-of-stock']) },
-    { icon: DollarSign, color: ACCENT_HEX.emerald, value: `$${stats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, label: 'Value' },
-    { icon: Package, color: ACCENT_HEX.violet, value: stats.categories, label: 'Categories' },
+  const COLUMNS: Column<InventoryItem>[] = [
+    { id: 'name', header: 'Item', sortable: true, sticky: true, cell: i => <span>{i.name}<span className="block font-mono text-caption font-normal text-ink-muted">{i.sku}</span></span> },
+    { id: 'category', header: 'Category', sortable: true, hideBelow: 'md', cell: i => i.category || <span className="text-ink-muted">None</span> },
+    { id: 'status', header: 'Status', sortable: true, cell: i => <StatusTag item={i} /> },
+    { id: 'currentStock', header: 'Stock', numeric: true, sortable: true, cell: i => <span>{i.currentStock}<span className="text-ink-muted"> / {i.maxStock} {i.unit}</span></span> },
+    { id: 'cost', header: 'Unit cost', numeric: true, sortable: true, hideBelow: 'md', cell: i => money(i.cost) },
+    { id: 'location', header: 'Location', hideBelow: 'lg', cell: i => i.location },
+    { id: 'supplier', header: 'Supplier', hideBelow: 'lg', cell: i => i.supplier },
   ];
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Package}
-        accent="violet"
-        crumbs={['Core Management', 'Inventory']}
-        title="Inventory Management"
-        description="Manage stock levels, track reorder points, and keep inventory organised."
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Core management' }, { label: 'Inventory' }]}
+        title="Inventory"
+        description="Stock levels, reorder points and locations."
+        actions={(
           <>
-            <button
-              type="button"
-              onClick={loadInventory}
-              title="Refresh"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-colors`}
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
                 columns={exportColumns}
                 filename={exportFilename('Inventory')}
-                title="Inventory Management"
+                title="Inventory"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_COLORS[getStockStatus(row as unknown as InventoryItem)]?.replace('#', '')}
+                statusColor={(_v, row) => STATUS[stockStatus(row as unknown as InventoryItem)].hex}
               />
             )}
-            <PrimaryButton href="/inventory/create" icon={Plus}>New Item</PrimaryButton>
+            <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>
           </>
-        }
-      >
-        <div className="flex flex-wrap gap-1">
-          {heroTiles.map(tile => <StatTile key={tile.label} {...tile} />)}
-        </div>
-      </PageHero>
-
-      {/* Filters & Search */}
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-4`}>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, SKU, description…" className="flex-1" />
-          <div className="flex gap-2 flex-wrap items-center">
-            <button
-              type="button"
-              onClick={() => setShowFilters(v => !v)}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} transition-colors ${showFilters ? 'bg-brand-500/15 text-brand-400' : `${t.textMuted} ${t.hoverText} ${t.glassSoft}`}`}
-            >
-              <Filter className="h-3.5 w-3.5" /> Filters
-              {hasActiveFilters && <span className={`ml-1 px-1.5 py-0.5 ${t.chipBg} rounded text-[10px]`}>{filtered.length}</span>}
-            </button>
-            {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.textFaint} ${t.hoverText} ${t.hoverBg} transition-colors`}>
-                <FilterX className="h-3.5 w-3.5" /> Clear
-              </button>
-            )}
-            <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: Grid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
-          </div>
-        </div>
-
-        {showFilters && (
-          <div className={`pt-4 border-t ${t.border} grid grid-cols-1 sm:grid-cols-3 gap-4`}>
-            <div>
-              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Category</p>
-              <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                {CATEGORIES.map(cat => {
-                  const inputId = `inv-filter-cat-${cat.replace(/\s+/g, '-').toLowerCase()}`;
-                  return (
-                    <label key={cat} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        id={inputId}
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat)}
-                        onChange={e => setSelectedCategories(prev => e.target.checked ? [...prev, cat] : prev.filter(c => c !== cat))}
-                        aria-label={cat}
-                        className="h-3.5 w-3.5 rounded accent-brand-500"
-                      />
-                      <span className={`text-xs ${t.textMuted}`}>{cat}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Stock Status</p>
-              <div className="space-y-1.5">
-                {(['in-stock', 'low-stock', 'out-of-stock'] as const).map(s => {
-                  const inputId = `inv-filter-status-${s}`;
-                  return (
-                    <label key={s} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        id={inputId}
-                        type="checkbox"
-                        checked={selectedStatus.includes(s)}
-                        onChange={e => setSelectedStatus(prev => e.target.checked ? [...prev, s] : prev.filter(x => x !== s))}
-                        aria-label={STATUS_LABELS[s]}
-                        className="h-3.5 w-3.5 rounded accent-brand-500"
-                      />
-                      <span className={`text-xs ${t.textMuted}`}>{STATUS_LABELS[s]} ({statusCounts[s]})</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} mb-2`}>Supplier</p>
-              <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                {SUPPLIERS.map(sup => {
-                  const inputId = `inv-filter-supplier-${sup.replace(/\s+/g, '-').toLowerCase()}`;
-                  return (
-                    <label key={sup} htmlFor={inputId} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        id={inputId}
-                        type="checkbox"
-                        checked={selectedSuppliers.includes(sup)}
-                        onChange={e => setSelectedSuppliers(prev => e.target.checked ? [...prev, sup] : prev.filter(s => s !== sup))}
-                        aria-label={sup}
-                        className="h-3.5 w-3.5 rounded accent-brand-500"
-                      />
-                      <span className={`text-xs ${t.textMuted}`}>{sup}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
         )}
-      </div>
+      />
 
-      {/* Results */}
-      <p className={`text-sm ${t.textFaint}`}>
-        Showing <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{filtered.length}</span> of {inventory.length} items
-        {hasActiveFilters && ' (filtered)'}
-      </p>
+      <Notice tone="info" icon="info" title="Stored in this browser only">
+        This register is not connected to a shared service. Items are saved on this device and are not visible to other people or devices.
+      </Notice>
 
-      {filtered.length === 0 ? (
-        <div className={`${t.glass} rounded-2xl p-12 text-center`}>
-          <Package className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-          <h3 className={`text-lg ${TYPE_WEIGHT.semibold} ${t.textPrimary} mb-2`}>
-            {inventory.length === 0 ? 'No Inventory Items Yet' : 'No Items Match'}
-          </h3>
-          <p className={`${t.textFaint} text-sm mb-4`}>
-            {inventory.length === 0
-              ? 'Add your first inventory item to start tracking stock levels.'
-              : 'Try adjusting your search or filters.'}
-          </p>
-          {inventory.length === 0 && (
-            <PrimaryButton href="/inventory/create" icon={Plus} size="md">Add First Item</PrimaryButton>
-          )}
+      <MetricGrid columns={5}>
+        <MetricTile label="Items" icon="package" value={counts.total} selected={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
+        <MetricTile label="In stock" icon="valid" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} />
+        <MetricTile label="Low stock" icon="low-stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} />
+        <MetricTile label="Out of stock" icon="out-of-stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} />
+        <MetricTile label="Stock value" icon="value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+      </MetricGrid>
+
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, SKU or description" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Segmented label="Stock status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTERS} />
+        {categories.length > 0 && <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />}
+        {suppliers.length > 0 && <Select className="w-44" aria-label="Filter by supplier" value={supplier} onValueChange={setSupplier} options={[{ value: ALL, label: 'All suppliers' }, ...suppliers.map(s => ({ value: s, label: s }))]} />}
+      </Toolbar>
+
+      {inventory.length === 0 ? (
+        <EmptyState icon="package" title="No inventory items yet" description="Add your first item to start tracking stock levels." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon="search" title="No items match" description="Try a different search or filter." action={hasFilters ? <Button onClick={() => { setSearch(''); setStatusFilter('all'); setCategory(ALL); setSupplier(ALL); }}>Clear filters</Button> : undefined} />
+      ) : view === 'cards' ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map(item => (
+            <RecordCard
+              key={item.id}
+              eyebrow={<span className="font-mono">{item.sku}</span>}
+              title={item.name}
+              subtitle={item.category || undefined}
+              status={<StatusTag item={item} />}
+              facts={[
+                { label: 'Stock', value: <span>{item.currentStock} / {item.maxStock} {item.unit}</span> },
+                { label: 'Unit cost', value: money(item.cost) },
+                ...(item.location ? [{ label: 'Location', value: item.location }] : []),
+                ...(item.supplier ? [{ label: 'Supplier', value: item.supplier }] : []),
+                { label: 'Restocked', value: formatDate(item.lastRestocked) },
+              ]}
+              meta={<Progress value={stockPct(item)} label={`${item.name} stock level`} className="min-w-32" />}
+              action={cardActions(item)}
+              onOpen={() => openEditor(item)}
+              openLabel={`Edit ${item.name}`}
+            />
+          ))}
         </div>
       ) : (
-        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
-          {grouped.map(g => (
-            <GroupSection
-              key={g.category}
-              icon={Package}
-              accentHex={g.color}
-              title={g.category}
-              count={g.items.length}
-              countLabel={g.items.length === 1 ? 'item' : 'items'}
-              open={isGroupOpen(g.category)}
-              onToggle={() => toggleGroup(g.category)}
-              gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
-            >
-              {g.items.map(item => (
-                <motion.div key={item.id} variants={fadeUp}>
-                  {viewMode === 'grid'
-                    ? <InventoryCard item={item} onDelete={() => handleDelete(item.id)} />
-                    : <InventoryRow item={item} onDelete={() => handleDelete(item.id)} />}
-                </motion.div>
-              ))}
-            </GroupSection>
-          ))}
-        </motion.div>
+        <DataTable caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} onRowActivate={openEditor} rowActions={rowActions} />
       )}
-    </main>
+
+      <ItemDialog item={editing} existing={inventory} open={dialogOpen} onOpenChange={setDialogOpen} onSave={save} />
+    </div>
   );
 }
 
 export default function InventoryPage() {
   return (
-    <AppShell>
+    <AppShell migrated>
       <InventoryPageContent />
     </AppShell>
   );

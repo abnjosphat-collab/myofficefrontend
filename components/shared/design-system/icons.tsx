@@ -427,6 +427,59 @@ export {
   Wrench as Tool,
 } from '@phosphor-icons/react';
 
+// Bare-Phosphor glyphs for the design-system's own maps (Stage B: ToolsIcon,
+// EquipmentIcon, and dallaglio/icons.ts all resolve through this barrel —
+// never a direct '@phosphor-icons/react' import — so the weight toggle stays
+// global and the family stays single).
+export {
+  ArrowsDownUp,
+  ArrowsLeftRight,
+  ArrowClockwise,
+  ArrowCounterClockwise,
+  ArrowDown,
+  ArrowUp,
+  ArrowUUpLeft,
+  ArrowUUpRight,
+  Buildings,
+  CalendarBlank,
+  CaretDown,
+  CaretRight,
+  ChatCircleText,
+  CirclesFour,
+  ClipboardText,
+  ClockCounterClockwise,
+  Cube,
+  CurrencyCircleDollar,
+  DotsSixVertical,
+  DotsThree,
+  EnvelopeSimple,
+  EyeSlash,
+  FilePdf,
+  FileXls,
+  Gear,
+  Handshake,
+  HardDrives,
+  House,
+  ImageSquare,
+  Lightning,
+  MagnifyingGlass,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
+  Medal,
+  PaperPlaneTilt,
+  PencilSimple,
+  Pulse,
+  Rows,
+  Toolbox,
+  TreeStructure,
+  TrendUp,
+  UploadSimple,
+  UserGear,
+  Warning,
+  WarningCircle,
+  WarningOctagon,
+} from '@phosphor-icons/react';
+
 // ─── Icon-style preference (solid/outline), persisted, default solid ─────────
 export type IconStyle = 'solid' | 'outline';
 const ICON_STYLE_KEY = 'oz_iconStyle';

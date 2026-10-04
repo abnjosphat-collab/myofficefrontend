@@ -1,3 +1,5 @@
+> **Superseded 3 Oct 2026.** The current handoff is [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md). Kept for history; do not follow its instructions where they differ.
+
 # MyOffice takeover handoff for Claude — 30 September 2026
 
 ## Purpose

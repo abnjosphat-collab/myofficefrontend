@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { toast } from 'sonner';
-import { Download, FileSpreadsheet, FileDown, useTheme, Button } from '@/components/shared/theme';
-import controls from '@/components/shared/design-system/dallaglio/controls.module.css';
+import { Button, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
@@ -60,11 +58,6 @@ export function DownloadButton({
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
   const [open, setOpen] = useState(false);
-  const theme = useTheme();
-  const dallaglio = theme.design === 'dallaglio';
-  const menuItemClass = dallaglio
-    ? 'flex min-h-10 w-full items-center gap-2.5 px-3.5 text-left text-[13px] text-[var(--d-ink)] outline-none transition-colors hover:bg-[var(--d-soft)] focus:bg-[var(--d-soft)]'
-    : 'flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/80 hover:bg-white/[0.08] hover:text-white transition-colors text-left outline-none';
 
   const downloadExcel = async () => {
     setOpen(false);
@@ -237,67 +230,25 @@ export function DownloadButton({
     }
   };
 
-  // A single offered format needs no dropdown — one direct-trigger button.
+  // One offered format needs no menu: a single direct button. Two formats: the shared Menu.
   if (formats.length === 1) {
     const onlyFormat = formats[0];
-    const Icon = onlyFormat === 'excel' ? FileSpreadsheet : FileDown;
-    if (dallaglio) return <Button variant="secondary" size="sm" icon={Icon} onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF} className={className}>Download</Button>;
     return (
-      <button
-        type="button"
-        onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF}
-        className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all hover:-translate-y-0.5 ${className}`}
-      >
-        <Icon className="h-3.5 w-3.5" />
+      <Button variant="secondary" icon="download" onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF} className={className}>
         Download
-      </button>
+      </Button>
     );
   }
 
-  // Radix DropdownMenu underneath the exact same visual output (2026-08-29, UI
-  // foundation hardening plan Phase 3 — audit/07-ui-polish-findings.md flagged this
-  // as no Escape, no ARIA menu semantics, and not portaled — clippable inside an
-  // overflow-hidden ancestor). Portal fixes the clipping gap too, not just Escape/
-  // ARIA; position/offset (align="end", sideOffset={6}) reproduce the old
-  // `absolute right-0 top-full mt-1.5` exactly.
   return (
-    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
-      <DropdownMenu.Trigger asChild>
-        {dallaglio ? <button type="button" data-ds="button" data-variant="secondary" className={`${controls.btn} ${controls.secondary} ${controls.sizeSm} ${className}`}><Download className="h-3.5 w-3.5" weight="light" />Download</button> : <button
-          type="button"
-          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold border border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all hover:-translate-y-0.5 ${className}`}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Download
-        </button>}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className={dallaglio ? 'z-50 min-w-[172px] overflow-hidden rounded-[var(--d-radius-md)] border border-[var(--d-line)] bg-[var(--d-surface)] p-1 shadow-[var(--d-shadow-hover)] outline-none' : 'z-50 min-w-[160px] rounded-xl border border-white/[0.12] bg-[#0d1f33]/95 backdrop-blur-xl shadow-2xl overflow-hidden outline-none'}
-        >
-          <DropdownMenu.Item asChild onSelect={downloadExcel}>
-            <button
-              type="button"
-              className={menuItemClass}
-            >
-              <FileSpreadsheet className={`h-4 w-4 shrink-0 ${dallaglio ? 'text-[var(--d-ink-muted)]' : 'text-emerald-400'}`} />
-              Export Excel
-            </button>
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className={dallaglio ? 'mx-2 my-1 h-px bg-[var(--d-line)]' : 'h-px bg-white/[0.07]'} />
-          <DropdownMenu.Item asChild onSelect={downloadPDF}>
-            <button
-              type="button"
-              className={menuItemClass}
-            >
-              <FileDown className={`h-4 w-4 shrink-0 ${dallaglio ? 'text-[var(--d-ink-muted)]' : 'text-rose-400'}`} />
-              Export PDF
-            </button>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <Menu open={open} onOpenChange={setOpen}>
+      <MenuTrigger asChild>
+        <Button variant="secondary" icon="download" iconAfter="chevron-down" className={className}>Download</Button>
+      </MenuTrigger>
+      <MenuContent align="end" className="min-w-48">
+        <MenuItem icon="table-view" onSelect={downloadExcel}>Export Excel</MenuItem>
+        <MenuItem icon="pdf" onSelect={downloadPDF}>Export PDF</MenuItem>
+      </MenuContent>
+    </Menu>
   );
 }

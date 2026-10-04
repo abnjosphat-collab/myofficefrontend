@@ -13,8 +13,10 @@ describe('timesheetWritePayload', () => {
       regular_hours: 12,
       nightshift_hours: 0,
       _auto: 'overtime',
+      _moduleApproval: { approved: 1, pending: 2 },
     } as Omit<TimesheetEntry, 'id'> & { _auto: 'overtime' });
     expect(out).not.toHaveProperty('_auto');
+    expect(out).not.toHaveProperty('_moduleApproval');
     expect(out.nightshift_hours).toBeGreaterThan(0);
     expect(out.nightshift_allowance).toBe(true);
   });

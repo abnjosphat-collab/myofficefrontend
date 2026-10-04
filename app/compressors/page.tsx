@@ -1,812 +1,212 @@
-// app/compressors/page.tsx
+// app/compressors/page.tsx — compressor tracking: daily cumulative-hour readings, services, analytics, fleet management.
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  Calendar, Download, ChevronLeft, ChevronRight, Settings, Search,
-  BarChart3, AlertTriangle, CheckCircle2, TrendingUp, Gauge,
-  Power, Activity, FileText, Plus, List, Grid, Wrench,
-  Calculator, CheckCheck, Timer, Save, Upload,
-  ChevronDown, ChevronUp, Copy, Loader2, RefreshCw,
-  XCircle,
-} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { ListAutocomplete } from '@/components/shared/ListAutocomplete';
-import { useLookupList } from '@/hooks/useLookups';
-import { formatDate } from '@/lib/format';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { PillTabs } from '@/components/shared/PillTabs';
-import { exportFilename } from '@/lib/exportUtils';
 import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, ViewToggle, Button,
-  FormField, useCollapseSection, CenterModal, ProgressBar, ACCENT_HEX, GlowCard, SelectField, accentText, TYPE_WEIGHT, PrimaryButton,
-} from '@/components/shared/theme';
-import type {
-  AddCompressorFormData, Compressor, CompressorInput, Filters,
-  IsSaving, PreviousReading, StatusDialogState,
-} from './types';
-import { SERVICE_INTERVALS, useCompressorsData } from './useCompressorsData';
-import { calculateEfficiency, getEfficiencyStatus, autoAdjustLoadedHours, calculateDailyDelta, calculateNextService as calcNextService } from './calcCompressors';
+  Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Select,
+  StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useViewPreference,
+  type Column,
+} from '@/components/ui-system';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { useLookupList } from '@/hooks/useLookups';
+import { exportFilename } from '@/lib/exportUtils';
+import { AddCompressorDialog, StatusDialog } from './dialogs';
+import { AnalyticsTab } from './AnalyticsTab';
+import { ManagementTab } from './ManagementTab';
+import { ReadingCard } from './ReadingCard';
+import { ServicesTab } from './ServicesTab';
+import { calculateNextService, localDateString } from './calcCompressors';
+import { STATUS_KEYS, STATUS_META, URGENCY_TONE, hours, statusLabel } from './meta';
+import type { Compressor } from './types';
+import { useCompressorsData } from './useCompressorsData';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const ALL = '__all__';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  running:     { label: 'Running',     color: '#34d399', icon: Activity },
-  standby:     { label: 'Standby',     color: ACCENT_HEX.blue, icon: Power },
-  maintenance: { label: 'Maintenance', color: '#f59e0b', icon: AlertTriangle },
-  offline:     { label: 'Offline',     color: '#f43f5e', icon: XCircle },
-};
+const parseDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const shiftDay = (s: string, by: number) => { const d = parseDay(s); d.setDate(d.getDate() + by); return localDateString(d); };
+const dayLabel = (s: string) => parseDay(s).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
-// Harmonized onto STATUS_TONE (2026-08-29 palette consolidation, see
-// audit/07-ui-polish-findings.md) — was its own 4-color red/orange/amber/green scale,
-// distinct from every other page's priority colors. high/low shift shade slightly
-// (orange->amber, green->gray) to match the app-wide critical/warning/info/neutral
-// convention established on spares/requisitions rather than reinventing a scale here.
-const URGENCY_COLOR: Record<string, string> = { critical: STATUS_TONE.critical, high: STATUS_TONE.warning, medium: STATUS_TONE.info, low: STATUS_TONE.neutral };
-const RATING_COLOR: Record<string, string> = { Excellent: STATUS_TONE.good, Good: STATUS_TONE.info, Fair: STATUS_TONE.warning, Poor: STATUS_TONE.critical };
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'name', label: 'Name', width: 20 }, { key: 'model', label: 'Model', width: 20 }, { key: 'capacity', label: 'Capacity', width: 14 },
+  { key: 'location', label: 'Location', width: 16 }, { key: 'status', label: 'Status', width: 14, format: v => statusLabel(v as string) },
+  { key: 'total_running_hours', label: 'Running hours', width: 16, format: v => hours(v as number) },
+  { key: 'total_loaded_hours', label: 'Loaded hours', width: 16, format: v => hours(v as number) },
+];
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+function CompressorsContent() {
+  const [date, setDate] = useState(() => localDateString(new Date()));
+  const d = useCompressorsData(date);
+  const { register, compressors, stats, previous } = d;
+  const lookupLocations = useLookupList('location');
+  const [view, setView] = useViewPreference('compressors', VIEW_CARDS_TABLE);
+  const [tab, setTab] = useState('daily');
+  const [search, setSearch] = useState('');
+  const [locationF, setLocationF] = useState(ALL);
+  const [statusF, setStatusF] = useState(ALL);
+  const [includeOffline, setIncludeOffline] = useState(true);
+  const [showDaily, setShowDaily] = useState(true);
+  const [dueSoon, setDueSoon] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [statusId, setStatusId] = useState<number | null>(null);
+  const [readingId, setReadingId] = useState<number | null>(null);
 
-function CompressorReadingsSystem() {
-  const t = useTheme();
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const {
-    compressors, previousReadings, isLoading, isSaving, loadError, servicesError, compressorsLoaded,
-    stats, upcomingServices, analyticsData, managementData,
-    refresh: loadAllData,
-    fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,
-    updateCompressorHours, addCompressor, updateCompressorStatus, markServiceCompleted,
-    generateCSVReport, importData,
-  } = useCompressorsData(currentDate);
-  const [activeTab, setActiveTab] = useState<string>('daily');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [showInactive, setShowInactive] = useState(true);
-  const [showDailyHours, setShowDailyHours] = useState(true);
-  const [defaultOperatingHours] = useState(8);
-  const [maintenanceBufferDays] = useState(7);
-  const [filters, setFilters] = useState<Filters>({ location: 'all', status: 'all', search: '', showMaintenance: false });
-  const [expandedCompressor, setExpandedCompressor] = useState<number | null>(null);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<string>('monthly');
-  const [analyticsMetric, setAnalyticsMetric] = useState<string>('efficiency');
-  const [showAddCompressor, setShowAddCompressor] = useState<boolean>(false);
-  const [compressorInputs, setCompressorInputs] = useState<Record<number, CompressorInput>>({});
-  const [statusUpdateDialog, setStatusUpdateDialog] = useState<StatusDialogState>({ open: false, compressorId: null, currentStatus: '' });
-  // Real, shared location list (backend/app/routers/lookup_lists.py) — replaces
-  // the stale hardcoded LOCATIONS array the filter used to draw from.
-  const locationOptions = useLookupList('location');
+  const locations = useMemo(() => [...new Set([...lookupLocations, ...compressors.map(c => c.location).filter(Boolean)])].sort(), [lookupLocations, compressors]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return compressors.filter(c =>
+      (!q || [c.name, c.model, c.location].some(s => s?.toLowerCase().includes(q)))
+      && (locationF === ALL || c.location === locationF) && (statusF === ALL || c.status === statusF)
+      && (includeOffline || c.status !== 'offline') && (!dueSoon || calculateNextService(c.total_running_hours)?.isUrgent));
+  }, [compressors, search, locationF, statusF, includeOffline, dueSoon]);
+  const statusCompressor = compressors.find(c => c.id === statusId) ?? null;
+  const readingCompressor = compressors.find(c => c.id === readingId) ?? null;
 
-  const sections = useCollapseSection({ hero: true });
+  const status = deriveDataStatus({ loaded: register.loaded, loading: register.loading, error: register.error, errorStatus: register.errorStatus, count: filtered.length, transient: isTransientStatus(register.errorStatus) });
+  const unavailable = !register.loaded && !register.loading;
+  const hasFilters = !!search || locationF !== ALL || statusF !== ALL || !includeOffline || dueSoon;
+  const clearFilters = () => { setSearch(''); setLocationF(ALL); setStatusF(ALL); setIncludeOffline(true); setDueSoon(false); };
+  const s = stats.data;
+  const tileState = { loading: stats.loading && !stats.loaded, unavailable: !stats.loaded && !!stats.error };
 
-  useEffect(() => {
-    if (compressors.length > 0) {
-      const inputs: Record<number, CompressorInput> = {};
-      compressors.forEach(c => {
-        inputs[c.id] = { totalRunning: c.total_running_hours || 0, totalLoaded: c.total_loaded_hours || 0, pressure: 0, temperature: 0, notes: '' };
-      });
-      setCompressorInputs(inputs);
-    }
-  }, [compressors]);
-
-  const getCurrentDateStr = useCallback(() => currentDate.toISOString().split('T')[0], [currentDate]);
-  const previousDay = () => setCurrentDate(p => { const d = new Date(p); d.setDate(d.getDate() - 1); return d; });
-  const nextDay = () => setCurrentDate(p => { const d = new Date(p); d.setDate(d.getDate() + 1); return d; });
-  const goToToday = () => setCurrentDate(new Date());
-
-  const calculateNextService = useCallback(
-    (totalRunningHours: number) => calcNextService(totalRunningHours, defaultOperatingHours, maintenanceBufferDays),
-    [defaultOperatingHours, maintenanceBufferDays],
+  const card = (c: Compressor) => (
+    <ReadingCard
+      key={`${c.id}-${c.total_running_hours}-${c.total_loaded_hours}-${date}`}
+      compressor={c}
+      previous={previous.byId[c.id]}
+      previousUnavailable={previous.failed.includes(c.id)}
+      previousLoading={previous.loading}
+      nextService={calculateNextService(c.total_running_hours)}
+      dateLabel={dayLabel(date)}
+      showDaily={showDaily}
+      onSave={v => d.saveReading(c.id, v)}
+      onChangeStatus={() => setStatusId(c.id)}
+    />
   );
 
-  const handleRunningHoursChange = (id: number, value: string) => {
-    const n = parseFloat(value) || 0;
-    const loaded = autoAdjustLoadedHours(n, compressorInputs[id]?.totalLoaded || 0);
-    setCompressorInputs(p => ({ ...p, [id]: { ...p[id], totalRunning: n, totalLoaded: loaded } }));
-  };
-  const handleLoadedHoursChange = (id: number, value: string) => {
-    const n = parseFloat(value) || 0;
-    setCompressorInputs(p => ({ ...p, [id]: { ...p[id], totalLoaded: Math.min(n, p[id]?.totalRunning || 0) } }));
-  };
-  const calculateDailyFromInputs = (id: number) => {
-    const inp = compressorInputs[id]; const prev = previousReadings[id];
-    if (!inp || !prev) return { dailyRunning: 0, dailyLoaded: 0 };
-    return {
-      dailyRunning: calculateDailyDelta(inp.totalRunning || 0, prev.total_running_hours || 0),
-      dailyLoaded: calculateDailyDelta(inp.totalLoaded || 0, prev.total_loaded_hours || 0),
-    };
-  };
-  const getPreviousReadingInfo = (id: number) => {
-    const prev = previousReadings[id];
-    if (!prev) return { running: 0, loaded: 0, date: 'No previous reading' };
-    // || 0 guard — missing here even though calculateDailyFromInputs right above
-    // already uses it for the same previousReadings[id] source. A previous reading
-    // with a null/undefined total_running_hours or total_loaded_hours (an
-    // incomplete record) made every .toFixed(1) call on prevInfo.running/loaded
-    // crash the whole card (found live, 2026-08-29 UI audit,
-    // audit/07-ui-polish-findings.md).
-    return { running: prev.total_running_hours || 0, loaded: prev.total_loaded_hours || 0, date: prev.date === 'Initial' ? 'Initial' : formatDate(prev.date) };
-  };
-  const filteredCompressors = useMemo(() => compressors.filter(c => {
-    if (filters.location !== 'all' && c.location !== filters.location) return false;
-    if (filters.status !== 'all' && c.status !== filters.status) return false;
-    if (filters.search && !c.name.toLowerCase().includes(filters.search.toLowerCase())) return false;
-    if (!showInactive && c.status === 'offline') return false;
-    if (filters.showMaintenance) { const si = calculateNextService(c.total_running_hours); if (!si?.isUrgent) return false; }
-    return true;
-  }), [compressors, filters, showInactive, calculateNextService]);
-
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`;
-
-  // ── Compressor Card ────────────────────────────────────────────────────────
-
-  function CompressorCard({ compressor }: { compressor: Compressor }) {
-    const inp = compressorInputs[compressor.id] || ({} as CompressorInput);
-    const si = calculateNextService(compressor.total_running_hours);
-    const { dailyRunning, dailyLoaded } = calculateDailyFromInputs(compressor.id);
-    const efficiency = calculateEfficiency(dailyRunning, dailyLoaded);
-    const eff = getEfficiencyStatus(efficiency);
-    const prevInfo = getPreviousReadingInfo(compressor.id);
-    const saving = isSaving.id === compressor.id;
-
-    const handleSave = async () => {
-      try { await updateCompressorHours(compressor.id, Number(inp.totalRunning) || 0, Number(inp.totalLoaded) || 0, Number(inp.pressure) || 0, Number(inp.temperature) || 0, inp.notes || ''); } catch { /* handled */ }
-    };
-    const handleCopyPrev = () => {
-      setCompressorInputs(p => ({ ...p, [compressor.id]: { ...p[compressor.id], totalRunning: prevInfo.running || 0, totalLoaded: prevInfo.loaded || 0 } }));
-      toast.success('Copied previous totals');
-    };
-
-    return (
-      <GlowCard color={si?.isUrgent ? '#f43f5e' : ACCENT_HEX.blue} surface={`${t.glass} rounded-2xl`} className="overflow-hidden">
-        <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between`}>
-          <div className="flex items-center gap-2.5">
-            <div className={`w-9 h-9 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-brand-400" /></div>
-            <div>
-              <div className={`${TYPE_WEIGHT.semibold} text-sm flex items-center gap-1.5 ${t.textPrimary}`}>
-                {compressor.name}
-                {si?.isUrgent && <span title={`Service due in ${si.daysRemaining} days`}><AlertTriangle className={`h-3.5 w-3.5 ${accentText('rose', t.light)}`} /></span>}
-              </div>
-              <div className={`text-xs ${t.textFaint}`}>{compressor.model} · {compressor.location}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => setStatusUpdateDialog({ open: true, compressorId: compressor.id, currentStatus: compressor.status })}>
-              <StatusBadge color={STATUS_CONFIG[compressor.status]?.color ?? '#94a3b8'} label={STATUS_CONFIG[compressor.status]?.label ?? compressor.status} dot />
-            </button>
-            {si ? <StatusBadge color={URGENCY_COLOR[si.urgency] ?? URGENCY_COLOR.low} label={`${si.interval}h in ${si.daysRemaining}d`} /> : <StatusBadge color="#34d399" label="All done" />}
-          </div>
-        </div>
-
-        <div className="p-4 space-y-3">
-          <div className={`${t.chipBg} rounded-xl p-3`}>
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className={`${TYPE_WEIGHT.medium} ${t.textFaint}`}>Previous Reading</span>
-              <span className={t.textFaint}>{prevInfo.date}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center"><div className={`text-sm ${TYPE_WEIGHT.semibold} text-brand-400`}>{prevInfo.running.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Running</div></div>
-              <div className="text-center"><div className={`text-sm ${TYPE_WEIGHT.semibold} text-brand-400`}>{prevInfo.loaded.toFixed(1)}h</div><div className={`text-[10px] ${t.textFaint}`}>Loaded</div></div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Cumulative hours · {getCurrentDateStr()}</span>
-              <button type="button" onClick={handleCopyPrev} className={`inline-flex items-center gap-1 text-[10px] ${t.textFaint} ${t.hoverText} transition-colors`}><Copy className="h-3 w-3" />Copy prev</button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <FormField label="Total Running (h)">
-                <input type="number" step="0.1" aria-label="Total running hours" value={inp.totalRunning || ''} disabled={saving} placeholder="Enter total" onChange={e => handleRunningHoursChange(compressor.id, e.target.value)} className={inputCls} />
-                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.running.toFixed(1)}</span><span>Cur: {(compressor.total_running_hours || 0).toFixed(1)}</span></div>
-              </FormField>
-              <FormField label="Total Loaded (h)">
-                <input type="number" step="0.1" aria-label="Total loaded hours" value={inp.totalLoaded || ''} disabled={saving} placeholder="Enter total" onChange={e => handleLoadedHoursChange(compressor.id, e.target.value)} className={inputCls} />
-                <div className={`text-[10px] mt-0.5 flex justify-between ${t.textFaint}`}><span>Prev: {prevInfo.loaded.toFixed(1)}</span><span>Cur: {(compressor.total_loaded_hours || 0).toFixed(1)}</span></div>
-              </FormField>
-            </div>
-          </div>
-
-          {showDailyHours && (
-            <div className="bg-brand-500/[0.08] rounded-xl p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>Daily Calculated</span>
-                <span className="flex items-center gap-1 text-[10px] text-brand-400/70"><Calculator className="h-3 w-3" />Auto</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center">
-                  <div className={`text-xl ${TYPE_WEIGHT.bold} text-brand-400`}>{dailyRunning.toFixed(1)}h</div>
-                  <div className={`text-[10px] ${t.textFaint}`}>Running Today</div>
-                  <div className={`text-[10px] ${t.textFaint}`}>({prevInfo.running.toFixed(1)} → {inp.totalRunning || 0}h)</div>
-                </div>
-                <div className="text-center">
-                  <div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{dailyLoaded.toFixed(1)}h</div>
-                  <div className={`text-[10px] ${t.textFaint}`}>Loaded Today</div>
-                  <div className={`text-[10px] ${t.textFaint}`}>({prevInfo.loaded.toFixed(1)} → {inp.totalLoaded || 0}h)</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {dailyRunning > 0 && (
-            <div className={`rounded-xl p-3 ${t.chipBg}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <div className={`flex items-center gap-1.5 text-xs ${TYPE_WEIGHT.semibold} ${t.textMuted}`}><TrendingUp className="h-3.5 w-3.5" />Efficiency</div>
-                  <div className={`text-2xl ${TYPE_WEIGHT.bold} mt-0.5 ${t.textPrimary}`}>{efficiency}%</div>
-                  <div className={`text-[10px] ${t.textFaint}`}>{dailyLoaded.toFixed(1)}h / {dailyRunning.toFixed(1)}h</div>
-                </div>
-                <StatusBadge color={eff.color} label={eff.label} />
-              </div>
-              <ProgressBar value={efficiency} color={eff.color} showValue={false} />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2">
-            <FormField label="Pressure">
-              <input type="number" step="0.1" aria-label="Pressure (psi)" value={inp.pressure || ''} disabled={saving} placeholder="0.0" onChange={e => setCompressorInputs(p => ({ ...p, [compressor.id]: { ...p[compressor.id], pressure: e.target.value } }))} className={inputCls} />
-            </FormField>
-            <FormField label="Temperature">
-              <input type="number" step="0.1" aria-label="Temperature (°C)" value={inp.temperature || ''} disabled={saving} placeholder="0.0" onChange={e => setCompressorInputs(p => ({ ...p, [compressor.id]: { ...p[compressor.id], temperature: e.target.value } }))} className={inputCls} />
-            </FormField>
-          </div>
-
-          <FormField label="Notes">
-            <input type="text" aria-label="Notes" value={inp.notes || ''} disabled={saving} placeholder="Add notes…" onChange={e => setCompressorInputs(p => ({ ...p, [compressor.id]: { ...p[compressor.id], notes: e.target.value } }))} className={inputCls} />
-          </FormField>
-
-          <PrimaryButton fullWidth size="md" submitting={saving} onClick={handleSave}>Save Entry</PrimaryButton>
-        </div>
-      </GlowCard>
-    );
-  }
-
-  // ── Add Compressor Modal ─────────────────────────────────────────────────────
-
-  function AddCompressorForm() {
-    const [fd, setFd] = useState<AddCompressorFormData>({ name: '', model: '', capacity: '', location: 'Main Plant', status: 'standby', total_running_hours: 0, total_loaded_hours: 0, color: 'bg-brand-500' });
-    const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!fd.name || !fd.model || !fd.capacity) { toast.error('Please fill required fields'); return; }
-      try { await addCompressor(fd); setShowAddCompressor(false); } catch { /* handled */ }
-    };
-    return (
-      <CenterModal open={showAddCompressor} onClose={() => setShowAddCompressor(false)} title="Add New Compressor" accent="violet" width="max-w-2xl">
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Compressor Name" required><input aria-label="Compressor Name" className={inputCls} value={fd.name} onChange={e => setFd(p => ({ ...p, name: e.target.value }))} placeholder="Compressor #1" /></FormField>
-            <FormField label="Model" required><input aria-label="Model" className={inputCls} value={fd.model} onChange={e => setFd(p => ({ ...p, model: e.target.value }))} placeholder="Atlas Copco GA37" /></FormField>
-            <FormField label="Capacity" required><input aria-label="Capacity" className={inputCls} value={fd.capacity} onChange={e => setFd(p => ({ ...p, capacity: e.target.value }))} placeholder="37 kW" /></FormField>
-            <FormField label="Location">
-              <ListAutocomplete listName="location" value={fd.location} onChange={v => setFd(p => ({ ...p, location: v }))} />
-            </FormField>
-            <FormField label="Total Running Hours"><input type="number" aria-label="Total Running Hours" className={inputCls} value={String(fd.total_running_hours)} onChange={e => setFd(p => ({ ...p, total_running_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
-            <FormField label="Total Loaded Hours"><input type="number" aria-label="Total Loaded Hours" className={inputCls} value={String(fd.total_loaded_hours)} onChange={e => setFd(p => ({ ...p, total_loaded_hours: parseFloat(e.target.value) || 0 }))} /></FormField>
-            <FormField label="Initial Status">
-              <SelectField size="form" title="Initial status" value={fd.status} onChange={v => setFd(p => ({ ...p, status: v }))}
-                options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))} />
-            </FormField>
-          </div>
-          <div className={`flex gap-2 pt-2 border-t ${t.border}`}>
-            <button type="button" onClick={() => setShowAddCompressor(false)} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <PrimaryButton type="submit" size="md" fullWidth submitting={isSaving.type === 'add'}>Add Compressor</PrimaryButton>
-          </div>
-        </form>
-      </CenterModal>
-    );
-  }
-
-  function StatusUpdateModal() {
-    const [sel, setSel] = useState<string>(statusUpdateDialog.currentStatus);
-    useEffect(() => setSel(statusUpdateDialog.currentStatus), [statusUpdateDialog.currentStatus]);
-    return (
-      <CenterModal open={statusUpdateDialog.open} onClose={() => setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' })} title="Update Compressor Status" accent="violet" width="max-w-sm">
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-              const Icon = cfg.icon;
-              return (
-                <button key={key} type="button" onClick={() => setSel(key)}
-                  className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${sel === key ? 'ring-1 ring-inset ring-white/20' : `${t.chipBg} border-transparent ${t.textFaint} ${t.hoverBg}`}`}
-                  style={sel === key ? { background: `${cfg.color}22`, borderColor: `${cfg.color}55`, color: cfg.color } : undefined}>
-                  <Icon className="h-5 w-5" /><span className={`text-xs ${TYPE_WEIGHT.semibold}`}>{cfg.label}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className={`text-xs ${t.textFaint}`}>Current: <span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{STATUS_CONFIG[statusUpdateDialog.currentStatus]?.label ?? 'Unknown'}</span></p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' })} className={`flex-1 py-2.5 rounded-xl text-sm ${t.textMuted} ${t.hoverText} border ${t.border}`}>Cancel</button>
-            <PrimaryButton size="md" fullWidth submitting={isSaving.type === 'status'} disabled={sel === statusUpdateDialog.currentStatus}
-              onClick={async () => { try { await updateCompressorStatus(statusUpdateDialog.compressorId, sel); setStatusUpdateDialog({ open: false, compressorId: null, currentStatus: '' }); } catch { /* handled */ } }}>
-              Update Status
-            </PrimaryButton>
-          </div>
-        </div>
-      </CenterModal>
-    );
-  }
-
-  const exportColumns: DLColumn[] = [
-    { key: 'name', label: 'Name', width: 20 },
-    { key: 'model', label: 'Model', width: 20 },
-    { key: 'capacity', label: 'Capacity', width: 14 },
-    { key: 'location', label: 'Location', width: 16 },
-    { key: 'status', label: 'Status', width: 14, format: v => STATUS_CONFIG[v as string]?.label ?? (v as string) },
-    { key: 'total_running_hours', label: 'Running Hours', width: 16, format: v => `${(v as number).toFixed(1)}h` },
-    { key: 'total_loaded_hours', label: 'Loaded Hours', width: 16, format: v => `${(v as number).toFixed(1)}h` },
+  const COLUMNS: Column<Compressor>[] = [
+    { id: 'name', header: 'Compressor', sortable: false, sticky: true, cell: c => <div><p className="font-medium text-ink">{c.name}</p><p className="text-caption text-ink-muted">{c.model}</p></div> },
+    { id: 'status', header: 'Status', cell: c => <StatusBadge tone={STATUS_META[c.status]?.tone ?? 'neutral'} icon={STATUS_META[c.status]?.icon}>{statusLabel(c.status)}</StatusBadge> },
+    { id: 'location', header: 'Location', hideBelow: 'md', cell: c => c.location },
+    { id: 'running', header: 'Total running', hideBelow: 'md', cell: c => <div className="tabular"><p className="font-medium text-ink">{hours(c.total_running_hours)}</p><p className="text-caption text-ink-muted">{previous.failed.includes(c.id) ? 'Previous unavailable' : `Previous ${hours(previous.byId[c.id]?.total_running_hours)}`}</p></div> },
+    { id: 'loaded', header: 'Total loaded', hideBelow: 'lg', cell: c => <div className="tabular"><p className="font-medium text-ink">{hours(c.total_loaded_hours)}</p><p className="text-caption text-ink-muted">{previous.failed.includes(c.id) ? 'Previous unavailable' : `Previous ${hours(previous.byId[c.id]?.total_loaded_hours)}`}</p></div> },
+    { id: 'next', header: 'Next service', hideBelow: 'md', cell: c => { const si = calculateNextService(c.total_running_hours); return si ? <StatusBadge tone={URGENCY_TONE[si.urgency] ?? 'neutral'} icon={si.isUrgent ? 'warning' : undefined}>{`${si.interval} h in ${si.daysRemaining} d`}</StatusBadge> : <span className="text-ink-muted">All passed</span>; } },
   ];
 
-  const tabs = [
-    { key: 'daily', label: 'Daily View', icon: Calendar, meaning: 'calendar' as const },
-    { key: 'services', label: 'Services', icon: Wrench, meaning: 'service' as const },
-    { key: 'analytics', label: 'Analytics', icon: BarChart3, meaning: 'analytics' as const },
-    { key: 'management', label: 'Management', icon: Settings, meaning: 'settings' as const },
-  ];
+  const backup = () => {
+    const data = { compressors, stats: stats.data, upcomingServices: d.services.data, performanceMetrics: d.metrics.data, trends: d.trends.data, comparison: d.comparison.data, management: d.summary.data, exportDate: new Date().toISOString() };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = `compressors-backup-${localDateString(new Date())}.json`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Backup downloaded.');
+  };
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Gauge}
-        accent="violet"
-        crumbs={['Operations & Maintenance', 'Compressors']}
-        title="Compressor Tracking"
-        description="Daily readings, maintenance scheduling & efficiency tracking"
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Compressors' }]}
+        title="Compressor tracking"
+        description="Daily readings, service scheduling and efficiency."
+        actions={(
           <>
-            <Button variant="icon" icon={RefreshCw} title="Refresh compressors" submitting={isLoading} onClick={loadAllData} />
-            {compressors.length > 0 && (
-              <DownloadButton
-                data={compressors as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('compressors')}
-                title="Compressor Tracking"
-                formats={['excel']}
-              />
-            )}
-            <PrimaryButton icon={Plus} disabled={!compressorsLoaded} onClick={() => setShowAddCompressor(true)}>Add Compressor</PrimaryButton>
+            <IconButton icon="refresh" label="Refresh compressors" variant="outline" pending={register.loading && register.loaded} onClick={() => d.refresh()} />
+            {compressors.length > 0 && <DownloadButton data={compressors as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('compressors')} title="Compressor Tracking" formats={['excel']} />}
+            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setAdding(true)}>Add compressor</Button>
           </>
-        }
-      >
-        {stats && (
-          <div className="flex flex-wrap gap-1">
-            <StatTile icon={Gauge} color={ACCENT_HEX.blue} value={stats.total_compressors} label="Total Units" />
-            <StatTile icon={Activity} color="#34d399" value={`${stats.total_running_hours?.toFixed(1) ?? 0}h`} label="Running Hours" />
-            {/* ?? 0 guard, matching the Running Hours tile right above — without it,
-                a missing avg_efficiency literally rendered the text "undefined%"
-                (found live, 2026-08-29 UI audit, audit/07-ui-polish-findings.md). */}
-            <StatTile icon={TrendingUp} color={ACCENT_HEX.violet} value={`${stats.avg_efficiency ?? 0}%`} label="Avg Efficiency" />
-            <StatTile icon={Wrench} color="#f59e0b" value={stats.upcoming_services} label="Upcoming Services" />
-            <StatTile icon={AlertTriangle} color="#f43f5e" value={stats.urgent_alerts} label="Urgent Alerts" />
-            <StatTile icon={CheckCircle2} color="#14b8a6" value={stats.active_compressors} label="Active" />
-          </div>
         )}
-      </PageHero>
+      />
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className="px-4 pt-3"><PillTabs tabs={tabs} value={activeTab} onChange={setActiveTab} wrap="scroll" /></div>
-
-        {/* ── DAILY VIEW ── */}
-        {activeTab === 'daily' && (
-          <div className="p-4 space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Button variant="icon" icon={ChevronLeft} title="Previous day" onClick={previousDay} />
-                <span className={`text-sm ${TYPE_WEIGHT.semibold} min-w-[110px] text-center ${t.textPrimary}`}>{mounted ? formatDate(currentDate) : ''}</span>
-                <Button variant="icon" icon={ChevronRight} title="Next day" onClick={nextDay} />
-                <Button variant="secondary" size="xs" onClick={goToToday}>Today</Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-                <div className="relative">
-                  <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none ${t.textFaint}`} />
-                  <input type="text" aria-label="Search compressors" placeholder="Search…" value={filters.search} onChange={e => setFilters(p => ({ ...p, search: e.target.value }))} className={`w-40 h-8 pl-8 pr-3 rounded-lg text-sm ${t.inputBg} focus:outline-none`} />
-                </div>
-                <SelectField size="filter" title="Location" value={filters.location} onChange={v => setFilters(p => ({ ...p, location: v }))} className="w-36"
-                  options={[{ value: 'all', label: 'All Locations' }, ...locationOptions.map(l => ({ value: l, label: l }))]} />
-                <SelectField size="filter" title="Status" value={filters.status} onChange={v => setFilters(p => ({ ...p, status: v }))} className="w-32"
-                  options={[{ value: 'all', label: 'All Status' }, ...Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))]} />
-                <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'card', icon: Grid, label: 'Card view' }, { value: 'list', icon: List, label: 'List view' }]} />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              {[
-                { label: 'Show Inactive', val: showInactive, set: setShowInactive },
-                { label: 'Daily Hours', val: showDailyHours, set: setShowDailyHours },
-                { label: 'Urgent Only', val: filters.showMaintenance, set: (v: boolean) => setFilters(p => ({ ...p, showMaintenance: v })) },
-              ].map(({ label, val, set }) => (
-                <Button key={label} variant={val ? 'subtle' : 'secondary'} size="sm" onClick={() => set(!val)}>
-                  {label}
-                </Button>
-              ))}
-            </div>
-
-            {isLoading && !compressorsLoaded ? (
-              <div className={`flex items-center justify-center py-12 gap-2 ${t.textFaint}`}><Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading compressors…</span></div>
-            ) : loadError && !compressorsLoaded ? null : viewMode === 'card' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredCompressors.map(c => <CompressorCard key={c.id} compressor={c} />)}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className={`border-b ${t.border}`}>
-                      {['Compressor', 'Status', 'Location', 'Total Running', 'Total Loaded', 'Next Service', ''].map(h => (
-                        <th key={h} className={`py-3 px-3 text-left text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCompressors.map(c => {
-                      const si = calculateNextService(c.total_running_hours);
-                      const isExp = expandedCompressor === c.id;
-                      const prevInfo = getPreviousReadingInfo(c.id);
-                      return (
-                        <React.Fragment key={c.id}>
-                          <tr className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                            {/* aria-label mirrors the (real, already-visible) name/model text below — the
-                                icon+nested-divs structure sits past this rule's default recursion depth,
-                                so it can't statically see that text is there even though screen readers do. */}
-                            <td className="py-2.5 px-3" aria-label={`${c.name} — ${c.model}`}>
-                              <div className="flex items-center gap-2.5">
-                                <div className={`w-7 h-7 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-3.5 w-3.5 text-brand-400" /></div>
-                                <div><div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{c.name}</div><div className={`text-xs ${t.textFaint}`}>{c.model}</div></div>
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <button type="button" onClick={() => setStatusUpdateDialog({ open: true, compressorId: c.id, currentStatus: c.status })}>
-                                <StatusBadge color={STATUS_CONFIG[c.status]?.color ?? '#94a3b8'} label={STATUS_CONFIG[c.status]?.label ?? c.status} dot />
-                              </button>
-                            </td>
-                            <td className={`py-2.5 px-3 ${t.textMuted}`}>{c.location}</td>
-                            <td className="py-2.5 px-3"><div className={`${TYPE_WEIGHT.medium} text-brand-400`}>{c.total_running_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.running.toFixed(1)}h</div></td>
-                            <td className="py-2.5 px-3"><div className={`${TYPE_WEIGHT.medium} text-brand-400`}>{c.total_loaded_hours.toFixed(1)}h</div><div className={`text-xs ${t.textFaint}`}>Prev: {prevInfo.loaded.toFixed(1)}h</div></td>
-                            <td className="py-2.5 px-3">{si ? <span className={`text-sm ${TYPE_WEIGHT.semibold}`} style={{ color: URGENCY_COLOR[si.urgency] }}>{si.interval}h in {si.daysRemaining}d</span> : <span className={t.textFaint}>—</span>}</td>
-                            <td className="py-2.5 px-3">
-                              <button type="button" onClick={() => setExpandedCompressor(isExp ? null : c.id)} className={`h-7 w-7 flex items-center justify-center rounded-md ${t.textFaint} ${t.hoverText} transition-colors`}>
-                                {isExp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                              </button>
-                            </td>
-                          </tr>
-                          {isExp && <tr className={`border-b ${t.border}`}><td colSpan={7} className="p-4"><CompressorCard compressor={c} /></td></tr>}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {!isLoading && loadError && (
-              <div role="alert" className={`${compressorsLoaded ? `flex items-start gap-3 rounded-xl p-4 bg-amber-500/10 ${accentText('amber', t.light)}` : `text-center py-12 ${t.textMuted}`}`}>
-                <AlertTriangle className="h-8 w-8 mx-auto mb-3" />
-                <div className={compressorsLoaded ? 'flex-1' : ''}>
-                  <p className="text-sm">{compressorsLoaded ? 'Compressor register may be out of date' : 'Could not load compressors'}</p>
-                  <p className={`text-xs mt-1 ${compressorsLoaded ? '' : 'mb-4'} ${t.textFaint}`}>{loadError}</p>
-                </div>
-                <Button variant="secondary" icon={RefreshCw} onClick={loadAllData}>Try again</Button>
-              </div>
-            )}
-            {!isLoading && compressorsLoaded && !loadError && filteredCompressors.length === 0 && (
-              <div className="text-center py-12">
-                <Gauge className={`h-12 w-12 ${t.textFaint} mx-auto mb-4`} />
-                <p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textMuted}`}>No compressors found</p>
-                <p className={`text-xs mt-1 mb-4 ${t.textFaint}`}>Adjust filters or add a new compressor</p>
-                <PrimaryButton icon={Plus} size="md" onClick={() => setShowAddCompressor(true)}>Add First Compressor</PrimaryButton>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── SERVICES ── */}
-        {activeTab === 'services' && (
-          <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-3">
-                <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider flex items-center gap-1.5 ${t.textFaint}`}><Wrench className="h-3.5 w-3.5" />Upcoming Services</p>
-                {upcomingServices.map(svc => (
-                  <GlowCard key={`${svc.compressor_id}-${svc.service_interval}`} color={svc.urgency === 'critical' || svc.urgency === 'high' ? '#f43f5e' : ACCENT_HEX.blue}
-                    surface={`${t.glass} rounded-xl`} className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full ${t.chipBg} flex items-center justify-center`}><Gauge className="h-4 w-4 text-brand-400" /></div>
-                        <div><div className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{svc.compressor_name}</div><div className={`text-xs ${t.textFaint}`}>Current: {svc.current_hours}h · Next: {svc.next_service_hours}h</div></div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-lg ${TYPE_WEIGHT.bold}`} style={{ color: URGENCY_COLOR[svc.urgency] }}>{svc.service_interval}h</div>
-                        <div className={`text-xs ${t.textFaint}`}>{svc.hours_remaining}h remaining</div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
-                      {[{ l: 'Current Hours', v: `${svc.current_hours}h` }, { l: 'Days Until', v: `${svc.days_remaining}d` }].map(({ l, v }) => (
-                        <div key={l} className={`${t.chipBg} rounded-lg p-2`}><div className={t.textFaint}>{l}</div><div className={`${TYPE_WEIGHT.semibold} mt-0.5 ${t.textMuted}`}>{v}</div></div>
-                      ))}
-                      <div className={`${t.chipBg} rounded-lg p-2`}><div className={`mb-0.5 ${t.textFaint}`}>Urgency</div><StatusBadge color={URGENCY_COLOR[svc.urgency] ?? URGENCY_COLOR.low} label={svc.urgency} /></div>
-                    </div>
-                    <ProgressBar value={(svc.current_hours / svc.next_service_hours) * 100} color={ACCENT_HEX.blue} showValue={false} />
-                    <PrimaryButton icon={CheckCircle2} accent="emerald" size="xs" className="mt-3" submitting={isSaving.id === svc.compressor_id}
-                      onClick={() => markServiceCompleted(svc.compressor_id, svc.service_interval)}>
-                      Mark as Done
-                    </PrimaryButton>
-                  </GlowCard>
-                ))}
-                {servicesError && (
-                  <div role="alert" className={`text-center py-10 ${t.textMuted}`}>
-                    <AlertTriangle className="h-8 w-8 mx-auto mb-3" />
-                    <p className="text-sm">Could not load upcoming services</p>
-                    <p className={`text-xs mt-1 ${t.textFaint}`}>{servicesError}</p>
-                  </div>
-                )}
-                {!servicesError && upcomingServices.length === 0 && (
-                  <div className="text-center py-10"><CheckCheck className={`h-10 w-10 ${t.light ? 'text-emerald-600/50' : 'text-emerald-400/50'} mx-auto mb-3`} /><p className={`text-sm ${TYPE_WEIGHT.medium} ${t.textFaint}`}>All compressors up to date</p></div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Service Intervals</p></div>
-                  <div className="p-3 space-y-2">
-                    {SERVICE_INTERVALS.map(iv => (
-                      <div key={iv} className={`flex items-center justify-between px-3 py-2 ${t.chipBg} rounded-xl`}>
-                        <div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-brand-400" /><span className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{iv}h</span></div>
-                        <span className={`text-xs ${t.textFaint}`}>{loadError ? 'Unavailable' : `${compressors.filter(c => calculateNextService(c.total_running_hours)?.interval === iv).length} due`}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Export Data</p></div>
-                  <div className="p-3 space-y-2">
-                    <button type="button" onClick={generateCSVReport} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}><FileText className="h-4 w-4 text-brand-400" />Export to CSV</button>
-                    <label htmlFor="compressor-import-csv" className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all cursor-pointer`}>
-                      <Upload className={`h-4 w-4 ${accentText('amber', t.light)}`} />Import from CSV
-                      <input id="compressor-import-csv" type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={async e => { const f = e.target.files?.[0]; if (f) { try { await importData(f); } catch { /* handled */ } } }} />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ANALYTICS ── */}
-        {activeTab === 'analytics' && (
-          <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 space-y-4">
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between`}>
-                    <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Performance Metrics</p>
-                    <SelectField size="filter" title="Period" value={analyticsPeriod} onChange={v => { setAnalyticsPeriod(v); fetchPerformanceMetrics(v === 'weekly' ? 7 : v === 'monthly' ? 30 : 90); }} className="w-36"
-                      options={[{ value: 'weekly', label: 'Last 7 Days' }, { value: 'monthly', label: 'Last 30 Days' }, { value: 'quarterly', label: 'Last 90 Days' }]} />
-                  </div>
-                  {analyticsData.performanceMetrics.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className={`border-b ${t.border}`}>
-                            {['Compressor', 'Avg Efficiency', 'Avg Daily', 'Total Hours', 'Downtime', 'Services'].map(h => (
-                              <th key={h} className={`py-2.5 px-3 text-left text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {analyticsData.performanceMetrics.map(m => (
-                            <tr key={m.compressor_id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                              <td className={`py-2.5 px-3 ${TYPE_WEIGHT.medium} ${t.textMuted}`}>{m.compressor_name}</td>
-                              {/* aria-label mirrors the visible percentage — same recursion-depth gap as
-                                  the compressor-name column above. */}
-                              <td className="py-2.5 px-3" aria-label={`${m.avg_efficiency}% average efficiency`}>
-                                <div className="flex items-center gap-1.5">
-                                  <div className={`w-2 h-2 rounded-full ${m.avg_efficiency >= 80 ? 'bg-emerald-500' : m.avg_efficiency >= 60 ? 'bg-brand-500' : m.avg_efficiency >= 40 ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                                  <span className={t.textMuted}>{m.avg_efficiency}%</span>
-                                </div>
-                              </td>
-                              <td className={`py-2.5 px-3 ${t.textFaint}`}>{m.avg_daily_running_hours.toFixed(1)}h / {m.avg_daily_loaded_hours.toFixed(1)}h</td>
-                              <td className={`py-2.5 px-3 ${t.textFaint}`}>{m.total_running_hours.toFixed(1)}h / {m.total_loaded_hours.toFixed(1)}h</td>
-                              <td className="py-2.5 px-3"><div className="flex items-center gap-1.5"><ProgressBar value={m.downtime_percentage} color="#f43f5e" showValue={false} /><span className={`text-xs ${t.textFaint}`}>{m.downtime_percentage.toFixed(1)}%</span></div></td>
-                              <td className="py-2.5 px-3"><StatusBadge color="#94a3b8" label={String(m.service_count)} /></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-10"><BarChart3 className={`h-10 w-10 ${t.textFaint} mx-auto mb-3`} /><p className={`text-sm ${t.textFaint}`}>No performance data available</p></div>
-                  )}
-                </div>
-
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Trend Analysis</p></div>
-                  {analyticsData.trends.success && analyticsData.trends.data.length > 0 ? (
-                    <div className="p-4 space-y-3">
-                      {analyticsData.trends.data.slice(0, 5).map((trend, i) => (
-                        <div key={i} className={`${t.chipBg} rounded-xl p-3`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{trend.compressor_name}</span>
-                            <StatusBadge color={trend.efficiency_trend === 'improving' ? '#34d399' : trend.efficiency_trend === 'declining' ? '#f43f5e' : '#94a3b8'} label={trend.efficiency_trend === 'improving' ? '↑ Improving' : trend.efficiency_trend === 'declining' ? '↓ Declining' : '→ Stable'} />
-                          </div>
-                          <div className="grid grid-cols-3 gap-3 text-xs">
-                            {[{ l: 'Efficiency', v: `${trend.avg_efficiency}%` }, { l: 'Running', v: `${trend.total_running_hours?.toFixed(1) ?? 0}h` }, { l: 'Loaded', v: `${trend.total_loaded_hours?.toFixed(1) ?? 0}h` }].map(({ l, v }) => (
-                              <div key={l}><div className={t.textFaint}>{l}</div><div className={`${TYPE_WEIGHT.semibold} mt-0.5 ${t.textMuted}`}>{v}</div></div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-10"><TrendingUp className={`h-10 w-10 ${t.textFaint} mx-auto mb-3`} /><p className={`text-sm ${t.textFaint}`}>{analyticsData.trends.message || 'Add 7 days of readings to see trends'}</p></div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between`}>
-                    <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Comparison</p>
-                    <SelectField size="filter" title="Metric" value={analyticsMetric} onChange={v => { setAnalyticsMetric(v); fetchComparisonAnalytics(v); }} className="w-32"
-                      options={[{ value: 'efficiency', label: 'Efficiency' }, { value: 'running_hours', label: 'Running Hrs' }, { value: 'loaded_hours', label: 'Loaded Hrs' }]} />
-                  </div>
-                  <div className="p-3 space-y-2">
-                    {analyticsData.comparison.success && analyticsData.comparison.data.length > 0 ? (
-                      analyticsData.comparison.data.slice(0, 5).map(item => (
-                        <div key={item.compressor_id} className={`flex items-center justify-between ${t.chipBg} rounded-xl px-3 py-2`}>
-                          <div><div className={`${TYPE_WEIGHT.medium} text-sm ${t.textMuted}`}>{item.compressor_name}</div><div className={`text-xs ${t.textFaint}`}>{item.location}</div></div>
-                          <div className="text-right"><div className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{item.value}{analyticsMetric === 'efficiency' ? '%' : 'h'}</div><StatusBadge color={RATING_COLOR[item.rating] ?? RATING_COLOR.Poor} label={item.rating} /></div>
-                        </div>
-                      ))
-                    ) : <div className={`text-center py-4 text-sm ${t.textFaint}`}>{analyticsData.comparison.message || 'No comparison data'}</div>}
-                  </div>
-                </div>
-
-                {analyticsData.performanceMetrics.length > 0 && (
-                  <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                    <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Key Insights</p></div>
-                    <div className="p-3 space-y-2">
-                      {(() => {
-                        const best = [...analyticsData.performanceMetrics].sort((a, b) => b.avg_efficiency - a.avg_efficiency)[0];
-                        const mostActive = [...analyticsData.performanceMetrics].sort((a, b) => b.total_running_hours - a.total_running_hours)[0];
-                        const needsAtt = analyticsData.performanceMetrics.filter(m => m.downtime_percentage > 20 || m.avg_efficiency < 40);
-                        return (
-                          <>
-                            {best && <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10"><TrendingUp className={`h-4 w-4 ${accentText('emerald', t.light)} shrink-0`} /><div><div className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('emerald', t.light)}`}>Best Performer</div><div className={`text-xs ${t.textFaint}`}>{best.compressor_name} ({best.avg_efficiency}%)</div></div></div>}
-                            {mostActive && <div className="flex items-center gap-2 p-3 rounded-xl bg-brand-500/10"><Activity className="h-4 w-4 text-brand-400 shrink-0" /><div><div className={`text-xs ${TYPE_WEIGHT.semibold} text-brand-400`}>Most Active</div><div className={`text-xs ${t.textFaint}`}>{mostActive.compressor_name} ({mostActive.total_running_hours}h)</div></div></div>}
-                            {needsAtt.length > 0 && <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10"><AlertTriangle className={`h-4 w-4 ${accentText('amber', t.light)} shrink-0`} /><div><div className={`text-xs ${TYPE_WEIGHT.semibold} ${accentText('amber', t.light)}`}>Needs Attention</div><div className={`text-xs ${t.textFaint}`}>{needsAtt.length} compressor{needsAtt.length > 1 ? 's' : ''}</div></div></div>}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── MANAGEMENT ── */}
-        {activeTab === 'management' && (
-          <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>System Summary</p></div>
-                {managementData.summary ? (
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Status Distribution</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(managementData.summary.status_distribution).map(([st, cnt]) => {
-                          const cfg = STATUS_CONFIG[st]; if (!cfg) return null;
-                          const Icon = cfg.icon;
-                          return (
-                            <div key={st} className="flex items-center gap-2 p-3 rounded-xl" style={{ background: `${cfg.color}18`, color: cfg.color }}>
-                              <Icon className="h-4 w-4" /><div><div className={`text-xl ${TYPE_WEIGHT.bold}`}>{cnt}</div><div className="text-xs">{cfg.label}</div></div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Location Distribution</p>
-                      <div className="space-y-2">
-                        {Object.entries(managementData.summary.location_distribution).map(([loc, cnt]) => (
-                          <div key={loc} className="flex items-center justify-between text-sm">
-                            <span className={t.textFaint}>{loc}</span>
-                            <div className="flex items-center gap-2"><span className={`${TYPE_WEIGHT.semibold} ${t.textMuted}`}>{cnt}</span><div className="w-24"><ProgressBar value={(cnt / (managementData.summary?.total_compressors || 1)) * 100} color={ACCENT_HEX.blue} showValue={false} /></div></div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider mb-2 ${t.textFaint}`}>Age Distribution</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[{ v: managementData.summary.age_distribution.less_than_year ?? 0, l: '< 1yr' }, { v: managementData.summary.age_distribution["1_3_years"] ?? 0, l: '1-3yr' }, { v: managementData.summary.age_distribution["3_5_years"] ?? 0, l: '3-5yr' }, { v: managementData.summary.age_distribution.more_than_5 ?? 0, l: '> 5yr' }].map(({ v, l }) => (
-                          <div key={l} className={`text-center ${t.chipBg} rounded-xl p-2`}><div className={`text-lg ${TYPE_WEIGHT.bold} text-brand-400`}>{v}</div><div className={`text-[10px] ${t.textFaint}`}>{l}</div></div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : <div className="text-center py-10"><Settings className={`h-10 w-10 ${t.textFaint} mx-auto mb-3`} /><p className={`text-sm ${t.textFaint}`}>Loading management data…</p></div>}
-              </div>
-
-              <div className="space-y-4">
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border} flex items-center justify-between`}>
-                    <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Recent Alerts</p>
-                    <StatusBadge color={(managementData.summary?.unread_alerts ?? 0) > 0 ? '#f43f5e' : '#94a3b8'} label={`${managementData.summary?.unread_alerts ?? 0} unread`} />
-                  </div>
-                  {managementData.summary?.recent_alerts?.length ? (
-                    <div className="p-3 space-y-2">
-                      {managementData.summary.recent_alerts.slice(0, 5).map(a => (
-                        <div key={a.id} className={`p-3 rounded-xl text-sm ${a.severity === 'critical' ? 'bg-rose-500/10' : a.severity === 'error' ? 'bg-amber-500/10' : 'bg-yellow-500/10'}`}>
-                          <div className="flex items-start justify-between">
-                            <div><div className={`${TYPE_WEIGHT.medium} ${t.textMuted}`}>{a.title}</div><div className={`text-xs mt-0.5 ${t.textFaint}`}>{a.message}</div></div>
-                            {!a.is_read && <StatusBadge color="#f43f5e" label="New" />}
-                          </div>
-                          <div className={`text-[10px] mt-1.5 ${t.textFaint}`}>{formatDate(a.created_at)}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : <div className="text-center py-6"><CheckCircle2 className={`h-8 w-8 ${t.light ? 'text-emerald-600/50' : 'text-emerald-400/50'} mx-auto mb-2`} /><p className={`text-sm ${t.textFaint}`}>No recent alerts</p></div>}
-                </div>
-
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>Recent Services</p></div>
-                  {managementData.summary?.recent_services?.length ? (
-                    <div className="p-3 space-y-2">
-                      {managementData.summary.recent_services.slice(0, 5).map(s => (
-                        <div key={s.id} className={`${t.chipBg} rounded-xl p-3`}>
-                          <div className="flex items-center justify-between mb-1.5"><span className={`${TYPE_WEIGHT.medium} text-sm ${t.textMuted}`}>{s.service_type}</span><StatusBadge color="#34d399" label="Completed" /></div>
-                          <p className={`text-xs mb-1 ${t.textFaint}`}>{s.description}</p>
-                          <div className={`flex items-center justify-between text-[10px] ${t.textFaint}`}><span>{s.service_date}</span><span>{s.running_hours_at_service}h</span></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : <div className="text-center py-6"><Wrench className={`h-8 w-8 ${t.textFaint} mx-auto mb-2`} /><p className={`text-sm ${t.textFaint}`}>No recent services</p></div>}
-                </div>
-
-                <div className={`${t.glass} rounded-xl overflow-hidden`}>
-                  <div className={`px-4 py-3 border-b ${t.border}`}><p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wider ${t.textFaint}`}>System Actions</p></div>
-                  <div className="p-3 space-y-2">
-                    {[
-                      { icon: RefreshCw, label: 'Refresh All Data', fn: loadAllData, cls: 'text-brand-400' },
-                      { icon: Download, label: 'Export System Report', fn: generateCSVReport, cls: accentText('emerald', t.light) },
-                    ].map(({ icon: Ic, label, fn, cls }) => (
-                      <button key={label} type="button" onClick={fn} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}>
-                        <Ic className={`h-4 w-4 ${cls}`} />{label}
-                      </button>
-                    ))}
-                    <button type="button" onClick={() => {
-                      const data = { compressors, stats, upcomingServices, analytics: analyticsData, management: managementData, exportDate: new Date().toISOString() };
-                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a'); a.href = url; a.download = `system-backup-${new Date().toISOString().split('T')[0]}.json`; a.click();
-                      toast.success('System backup exported');
-                    }} className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm ${t.textMuted} ${t.chipBg} ${t.hoverBg} transition-all`}>
-                      <Save className={`h-4 w-4 ${accentText('amber', t.light)}`} />Backup System Data
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="flex flex-col gap-3">
+        <MetricGrid columns={3}>
+          <MetricTile label="Total units" icon="compressor" value={s?.total_compressors} {...tileState} />
+          <MetricTile label="Running hours" icon="clock" value={s ? hours(s.total_running_hours) : undefined} {...tileState} />
+          <MetricTile label="Avg efficiency" icon="efficiency" value={s ? `${s.avg_efficiency ?? 0}%` : undefined} {...tileState} />
+          <MetricTile label="Upcoming services" icon="service" value={s?.upcoming_services} tone={s?.upcoming_services ? 'warning' : 'default'} {...tileState} />
+          <MetricTile label="Urgent alerts" icon="warning" value={s?.urgent_alerts} tone={s?.urgent_alerts ? 'danger' : 'default'} {...tileState} />
+          <MetricTile label="Active" icon="active" value={s?.active_compressors} {...tileState} />
+        </MetricGrid>
+        {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => d.refresh()}>Try again</Button>}>{stats.error}</Notice>}
       </div>
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList aria-label="Compressor sections">
+          <TabsTrigger value="daily" icon="calendar">Daily readings</TabsTrigger>
+          <TabsTrigger value="services" icon="service">Services</TabsTrigger>
+          <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="management" icon="maintenance">Management</TabsTrigger>
+        </TabsList>
 
-      <AddCompressorForm />
-      <StatusUpdateModal />
-    </main>
+        <TabsContent value="daily" className="mt-4 flex flex-col gap-4">
+          <Toolbar inline={2} filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+            <div className="flex items-center gap-2">
+              <IconButton icon="chevron-left" label="Previous day" variant="outline" onClick={() => setDate(shiftDay(date, -1))} />
+              <Input type="date" aria-label="Reading date" className="w-44" value={date} onChange={e => e.target.value && setDate(e.target.value)} />
+              <IconButton icon="chevron-right" label="Next day" variant="outline" onClick={() => setDate(shiftDay(date, 1))} />
+              <Button onClick={() => setDate(localDateString(new Date()))}>Today</Button>
+            </div>
+            <SearchField value={search} onValueChange={setSearch} placeholder="Search compressors" wrapperClassName="min-w-48 max-w-xs flex-1" />
+            <Select className="w-44" aria-label="Filter by location" value={locationF} onValueChange={setLocationF} options={[{ value: ALL, label: 'All locations' }, ...locations.map(l => ({ value: l, label: l }))]} />
+            <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...STATUS_KEYS.map(k => ({ value: k, label: STATUS_META[k].label }))]} />
+            {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+          </Toolbar>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Checkbox label="Include offline" checked={includeOffline} onChange={e => setIncludeOffline(e.target.checked)} />
+            <Checkbox label="Show daily figures" checked={showDaily} onChange={e => setShowDaily(e.target.checked)} />
+            <Checkbox label="Service due soon only" checked={dueSoon} onChange={e => setDueSoon(e.target.checked)} />
+          </div>
+
+          <DataRegion
+            status={status}
+            subject="compressors"
+            error={register.error}
+            onRetry={() => d.refresh()}
+            empty={hasFilters
+              ? <EmptyState icon="search" title="No compressors match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+              : <EmptyState icon="compressor" title="No compressors registered" description="Add the first compressor to start recording readings." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add compressor</Button>} />}
+          >
+            {previous.failed.length > 0 && <Notice tone="warning" title="Some previous readings could not be loaded">{previous.failed.length === 1 ? 'One compressor shows' : `${previous.failed.length} compressors show`} no previous totals. Its daily figures are left blank rather than guessed.</Notice>}
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'compressor' : 'compressors'}{filtered.length !== compressors.length ? ` of ${compressors.length}` : ''} · readings for {dayLabel(date)}</p>
+            {view === 'cards' ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(card)}</div>
+            ) : (
+              <DataTable
+                caption="Compressors"
+                rows={filtered}
+                columns={COLUMNS}
+                getRowId={c => String(c.id)}
+                onRowActivate={c => setReadingId(c.id)}
+                rowActions={c => (
+                  <span className="inline-flex gap-1">
+                    <IconButton icon="edit" size="sm" label={`Enter a reading for ${c.name}`} onClick={() => setReadingId(c.id)} />
+                    <IconButton icon="settings" size="sm" label={`Change status of ${c.name}`} onClick={() => setStatusId(c.id)} />
+                  </span>
+                )}
+              />
+            )}
+          </DataRegion>
+        </TabsContent>
+
+        <TabsContent value="services" className="mt-4">
+          <ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} onComplete={d.completeService} onExport={d.exportCsv} onImport={d.importCsv} />
+        </TabsContent>
+        <TabsContent value="analytics" className="mt-4">
+          <AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} />
+        </TabsContent>
+        <TabsContent value="management" className="mt-4">
+          <ManagementTab summary={d.summary} onRetry={() => d.refresh()} onExport={d.exportCsv} onBackup={backup} backupReady={register.loaded} />
+        </TabsContent>
+      </Tabs>
+
+      <AddCompressorDialog open={adding} onOpenChange={setAdding} locations={locations} onAdd={d.addCompressor} />
+      <StatusDialog compressor={statusCompressor} onClose={() => setStatusId(null)} onChange={d.changeStatus} />
+      <Dialog open={!!readingCompressor} onOpenChange={o => { if (!o) setReadingId(null); }} title={readingCompressor ? `Reading for ${readingCompressor.name}` : 'Reading'} size="md">
+        {readingCompressor && card(readingCompressor)}
+      </Dialog>
+    </div>
   );
 }
 
 export default function CompressorsPage() {
-  return (
-    <AppShell>
-      <CompressorReadingsSystem />
-    </AppShell>
-  );
+  return <AppShell migrated><CompressorsContent /></AppShell>;
 }

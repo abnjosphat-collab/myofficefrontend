@@ -23,7 +23,7 @@ interface HistoryEntry { value: string; count: number; lastUsed: number }
 // silently resetting the first time this ships.
 const byFrequencyThenRecency = (a: HistoryEntry, b: HistoryEntry) => b.count - a.count || b.lastUsed - a.lastUsed;
 
-function loadHistory(key: string): HistoryEntry[] {
+export function loadHistory(key: string): HistoryEntry[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = JSON.parse(localStorage.getItem(`prd_hist_${key}`) ?? '[]');
@@ -35,7 +35,7 @@ function loadHistory(key: string): HistoryEntry[] {
   } catch { return []; }
 }
 
-function saveToHistory(key: string, value: string) {
+export function saveToHistory(key: string, value: string) {
   if (!value.trim()) return;
   const existing = loadHistory(key);
   const match = existing.find(e => e.value === value);
@@ -271,7 +271,7 @@ export function PredictiveInput({
           <textarea
             ref={inputRef as React.Ref<HTMLTextAreaElement>}
             id={fieldId}
-            aria-label={captionId ? undefined : (placeholder || undefined)}
+            aria-label={captionId || idProp ? undefined : (placeholder || undefined)}
             aria-labelledby={captionId}
             value={value}
             disabled={disabled}
@@ -297,7 +297,7 @@ export function PredictiveInput({
             ref={inputRef as React.Ref<HTMLInputElement>}
             type="text"
             id={fieldId}
-            aria-label={captionId ? undefined : (placeholder || undefined)}
+            aria-label={captionId || idProp ? undefined : (placeholder || undefined)}
             aria-labelledby={captionId}
             value={value}
             disabled={disabled}

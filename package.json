@@ -14,7 +14,9 @@
     "test:a11y": "playwright test e2e/accessibility.spec.ts",
     "test:browser-quality": "playwright test e2e/accessibility.spec.ts e2e/tools-autofill.spec.ts",
     "test:visual": "playwright test e2e/visual.spec.ts",
-    "docs:check": "typedoc --options typedoc.json --emit none",
+    "docs:check": "typedoc --options typedoc.json --emit none && node scripts/docs-ledger.mjs --check && node scripts/docs-links.mjs",
+    "docs:ledger": "node scripts/docs-ledger.mjs",
+    "docs:links": "node scripts/docs-links.mjs",
     "docs:api": "typedoc --options typedoc.json"
   },
   "dependencies": {

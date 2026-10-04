@@ -1,134 +1,55 @@
-// app/documents/useDocumentsData.ts — the document hub's data-fetching layer: the CRUD
-// calls plus a hook that owns the current folder's document list and reload cycle. Split
-// out of page.tsx as part of the standing "decompose on touch" convention. Single
-// resource, parameterized by the active category/folder — same shape as timesheets'
-// period-scoped hook. The list only reloads while a category is selected (the Home view
-// never renders it), matching the original's guarded loadFiles exactly.
+// app/documents/useDocumentsData.ts — the hub's reads (honest load state, never a failure shown as an empty list) and writes
+// (they throw, so a dialog can show the reason and keep what was typed). Reads are scoped: nothing is requested until a
+// category is open, and moving to another folder starts from nothing instead of showing the previous folder's files.
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
-import type { Category, DocumentFile, Folder } from './types';
+import { useApiList } from '@/lib/useApiList';
+import { fromRow } from './documentLogic';
+import type { DocumentFile, Folder } from './types';
 
-function fromDb(row: Record<string, unknown>): DocumentFile {
-  return {
-    id:            String(row.id),
-    name:          String(row.name),
-    original_name: String(row.original_name ?? row.name),
-    type:          String(row.file_type  ?? 'file'),
-    categoryId:    String(row.category_id ?? ''),
-    categoryName:  String(row.category_name ?? ''),
-    folderId:      row.folder_id ? String(row.folder_id) : null,
-    folderPath:    String(row.folder_path ?? ''),
-    file_size:     Number(row.file_size  ?? 0),
-    starred:       Boolean(row.starred),
-    description:   String(row.description ?? ''),
-    created_at:    String(row.created_at),
-    updated_at:    String(row.updated_at ?? row.created_at),
-    file_url:      String(row.file_url   ?? ''),
-    storage_path:  String(row.storage_path ?? ''),
-    mime_type:     String(row.mime_type  ?? ''),
-  };
+/** The files directly inside a folder; folder = null is the category's top level. */
+export function useDocuments(categoryId: string | null, folder: string | null) {
+  const params = new URLSearchParams({ category_id: categoryId ?? '' });
+  if (folder) params.set('folder_id', folder);
+  return useApiList<Record<string, unknown>, DocumentFile>(`/api/documents?${params}`, fromRow, { enabled: categoryId !== null });
 }
 
-export async function uploadDocument(fd: FormData): Promise<DocumentFile> {
-  return fromDb(await api.post<Record<string, unknown>>('/api/documents/upload', fd));
+export function useFolders(categoryId: string | null) {
+  return useApiList<Folder>(`/api/documents/folders?category_id=${encodeURIComponent(categoryId ?? '')}`, undefined, { enabled: categoryId !== null });
 }
 
-export async function deleteDocument(id: string): Promise<void> {
-  await api.delete(`/api/documents/${id}`);
+/** Search across every category. Waits for a pause in typing; the server returns at most SEARCH_LIMIT matches. */
+export function useDocumentSearch(query: string, delay = 300) {
+  const [typed, setTyped] = useState('');
+  const trimmed = query.trim();
+  useEffect(() => {
+    const timer = setTimeout(() => setTyped(trimmed), delay);
+    return () => clearTimeout(timer);
+  }, [trimmed, delay]);
+  // Cleared text stops the request at once; new text waits for a pause in typing.
+  const settled = trimmed ? typed : '';
+  const list = useApiList<Record<string, unknown>, DocumentFile>(`/api/documents/search?q=${encodeURIComponent(settled)}`, fromRow, { enabled: settled !== '' });
+  /** True while the box holds text the results do not yet answer. */
+  const pending = trimmed !== '' && trimmed !== settled;
+  return { ...list, pending, query: settled };
 }
 
-export async function updateDocument(id: string, updates: Partial<DocumentFile>): Promise<void> {
-  await api.put(`/api/documents/${id}`, updates);
+export async function uploadDocument(form: FormData): Promise<DocumentFile> {
+  return fromRow(await api.post<Record<string, unknown>>('/api/documents/upload', form));
 }
+export const updateDocument = async (id: string, patch: { name?: string; description?: string; starred?: boolean }) => { await api.put(`/api/documents/${id}`, patch); };
+export const deleteDocument = async (id: string) => { await api.delete(`/api/documents/${id}`); };
 
-// ─── Folders (backend-persisted custom subfolders) ───────────────────────────
+export const createFolder = (categoryId: string, categoryName: string, name: string) =>
+  api.post<Folder>('/api/documents/folders', { category_id: categoryId, category_name: categoryName, name });
+export const renameFolder = (id: string, name: string) => api.put<Folder>(`/api/documents/folders/${id}`, { name });
+export const deleteFolder = async (id: string) => { await api.delete(`/api/documents/folders/${id}`); };
 
-export async function fetchFolders(categoryId: string): Promise<Folder[]> {
-  const data = await api.get<unknown>(`/api/documents/folders?category_id=${encodeURIComponent(categoryId)}`);
-  if (!Array.isArray(data)) throw new Error('Document folders returned an unexpected response.');
-  return data as Folder[];
-}
-
-export async function createFolder(categoryId: string, categoryName: string, name: string): Promise<Folder> {
-  return api.post<Folder>('/api/documents/folders', { category_id: categoryId, category_name: categoryName, name });
-}
-
-export async function renameFolder(id: string, name: string): Promise<Folder> {
-  return api.put<Folder>(`/api/documents/folders/${id}`, { name });
-}
-
-export async function deleteFolder(id: string): Promise<void> {
-  await api.delete(`/api/documents/folders/${id}`);
-}
-
-export function useFolders(currentCategory: Category | null) {
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const requestId = useRef(0);
-
-  const refresh = useCallback(async () => {
-    const id = ++requestId.current;
-    if (!currentCategory) { setFolders([]); setError(''); return; }
-    setIsLoading(true);
-    setError('');
-    try {
-      const rows = await fetchFolders(currentCategory.id);
-      if (id === requestId.current) setFolders(rows);
-    } catch (e) {
-      if (id === requestId.current) {
-        const message = e instanceof Error ? e.message : String(e);
-        setError(message); toast.error(`Failed to load folders: ${message}`);
-      }
-    } finally { if (id === requestId.current) setIsLoading(false); }
-  }, [currentCategory]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  return { folders, setFolders, isLoading, error, refresh };
-}
-
-// ─── Global search (across every category/folder) ────────────────────────────
-
-export async function searchDocuments(q: string): Promise<DocumentFile[]> {
-  if (!q.trim()) return [];
-  const data = await api.get<unknown>(`/api/documents/search?q=${encodeURIComponent(q)}`);
-  if (!Array.isArray(data)) throw new Error('Document search returned an unexpected response.');
-  return data.map(row => fromDb(row as Record<string, unknown>));
-}
-
-export function useDocumentsData(currentCategory: Category | null, currentFolder: string | null) {
-  const [documents, setDocuments] = useState<DocumentFile[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const requestId = useRef(0);
-  const scope = useRef('');
-
-  const refresh = useCallback(async (quiet = false) => {
-    const id = ++requestId.current;
-    if (!currentCategory) { setDocuments([]); setError(''); setIsLoading(false); return; }
-    const nextScope = `${currentCategory.id}:${currentFolder ?? ''}`;
-    if (scope.current !== nextScope) { scope.current = nextScope; setDocuments([]); quiet = false; }
-    if (quiet) setRefreshing(true); else setIsLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams({ category_id: currentCategory.id });
-      if (currentFolder) params.set('folder_id', currentFolder);
-      const data = await api.get<unknown>(`/api/documents?${params}`);
-      if (!Array.isArray(data)) throw new Error('Documents returned an unexpected response.');
-      if (id === requestId.current) setDocuments(data.map(row => fromDb(row as Record<string, unknown>)));
-    } catch (e) {
-      if (id === requestId.current) setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      if (id === requestId.current) { setIsLoading(false); setRefreshing(false); }
-    }
-  }, [currentCategory, currentFolder]);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  return { documents, setDocuments, isLoading, refreshing, error, refresh };
+/** How many files a folder holds right now (deleting a folder does not delete its files, so it must be empty first). */
+export async function countFolderFiles(categoryId: string, folder: string): Promise<number> {
+  const rows = await api.get<unknown>(`/api/documents?${new URLSearchParams({ category_id: categoryId, folder_id: folder })}`);
+  if (!Array.isArray(rows)) throw new Error('The folder could not be checked.');
+  return rows.length;
 }

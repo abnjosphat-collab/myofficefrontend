@@ -56,6 +56,9 @@ export interface ArtisanTimesheetRecord {
   updated_at?: string;
 }
 
+/** One saved timesheet as the list shows it: no daily rows and no signatures (the list asks for `?summary=true`); open one to get them. */
+export type ArtisanTimesheetSummary = Omit<ArtisanTimesheetRecord, 'daily_rows' | 'compiled_by_signature' | 'approved_electrical_foreman_signature' | 'approved_mechanical_foreman_signature' | 'authorized_by_signature'>;
+
 export interface ArtisanTimesheetDraft {
   employee_id: string;
   employee_db_id?: number;

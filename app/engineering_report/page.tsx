@@ -1,373 +1,207 @@
 // FILE: app/engineering_report/page.tsx
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
-import { useTheme, PageHero, StatCard, type Accent, TYPE_WEIGHT } from '@/components/shared/theme';
 import {
-  FileBarChart, RefreshCw, Download, Calendar, Wrench, Activity,
-  AlertTriangle, CheckCircle2, TrendingUp,
-  Gauge, Shield, Package, ClipboardList, ChevronDown,
-} from '@/components/shared/theme';
-import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from 'recharts';
+  Button, Card, ChartPanel, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Progress, Select, chartColor, chartTheme, deriveDataStatus,
+  isTransientStatus, type DataStatus,
+} from '@/components/ui-system';
+import type { ApiListState } from '@/lib/useApiList';
+import { REPORT_TARGETS, maintenanceFigures, periodLabel, periodKey, periodOptions, productionFigures, statusCounts, type AnyRecord } from '@/lib/engineeringReport';
 import { useEngineeringReportData } from './useEngineeringReportData';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+type Source = ApiListState<AnyRecord>;
+const regionStatus = (s: Source): DataStatus => deriveDataStatus({ loaded: s.loaded, loading: s.loading, error: s.error, errorStatus: s.errorStatus, count: 1, transient: isTransientStatus(s.errorStatus) });
+const unavailable = (s: Source) => !s.loaded && !s.loading;
+const pending = (s: Source) => s.loading && !s.loaded;
+type Tone = 'default' | 'success' | 'warning';
+/** success when the value meets its target, warning when it does not; default when there is nothing to judge. */
+const vsTarget = (value: number | null, target: number, goodHigh: boolean): Tone => (value === null ? 'default' : (goodHigh ? value >= target : value <= target) ? 'success' : 'warning');
+/** Summary cell text: never a zero while a source is still loading or has failed. */
+const cell = (source: Source, value: string | number) => (pending(source) ? 'Loading…' : unavailable(source) ? 'Unavailable' : value);
+const fixed = (n: number | null, digits = 1) => (n === null ? 'No data' : n.toFixed(digits));
 
-function pad2(n: number) { return String(n).padStart(2, '0'); }
-
-function kpiAccent(val: number, target: number, goodHigh = true): Accent {
-  const ok = goodHigh ? val >= target : val <= target;
-  const warn = goodHigh ? val >= target * 0.9 : val <= target * 1.1;
-  return ok ? 'emerald' : warn ? 'amber' : 'blue';
-}
-
-interface KpiCardProps {
-  label: string; value: string | number; unit?: string;
-  target?: string; accent?: Accent; trend?: 'up' | 'down' | 'flat';
-  icon: React.ElementType;
-}
-function KpiCard({ label, value, unit, target, accent = 'cyan', trend, icon }: KpiCardProps) {
+function Section({ title, source, subject, children }: { title: string; source: Source; subject: string; children: ReactNode }) {
   return (
-    <StatCard icon={icon} accent={accent} label={label} value={`${value}${unit ?? ''}`}
-      trend={trend && trend !== 'flat' ? { direction: trend, label: target ? `Target ${target}` : trend === 'up' ? 'Improving' : 'Declining' } : undefined} />
+    <section aria-labelledby={`sec-${title}`} className="flex flex-col gap-3">
+      <h2 id={`sec-${title}`} className="font-display text-section font-semibold text-ink">{title}</h2>
+      <DataRegion status={regionStatus(source)} subject={subject} error={source.error} onRetry={() => source.refetch()}>{children}</DataRegion>
+    </section>
   );
 }
 
-function useChartStyle() {
-  const t = useTheme();
-  return useMemo(() => ({
-    grid: t.light ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.06)',
-    tick: { fill: t.light ? 'rgba(15,23,42,0.45)' : 'rgba(255,255,255,0.4)', fontSize: 11 },
-    tooltipStyle: {
-      backgroundColor: t.light ? '#ffffff' : '#0f1e2e',
-      border: t.light ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(134,187,216,0.2)',
-      borderRadius: 12, color: t.light ? '#0f172a' : '#fff', fontSize: 12,
-    },
-  }), [t.light]);
-}
-
-function SectionHeader({ title, icon: Icon }: { title: string; icon: React.ElementType }) {
-  const t = useTheme();
+function StatusBars({ title, subject, source, counts, icon }: { title: string; subject: string; source: Source; counts: ReturnType<typeof statusCounts>; icon: 'compliance' | 'service' }) {
+  const rows = [{ label: 'Current', n: counts.current }, { label: 'Due soon', n: counts.dueSoon }, { label: 'Overdue', n: counts.overdue }];
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <div className="p-1.5 rounded-lg bg-[#86BBD8]/15 border border-[#86BBD8]/20">
-        <Icon className="h-3.5 w-3.5 text-[#86BBD8]" />
-      </div>
-      <h2 className={`text-sm ${TYPE_WEIGHT.bold} tracking-tight ${t.textPrimary}`}>{title}</h2>
-      <div className={`flex-1 h-px ${t.border} border-t`} />
-    </div>
+    <Card padding="lg" className="flex flex-col gap-4">
+      <h2 className="font-display text-title font-semibold text-ink">{title}</h2>
+      <DataRegion status={regionStatus(source)} subject={subject} error={source.error} onRetry={() => source.refetch()} empty={undefined}>
+        {counts.total === 0 ? <EmptyState icon={icon} title={`No ${subject} yet`} className="py-6" /> : (
+          <ul className="flex flex-col gap-3">
+            {rows.map(r => (
+              <li key={r.label} className="flex items-center gap-3 font-sans text-body-sm">
+                <span className="w-20 shrink-0 text-ink-muted">{r.label}</span>
+                <Progress value={(r.n / counts.total) * 100} label={`${r.label}: ${r.n} of ${counts.total}`} className="flex-1" />
+                <span className="w-8 shrink-0 text-right font-semibold text-ink tabular">{r.n}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DataRegion>
+    </Card>
   );
 }
 
 function EngineeringReportContent() {
-  const t = useTheme();
-  const { grid, tick, tooltipStyle } = useChartStyle();
-  const [period, setPeriod] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-  });
-  const [openPeriod, setOpenPeriod] = useState(false);
+  const { breakdowns, jobCards, production, compliance, lube, refreshing, refetchAll } = useEngineeringReportData();
+  const now = useMemo(() => new Date(), []);
+  const [period, setPeriod] = useState(() => periodKey(new Date()));
+  const options = useMemo(() => periodOptions(now), [now]);
 
-  const { breakdowns, jobCards, production, compliance, lube, loading, load } = useEngineeringReportData();
-
-  const inPeriod = (dateStr?: string) => !!dateStr && dateStr.startsWith(period);
-
-  const periodBDs = breakdowns.filter(b => inPeriod(b.breakdown_date || b.date || b.created_at));
-  const periodJCs = jobCards.filter(j => inPeriod(j.created_at || j.scheduled_date));
-  const periodProd = production.filter(p => inPeriod(p.prod_date));
-  const overdueComp = compliance.filter((c: any) => c.status === 'overdue');
-  const dueSoonComp = compliance.filter((c: any) => c.status === 'due_soon');
-  const overdueLube = lube.filter((l: any) => l.status === 'overdue');
-
-  const totalBDs = periodBDs.length;
-  const totalDowntime = periodBDs.reduce((s: number, b: any) => s + Number(b.downtime_hours || b.duration_hours || 0), 0);
-  const avgMTTR = totalBDs > 0 ? (totalDowntime / totalBDs).toFixed(1) : '0';
-  const completedJCs = periodJCs.filter((j: any) => j.status === 'completed').length;
-  const openJCs = jobCards.filter((j: any) => j.status === 'open' || j.status === 'in_progress').length;
-  const pmCompliance = periodJCs.length > 0 ? Math.round((completedJCs / periodJCs.length) * 100) : 0;
-
-  const totalTonnes = periodProd.reduce((s: number, r: any) => s + Number(r.tonnes_milled || 0), 0);
-  const avgRecovery = periodProd.length > 0
-    ? (periodProd.reduce((s: number, r: any) => s + Number(r.recovery_pct || 0), 0) / periodProd.length).toFixed(1)
-    : '0';
-  const totalGold = periodProd.reduce((s: number, r: any) => s + Number(r.gold_produced_oz || 0), 0).toFixed(1);
-
-  const now = new Date();
-  const bdTrend = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const label = MONTHS[d.getMonth()];
-    const pfx = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-    const count = breakdowns.filter(b => (b.breakdown_date || b.date || b.created_at || '').startsWith(pfx)).length;
-    return { month: label, count };
-  });
-
-  const equipCount: Record<string, number> = {};
-  periodBDs.forEach((b: any) => {
-    const eq = b.equipment_name || 'Unknown';
-    equipCount[eq] = (equipCount[eq] || 0) + 1;
-  });
-  const topFails = Object.entries(equipCount).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([equipment, count]) => ({ equipment, count }));
-
-  const prodTrend = [...periodProd].reverse().slice(-10).map((r: any) => ({
-    date: (r.prod_date || '').slice(5),
-    tonnes: Number(r.tonnes_milled || 0),
-    target: 1900,
-  }));
-
-  const jcStatuses = ['open', 'in_progress', 'completed', 'on_hold', 'cancelled'];
-  const jcDist = jcStatuses.map(s => ({
-    status: s.replace('_', ' '),
-    count: jobCards.filter((j: any) => j.status === s).length,
-  })).filter(s => s.count > 0);
-
-  const periodLabel = (() => {
-    const [y, m] = period.split('-');
-    return `${MONTHS[parseInt(m) - 1]} ${y}`;
-  })();
-
-  const periodOptions = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const val = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-    const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-    return { val, label };
-  });
+  const maint = useMemo(() => maintenanceFigures(breakdowns.items, jobCards.items, period, now), [breakdowns.items, jobCards.items, period, now]);
+  const prod = useMemo(() => productionFigures(production.items, period), [production.items, period]);
+  const comp = useMemo(() => statusCounts(compliance.items), [compliance.items]);
+  const lub = useMemo(() => statusCounts(lube.items), [lube.items]);
+  const totalStatus = Math.max(1, maint.statusDistribution.reduce((sum, s) => sum + s.count, 0));
+  const label = periodLabel(period);
+  const bdUnavailable = unavailable(breakdowns);
+  const jcUnavailable = unavailable(jobCards);
+  const trendSummary = `Breakdowns per month over the last six months: ${maint.trend.map(t => `${t.month} ${t.count}`).join(', ')}.`;
+  const dailySummary = `Daily tonnes milled against the ${REPORT_TARGETS.tonnesPerDay} tonne target: ${prod.daily.map(d => `${d.date} ${d.tonnes}`).join(', ')}.`;
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-5`}>
-      <PageHero
-        icon={FileBarChart}
-        accent="violet"
-        crumbs={['Engineering', 'Monthly Report']}
-        title="Engineering Monthly Report"
-        description={`${periodLabel} · Gold Mine Operations`}
-        actions={
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        breadcrumbs={[{ label: 'Engineering' }, { label: 'Monthly report' }]}
+        title="Engineering monthly report"
+        description={`${label}. Calculated from the breakdown, job card, production, compliance and lubrication records in MyOffice.`}
+        actions={(
           <>
-            <div className="relative">
-              <button type="button" onClick={() => setOpenPeriod(v => !v)}
-                className={`flex items-center gap-2 h-8 px-3 rounded-lg text-xs ${t.chipBg} ${t.hoverBg} ${t.textMuted}`}>
-                <Calendar className="h-3.5 w-3.5 text-[#86BBD8]" />
-                {periodLabel}
-                <ChevronDown className={`h-3 w-3 ${t.textFaint}`} />
-              </button>
-              {openPeriod && (
-                <>
-                  {/* Click-outside scrim to dismiss — a real (unstyled) button so it's a valid
-                      interactive control; kept out of the tab order since the period button
-                      itself remains the keyboard way in/out of this menu. */}
-                  <button type="button" tabIndex={-1} aria-label="Close period menu"
-                    className="fixed inset-0 z-40 cursor-default" onClick={() => setOpenPeriod(false)} />
-                  <div className={`absolute right-0 top-full mt-1 z-[160] rounded-xl overflow-hidden w-44 ${t.glass} ${t.shadow}`}>
-                    {periodOptions.map(o => (
-                      <button key={o.val} type="button"
-                        onClick={() => { setPeriod(o.val); setOpenPeriod(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-xs transition-colors ${t.hoverBg} ${period === o.val ? `text-[#86BBD8] ${TYPE_WEIGHT.semibold}` : t.textMuted}`}>
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            <button type="button" onClick={load} disabled={loading} title="Refresh"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.chipBg} ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all disabled:opacity-40`}>
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button type="button" onClick={() => window.print()}
-              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#2A4D69]/60 border border-[#86BBD8]/35 text-white text-xs ${TYPE_WEIGHT.semibold} hover:bg-[#2A4D69]/80 transition-all`}>
-              <Download className="h-3.5 w-3.5" /> Print / Export
-            </button>
+            <Select className="w-40" aria-label="Report period" value={period} onValueChange={setPeriod} options={options} />
+            <IconButton icon="refresh" label="Refresh report" variant="outline" pending={refreshing} onClick={() => refetchAll()} />
+            <Button variant="primary" icon="print" onClick={() => window.print()}>Print or save as PDF</Button>
           </>
-        }
+        )}
       />
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <SectionHeader title="Maintenance Performance" icon={Wrench} />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Breakdowns (MTD)" value={totalBDs} accent={kpiAccent(totalBDs, 20, false)} target="≤20" icon={AlertTriangle} trend={totalBDs <= 20 ? 'down' : 'up'} />
-          <KpiCard label="Avg MTTR" value={avgMTTR} unit="h" accent={kpiAccent(parseFloat(avgMTTR), 4, false)} target="≤4h" icon={Activity} trend={parseFloat(avgMTTR) <= 4 ? 'down' : 'up'} />
-          <KpiCard label="PM Compliance" value={`${pmCompliance}%`} accent={kpiAccent(pmCompliance, 90)} target="90%" icon={ClipboardList} trend={pmCompliance >= 90 ? 'up' : pmCompliance >= 80 ? 'flat' : 'down'} />
-          <KpiCard label="Open Work Orders" value={openJCs} accent={openJCs < 20 ? 'emerald' : openJCs < 30 ? 'amber' : 'blue'} icon={Wrench} trend={openJCs < 20 ? 'down' : 'flat'} />
+      <Section title="Maintenance performance" source={breakdowns} subject="breakdown records">
+        <div className="flex flex-col gap-3">
+          <MetricGrid columns={4}>
+            <MetricTile label="Breakdowns" icon="breakdown" tone={vsTarget(maint.breakdowns, REPORT_TARGETS.breakdownsPerMonth, false)} value={maint.breakdowns} detail={`Target ${REPORT_TARGETS.breakdownsPerMonth} or fewer`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile label="Mean time to repair" icon="wrench" tone={vsTarget(maint.mttrHours, REPORT_TARGETS.mttrHours, false)} value={maint.mttrHours === null ? 'No data' : `${fixed(maint.mttrHours)} h`} detail={`Target ${REPORT_TARGETS.mttrHours} h or less`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile label="Work orders completed" icon="task" tone={vsTarget(maint.completionPct, REPORT_TARGETS.workOrderCompletionPct, true)} value={maint.completionPct === null ? 'No data' : `${maint.completionPct}%`} detail={`Of ${maint.workOrdersRaised} raised this month. Target ${REPORT_TARGETS.workOrderCompletionPct}%`} loading={pending(jobCards)} unavailable={jcUnavailable} />
+            <MetricTile label="Open work orders" icon="pending" value={maint.openWorkOrders} detail="Open or in progress, all dates" loading={pending(jobCards)} unavailable={jcUnavailable} />
+          </MetricGrid>
+          <MetricGrid columns={3}>
+            <MetricTile label="Total downtime" icon="clock" value={`${maint.downtimeHours.toFixed(0)} h`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile label="Work orders closed" icon="success" tone="success" value={maint.workOrdersCompleted} loading={pending(jobCards)} unavailable={jcUnavailable} />
+            <MetricTile label="Compliance overdue" icon="overdue" tone={comp.overdue === 0 ? 'success' : 'danger'} value={comp.overdue} loading={pending(compliance)} unavailable={unavailable(compliance)} />
+          </MetricGrid>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
-          <KpiCard label="Total Downtime" value={totalDowntime.toFixed(0)} unit="h" icon={Activity} accent="cyan" />
-          <KpiCard label="Completed WOs" value={completedJCs} icon={CheckCircle2} accent="emerald" />
-          <KpiCard label="Compliance Overdue" value={overdueComp.length} accent={overdueComp.length === 0 ? 'emerald' : 'blue'} icon={Shield} />
-        </div>
+      </Section>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartPanel title="Breakdown trend" description="Last six months" summary={trendSummary}>
+          <DataRegion status={regionStatus(breakdowns)} subject="breakdown records" error={breakdowns.error} onRetry={() => breakdowns.refetch()}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={maint.trend} barSize={28}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+                <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+                <Tooltip {...chartTheme.tooltip} />
+                <Bar dataKey="count" name="Breakdowns" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </DataRegion>
+        </ChartPanel>
+        <Card padding="lg" className="flex flex-col gap-4">
+          <h2 className="font-display text-title font-semibold text-ink">Work order status</h2>
+          <DataRegion status={regionStatus(jobCards)} subject="job cards" error={jobCards.error} onRetry={() => jobCards.refetch()}>
+            {maint.statusDistribution.length === 0 ? <EmptyState icon="task" title="No job cards yet" className="py-6" /> : (
+              <ul className="flex flex-col gap-3">
+                {maint.statusDistribution.map(({ status, count }) => (
+                  <li key={status} className="flex items-center gap-3 font-sans text-body-sm">
+                    <span className="w-24 shrink-0 capitalize text-ink-muted">{status.replace('_', ' ')}</span>
+                    <Progress value={(count / totalStatus) * 100} label={`${status.replace('_', ' ')}: ${count} of ${totalStatus}`} className="flex-1" />
+                    <span className="w-8 shrink-0 text-right font-semibold text-ink tabular">{count}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </DataRegion>
+        </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Breakdown Trend — Last 6 Months</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={bdTrend} barSize={28}>
-              <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-              <XAxis dataKey="month" tick={tick} axisLine={false} tickLine={false} />
-              <YAxis tick={tick} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="count" name="Breakdowns" fill="#f87171" fillOpacity={0.8} radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      <Section title="Production performance" source={production} subject="production records">
+        <MetricGrid columns={4}>
+          <MetricTile label="Tonnes milled" icon="package" tone={vsTarget(prod.records ? prod.tonnes : null, REPORT_TARGETS.tonnesPerDay * (prod.records || 1), true)} value={`${prod.tonnes.toLocaleString()} t`} detail={`Target ${REPORT_TARGETS.tonnesPerDay.toLocaleString()} t per record`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile label="Average recovery" icon="percent" tone={vsTarget(prod.recoveryPct, REPORT_TARGETS.recoveryPct, true)} value={prod.recoveryPct === null ? 'No data' : `${fixed(prod.recoveryPct)}%`} detail={`Target ${REPORT_TARGETS.recoveryPct}%`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile label="Gold produced" icon="value" value={`${prod.goldOz.toFixed(1)} oz`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile label="Shift records" icon="documents" value={prod.records} loading={pending(production)} unavailable={unavailable(production)} />
+        </MetricGrid>
+      </Section>
 
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Work Order Status Distribution</h3>
-          {jcDist.length === 0 ? (
-            <div className={`flex items-center justify-center h-40 ${t.textFaint} text-sm`}>No job card data</div>
-          ) : (
-            <div className="space-y-2.5 mt-4">
-              {jcDist.map(({ status, count }) => {
-                const max = Math.max(...jcDist.map(s => s.count), 1);
-                const color = status === 'completed' ? '#34d399' : status === 'open' ? '#fbbf24' : status === 'in progress' ? '#86BBD8' : '#94a3b8';
-                return (
-                  <div key={status}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className={`capitalize ${t.textMuted}`}>{status}</span>
-                      <span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{count}</span>
-                    </div>
-                    <div className={`h-1.5 rounded-full ${t.chipBg} overflow-hidden`}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${(count / max) * 100}%`, background: color }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <SectionHeader title="Production Performance" icon={Gauge} />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Tonnes Milled" value={totalTonnes.toLocaleString()} unit="t" accent={kpiAccent(totalTonnes, 1900 * (periodProd.length || 1))} icon={Gauge} />
-          <KpiCard label="Avg Recovery" value={`${avgRecovery}%`} accent={kpiAccent(parseFloat(avgRecovery), 92)} target="92%" icon={TrendingUp} trend={parseFloat(avgRecovery) >= 92 ? 'up' : 'down'} />
-          <KpiCard label="Gold Produced" value={totalGold} unit="oz" accent="amber" icon={Activity} />
-          <KpiCard label="Shift Records" value={periodProd.length} icon={ClipboardList} accent="cyan" />
-        </div>
-      </div>
-
-      {prodTrend.length > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-4 ${t.textPrimary}`}>Daily Tonnes Milled vs Target</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={prodTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-              <XAxis dataKey="date" tick={{ ...tick, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={tick} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={tooltipStyle} />
-              <Line type="monotone" dataKey="target" name="Target" stroke="rgba(134,187,216,0.35)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
-              <Line type="monotone" dataKey="tonnes" name="Actual Tonnes" stroke="#34d399" strokeWidth={2.5} dot={{ fill: '#34d399', r: 3 }} />
+      {prod.daily.length > 0 && (
+        <ChartPanel title="Daily tonnes milled against target" summary={dailySummary}>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={prod.daily}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
+              <XAxis dataKey="date" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+              <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
+              <Tooltip {...chartTheme.tooltip} />
+              <Legend wrapperStyle={chartTheme.legend} />
+              <Line type="monotone" dataKey="target" name="Target" stroke="var(--mo-ink-subtle)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+              <Line type="monotone" dataKey="tonnes" name="Tonnes milled" stroke={chartColor(1)} strokeWidth={2.5} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </ChartPanel>
       )}
 
-      {topFails.length > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <SectionHeader title="Top Repeat Failure Equipment (MTD)" icon={AlertTriangle} />
-          <div className="space-y-2">
-            {topFails.map(({ equipment, count }, i) => (
-              <div key={equipment} className="flex items-center gap-3">
-                <span className={`text-xs w-4 shrink-0 ${t.textFaint}`}>{i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{equipment}</p>
-                  <div className={`h-1.5 mt-1 rounded-full ${t.chipBg} overflow-hidden`}>
-                    <div className="h-full rounded-full bg-rose-500" style={{ width: `${(count / topFails[0].count) * 100}%` }} />
-                  </div>
-                </div>
-                <span className={`text-xs ${TYPE_WEIGHT.bold} shrink-0 ${t.textPrimary}`}>{count}×</span>
-              </div>
+      {maint.topFailures.length > 0 && (
+        <Card padding="lg" className="flex flex-col gap-4">
+          <h2 className="font-display text-title font-semibold text-ink">Repeat failures in {label}</h2>
+          <ol className="flex flex-col gap-3">
+            {maint.topFailures.map(({ equipment, count }, i) => (
+              <li key={equipment} className="flex items-center gap-3">
+                <span className="w-4 shrink-0 font-sans text-caption text-ink-muted tabular">{i + 1}</span>
+                <div className="min-w-0 flex-1"><p className="truncate font-sans text-label font-medium text-ink">{equipment}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-muted"><div className="h-full rounded-full bg-danger" style={{ width: `${(count / maint.topFailures[0].count) * 100}%` }} /></div></div>
+                <span className="shrink-0 font-sans text-label font-semibold text-ink tabular">{count}×</span>
+              </li>
             ))}
-          </div>
-        </div>
+          </ol>
+        </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <SectionHeader title="Statutory Compliance Status" icon={Shield} />
-          <div className="space-y-2">
-            {[
-              { label: 'Compliant', count: compliance.filter((c: any) => c.status === 'current').length, color: '#34d399' },
-              { label: 'Due Soon', count: dueSoonComp.length, color: '#f59e0b' },
-              { label: 'Overdue', count: overdueComp.length, color: '#f43f5e' },
-            ].map(({ label, count, color }) => (
-              <div key={label} className="flex items-center gap-3">
-                <span className={`text-xs w-20 shrink-0 ${t.textFaint}`}>{label}</span>
-                <div className={`flex-1 h-2 rounded-full ${t.chipBg} overflow-hidden`}>
-                  <div className="h-full rounded-full" style={{ width: `${compliance.length > 0 ? (count / compliance.length) * 100 : 0}%`, background: color }} />
-                </div>
-                <span className={`text-sm ${TYPE_WEIGHT.bold} shrink-0`} style={{ color }}>{count}</span>
-              </div>
-            ))}
-            {compliance.length === 0 && <p className={`${t.textFaint} text-xs text-center py-4`}>No compliance data — run SQL migration</p>}
-          </div>
-        </div>
-
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <SectionHeader title="Lubrication Status" icon={Package} />
-          <div className="space-y-2">
-            {[
-              { label: 'Current', count: lube.filter((l: any) => l.status === 'current').length, color: '#34d399' },
-              { label: 'Due Soon', count: lube.filter((l: any) => l.status === 'due_soon').length, color: '#f59e0b' },
-              { label: 'Overdue', count: overdueLube.length, color: '#f43f5e' },
-            ].map(({ label, count, color }) => (
-              <div key={label} className="flex items-center gap-3">
-                <span className={`text-xs w-20 shrink-0 ${t.textFaint}`}>{label}</span>
-                <div className={`flex-1 h-2 rounded-full ${t.chipBg} overflow-hidden`}>
-                  <div className="h-full rounded-full" style={{ width: `${lube.length > 0 ? (count / lube.length) * 100 : 0}%`, background: color }} />
-                </div>
-                <span className={`text-sm ${TYPE_WEIGHT.bold} shrink-0`} style={{ color }}>{count}</span>
-              </div>
-            ))}
-            {lube.length === 0 && <p className={`${t.textFaint} text-xs text-center py-4`}>No lube data — run SQL migration</p>}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <StatusBars title="Statutory compliance" subject="compliance items" source={compliance} counts={comp} icon="compliance" />
+        <StatusBars title="Lubrication" subject="lubrication records" source={lube} counts={lub} icon="service" />
       </div>
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <SectionHeader title="Report Summary" icon={FileBarChart} />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Maintenance</p>
-            <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Total breakdowns</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalBDs}</span></li>
-              <li className="flex justify-between"><span>Total downtime</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalDowntime.toFixed(1)}h</span></li>
-              <li className="flex justify-between"><span>Average MTTR</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{avgMTTR}h</span></li>
-              <li className="flex justify-between"><span>Work orders closed</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{completedJCs}</span></li>
-              <li className="flex justify-between"><span>Work orders open</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{openJCs}</span></li>
-            </ul>
-          </div>
-          <div>
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Production</p>
-            <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Tonnes milled</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{totalTonnes.toLocaleString()}t</span></li>
-              <li className="flex justify-between"><span>Recovery rate</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{avgRecovery}%</span></li>
-              <li className="flex justify-between"><span>Gold produced</span><span className={`${TYPE_WEIGHT.semibold} text-amber-500`}>{totalGold}oz</span></li>
-              <li className="flex justify-between"><span>Shift records</span><span className={`${TYPE_WEIGHT.semibold} ${t.textPrimary}`}>{periodProd.length}</span></li>
-            </ul>
-          </div>
-          <div>
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} uppercase tracking-wide mb-2 ${t.textFaint}`}>Compliance &amp; Safety</p>
-            <ul className={`space-y-1.5 text-xs ${t.textMuted}`}>
-              <li className="flex justify-between"><span>Compliance overdue</span><span className={`${TYPE_WEIGHT.semibold} ${overdueComp.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueComp.length}</span></li>
-              <li className="flex justify-between"><span>Due soon</span><span className={`${TYPE_WEIGHT.semibold} text-amber-500`}>{dueSoonComp.length}</span></li>
-              <li className="flex justify-between"><span>Lube overdue</span><span className={`${TYPE_WEIGHT.semibold} ${overdueLube.length ? 'text-rose-500' : 'text-emerald-500'}`}>{overdueLube.length}</span></li>
-              <li className="flex justify-between"><span>PM compliance</span><span className={`${TYPE_WEIGHT.semibold} ${pmCompliance >= 90 ? 'text-emerald-500' : 'text-amber-500'}`}>{pmCompliance}%</span></li>
-            </ul>
-          </div>
+      <Card padding="lg" className="flex flex-col gap-4">
+        <h2 className="font-display text-title font-semibold text-ink">Report summary: {label}</h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {[
+            { heading: 'Maintenance', rows: [['Total breakdowns', cell(breakdowns, maint.breakdowns)], ['Total downtime', cell(breakdowns, `${maint.downtimeHours.toFixed(1)} h`)], ['Mean time to repair', cell(breakdowns, maint.mttrHours === null ? 'No data' : `${fixed(maint.mttrHours)} h`)], ['Work orders closed', cell(jobCards, maint.workOrdersCompleted)], ['Work orders open', cell(jobCards, maint.openWorkOrders)]] },
+            { heading: 'Production', rows: [['Tonnes milled', cell(production, `${prod.tonnes.toLocaleString()} t`)], ['Recovery rate', cell(production, prod.recoveryPct === null ? 'No data' : `${fixed(prod.recoveryPct)}%`)], ['Gold produced', cell(production, `${prod.goldOz.toFixed(1)} oz`)], ['Shift records', cell(production, prod.records)]] },
+            { heading: 'Compliance and safety', rows: [['Compliance overdue', cell(compliance, comp.overdue)], ['Compliance due soon', cell(compliance, comp.dueSoon)], ['Lubrication overdue', cell(lube, lub.overdue)], ['Work orders completed', cell(jobCards, maint.completionPct === null ? 'No data' : `${maint.completionPct}%`)]] },
+          ].map(group => (
+            <div key={group.heading}>
+              <h3 className="mb-2 font-sans text-label font-semibold text-ink-muted">{group.heading}</h3>
+              <dl className="flex flex-col gap-1.5 font-sans text-body-sm">
+                {group.rows.map(([k, v]) => <div key={k as string} className="flex justify-between gap-3"><dt className="text-ink-muted">{k}</dt><dd className="font-semibold text-ink tabular">{v}</dd></div>)}
+              </dl>
+            </div>
+          ))}
         </div>
-      </div>
+      </Card>
 
-      <p className={`text-center text-[11px] pb-2 ${t.textFaint}`}>
-        Generated {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · Ozech MyOffice Engineering
-      </p>
-    </main>
+      <p className="pb-2 text-center font-sans text-caption text-ink-muted">Generated {now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. Targets used: breakdowns {REPORT_TARGETS.breakdownsPerMonth} or fewer, mean time to repair {REPORT_TARGETS.mttrHours} h or less, work order completion {REPORT_TARGETS.workOrderCompletionPct}%, recovery {REPORT_TARGETS.recoveryPct}%, {REPORT_TARGETS.tonnesPerDay} t per record.</p>
+    </div>
   );
 }
 
 export default function EngineeringReportPage() {
-  return <AppShell><EngineeringReportContent /></AppShell>;
+  return <AppShell migrated><EngineeringReportContent /></AppShell>;
 }

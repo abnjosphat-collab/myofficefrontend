@@ -1,215 +1,155 @@
-// app/compressors/useCompressorsData.ts — the compressor tracker's data-fetching layer:
-// the domain-specific enhancedFetch wrapper, every resource fetch, the write-path
-// mutations, and a hook that owns all of it. Split out of page.tsx as part of the
-// standing "decompose on touch" convention. This page's shape is a unified load cycle
-// (all 7 resources fire together under one loading flag via loadAllData) but three of
-// the fetchers (performance metrics, trends, comparison) are also independently
-// re-triggered by their own tab's period/metric selectors — so unlike other pages'
-// hooks, this one exposes the fetch functions themselves, not just their resulting
-// state, matching exactly how page.tsx called them before extraction.
+// app/compressors/useCompressorsData.ts — the compressor tracker's data layer.
+// Every section loads on its own and reports its own failure, so a failed analytics call is shown as a failure
+// (with the reason and a retry) rather than as "no data". The register keeps its rows through a failed refresh.
+// All writes throw, so the caller can show the reason and keep what the user typed.
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { API_BASE } from '@/lib/config';
-import { authFetch } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
+import { useApiList } from '@/lib/useApiList';
+import { SERVICE_INTERVALS, localDateString, readingProblems } from './calcCompressors';
 import type {
-  AddCompressorFormData, AnalyticsData, ComparisonResult, Compressor, CompressorStats,
-  ManagementData, ManagementSummary, PerformanceMetric, PreviousReading, TrendsResult, UpcomingService,
+  AddCompressorFormData, ComparisonResult, Compressor, CompressorStats, ManagementSummary,
+  PerformanceMetric, PreviousReading, TrendsResult, UpcomingService,
 } from './types';
 
-const API_BASE_URL = API_BASE;
-const SERVICE_INTERVALS = [1000, 2000, 4000, 8000, 16000];
+export { SERVICE_INTERVALS };
 
-// Domain wrapper over authFetch (attaches the auth token, same base as lib/apiClient):
-// translates the DB check-constraint failure into a human-readable message. Callers
-// pass a full URL and pre-stringified body, so this stays a thin fetch-shaped helper.
-const enhancedFetch = async (url: string, options: RequestInit = {}): Promise<unknown> => {
-  const r = await authFetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> | undefined) } });
-  if (!r.ok) {
-    let msg = `HTTP ${r.status}`;
-    try {
-      const e = await r.json() as { detail?: string; message?: string };
-      msg = e.detail ?? e.message ?? msg;
-    } catch { msg = r.statusText || msg; }
-    if (msg.includes('violates check constraint') || msg.includes('chk_daily_loaded_positive'))
-      throw new Error('Invalid data: Loaded hours must be positive and cannot exceed running hours.');
-    throw new Error(msg);
-  }
-  return r.json();
+export const PERIOD_DAYS: Record<string, number> = { weekly: 7, monthly: 30, quarterly: 90 };
+
+const messageOf = (e: unknown, fallback: string) => {
+  const raw = e instanceof Error && e.message ? e.message : fallback;
+  // The database's check-constraint failure is not something a person can act on.
+  return raw.includes('violates check constraint') || raw.includes('chk_daily_loaded_positive')
+    ? 'Loaded hours must be positive and cannot exceed running hours.' : raw;
 };
 
-export function useCompressorsData(currentDate: Date) {
-  const [compressors, setCompressors] = useState<Compressor[]>([]);
-  const [previousReadings, setPreviousReadings] = useState<Record<number, PreviousReading>>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [compressorsLoaded, setCompressorsLoaded] = useState(false);
-  const compressorsLoadedRef = useRef(false);
-  const loadRequestIdRef = useRef(0);
-  const [servicesError, setServicesError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState<{ type?: string; id?: number | string }>({});
-  const [stats, setStats] = useState<CompressorStats | null>(null);
-  const [upcomingServices, setUpcomingServices] = useState<UpcomingService[]>([]);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    performanceMetrics: [],
-    trends: { success: false, data: [], message: '', has_data: false },
-    comparison: { success: false, data: [], message: '', count: 0 },
-  });
-  const [managementData, setManagementData] = useState<ManagementData>({ summary: null, alerts: [], services: [] });
+export interface Section<T> { data: T; error: string | null; loading: boolean; loaded: boolean; }
 
-  const fetchCompressors = async (requestId?: number) => {
-    const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`)) as Compressor[];
-    if (!Array.isArray(data)) throw new Error('The compressor register returned an invalid response.');
-    const prevData: Record<number, PreviousReading> = {};
-    const curStr = currentDate.toISOString().split('T')[0];
-    for (const c of data || []) {
+/** One independently loaded block of the page. Stale data is kept when a reload fails; a newer request wins. */
+function useSection<T>(initial: T, fetcher: () => Promise<T>, deps: ReadonlyArray<unknown>, label: string) {
+  const [state, setState] = useState<Section<T>>({ data: initial, error: null, loading: true, loaded: false });
+  const latest = useRef(0);
+  const fetchRef = useRef(fetcher);
+  useEffect(() => { fetchRef.current = fetcher; });
+  useEffect(() => {
+    const request = ++latest.current;
+    setState(s => ({ ...s, loading: true }));
+    fetchRef.current().then(
+      data => { if (request === latest.current) setState({ data, error: null, loading: false, loaded: true }); },
+      e => { if (request === latest.current) setState(s => ({ ...s, error: messageOf(e, `${label} could not be loaded.`), loading: false })); },
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return state;
+}
+
+const asArray = <T,>(raw: unknown, what: string): T[] => {
+  if (!Array.isArray(raw)) throw new Error(`${what} returned an unexpected response.`);
+  return raw as T[];
+};
+
+export function useCompressorsData(date: string) {
+  const [version, setVersion] = useState(0);
+  const [period, setPeriod] = useState('monthly');
+  const [metric, setMetric] = useState('efficiency');
+
+  const register = useApiList<Compressor>('/api/compressors/compressors');
+  const { items: compressors } = register;
+
+  const stats = useSection<CompressorStats | null>(null, () => api.get<CompressorStats>('/api/compressors/stats'), [version], 'The summary figures');
+  const services = useSection<UpcomingService[]>([], async () => asArray<UpcomingService>(await api.get('/api/compressors/service-due'), 'Upcoming services'), [version], 'Upcoming services');
+  const metrics = useSection<PerformanceMetric[]>([], async () => asArray<PerformanceMetric>(await api.get(`/api/compressors/analytics/performance-metrics?period_days=${PERIOD_DAYS[period] ?? 30}`), 'Performance metrics'), [version, period], 'Performance metrics');
+  const trends = useSection<TrendsResult | null>(null, () => api.get<TrendsResult>('/api/compressors/analytics/trends?period=monthly'), [version], 'Trend analysis');
+  const comparison = useSection<ComparisonResult | null>(null, () => api.get<ComparisonResult>(`/api/compressors/analytics/comparison?metric=${metric}`), [version, metric], 'The comparison');
+  const summary = useSection<ManagementSummary | null>(null, () => api.get<ManagementSummary>('/api/compressors/management/summary'), [version], 'The management summary');
+
+  // The reading before the chosen date, per compressor. A compressor whose history could not be read is
+  // listed in `previousFailed`, so its card says so instead of treating the history as empty.
+  const idKey = useMemo(() => compressors.map(c => c.id).join(','), [compressors]);
+  const [previous, setPrevious] = useState<{ byId: Record<number, PreviousReading>; failed: number[]; loading: boolean }>({ byId: {}, failed: [], loading: false });
+  const prevRequest = useRef(0);
+  useEffect(() => {
+    if (!idKey) { setPrevious({ byId: {}, failed: [], loading: false }); return; }
+    const request = ++prevRequest.current;
+    setPrevious(p => ({ ...p, loading: true }));
+    Promise.all(compressors.map(async c => {
       try {
-        const r = (await enhancedFetch(`${API_BASE_URL}/api/compressors/readings/${c.id}/detailed`)) as { data?: Array<{ date: string; total_running_hours: number; total_loaded_hours: number }> };
-        if (r.data?.length) {
-          const prev = r.data.filter(x => x.date < curStr).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-          if (prev) prevData[c.id] = { total_running_hours: prev.total_running_hours, total_loaded_hours: prev.total_loaded_hours, date: prev.date };
-          else prevData[c.id] = { total_running_hours: c.initial_total_running || 0, total_loaded_hours: c.initial_total_loaded || 0, date: 'Initial' };
-        }
-      } catch { /* ignore per-compressor errors */ }
-    }
-    if (requestId !== undefined && requestId !== loadRequestIdRef.current) return;
-    setCompressors(data);
-    setPreviousReadings(prevData);
-    compressorsLoadedRef.current = true;
-    setCompressorsLoaded(true);
-    setLoadError(null);
-  };
+        const r = await api.get<{ data?: Array<{ date: string; total_running_hours: number; total_loaded_hours: number }> }>(`/api/compressors/readings/${c.id}/detailed`);
+        const rows = r.data ?? [];
+        if (!rows.length) return { id: c.id, reading: undefined };
+        const prior = rows.filter(x => x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
+        const reading: PreviousReading = prior
+          ? { total_running_hours: prior.total_running_hours, total_loaded_hours: prior.total_loaded_hours, date: prior.date }
+          : { total_running_hours: c.initial_total_running || 0, total_loaded_hours: c.initial_total_loaded || 0, date: 'Initial' };
+        return { id: c.id, reading };
+      } catch { return { id: c.id, reading: undefined, failed: true }; }
+    })).then(results => {
+      if (request !== prevRequest.current) return;
+      const byId: Record<number, PreviousReading> = {};
+      for (const r of results) if (r.reading) byId[r.id] = r.reading;
+      setPrevious({ byId, failed: results.filter(r => 'failed' in r && r.failed).map(r => r.id), loading: false });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idKey, date, version]);
 
-  const fetchStats = async () => { try { setStats((await enhancedFetch(`${API_BASE_URL}/api/compressors/stats`)) as CompressorStats); } catch (e: unknown) { setStats(null); toast.error(`Stats failed to load: ${(e as Error).message}`); } };
-  const fetchUpcomingServices = async () => { try { setUpcomingServices(((await enhancedFetch(`${API_BASE_URL}/api/compressors/service-due`)) as UpcomingService[]) || []); setServicesError(null); } catch (e: unknown) { setUpcomingServices([]); setServicesError((e as Error).message); toast.error(`Upcoming services failed to load: ${(e as Error).message}`); } };
-  const fetchPerformanceMetrics = async (days = 30) => {
-    try {
-      const data = ((await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/performance-metrics?period_days=${days}`)) as PerformanceMetric[]) || [];
-      setAnalyticsData(p => ({ ...p, performanceMetrics: data }));
-    } catch (e: unknown) { setAnalyticsData(p => ({ ...p, performanceMetrics: [] })); toast.error(`Performance metrics failed to load: ${(e as Error).message}`); }
-  };
-  const fetchTrendAnalysis = async (period = 'monthly') => {
-    try {
-      const data = ((await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/trends?period=${period}`)) as TrendsResult) || { success: false, data: [], message: '', has_data: false };
-      setAnalyticsData(p => ({ ...p, trends: data }));
-    } catch (e: unknown) { setAnalyticsData(p => ({ ...p, trends: { success: false, data: [], message: (e as Error).message, has_data: false } })); }
-  };
-  const fetchComparisonAnalytics = async (metric = 'efficiency') => {
-    try {
-      const data = ((await enhancedFetch(`${API_BASE_URL}/api/compressors/analytics/comparison?metric=${metric}`)) as ComparisonResult) || { success: false, data: [], message: '', count: 0 };
-      setAnalyticsData(p => ({ ...p, comparison: data }));
-    } catch (e: unknown) { setAnalyticsData(p => ({ ...p, comparison: { success: false, data: [], message: (e as Error).message, count: 0 } })); }
-  };
-  const fetchManagementSummary = async () => {
-    try {
-      const data = (await enhancedFetch(`${API_BASE_URL}/api/compressors/management/summary`)) as ManagementSummary;
-      setManagementData(p => ({ ...p, summary: data }));
-    } catch (e: unknown) { setManagementData(p => ({ ...p, summary: null })); toast.error(`Management summary failed to load: ${(e as Error).message}`); }
-  };
+  const refresh = useCallback(async () => { setVersion(v => v + 1); await register.refetch(); }, [register]);
 
-  const loadAllData = async () => {
-    const requestId = ++loadRequestIdRef.current;
-    setIsLoading(true);
-    setLoadError(null);
-    try { await Promise.all([fetchCompressors(requestId), fetchStats(), fetchUpcomingServices(), fetchPerformanceMetrics(), fetchTrendAnalysis(), fetchComparisonAnalytics(), fetchManagementSummary()]); }
-    catch (e: unknown) {
-      if (requestId !== loadRequestIdRef.current) return;
-      if (!compressorsLoadedRef.current) {
-        setCompressors([]);
-        setPreviousReadings({});
-        setCompressorsLoaded(false);
-      }
-      setLoadError((e as Error).message || 'Failed to load compressors');
-      toast.error((e as Error).message || 'Failed to load data');
-    }
-    finally { if (requestId === loadRequestIdRef.current) setIsLoading(false); }
-  };
-
-  useEffect(() => { loadAllData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const validateReading = (id: number, newRun: number, newLoad: number): boolean => {
-    const prev = previousReadings[id];
-    if (!prev) return true;
-    if (newRun < prev.total_running_hours) { toast.error(`Running hours (${newRun}) < previous total (${prev.total_running_hours})`); return false; }
-    if (newLoad < prev.total_loaded_hours) { toast.error(`Loaded hours (${newLoad}) < previous total (${prev.total_loaded_hours})`); return false; }
-    const dr = newRun - prev.total_running_hours; const dl = newLoad - prev.total_loaded_hours;
-    if (dl > dr) { toast.error(`Daily loaded (${dl.toFixed(1)}) > daily running (${dr.toFixed(1)})`); return false; }
-    if (newLoad > newRun) { toast.error(`Total loaded (${newLoad}) > total running (${newRun})`); return false; }
-    return true;
-  };
-
-  const updateCompressorHours = async (id: number, totalRunning: number, totalLoaded: number, pressure = 0, temperature = 0, notes = '') => {
-    setIsSaving({ type: 'update', id });
-    if (!validateReading(id, totalRunning, totalLoaded)) { setIsSaving({}); return; }
+  const saveReading = async (id: number, input: { running: number; loaded: number; pressure: number; temperature: number; notes: string }) => {
+    const problems = readingProblems(previous.byId[id], input.running, input.loaded);
+    const first = problems.running ?? problems.loaded;
+    if (first) throw new Error(first);
     try {
-      const curStr = currentDate.toISOString().split('T')[0];
-      const r = (await enhancedFetch(`${API_BASE_URL}/api/compressors/daily-entries/cumulative`, { method: 'POST', body: JSON.stringify({ compressor_id: id, date: curStr, current_total_running: parseFloat(String(totalRunning)) || 0, current_total_loaded: parseFloat(String(totalLoaded)) || 0, pressure: parseFloat(String(pressure)) || 0, temperature: parseFloat(String(temperature)) || 0, notes }) })) as { data?: { total_running_hours?: number; total_loaded_hours?: number } };
-      if (r.data) {
-        setCompressors(p => p.map(c => c.id === id ? { ...c, total_running_hours: r.data!.total_running_hours ?? totalRunning, total_loaded_hours: r.data!.total_loaded_hours ?? totalLoaded } : c));
-        setPreviousReadings(p => ({ ...p, [id]: { total_running_hours: r.data!.total_running_hours ?? totalRunning, total_loaded_hours: r.data!.total_loaded_hours ?? totalLoaded, date: curStr } }));
-      }
-      await Promise.all([fetchStats(), fetchUpcomingServices(), fetchPerformanceMetrics(), fetchComparisonAnalytics()]);
-      toast.success('Compressor hours updated');
-    } catch (e: unknown) { toast.error((e as Error).message || 'Failed to update hours'); }
-    finally { setIsSaving({}); }
+      await api.post('/api/compressors/daily-entries/cumulative', { compressor_id: id, date, current_total_running: input.running, current_total_loaded: input.loaded, pressure: input.pressure, temperature: input.temperature, notes: input.notes });
+    } catch (e) { throw new Error(messageOf(e, 'The reading could not be saved.')); }
+    await refresh();
   };
 
   const addCompressor = async (data: AddCompressorFormData) => {
-    setIsSaving({ type: 'add', id: 'new' });
-    try { await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors`, { method: 'POST', body: JSON.stringify(data) }); await fetchCompressors(); toast.success(`${data.name} added`); }
-    catch (e: unknown) { toast.error((e as Error).message || 'Failed to add compressor'); throw e; }
-    finally { setIsSaving({}); }
+    try { await api.post('/api/compressors/compressors', data); } catch (e) { throw new Error(messageOf(e, 'The compressor could not be added.')); }
+    await refresh();
   };
 
-  const updateCompressorStatus = async (id: number | null, status: string) => {
-    setIsSaving({ type: 'status', id: id ?? undefined });
-    try { await enhancedFetch(`${API_BASE_URL}/api/compressors/compressors/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }); await fetchCompressors(); toast.success(`Status updated to ${status}`); }
-    catch (e: unknown) { toast.error((e as Error).message || 'Failed to update status'); throw e; }
-    finally { setIsSaving({}); }
+  const changeStatus = async (id: number, status: string) => {
+    try { await api.patch(`/api/compressors/compressors/${id}/status`, { status }); } catch (e) { throw new Error(messageOf(e, 'The status could not be changed.')); }
+    await refresh();
   };
 
-  const markServiceCompleted = async (compressorId: number, serviceInterval: number) => {
-    const comp = compressors.find(c => c.id === compressorId);
-    if (!comp) return;
+  /** Records the service, then sets the running meter to the interval (the page's established behaviour). */
+  const completeService = async (id: number, interval: number) => {
+    const c = compressors.find(x => x.id === id);
+    if (!c) throw new Error('That compressor is no longer in the register.');
     try {
-      await enhancedFetch(`${API_BASE_URL}/api/compressors/service-records`, { method: 'POST', body: JSON.stringify({ compressor_id: compressorId, service_type: `${serviceInterval} Hour Service`, service_date: new Date().toISOString().split('T')[0], running_hours_at_service: serviceInterval, description: `Completed ${serviceInterval} hour service`, is_completed: true }) });
-      await updateCompressorHours(compressorId, serviceInterval, comp.total_loaded_hours, 0, 0, `${serviceInterval} hour service completed`);
-      await fetchUpcomingServices();
-      toast.success('Service marked as completed');
-    } catch { toast.error('Failed to mark service as completed'); }
-  };
-
-  const generateCSVReport = async () => {
+      await api.post('/api/compressors/service-records', { compressor_id: id, service_type: `${interval} Hour Service`, service_date: localDateString(new Date()), running_hours_at_service: interval, description: `Completed ${interval} hour service`, is_completed: true });
+    } catch (e) { throw new Error(messageOf(e, 'The service could not be recorded.')); }
     try {
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const blob = await api.blob('/api/compressors/export', 'POST', { start_date: startDate, end_date: new Date().toISOString().split('T')[0], format: 'csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `compressor-report-${new Date().toISOString().split('T')[0]}.csv`; a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success('Report exported');
-    } catch { toast.error('Failed to export report'); }
+      await api.post('/api/compressors/daily-entries/cumulative', { compressor_id: id, date, current_total_running: interval, current_total_loaded: c.total_loaded_hours, pressure: 0, temperature: 0, notes: `${interval} hour service completed` });
+    } catch (e) {
+      await refresh();
+      throw new Error(`The service was recorded, but the running hours were not updated: ${messageOf(e, 'unknown error')}`);
+    }
+    await refresh();
   };
 
-  const importData = async (file: File) => {
+  const exportCsv = async () => {
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const blob = await api.blob('/api/compressors/export', 'POST', { start_date: localDateString(start), end_date: localDateString(end), format: 'csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `compressor-report-${localDateString(end)}.csv`; a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const importCsv = async (file: File) => {
     const fd = new FormData(); fd.append('file', file);
-    try {
-      const result = await api.post<{ errors?: unknown[]; imported_count?: number }>('/api/compressors/import', fd);
-      if (result.errors?.length) toast.warning(`Imported with ${result.errors.length} errors`);
-      else toast.success(`Imported ${result.imported_count} compressors`);
-      await loadAllData();
-    } catch { toast.error('Failed to import data'); }
+    const result = await api.post<{ errors?: unknown[]; imported_count?: number }>('/api/compressors/import', fd);
+    await refresh();
+    return { imported: result.imported_count ?? 0, errors: result.errors?.length ?? 0 };
   };
 
   return {
-    compressors, previousReadings, isLoading, isSaving, loadError, servicesError, compressorsLoaded,
-    stats, upcomingServices, analyticsData, managementData,
-    refresh: loadAllData,
-    fetchPerformanceMetrics, fetchTrendAnalysis, fetchComparisonAnalytics,
-    updateCompressorHours, addCompressor, updateCompressorStatus, markServiceCompleted,
-    generateCSVReport, importData,
+    register, compressors, stats, services, metrics, trends, comparison, summary, previous,
+    period, setPeriod, metric, setMetric,
+    refresh, saveReading, addCompressor, changeStatus, completeService, exportCsv, importCsv,
   };
 }
-
-export { SERVICE_INTERVALS };

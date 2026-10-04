@@ -1,0 +1,272 @@
+{
+  "/artisan-timesheets": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/breakdowns": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Log a breakdown",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Winder 1",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 808,
+          "top": 46
+        },
+        "actionReachable": null,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": false
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Log a breakdown",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Winder 1",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": null,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": false
+      }
+    }
+  },
+  "/maintenance": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "New work order",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Work order WO-00001",
+        "fits": true,
+        "box": {
+          "w": 1024,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "New work order",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Work order WO-00001",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {},
+      "menu": {
+        "found": true,
+        "fits": true,
+        "items": 2,
+        "box": {
+          "w": 192,
+          "h": 82
+        }
+      }
+    }
+  },
+  "/ppe": {
+    "desktop": {
+      "create": {
+        "found": true,
+        "name": "Issue PPE",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 828,
+          "top": 36
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Ann Alpha",
+        "fits": true,
+        "box": {
+          "w": 768,
+          "h": 307,
+          "top": 297
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {}
+    },
+    "phone": {
+      "create": {
+        "found": true,
+        "name": "Issue PPE",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 776,
+          "top": 34
+        },
+        "actionReachable": true,
+        "bodyScrolls": true,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "detail": {
+        "found": true,
+        "name": "Ann Alpha",
+        "fits": true,
+        "box": {
+          "w": 358,
+          "h": 371,
+          "top": 236
+        },
+        "actionReachable": true,
+        "bodyScrolls": false,
+        "focusInside": true,
+        "hasClose": true,
+        "contentOverflowsX": false,
+        "escapeCloses": true
+      },
+      "extra": {}
+    }
+  },
+  "/quotations": {
+    "desktop": {
+      "extra": {}
+    },
+    "phone": {
+      "extra": {}
+    }
+  },
+  "/timesheets": {
+    "desktop": {
+      "extra": {},
+      "menu": {
+        "found": false
+      }
+    },
+    "phone": {
+      "extra": {},
+      "menu": {
+        "found": false
+      }
+    }
+  }
+}

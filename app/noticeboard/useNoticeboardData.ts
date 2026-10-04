@@ -1,48 +1,39 @@
-// app/noticeboard/useNoticeboardData.ts — the noticeboard's data-fetching layer: the
-// filter/search-driven CRUD calls plus a hook that owns the notice list and reload
-// cycle. Split out of page.tsx as part of the standing "decompose on touch" convention.
-// Single resource, parameterized by the active filters/search — same shape as
-// timesheets' period-scoped hook. Preserves the original's two-effect mount behavior
-// exactly: one immediate fetch on mount, plus a separately-debounced (300ms) fetch
-// whenever filters/search change (both fire on mount, since search/filters also count
-// as "changed" from undefined — a pre-existing soft double-fetch-on-mount, not
-// introduced here).
+// app/noticeboard/useNoticeboardData.ts — the noticeboard's data layer: record writes, the attachment upload, and
+// the list hook. The filters and search are sent to the server, so the list path changes with them; search is
+// debounced so typing a word sends one request. Writes throw so the form dialog can show the reason, and a failed
+// load is reported through useApiList (the stale list stays visible on a failed refresh), never as an empty board.
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
-import { toast } from 'sonner';
-import type { Notice, NoticeFilters, NoticeFormData, Attachment } from './types';
+import { useApiList } from '@/lib/useApiList';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
 
-export async function getAllNotices(filters: Record<string, string | boolean | undefined> = {}) {
+/** `/api/notices` with the active filters and search. "all" and an unset pin filter are not sent. */
+export function noticesPath(filters: NoticeFilters, search: string): string {
   const params = new URLSearchParams();
-  Object.entries(filters).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== 'all') params.append(k, String(v));
-  });
+  for (const key of ['category', 'priority', 'status', 'department'] as const) if (filters[key] !== 'all') params.append(key, filters[key]);
+  if (filters.is_pinned !== null) params.append('is_pinned', String(filters.is_pinned));
+  if (search.trim()) params.append('search', search.trim());
+  const query = params.toString();
+  return `/api/notices${query ? `?${query}` : ''}`;
+}
+
+/** One-shot read used outside this page (the shell's notification bell). Throws on a failure or a non-list response. */
+export async function getAllNotices(filters: Record<string, string | boolean | undefined> = {}): Promise<Notice[]> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== 'all') params.append(k, String(v)); });
   const data = await api.get<unknown>(`/api/notices${params.toString() ? `?${params.toString()}` : ''}`);
   if (!Array.isArray(data)) throw new Error('Notices returned an unexpected response.');
   return data as Notice[];
 }
-export async function createNotice(data: NoticeFormData) {
-  return api.post('/api/notices', data);
-}
-export async function updateNotice(id: string, data: NoticeFormData) {
-  // PATCH, not PUT — the backend migrated to CrudRouter (app/crud_router.py), whose
-  // update endpoint is PATCH-only. Still sends every field from the edit form, so
-  // this call's own behavior is unaffected by NoticeUpdate becoming all-Optional.
-  return api.patch(`/api/notices/${id}`, data);
-}
-export async function deleteNotice(id: string) {
-  await api.delete(`/api/notices/${id}`);
-  return { success: true };
-}
-export async function togglePin(id: string, current: boolean) {
-  return api.patch(`/api/notices/${id}`, { is_pinned: !current });
-}
 
-export async function archiveNotice(id: string) {
-  return api.patch(`/api/notices/${id}`, { status: 'Archived' });
-}
+export const createNotice = (data: NoticeFormData) => api.post('/api/notices', data);
+// PATCH, not PUT: the backend uses CrudRouter, whose update endpoint is PATCH-only.
+export const updateNotice = (id: string, data: NoticeFormData) => api.patch(`/api/notices/${id}`, data);
+export const deleteNotice = (id: string) => api.delete(`/api/notices/${id}`);
+export const togglePin = (id: string, current: boolean) => api.patch(`/api/notices/${id}`, { is_pinned: !current });
+export const archiveNotice = (id: string) => api.patch(`/api/notices/${id}`, { status: 'Archived' });
 
 export async function uploadNoticeAttachment(file: File): Promise<Attachment> {
   const fd = new FormData();
@@ -51,44 +42,7 @@ export async function uploadNoticeAttachment(file: File): Promise<Attachment> {
 }
 
 export function useNoticeboardData(filters: NoticeFilters, search: string) {
-  const [data, setData] = useState<Notice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  // A failed fetch used to fall through to setData([]) — indistinguishable from a
-  // genuinely empty noticeboard (the empty state reads "Get started by creating your
-  // first notice" either way). Kept separate from isLoading so the page can tell
-  // "still loading" apart from "loading failed" and show something real instead of
-  // silently pretending there are no notices.
-  const [loadError, setLoadError] = useState('');
-  const requestId = useRef(0);
-  const mounted = useRef(false);
-
-  const fetchNotices = useCallback(async (quiet = false) => {
-    const id = ++requestId.current;
-    if (quiet) setRefreshing(true); else setIsLoading(true);
-    setLoadError('');
-    try {
-      const notices = await getAllNotices({ ...filters, search: search || undefined, is_pinned: filters.is_pinned ?? undefined });
-      if (id !== requestId.current) return;
-      setData(notices);
-    } catch (err) {
-      // Keep whatever's already on screen (a transient failure shouldn't wipe out
-      // data the user can already see) — the error flag is what lets the page show
-      // a real "couldn't load" state instead of a false empty one. Still toast so a
-      // failed *refresh* (stale data already visible) isn't silent either.
-      if (id !== requestId.current) return;
-      const message = err instanceof Error ? err.message : 'Failed to load notices';
-      setLoadError(message);
-      toast.error(`Failed to load notices: ${message}`);
-    }
-    finally { if (id === requestId.current) { setIsLoading(false); setRefreshing(false); } }
-  }, [filters, search]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => { void fetchNotices(); }, mounted.current ? 300 : 0);
-    mounted.current = true;
-    return () => clearTimeout(timer);
-  }, [fetchNotices]);
-
-  return { data, setData, isLoading, refreshing, loadError, refresh: fetchNotices };
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const list = useApiList<Notice>(noticesPath(filters, debouncedSearch));
+  return { notices: list.items, setNotices: list.setItems, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
 }

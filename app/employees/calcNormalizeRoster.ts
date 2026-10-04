@@ -3,7 +3,6 @@
 
 import type { Employee, EmployeeFormData } from './types';
 import {
-  isHoistDriverDesignation,
   normalizeEmployeeRoleFields,
   shouldArchiveEmployee,
 } from '@/lib/employeeCatalog';

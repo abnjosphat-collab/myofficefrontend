@@ -5,6 +5,7 @@
 // list of gotchas already hit once — read it before adding a new component
 // or hand-rolling something this barrel might already provide.
 export * from './tokens';
+export * from './appearance';
 export * from './color';
 export * from './motion';
 export * from './icons';

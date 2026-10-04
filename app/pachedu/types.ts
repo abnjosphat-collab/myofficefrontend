@@ -1,5 +1,5 @@
 // app/pachedu/types.ts — the Pachedu care-observation page's data model: the report
-// shape and its computed stats. Split out of page.tsx as part of the standing
+// shape. Split out of page.tsx as part of the standing
 // "decompose on touch" convention. Component *prop* interfaces stay in page.tsx —
 // they're coupled to one component, not the page's data contract. SECTION_ICONS/
 // SECTION_META/BEHAVIOUR_META/STATUS_META/IMPACT_OPTIONS/CHECKLIST_CATEGORIES also
@@ -28,17 +28,4 @@ export interface PacheduReport {
   created_at: string;
   updated_at?: string;
   submitted_at?: string;
-}
-
-export interface PacheduStats {
-  total: number;
-  bySection: Record<SectionType, number>;
-  byDept: Record<string, number>;
-  byBehaviour: Record<BehaviourType, number>;
-  totalImpacts: number;
-  totalChecklist: number;
-  draftCount: number;
-  submittedCount: number;
-  reviewedCount: number;
-  closedCount: number;
 }

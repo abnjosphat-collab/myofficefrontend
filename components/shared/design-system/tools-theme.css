@@ -1,0 +1,92 @@
+/* Canonical shared theme contract — Tools-derived values, namespaced `--mo-*`.
+   Stage B of the Tools-standard rollout (see docs/tools-standard-rollout/).
+   Canonical source: app/tools/tools.module.css `.surface` (frozen reference:
+   docs/tools-polish-2026-10-02/organize/*.png, sidebar-regular-nofill.png).
+
+   Recorded decisions (brief section 5, U2/U4):
+   - U4 RULING: dallaglio-light converges on the Tools values below. Tools is
+     no longer a classic-forced exception: its `.surface` aliases these same
+     tokens, so trigger and portal, Tools and AppShell routes all resolve one
+     palette. classic/ stays byte-identical as the preserved archive.
+   - U2 RULING: dallaglio `--brand-600 == --brand-500` (#7652c5) was a bug, not
+     a step. The forest ramp below gives 600 a properly darker value than 500.
+   - Radius: 7px stays the compact-control foundation (`--mo-radius-control`).
+     Larger container radii are named component tokens, not one global radius;
+     `:root --radius` (shadcn, 10px) is untouched until classic retires.
+   - Dark dallaglio stays achromatic and untouched in Stage B; the light/dark
+     control retires in Stage E, not here.
+
+   Placed on `:root`/`html` (not a route module) so body-portalled overlays —
+   Radix dialogs, menus, tooltips — inherit the same tokens as their triggers
+   with no per-portal copying. */
+
+:root {
+  --mo-canvas: #f4f6f5;
+  --mo-paper: #fbfcfb;
+  --mo-surface-raised: #f7f9f8;
+  --mo-surface-muted: #e8eeeb;
+  --mo-surface-interactive: #dce6e1;
+  --mo-surface-interactive-hover: #cfddd6;
+  --mo-surface-strong: #182620;
+  --mo-ink: #1b2923;
+  --mo-ink-muted: #5b6d64;
+  --mo-line: #ccd7d1;
+  --mo-line-strong: #6f887c;
+  --mo-soft: #e2e9e5;
+  --mo-action: #233b31;
+  --mo-action-ink: #f8fbf9;
+  --mo-action-soft: #e0ebe5;
+  --mo-focus: #4f806a;
+  --mo-success: #27705a;
+  --mo-amber: #8a5d18;
+  --mo-danger: #a13f47;
+  --mo-neutral: #71807a;
+  --mo-overlay: rgba(16, 31, 25, 0.48);
+  --mo-radius-control: 7px;
+  --mo-radius-card: 12px;
+  --mo-radius-panel: 18px;
+  --mo-radius-pill: 999px;
+  --mo-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 18%, transparent);
+  --mo-shadow-control: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 13%, transparent);
+  --mo-shadow-tile: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 14%, transparent),
+    0 12px 28px -25px color-mix(in srgb, var(--mo-ink) 62%, transparent);
+}
+
+/* Dallaglio light IS the Tools look from here on: every `--d-*` value aliases
+   the canonical token, so older dallaglio consumers re-tint without edits. */
+html[data-design='dallaglio'] {
+  --brand-50: #f2f6f3;
+  --brand-100: var(--mo-action-soft);
+  --brand-200: #c2d4ca;
+  --brand-300: #9db9aa;
+  --brand-400: #719787;
+  --brand-500: var(--mo-focus);
+  --brand-600: #3a6352;
+  --brand-700: #2c4d40;
+  --brand-800: var(--mo-action);
+  --brand-900: #182820;
+  --d-canvas: var(--mo-canvas);
+  --d-surface: var(--mo-paper);
+  --d-surface-elevated: var(--mo-surface-raised);
+  --d-ink: var(--mo-ink);
+  --d-ink-muted: var(--mo-ink-muted);
+  --d-ink-subtle: var(--mo-ink-muted);
+  --d-line: var(--mo-line);
+  --d-line-strong: var(--mo-line-strong);
+  --d-soft: var(--mo-soft);
+  --d-accent: var(--mo-action);
+  --d-accent-ink: var(--mo-action-ink);
+  --d-accent-soft: var(--mo-action-soft);
+  --d-success: var(--mo-success);
+  --d-warning: var(--mo-amber);
+  --d-danger: var(--mo-danger);
+  --d-focus: color-mix(in srgb, var(--mo-focus) 9%, transparent);
+  --d-overlay: var(--mo-overlay);
+  --d-shadow: 0 3px 10px -7px color-mix(in srgb, var(--mo-ink) 22%, transparent);
+  /* Calm hover elevation in the Tools tile language; the violet glow is retired. */
+  --d-shadow-hover: var(--mo-shadow-tile);
+  --d-radius-sm: var(--mo-radius-control);
+  --d-radius: 9px;
+  --d-radius-md: 13px;
+  --d-radius-lg: var(--mo-radius-panel);
+}

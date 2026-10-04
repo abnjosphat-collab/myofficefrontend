@@ -54,7 +54,7 @@ export function MyOfficeAccessBoundary({ children }: { children: React.ReactNode
             <h1 id="myoffice-access-title" className="mt-3 max-w-md font-heading text-3xl font-medium leading-tight tracking-[-.025em] text-white md:text-[40px]">Sign in to enter the wider MyOffice workspace.</h1>
             <p className="mt-4 max-w-md text-sm leading-7 text-white/58">Tools &amp; Equipment remains a focused standalone workspace. MyOffice modules require a separate authorised account.</p>
           </div>
-          <a href="/tools" className="relative mt-9 inline-flex min-h-11 w-fit items-center gap-2 rounded-xl border border-white/12 bg-white/[.055] px-4 text-sm font-medium text-white/86 transition hover:-translate-y-0.5 hover:border-violet-300/35 hover:bg-violet-300/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-violet-300">
+          <a href="/tools" className="relative mt-9 inline-flex min-h-11 w-fit items-center gap-2 rounded-xl border border-white/12 bg-white/[.055] px-4 text-sm font-medium text-white/86 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-white">
             <ArrowLeft className="h-[17px] w-[17px]" weight="light" aria-hidden="true"/>Return to Tools &amp; Equipment
           </a>
         </div>

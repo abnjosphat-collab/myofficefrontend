@@ -1,49 +1,25 @@
 // app/drivers/page.tsx — Authorised Drivers Registry
 'use client';
 
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  useTheme, STATUS_TONE, PageHero, StatTile, StatusBadge, FormField, FormActions,
-  SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection, SelectField,
-  GroupSection, RecordCard, RecordActions, ACCENT_HEX, staggerContainer, fadeUp, InfoRow, SummaryItem, LoadingState, TYPE_WEIGHT, Button,
-} from '@/components/shared/theme';
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger,
+  PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus,
+  sortRows, useConfirm, useViewPreference, type Column, type SortState,
+} from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Car, Plus, Pencil, Trash2, RefreshCw, Phone,
-  ChevronDown, ChevronUp, X, Building2,
-  FileSpreadsheet, FileText, CheckCircle2, AlertCircle, LayoutGrid, List,
-  useConfirm,
-} from '@/components/shared/theme';
-import { toast } from 'sonner';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { EXPORT_BRAND_RGB, styleExcelHeaderRow, exportFilename } from '@/lib/exportUtils';
 import type { Driver, DriverForm } from './types';
 import { useDriversData, createDriver, updateDriver, deleteDriver } from './useDriversData';
+import { exportExcel, exportPDF } from './exportDrivers';
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-
-const DEPARTMENTS = [
-  'Mining', 'Engineering', 'Geology', 'Survey', 'Environment',
-  'Safety', 'HR', 'Finance', 'IT', 'Logistics', 'Security', 'Administration',
-];
-
+const DEPARTMENTS = ['Mining', 'Engineering', 'Geology', 'Survey', 'Environment', 'Safety', 'HR', 'Finance', 'IT', 'Logistics', 'Security', 'Administration'];
 const LICENSE_CLASSES = ['Code 08', 'Code 10', 'Code 14', 'EC', 'EC1', 'PrDP', 'Other'];
-
-const STATUS_COLORS: Record<string, string> = { active: STATUS_TONE.good, inactive: STATUS_TONE.critical, suspended: STATUS_TONE.warning };
-
-// Palette for departments — drawn from the shared ACCENT_HEX brand palette (not
-// arbitrary hexes), hashed so each distinct department gets a stable color.
-const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
-function deptColor(department?: string) {
-  if (!department) return STATUS_TONE.neutral;
-  let h = 0;
-  for (let i = 0; i < department.length; i++) h = (h * 31 + department.charCodeAt(i)) >>> 0;
-  return GROUP_PALETTE[h % GROUP_PALETTE.length];
-}
-
+const STATUS_OPTIONS = [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'suspended', label: 'Suspended' }];
+const STATUS_TONE = { active: 'success', inactive: 'neutral', suspended: 'warning' } as const;
+const STATUS_ICON = { active: 'active', inactive: 'inactive', suspended: 'warning' } as const;
+const ALL = '__all__';
 const emptyForm = (): DriverForm => ({ full_name: '', phones: [''], department: '', license_class: '', license_expiry: '', status: 'active', notes: '' });
 
 const isExpired = (expiry?: string) => !!expiry && new Date(expiry) < new Date();
@@ -53,533 +29,227 @@ const isExpiringSoon = (expiry?: string) => {
   return d >= new Date() && d <= soon;
 };
 
-// ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
+const StatusTag = ({ status }: { status: Driver['status'] }) => <StatusBadge tone={STATUS_TONE[status] ?? 'neutral'} icon={STATUS_ICON[status] ?? 'info' as never}>{STATUS_OPTIONS.find(o => o.value === status)?.label ?? status}</StatusBadge>;
 
-async function exportExcel(drivers: Driver[]) {
-  const ExcelJS = (await import('exceljs')).default;
-  const { saveAs } = await import('file-saver');
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('Authorised Drivers');
-  ws.columns = [
-    { header: 'Full Name', key: 'name', width: 28 },
-    { header: 'Phone Number(s)', key: 'phones', width: 30 },
-    { header: 'Department', key: 'dept', width: 18 },
-    { header: 'License Class', key: 'class', width: 14 },
-    { header: 'License Expiry', key: 'expiry', width: 16 },
-    { header: 'Status', key: 'status', width: 12 },
-    { header: 'Notes', key: 'notes', width: 32 },
-  ];
-  styleExcelHeaderRow(ws.getRow(1));
-  drivers.forEach(d => ws.addRow({
-    name: d.full_name, phones: (d.phone_numbers || []).join(' / '),
-    dept: d.department || '', class: d.license_class || '',
-    expiry: d.license_expiry || '', status: d.status, notes: d.notes || '',
-  }));
-  const buf = await wb.xlsx.writeBuffer();
-  saveAs(
-    new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `${exportFilename('Authorised_Drivers')}.xlsx`,
+function LicenceExpiry({ expiry }: { expiry?: string }) {
+  if (!expiry) return <span className="text-ink-muted">Not set</span>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="tabular whitespace-nowrap">{formatDate(expiry)}</span>
+      {isExpired(expiry) ? <StatusBadge tone="danger" icon="expired">Expired</StatusBadge> : isExpiringSoon(expiry) ? <StatusBadge tone="warning" icon="due-soon">Expiring soon</StatusBadge> : null}
+    </span>
   );
-  toast.success('Excel downloaded');
 }
 
-function exportPDF(drivers: Driver[], filterLabel: string) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  doc.setFillColor(...EXPORT_BRAND_RGB);
-  doc.rect(0, 0, pageW, 22, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-  doc.text('Authorised Drivers Registry', 14, 9);
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}  ·  ${filterLabel}  ·  ${drivers.length} driver${drivers.length !== 1 ? 's' : ''}`, 14, 16);
-
-  const phonePositions: { x: number; y: number; w: number; h: number; tel: string }[] = [];
-  const body = drivers.map(d => [
-    d.full_name, (d.phone_numbers || []).join('\n'), d.department || '—', d.license_class || '—',
-    d.license_expiry ? new Date(d.license_expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', d.status.toUpperCase(), d.notes || '',
-  ]);
-
-  autoTable(doc, {
-    startY: 26,
-    head: [['Full Name', 'Phone Number(s)', 'Department', 'Licence Class', 'Expiry', 'Status', 'Notes']],
-    body,
-    styles: { fontSize: 8.5, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, textColor: [30, 30, 30], lineColor: [220, 230, 240], lineWidth: 0.25 },
-    headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-    alternateRowStyles: { fillColor: [245, 249, 253] },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 44 }, 1: { cellWidth: 46, textColor: [30, 90, 160] }, 2: { cellWidth: 32 }, 3: { cellWidth: 24 }, 4: { cellWidth: 22 }, 5: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
-    didDrawCell(data) {
-      if (data.section === 'body' && data.column.index === 1) {
-        const driver = drivers[data.row.index];
-        if (!driver) return;
-        const phones = driver.phone_numbers || [];
-        if (phones.length === 0) return;
-        const lineH = data.cell.height / Math.max(phones.length, 1);
-        phones.forEach((phone, i) => {
-          const raw = phone.replace(/\s/g, '');
-          if (!raw) return;
-          phonePositions.push({ x: data.cell.x, y: data.cell.y + i * lineH, w: data.cell.width, h: lineH, tel: `tel:${raw}` });
-        });
-      }
-    },
-    margin: { left: 14, right: 14 },
-  });
-
-  phonePositions.forEach(pos => doc.link(pos.x, pos.y, pos.w, pos.h, { url: pos.tel }));
-
-  const totalPages = (doc as any).internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7); doc.setTextColor(160, 160, 160);
-    doc.text('Ozech MyOffice — Confidential', 14, doc.internal.pageSize.getHeight() - 6);
-    doc.text(`Page ${i} of ${totalPages}`, pageW - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
-  }
-
-  doc.save(`Authorised_Drivers_${new Date().toISOString().slice(0, 10)}.pdf`);
-  toast.success('PDF downloaded — phone numbers are clickable links');
-}
-
-// ─── PHONE INPUT ROW ─────────────────────────────────────────────────────────
+const PhoneLinks = ({ phones }: { phones?: string[] }) => (phones?.length ? (
+  <span className="flex flex-col gap-0.5">{phones.map((p, i) => <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="focus-ring w-fit rounded-xs text-action underline underline-offset-2">{p}</a>)}</span>
+) : <span className="text-ink-muted">None</span>);
 
 function PhoneRows({ phones, onChange }: { phones: string[]; onChange: (v: string[]) => void }) {
-  const t = useTheme();
-  const add = () => { if (phones.length < 4) onChange([...phones, '']); };
-  const remove = (i: number) => onChange(phones.filter((_, idx) => idx !== i));
-  const update = (i: number, v: string) => onChange(phones.map((p, idx) => idx === i ? v : p));
-
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-col gap-2">
       {phones.map((p, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <div className="relative flex-1">
-            <Phone className={`absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 ${t.textFaint}`} />
-            <input type="tel" value={p} onChange={e => update(i, e.target.value)}
-              placeholder={i === 0 ? 'Primary number…' : 'Additional number…'}
-              aria-label={i === 0 ? 'Primary phone number' : `Additional phone number ${i + 1}`}
-              className={`w-full pl-7 pr-3 h-9 text-sm rounded-lg outline-none transition-colors ${t.inputBg}`} />
-          </div>
-          {phones.length > 1 && (
-            <button type="button" title="Remove" onClick={() => remove(i)}
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-all flex-shrink-0`}>
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+        <div key={i} className="flex items-center gap-2">
+          <Input type="tel" value={p} onChange={e => onChange(phones.map((x, idx) => (idx === i ? e.target.value : x)))} placeholder={i === 0 ? 'Primary number' : 'Additional number'} aria-label={i === 0 ? 'Primary phone number' : `Additional phone number ${i}`} autoComplete="tel" />
+          {phones.length > 1 && <IconButton icon="close" variant="danger" label={`Remove phone number ${i + 1}`} onClick={() => onChange(phones.filter((_, idx) => idx !== i))} />}
         </div>
       ))}
-      {phones.length < 4 && (
-        <Button type="button" variant="ghost" size="xs" icon={Plus} iconPosition="end" className="mt-0.5" onClick={add}>Add number</Button>
-      )}
+      {phones.length < 4 && <Button size="sm" variant="ghost" icon="plus" className="w-fit" onClick={() => onChange([...phones, ''])}>Add a number</Button>}
     </div>
   );
 }
 
-// ─── DRIVER FORM MODAL ────────────────────────────────────────────────────────
-
-function DriverModal({ open, onClose, onSave, initial, departments }: {
-  open: boolean; onClose: () => void; onSave: (f: DriverForm) => Promise<void>; initial?: Driver; departments: string[];
-}) {
-  const t = useTheme();
+function DriverDialog({ driver, departments, open, onOpenChange, onSaved }: { driver?: Driver; departments: string[]; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const [form, setForm] = useState<DriverForm>(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
-
-  useEffect(() => {
-    if (open) {
-      setForm(initial ? {
-        full_name: initial.full_name, phones: initial.phone_numbers?.length ? initial.phone_numbers : [''],
-        department: initial.department || '', license_class: initial.license_class || '',
-        license_expiry: initial.license_expiry?.slice(0, 10) || '', status: initial.status, notes: initial.notes || '',
-      } : emptyForm());
+  const [touched, setTouched] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(driver?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false);
+      setForm(driver ? { full_name: driver.full_name, phones: driver.phone_numbers?.length ? driver.phone_numbers : [''], department: driver.department || '', license_class: driver.license_class || '', license_expiry: driver.license_expiry?.slice(0, 10) || '', status: driver.status, notes: driver.notes || '' } : emptyForm());
     }
-  }, [open, initial]);
-
-  const setF = <K extends keyof DriverForm>(k: K, v: DriverForm[K]) => setForm(p => ({ ...p, [k]: v }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.full_name.trim()) { toast.error('Full name is required'); return; }
-    setSaving(true);
-    try { await onSave(form); } finally { setSaving(false); }
-  };
-
-  if (!open) return null;
+  }
+  const set = <K extends keyof DriverForm>(k: K, v: DriverForm[K]) => setForm(p => ({ ...p, [k]: v }));
   const allDepts = [...new Set([...DEPARTMENTS, ...departments])].sort();
 
-  return (
-    <CenterModal open={open} onClose={onClose} title={initial ? 'Edit Driver' : 'Add Driver'} width="max-w-lg">
-      <form onSubmit={handleSubmit}>
-        <div className="px-5 py-4 space-y-4">
-          <FormField label="Full Name" required>
-            <input type="text" value={form.full_name} onChange={e => setF('full_name', e.target.value)} placeholder="e.g. John Moyo" aria-label="Full name" className={inputCls} />
-          </FormField>
-          <FormField label="Phone Number(s)">
-            <PhoneRows phones={form.phones} onChange={v => setF('phones', v)} />
-          </FormField>
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Department">
-              <input list="dept-list" value={form.department} onChange={e => setF('department', e.target.value)} placeholder="Select or type…" aria-label="Department" className={inputCls} />
-              <datalist id="dept-list">{allDepts.map(d => <option key={d} value={d}>{d}</option>)}</datalist>
-            </FormField>
-            <FormField label="Status">
-              <SelectField size="form" value={form.status} title="Status" onChange={v => setF('status', v as DriverForm['status'])}
-                options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'suspended', label: 'Suspended' }]} />
-            </FormField>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Licence Class">
-              <input list="lic-list" value={form.license_class} onChange={e => setF('license_class', e.target.value)} placeholder="e.g. Code 10, PrDP…" aria-label="Licence class" className={inputCls} />
-              <datalist id="lic-list">{LICENSE_CLASSES.map(l => <option key={l} value={l}>{l}</option>)}</datalist>
-            </FormField>
-            <FormField label="Licence Expiry">
-              <input type="date" value={form.license_expiry} title="Licence expiry" aria-label="Licence expiry" onChange={e => setF('license_expiry', e.target.value)} className={inputCls} />
-            </FormField>
-          </div>
-          <FormField label="Notes">
-            <input type="text" value={form.notes} onChange={e => setF('notes', e.target.value)} placeholder="Any additional info…" aria-label="Notes" className={inputCls} />
-          </FormField>
-        </div>
-        <FormActions onCancel={onClose} submitting={saving} submitLabel={initial ? 'Save Changes' : 'Add Driver'} />
-      </form>
-    </CenterModal>
-  );
-}
-
-// ─── SHARED DISPLAY HELPERS ───────────────────────────────────────────────────
-// InfoRow/SummaryItem now come from the shared design system (promoted from
-// this page's own local versions — see the design-system migration).
-
-function licenceExpiryNote(expiry?: string) {
-  if (!expiry) return undefined;
-  const label = formatDate(expiry);
-  return isExpired(expiry) ? `EXPIRED · ${label}` : isExpiringSoon(expiry) ? `Expiring soon · ${label}` : `Expires ${label}`;
-}
-
-// ─── DriverCard — built on the shared RecordCard so it inherits the exact
-// homepage module-card treatment (bare accent icon, Montserrat title, GlowCard
-// lift/glow). Key summary always visible; the rest expands in place. ──
-function DriverCard({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () => void; onDelete: () => void }) {
-  const t = useTheme();
-  const dColor = deptColor(driver.department);
-  const statusColor = STATUS_COLORS[driver.status] || STATUS_TONE.neutral;
-  const expiryNote = licenceExpiryNote(driver.license_expiry);
-  const expiryTone = isExpired(driver.license_expiry) ? `text-rose-500 ${TYPE_WEIGHT.semibold}` : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
-  const primaryPhone = driver.phone_numbers?.[0];
+  const submit = async () => {
+    setTouched(true);
+    if (!form.full_name.trim()) return false;
+    const payload = {
+      full_name: form.full_name.trim(), phone_numbers: form.phones.filter(p => p.trim()),
+      department: form.department || null, license_class: form.license_class || null,
+      license_expiry: form.license_expiry || null, status: form.status, notes: form.notes || null,
+    };
+    if (driver) await updateDriver(driver.id, payload); else await createDriver(payload);
+    toast.success(driver ? 'Driver updated.' : 'Driver added.');
+    onSaved();
+  };
 
   return (
-    <RecordCard
-      icon={Car}
-      accentHex={dColor}
-      title={driver.full_name}
-      subtitle={driver.department || 'No department'}
-      badges={<>
-        <StatusBadge color={statusColor} label={driver.status} dot />
-        {driver.license_class && <StatusBadge color={dColor} label={driver.license_class} />}
-      </>}
-      summary={
-        <div className={`grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs ${t.textMuted}`}>
-          <SummaryItem icon={Phone} label="Phone" value={primaryPhone} color={dColor} />
-          {driver.phone_numbers && driver.phone_numbers.length > 1 && (
-            <span className={`text-xs ${t.textFaint}`}>+{driver.phone_numbers.length - 1} more number{driver.phone_numbers.length - 1 === 1 ? '' : 's'}</span>
-          )}
-        </div>
-      }
-      actions={t.design === 'dallaglio' ? <RecordActions onEdit={onEdit} onDelete={onDelete} /> : <>
-        <PrimaryButton icon={Pencil} fullWidth size="xs" onClick={onEdit}>Edit</PrimaryButton>
-        <button onClick={onDelete} type="button" className={`px-4 flex items-center justify-center gap-1.5 py-2 rounded-lg ${t.chipBg} text-rose-500 hover:bg-rose-500/10 text-[12px] ${TYPE_WEIGHT.semibold} transition-all`}>
-          <Trash2 className="h-3.5 w-3.5" /> Delete
-        </button>
-      </>}
-    >
-      <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-        <InfoRow label="Department" value={driver.department} />
-        <InfoRow label="Licence Class" value={driver.license_class} />
-        <InfoRow label="Licence Expiry" value={expiryNote && <span className={expiryTone}>{expiryNote}</span>} />
-        <InfoRow label="Updated" value={driver.updated_at ? formatDate(driver.updated_at) : undefined} />
+    <FormDialog open={open} onOpenChange={onOpenChange} title={driver ? 'Edit driver' : 'Add driver'} description="Only the full name is required." submitLabel={driver ? 'Save changes' : 'Add driver'} onSubmit={submit}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2"><Field label="Full name" required error={touched && !form.full_name.trim() ? 'Enter the full name.' : undefined}><Input value={form.full_name} onChange={e => set('full_name', e.target.value)} autoComplete="name" placeholder="For example, John Moyo" /></Field></div>
+        <div className="sm:col-span-2"><Field label="Phone numbers" optional><PhoneRows phones={form.phones} onChange={v => set('phones', v)} /></Field></div>
+        <Field label="Department" optional description="Choose a suggestion or type your own.">
+          <Input list="driver-departments" value={form.department} onChange={e => set('department', e.target.value)} />
+          <datalist id="driver-departments">{allDepts.map(d => <option key={d} value={d} />)}</datalist>
+        </Field>
+        <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set('status', v as DriverForm['status'])} options={STATUS_OPTIONS} /></Field>
+        <Field label="Licence class" optional>
+          <Input list="driver-licences" value={form.license_class} onChange={e => set('license_class', e.target.value)} placeholder="For example, Code 10 or PrDP" />
+          <datalist id="driver-licences">{LICENSE_CLASSES.map(l => <option key={l} value={l} />)}</datalist>
+        </Field>
+        <Field label="Licence expiry" optional><Input type="date" value={form.license_expiry} onChange={e => set('license_expiry', e.target.value)} /></Field>
+        <div className="sm:col-span-2"><Field label="Notes" optional><Textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} /></Field></div>
       </div>
-      {(driver.phone_numbers?.length ?? 0) > 0 && (
-        <div>
-          <p className={`text-[10px] ${TYPE_WEIGHT.semibold} ${t.textTertiary} uppercase tracking-wider mb-1.5`}>Phone Numbers</p>
-          <div className="flex flex-wrap gap-1.5">
-            {driver.phone_numbers!.map((p, i) => (
-              <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-xs text-brand-400 hover:underline">
-                <Phone className="h-3 w-3" />{p}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-      {driver.notes && <p className={`text-xs ${t.textMuted}`}>{driver.notes}</p>}
-    </RecordCard>
+    </FormDialog>
   );
 }
-
-// ─── DriverRow — compact list-view row, mirroring EmployeeRow's pattern. ──
-function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () => void; onDelete: () => void }) {
-  const t = useTheme();
-  const [expanded, setExpanded] = useState(false);
-  const dColor = deptColor(driver.department);
-  const statusColor = STATUS_COLORS[driver.status] || STATUS_TONE.neutral;
-  const expiryNote = licenceExpiryNote(driver.license_expiry);
-  const expiryTone = isExpired(driver.license_expiry) ? 'text-rose-500' : isExpiringSoon(driver.license_expiry) ? 'text-amber-500' : t.textFaint;
-
-  return (
-    <div className={`border-b ${t.border}`}>
-      <div className={`flex items-center gap-3.5 px-4 py-3 ${t.hoverBgSoft} transition-colors group`}>
-        <div className="shrink-0"><Car className="h-5 w-5" style={{ color: dColor }} /></div>
-
-        <button type="button" onClick={() => setExpanded(o => !o)} className="flex-1 min-w-0 text-left">
-          <div className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>{driver.full_name}</div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {driver.department && <span className={`text-xs ${t.textFaint}`}>{driver.department}</span>}
-            {driver.license_class && <span className={`text-xs font-mono ${t.textFaint}`}>· {driver.license_class}</span>}
-            <StatusBadge color={statusColor} label={driver.status} dot />
-          </div>
-        </button>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {driver.phone_numbers?.[0] && (
-            <a href={`tel:${driver.phone_numbers[0].replace(/\s/g, '')}`} onClick={e => e.stopPropagation()}
-              className={`hidden sm:flex items-center gap-1 text-[11px] text-brand-400 hover:underline`}>
-              <Phone className="h-3 w-3" />{driver.phone_numbers[0]}
-            </a>
-          )}
-          {expiryNote && <span className={`hidden md:block text-[11px] ${expiryTone}`}>{expiryNote}</span>}
-        </div>
-
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button type="button" title="Edit driver" onClick={onEdit}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 transition-all">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title="Remove driver" onClick={onDelete}
-            className="h-7 w-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-all">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-          <button type="button" title={expanded ? 'Collapse' : 'Expand'} onClick={() => setExpanded(o => !o)}
-            className={`h-7 w-7 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all`}>
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className={`px-4 pb-4 pt-3 border-t ${t.border} ${t.hoverBgSoft}`}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2.5">
-            <InfoRow label="All Phone Numbers" value={(driver.phone_numbers?.length ?? 0) === 0 ? undefined : (
-              <div className="space-y-0.5">
-                {driver.phone_numbers!.map((p, i) => (
-                  <a key={i} href={`tel:${p.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-brand-400 hover:underline">
-                    <Phone className="h-3 w-3" />{p}
-                  </a>
-                ))}
-              </div>
-            )} />
-            <InfoRow label="Department" value={driver.department} />
-            <InfoRow label="Licence" value={expiryNote ? <><span>{driver.license_class}</span><span className={`block ${expiryTone}`}>{expiryNote}</span></> : driver.license_class} />
-            <InfoRow label="Notes" value={driver.notes} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 
 function DriversContent() {
-  const t = useTheme();
   const confirm = useConfirm();
-  const sections = useCollapseSection({ records: true });
-  const { drivers, loading, refreshing, loadData } = useDriversData();
-
+  const { drivers, loading, loaded, error, errorStatus, loadData } = useDriversData();
   const [search, setSearch] = useState('');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingDriver, setEditingDriver] = useState<Driver | undefined>();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  // Records are grouped by department (homepage category-accordion vocabulary); this
-  // tracks which department groups the user has collapsed (default: all open).
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-  useEffect(() => { loadData(); }, []);
+  const [deptFilter, setDeptFilter] = useState(ALL);
+  const [statusFilter, setStatusFilter] = useState<'all' | Driver['status']>('all');
+  const [view, setView] = useViewPreference('drivers', VIEW_CARDS_TABLE);
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<Driver | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const departments = useMemo(() => [...new Set(drivers.map(d => d.department).filter(Boolean) as string[])].sort(), [drivers]);
-
   const filtered = useMemo(() => {
-    let list = drivers;
-    if (statusFilter !== 'all') list = list.filter(d => d.status === statusFilter);
-    if (deptFilter !== 'all') list = list.filter(d => d.department === deptFilter);
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(d => d.full_name.toLowerCase().includes(s) || (d.department || '').toLowerCase().includes(s) || (d.license_class || '').toLowerCase().includes(s) || (d.phone_numbers || []).some(p => p.includes(s)) || (d.notes || '').toLowerCase().includes(s));
-    }
-    return list;
+    const s = search.trim().toLowerCase();
+    return drivers
+      .filter(d => statusFilter === 'all' || d.status === statusFilter)
+      .filter(d => deptFilter === ALL || d.department === deptFilter)
+      .filter(d => !s || d.full_name.toLowerCase().includes(s) || (d.department || '').toLowerCase().includes(s) || (d.license_class || '').toLowerCase().includes(s) || (d.phone_numbers || []).some(p => p.includes(s)) || (d.notes || '').toLowerCase().includes(s));
   }, [drivers, search, deptFilter, statusFilter]);
-
-  const stats = useMemo(() => ({
-    total: drivers.length, active: drivers.filter(d => d.status === 'active').length,
-    inactive: drivers.filter(d => d.status !== 'active').length, depts: [...new Set(drivers.map(d => d.department).filter(Boolean))].length,
-  }), [drivers]);
-
-  // Group the filtered list by department — alphabetically, "Unassigned" last.
+  const rows = useMemo(() => sortRows(filtered, sort, (d, id) => (id === 'license_expiry' ? d.license_expiry ?? '' : String(d[id as keyof Driver] ?? '').toLowerCase())), [filtered, sort]);
+  const stats = useMemo(() => ({ total: drivers.length, active: drivers.filter(d => d.status === 'active').length, inactive: drivers.filter(d => d.status !== 'active').length, depts: departments.length }), [drivers, departments]);
   const grouped = useMemo(() => {
     const map = new Map<string, Driver[]>();
-    for (const d of filtered) {
-      const key = d.department || 'Unassigned';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(d);
-    }
-    return [...map.keys()]
-      .sort((a, b) => (a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b)))
-      .map(department => ({ department, color: deptColor(department === 'Unassigned' ? undefined : department), drivers: map.get(department)! }));
+    for (const d of filtered) map.set(d.department || 'Unassigned', [...(map.get(d.department || 'Unassigned') ?? []), d]);
+    return [...map.entries()].sort(([a], [b]) => (a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b)));
   }, [filtered]);
 
-  const isGroupOpen = (department: string) => !!search || !collapsedGroups.has(department);
-  const toggleGroup = (department: string) => setCollapsedGroups(prev => {
-    const next = new Set(prev);
-    next.has(department) ? next.delete(department) : next.add(department);
-    return next;
-  });
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const hasFilters = !!search || deptFilter !== ALL || statusFilter !== 'all';
+  const filterLabel = [deptFilter !== ALL ? deptFilter : null, statusFilter !== 'all' ? statusFilter : null, search ? `"${search}"` : null].filter(Boolean).join(', ') || 'All departments';
 
-  const openAdd = () => { setEditingDriver(undefined); setModalOpen(true); };
-  const openEdit = (d: Driver) => { setEditingDriver(d); setModalOpen(true); };
-
-  const handleSave = async (form: DriverForm) => {
-    try {
-      const payload = {
-        full_name: form.full_name.trim(), phone_numbers: form.phones.filter(p => p.trim()),
-        department: form.department || null, license_class: form.license_class || null,
-        license_expiry: form.license_expiry || null, status: form.status, notes: form.notes || null,
-      };
-      if (editingDriver) { await updateDriver(editingDriver.id, payload); toast.success('Driver updated'); }
-      else { await createDriver(payload); toast.success('Driver added'); }
-      setModalOpen(false);
-      await loadData(true);
-    } catch (e: any) { toast.error(e.message); }
+  const openEditor = (d?: Driver) => { setEditing(d); setDialogOpen(true); };
+  const remove = async (d: Driver) => {
+    if (!await confirm({ title: `Remove ${d.full_name}?`, message: 'This cannot be undone.', confirmLabel: 'Remove', destructive: true })) return;
+    try { await deleteDriver(d.id); toast.success('Driver removed.'); await loadData(); } catch (e) { toast.error((e as Error).message); }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!await confirm({ title: `Remove ${name}?`, message: 'This cannot be undone.', destructive: true })) return;
-    try { await deleteDriver(id); toast.success('Driver removed'); await loadData(true); }
-    catch (e: any) { toast.error(e.message); }
-  };
-
-  const filterLabel = [deptFilter !== 'all' ? deptFilter : null, statusFilter !== 'all' ? statusFilter : null, search ? `"${search}"` : null].filter(Boolean).join(', ') || 'All departments';
+  const COLUMNS: Column<Driver>[] = [
+    { id: 'full_name', header: 'Driver', sortable: true, sticky: true, cell: d => d.full_name },
+    { id: 'department', header: 'Department', sortable: true, hideBelow: 'md', cell: d => d.department || <span className="text-ink-muted">None</span> },
+    { id: 'status', header: 'Status', sortable: true, cell: d => <StatusTag status={d.status} /> },
+    { id: 'license_class', header: 'Licence', sortable: true, hideBelow: 'md', cell: d => (d.license_class ? <Tag>{d.license_class}</Tag> : <span className="text-ink-muted">None</span>) },
+    { id: 'license_expiry', header: 'Licence expiry', sortable: true, hideBelow: 'lg', cell: d => <LicenceExpiry expiry={d.license_expiry} /> },
+    { id: 'phones', header: 'Phone', hideBelow: 'lg', cell: d => <PhoneLinks phones={d.phone_numbers} /> },
+  ];
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Car}
-        accent="violet"
-        crumbs={['Core Management', 'Drivers']}
-        title="Authorised Drivers"
-        description="Licensed personnel approved to operate mine vehicles"
-        statsOpen={sections.expanded.records}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Core management' }, { label: 'Drivers' }]}
+        title="Authorised drivers"
+        description="Licensed personnel approved to operate mine vehicles."
+        actions={(
           <>
-            <button type="button" onClick={() => loadData(true)} disabled={refreshing} title="Refresh"
-              className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText} transition-all disabled:opacity-40`}>
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <PrimaryButton icon={Plus} accent="violet" onClick={openAdd}>Add Driver</PrimaryButton>
+            <IconButton icon="refresh" label="Refresh drivers" variant="outline" pending={loading && loaded} onClick={() => loadData()} />
+            <Menu>
+              <MenuTrigger asChild><Button variant="secondary" icon="download" iconAfter="chevron-down" disabled={filtered.length === 0}>Download</Button></MenuTrigger>
+              <MenuContent align="end" className="min-w-48">
+                <MenuItem icon="table-view" onSelect={() => exportExcel(filtered)}>Export Excel</MenuItem>
+                <MenuItem icon="pdf" onSelect={() => exportPDF(filtered, filterLabel)}>Export PDF</MenuItem>
+              </MenuContent>
+            </Menu>
+            <Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>
           </>
-        }
+        )}
+      />
+
+      <MetricGrid columns={4}>
+        <MetricTile label="Total drivers" icon="drivers" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Active" icon="active" tone="success" value={stats.active} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Inactive or suspended" icon="warning" tone="warning" value={stats.inactive} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Departments" icon="departments" value={stats.depts} loading={pending} unavailable={unavailable} />
+      </MetricGrid>
+
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, department or phone" wrapperClassName="min-w-56 max-w-md flex-1" />
+        {departments.length > 0 && <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...departments.map(d => ({ value: d, label: d }))]} />}
+        <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: 'all', label: 'All' }, ...STATUS_OPTIONS.map(o => ({ value: o.value as Driver['status'], label: o.label }))]} />
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="drivers"
+        error={error}
+        onRetry={() => loadData()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No drivers match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setDeptFilter(ALL); setStatusFilter('all'); }}>Clear filters</Button>} />
+          : <EmptyState icon="drivers" title="No drivers yet" description="Add the first authorised driver to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>} />}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile icon={Car} color="#86BBD8" label="Total Drivers" value={stats.total} />
-          <StatTile icon={CheckCircle2} color="#34d399" label="Active" value={stats.active} />
-          <StatTile icon={AlertCircle} color="#f59e0b" label="Inactive / Suspended" value={stats.inactive} />
-          <StatTile icon={Building2} color="#a78bfa" label="Departments" value={stats.depts} />
-        </div>
-      </PageHero>
-
-      {sections.expanded.records && <>
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className="px-5 py-3 flex flex-wrap items-center gap-2 justify-between">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search name, department, phone…" className="flex-1 min-w-48 max-w-72" />
-            <div className="flex items-center gap-1 flex-wrap">
-              {['all', ...departments].map(d => (
-                <button key={d} type="button" onClick={() => setDeptFilter(d)}
-                  className={`h-7 px-3 text-[11px] rounded-lg capitalize transition-all ${deptFilter === d ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                  {d === 'all' ? 'All Depts' : d}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-1">
-              {(['all', 'active', 'inactive', 'suspended'] as const).map(s => (
-                <button key={s} type="button" onClick={() => setStatusFilter(s)}
-                  className={`h-7 px-2.5 text-[11px] rounded-lg capitalize transition-all ${statusFilter === s ? 'bg-brand-500/15 text-brand-500' : `${t.chipBg} ${t.textFaint} ${t.hoverText}`}`}>
-                  {s === 'all' ? 'All Status' : s}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              <button type="button" title="Export Excel" onClick={() => exportExcel(filtered)}
-                className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all">
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
-              </button>
-              <button type="button" title="Export PDF" onClick={() => exportPDF(filtered, filterLabel)}
-                className="h-8 px-3 flex items-center gap-1.5 text-xs rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-all">
-                <FileText className="h-3.5 w-3.5" /> PDF
-              </button>
-              <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'list', icon: List, label: 'List view' }]} />
-            </div>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'driver' : 'drivers'}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}</p>
+        {view === 'cards' ? (
+          <div className="flex flex-col gap-6">
+            {grouped.map(([department, items]) => (
+              <section key={department} aria-labelledby={`dept-${department}`}>
+                <h2 id={`dept-${department}`} className="mb-3 font-display text-section font-semibold text-ink">{department}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{items.length} {items.length === 1 ? 'driver' : 'drivers'}</span></h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {items.map(d => (
+                    <RecordCard
+                      key={d.id}
+                      eyebrow={d.license_class || 'No licence class'}
+                      title={d.full_name}
+                      status={<StatusTag status={d.status} />}
+                      facts={[
+                        { label: 'Phone', value: <PhoneLinks phones={d.phone_numbers} /> },
+                        { label: 'Licence expiry', value: <LicenceExpiry expiry={d.license_expiry} /> },
+                        ...(d.notes ? [{ label: 'Notes', value: d.notes }] : []),
+                      ]}
+                      action={<IconButton icon="delete" variant="danger" size="sm" label={`Remove ${d.full_name}`} onClick={() => remove(d)} />}
+                      onOpen={() => openEditor(d)}
+                      openLabel={`Edit ${d.full_name}`}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
-        </div>
-
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`px-5 py-2.5 border-b ${t.border} flex items-center justify-between`}>
-            <span className={`text-[11px] ${t.textFaint}`}>{filtered.length} driver{filtered.length !== 1 ? 's' : ''}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}</span>
-            {(search || deptFilter !== 'all' || statusFilter !== 'all') && (
-              <button type="button" onClick={() => { setSearch(''); setDeptFilter('all'); setStatusFilter('all'); }}
-                className={`text-[11px] ${t.textFaint} ${t.hoverText} flex items-center gap-1 transition-colors`}>
-                <X className="h-3 w-3" /> Clear filters
-              </button>
+        ) : (
+          <DataTable
+            caption="Authorised drivers"
+            rows={rows}
+            columns={COLUMNS}
+            getRowId={d => String(d.id)}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={openEditor}
+            rowActions={d => (
+              <span className="inline-flex gap-1">
+                <IconButton icon="edit" size="sm" label={`Edit ${d.full_name}`} onClick={() => openEditor(d)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Remove ${d.full_name}`} onClick={() => remove(d)} />
+              </span>
             )}
-          </div>
+          />
+        )}
+      </DataRegion>
 
-          {loading ? (
-            <LoadingState label="Loading…" />
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={Car} title="No drivers found"
-              message={search || deptFilter !== 'all' || statusFilter !== 'all' ? 'No drivers match your filters' : 'Add the first authorised driver using the button above'} />
-          ) : (
-            <div className="p-4">
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="space-y-3">
-                {grouped.map(g => (
-                  <GroupSection
-                    key={g.department}
-                    icon={Building2}
-                    accentHex={g.color}
-                    title={g.department}
-                    count={g.drivers.length}
-                    countLabel={g.drivers.length === 1 ? 'driver' : 'drivers'}
-                    open={isGroupOpen(g.department)}
-                    onToggle={() => toggleGroup(g.department)}
-                    gridClassName={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' : 'grid grid-cols-1 gap-0 -mx-4'}
-                  >
-                    {g.drivers.map(driver => (
-                      <motion.div key={driver.id} variants={fadeUp}>
-                        {viewMode === 'grid'
-                          ? <DriverCard driver={driver} onEdit={() => openEdit(driver)} onDelete={() => handleDelete(driver.id, driver.full_name)} />
-                          : <DriverRow driver={driver} onEdit={() => openEdit(driver)} onDelete={() => handleDelete(driver.id, driver.full_name)} />}
-                      </motion.div>
-                    ))}
-                  </GroupSection>
-                ))}
-              </motion.div>
-            </div>
-          )}
-        </div>
-      </>}
-
-      <DriverModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} initial={editingDriver} departments={departments} />
-    </main>
+      <DriverDialog driver={editing} departments={departments} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => loadData()} />
+    </div>
   );
 }
 
 export default function DriversPage() {
-  return <AppShell><DriversContent /></AppShell>;
+  return <AppShell migrated><DriversContent /></AppShell>;
 }

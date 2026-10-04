@@ -16,7 +16,7 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   FileCheck, LayoutDashboard,
-  ListTodo, BookOpen, FlaskConical,
+  ListTodo, BookOpen,
 } from '@/components/shared/theme';
 import type { Accent } from '@/components/shared/theme';
 import type { UserRole } from '@/lib/supabase';
@@ -64,7 +64,6 @@ export const CATEGORIES: Category[] = [
     icon: Building, accent: 'blue', growth: '+12%',
     modules: [
       { icon: Users,    title: 'Personnel',  description: 'Employee profiles & team structure', href: '/employees',  tags: ['HR', 'People'], badge: '12', featured: true, metrics: [{ label: 'Active', value: '48' }, { label: 'Departments', value: '6' }] },
-      { icon: FlaskConical, title: 'Personnel Preview', description: 'Polished UI sandbox — compare before rollout', href: '/employees-preview', tags: ['HR', 'Preview'], badge: 'Preview' },
       { icon: ToolCase, title: 'Equipment', description: 'Track equipment across your site',  href: '/equipment',  tags: ['Equipment'], badge: '48', metrics: [{ label: 'Total', value: '234' }, { label: 'In Use', value: '189' }] },
       { icon: ToolCase, title: 'Tools & Equipment', description: 'Standalone tool register, custody, history and insights', href: '/tools', tags: ['Tools', 'Engineering', 'Register'], featured: true },
       { icon: Package,  title: 'Inventory',  description: 'Manage stock levels & reorder points', href: '/inventory',  tags: ['Stock'], badge: '156', metrics: [{ label: 'Items', value: '1.2k' }, { label: 'Low Stock', value: '8' }] },
@@ -96,7 +95,6 @@ export const CATEGORIES: Category[] = [
       { icon: Clock,          title: 'Standby',      description: 'On-call schedules',          href: '/standby',     tags: ['Scheduling'], badge: '8', metrics: [{ label: 'On Call', value: '6' }, { label: 'Coverage', value: '92%' }] },
       { icon: ClipboardPlus,  title: 'Requisitions', description: 'Purchase & supply requests', href: '/requisitions', tags: ['Procurement'], badge: '7' },
       { icon: Wrench,         title: 'Third Party Services', description: 'Contractor jobs through the PR/PO/GRV approval circuit', href: '/services', tags: ['Services', 'Invoices', 'Contractors'], badge: '34' },
-      { icon: Gauge,          title: 'Equipment Availability', description: 'Utilisation & downtime tracking', href: '/av', tags: ['Uptime'] },
       { icon: Radar,          title: 'Condition Monitoring', description: 'Oil, vibration & thermography', href: '/condition-monitoring', tags: ['Predictive'] },
       { icon: TrendingUp,     title: 'Reliability',      description: 'MTBF / MTTR metrics', href: '/reliability', tags: ['Metrics'] },
       { icon: FileCheck2,     title: 'Job Cards',        description: 'Work order job cards', href: '/job-cards', tags: ['Work Orders'] },
@@ -112,7 +110,7 @@ export const CATEGORIES: Category[] = [
       { icon: CalendarDays, title: 'Leaves',     description: 'Leave applications & balances', href: '/leaves',     tags: ['HR'], badge: '18', metrics: [{ label: 'Pending', value: '5' }, { label: 'Available', value: '87' }] },
       { icon: Sun,          title: 'Shifts',     description: 'Shift cycles & standby rosters', href: '/shifts',     tags: ['Scheduling'], badge: '9' },
       { icon: Gauge,        title: 'Availabilities', description: 'Equipment availability records', href: '/availabilities', tags: ['Uptime'], badge: '11' },
-      { icon: CalendarClock, title: 'Leave Management', description: 'Leave requests admin view', href: '/leave-management', tags: ['HR'] },
+      { icon: Gauge,        title: 'Availability Overview', description: 'Equipment availability dashboard', href: '/availability', tags: ['Uptime'] },
     ],
   },
   {

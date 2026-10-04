@@ -1,3 +1,5 @@
+> **Superseded 3 Oct 2026.** The current handoff is [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md). Kept for history; do not follow its instructions where they differ.
+
 # Paste-ready prompts for Claude
 
 ## Prompt A — full MyOffice takeover

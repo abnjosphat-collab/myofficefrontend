@@ -1,339 +1,217 @@
-// app/availability/page.tsx
+// app/availability/page.tsx — equipment availability: how much of its operating time each unit was available.
 'use client';
 
-import { useState, ElementType } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  ToolCase, AlertTriangle, BarChart3, Gauge,
-  LineChart, Plus, RefreshCw, Search, Settings,
-  Clock, Activity, Percent, Calculator,
-} from '@/components/shared/theme';
 import { AppShell } from '@/components/app-shell';
-import { formatDate } from '@/lib/format';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
-import { PillTabs } from '@/components/shared/PillTabs';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, SearchInput, ProgressBar, useCollapseSection, ACCENT_HEX, SelectField, accentText, TYPE_WEIGHT, PrimaryButton,
-} from '@/components/shared/theme';
+  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
+  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
+import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { fmtDate as formatDate } from '@/components/shared/utils';
+import { exportFilename } from '@/lib/exportUtils';
 import type { Equipment } from './types';
 import { useAvailabilityData } from './useAvailabilityData';
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const ALL = '__all__';
+const STATUS_META: Record<Equipment['status'], { label: string; tone: Tone; icon: IconMeaning; hex: string }> = {
+  operational: { label: 'Operational', tone: 'success', icon: 'active', hex: '34d399' },
+  maintenance: { label: 'Maintenance', tone: 'warning', icon: 'maintenance', hex: 'fbbf24' },
+  breakdown: { label: 'Breakdown', tone: 'danger', icon: 'breakdown', hex: 'f87171' },
+  idle: { label: 'Idle', tone: 'neutral', icon: 'inactive', hex: '94a3b8' },
+};
+const meta = (s: Equipment['status']) => STATUS_META[s] ?? { label: String(s), tone: 'neutral' as Tone, icon: 'inactive' as IconMeaning, hex: '94a3b8' };
+/** 95% and above is good, 90% and above needs watching, below that is poor. */
+const availabilityTone = (pct: number): 'success' | 'warning' | 'danger' => (pct >= 95 ? 'success' : pct >= 90 ? 'warning' : 'danger');
+const TONE_TEXT = { success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
+/** A missing figure is a dash, never a made-up 0. */
+const missing = (n: number | null | undefined) => n == null || Number.isNaN(Number(n));
+const pctText = (n: number | null | undefined) => (missing(n) ? '—' : `${Number(n).toFixed(1)}%`);
+const hrs = (n: number | null | undefined) => (missing(n) ? '—' : `${Number(n).toFixed(1)} h`);
+const when = (d: string | null | undefined) => (d ? formatDate(d) : 'Not scheduled');
+const num = (n: number | null | undefined) => Number(n) || 0;
 
-const fmtDate = (d: string | null) => (d ? formatDate(d) : 'Not scheduled');
-
-function statusCfg(status: Equipment['status']) {
-  const map: Record<Equipment['status'], { color: string; label: string }> = {
-    operational: { color: '#34d399', label: 'Operational' },
-    maintenance: { color: '#fbbf24', label: 'Maintenance' },
-    breakdown: { color: '#f87171', label: 'Breakdown' },
-    idle: { color: '#94a3b8', label: 'Idle' },
-  };
-  return map[status] ?? { color: '#94a3b8', label: status };
-}
-
-function avColor(pct: number) {
-  if (pct >= 95) return 'text-emerald-400';
-  if (pct >= 90) return 'text-amber-400';
-  return 'text-red-400';
-}
-function avHex(pct: number) {
-  if (pct >= 95) return '#34d399';
-  if (pct >= 90) return '#fbbf24';
-  return '#f87171';
-}
-
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'name', label: 'Equipment', width: 24 }, { key: 'category', label: 'Category', width: 18 },
+  { key: 'department', label: 'Department', width: 18, format: v => (v as string) ?? '' },
+  { key: 'status', label: 'Status', width: 14, format: v => meta(v as Equipment['status']).label },
+  { key: 'operational_hours', label: 'Operating hours', width: 14 }, { key: 'breakdown_hours', label: 'Breakdown hours', width: 16 },
+  { key: 'availability', label: 'Availability %', width: 14, format: v => pctText(v as number) },
+  { key: 'uptime', label: 'Uptime', width: 12 }, { key: 'downtime', label: 'Downtime', width: 12 },
+  { key: 'mtbf', label: 'MTBF (h)', width: 12 }, { key: 'mttr', label: 'MTTR (h)', width: 12 },
+  { key: 'last_maintenance', label: 'Last maintenance', width: 16, format: v => when(v as string | null) },
+  { key: 'next_maintenance', label: 'Next maintenance', width: 16, format: v => when(v as string | null) },
+];
 
 function AvailabilityContent() {
-  const t = useTheme();
-  const sections = useCollapseSection({ hero: true, filters: true });
-  const { equipment, stats, loading, refreshing, fetchData } = useAvailabilityData();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [tab, setTab] = useState<'overview' | 'detailed' | 'trends'>('overview');
+  const { equipment: list, stats, refetch } = useAvailabilityData();
+  const equipment = list.items;
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState(ALL);
+  const [statusF, setStatusF] = useState(ALL);
+  const [tab, setTab] = useState('overview');
+  const [sort, setSort] = useState<SortState>(null);
 
-  const categories = Array.from(new Set(equipment.map(e => e.category)));
-  const departments = Array.from(new Set(equipment.map(e => e.department)));
+  const categories = useMemo(() => [...new Set(equipment.map(e => e.category).filter(Boolean))].sort(), [equipment]);
+  const departments = useMemo(() => [...new Set(equipment.map(e => e.department).filter((d): d is string => !!d))].sort(), [equipment]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return equipment.filter(e =>
+      (!q || [e.name, e.category, e.department].some(s => s?.toLowerCase().includes(q)))
+      && (category === ALL || e.category === category) && (statusF === ALL || e.status === statusF));
+  }, [equipment, search, category, statusF]);
+  const rows = useMemo(() => sortRows(filtered, sort, (e, id) => {
+    const v = e[id as keyof Equipment];
+    return typeof v === 'string' ? v.toLowerCase() : v ?? '';
+  }), [filtered, sort]);
 
-  const filtered = equipment.filter(eq => {
-    const s = searchTerm.toLowerCase();
-    const matchSearch = !s || eq.name.toLowerCase().includes(s) || eq.category.toLowerCase().includes(s) || (eq.department ?? '').toLowerCase().includes(s);
-    const matchCat = categoryFilter === 'all' || eq.category === categoryFilter;
-    const matchStatus = statusFilter === 'all' || eq.status === statusFilter;
-    return matchSearch && matchCat && matchStatus;
-  });
+  const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: filtered.length, transient: isTransientStatus(list.errorStatus) });
+  const unavailable = !stats.loaded && !stats.loading;
+  const pending = stats.loading && !stats.loaded;
+  const s = stats.data;
+  const tile = { loading: pending, unavailable };
+  const hasFilters = !!search || category !== ALL || statusF !== ALL;
+  const clearFilters = () => { setSearch(''); setCategory(ALL); setStatusF(ALL); };
 
-  const exportColumns: DLColumn[] = [
-    { key: 'name', label: 'Equipment', width: 24 },
-    { key: 'category', label: 'Category', width: 18 },
-    { key: 'department', label: 'Department', width: 18, format: v => (v as string) ?? '' },
-    { key: 'status', label: 'Status', width: 14, format: v => statusCfg(v as Equipment['status']).label },
-    { key: 'operational_hours', label: 'Op. Hours', width: 12 },
-    { key: 'breakdown_hours', label: 'Breakdown Hours', width: 16 },
-    { key: 'availability', label: 'Availability %', width: 14, format: v => `${((v as number) ?? 0).toFixed(1)}%` },
-    { key: 'uptime', label: 'Uptime', width: 12 },
-    { key: 'downtime', label: 'Downtime', width: 12 },
-    { key: 'mtbf', label: 'MTBF (h)', width: 12 },
-    { key: 'mttr', label: 'MTTR (h)', width: 12 },
-    { key: 'last_maintenance', label: 'Last Maintenance', width: 16, format: v => fmtDate(v as string | null) },
-    { key: 'next_maintenance', label: 'Next Maintenance', width: 16, format: v => fmtDate((v as string | null) ?? null) },
+  const OVERVIEW: Column<Equipment>[] = [
+    { id: 'name', header: 'Equipment', sortable: true, sticky: true, cell: e => <span className="font-medium text-ink">{e.name}</span> },
+    { id: 'category', header: 'Category', sortable: true, hideBelow: 'lg', cell: e => e.category },
+    { id: 'department', header: 'Department', sortable: true, hideBelow: 'lg', cell: e => e.department ?? <span className="text-ink-muted">None</span> },
+    { id: 'status', header: 'Status', sortable: true, cell: e => <StatusBadge tone={meta(e.status).tone} icon={meta(e.status).icon}>{meta(e.status).label}</StatusBadge> },
+    { id: 'operational_hours', header: 'Operating', sortable: true, hideBelow: 'md', numeric: true, cell: e => <span className="tabular">{hrs(e.operational_hours)}</span> },
+    { id: 'breakdown_hours', header: 'Breakdown', sortable: true, hideBelow: 'md', numeric: true, cell: e => <span className="tabular">{hrs(e.breakdown_hours)}</span> },
+    { id: 'availability', header: 'Availability', sortable: true, cell: e => <div className="flex items-center gap-2"><span className={`w-14 text-right font-semibold tabular ${missing(e.availability) ? 'text-ink-muted' : TONE_TEXT[availabilityTone(num(e.availability))]}`}>{pctText(e.availability)}</span><div className="hidden w-24 sm:block"><Progress value={num(e.availability)} label={`${e.name} availability`} className="[&>span]:hidden" /></div></div> },
   ];
-
-  const selCls = `h-9 rounded-lg px-3 text-sm outline-none transition-colors ${t.inputBg}`;
-  const thCls = `text-left px-3 py-2 text-[10px] uppercase tracking-wide ${TYPE_WEIGHT.medium} ${t.textFaint}`;
-  const tdCls = `px-3 py-2.5 text-sm ${t.textMuted}`;
-
-  const TABS: { key: typeof tab; label: string; icon: ElementType }[] = [
-    { key: 'overview', label: 'Availability Overview', icon: Gauge },
-    { key: 'detailed', label: 'Detailed Analysis', icon: Calculator },
-    { key: 'trends', label: 'Trends & Metrics', icon: LineChart },
+  const DETAIL: Column<Equipment>[] = [
+    { id: 'name', header: 'Equipment', sortable: true, sticky: true, cell: e => <span className="font-medium text-ink">{e.name}</span> },
+    { id: 'mtbf', header: 'MTBF', sortable: true, cell: e => <StatusBadge tone={num(e.mtbf) > 200 ? 'success' : num(e.mtbf) > 100 ? 'neutral' : 'danger'}>{hrs(e.mtbf)}</StatusBadge> },
+    { id: 'mttr', header: 'MTTR', sortable: true, cell: e => <StatusBadge tone={num(e.mttr) < 5 ? 'success' : num(e.mttr) < 10 ? 'neutral' : 'danger'}>{hrs(e.mttr)}</StatusBadge> },
+    { id: 'last_maintenance', header: 'Last maintenance', sortable: true, hideBelow: 'md', cell: e => when(e.last_maintenance) },
+    { id: 'next_maintenance', header: 'Next maintenance', sortable: true, hideBelow: 'md', cell: e => when(e.next_maintenance) },
+    { id: 'share', header: 'Downtime share', hideBelow: 'lg', numeric: true, cell: e => <span className="tabular">{num(e.operational_hours) > 0 ? pctText((num(e.breakdown_hours) / num(e.operational_hours)) * 100) : '—'}</span> },
+    { id: 'downtime', header: 'Downtime', sortable: true, numeric: true, cell: e => <span className="tabular">{hrs(e.downtime)}</span> },
   ];
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Gauge}
-        accent="violet"
-        crumbs={['Time & Attendance', 'Availability']}
-        title="Equipment Availability"
-        description="Track availability = (Operational Hours − Breakdown Hours) / Operational Hours × 100"
-        statsOpen={sections.expanded.hero}
-        actions={
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Availability' }]}
+        title="Equipment availability"
+        description="Availability = (operating hours − breakdown hours) ÷ operating hours × 100."
+        actions={(
           <>
-            <button type="button" onClick={() => fetchData(true)} title="Refresh" className={`h-8 w-8 flex items-center justify-center rounded-lg ${t.hoverBg} ${t.textFaint} ${t.hoverText}`}>
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Equipment_Availability')}
-                title="Equipment Availability"
-                statusColumn="status"
-                statusColor={(_v, row) => statusCfg(row.status as Equipment['status']).color.replace('#', '')}
-              />
-            )}
-            <Link href="/breakdowns" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}>
-              <AlertTriangle className="h-3.5 w-3.5" /> Breakdowns
-            </Link>
+            <IconButton icon="refresh" label="Refresh availability" variant="outline" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
+            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => meta(row.status as Equipment['status']).hex} />}
+            <Button asChild><Link href="/breakdowns">Breakdowns</Link></Button>
           </>
-        }
-      >
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
-          <StatTile icon={Gauge} color={ACCENT_HEX.blue} label="Total Equipment" value={stats.totalEquipment} />
-          <StatTile icon={Activity} color="#34d399" label="Operational" value={stats.operational} />
-          <StatTile icon={Settings} color="#fbbf24" label="Maintenance" value={stats.inMaintenance} />
-          <StatTile icon={AlertTriangle} color="#f87171" label="Breakdown" value={stats.inBreakdown} />
-          <StatTile icon={Percent} color={avHex(stats.overallAvailability)} label="Availability" value={`${stats.overallAvailability.toFixed(1)}%`} />
-        </div>
-      </PageHero>
+        )}
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-brand-400" /><span className={`text-xs ${t.textFaint}`}>Overall Availability</span></div>
-          <div className={`text-xl ${TYPE_WEIGHT.bold} ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}%</div>
-          <div className="mt-2"><ProgressBar value={stats.overallAvailability} color={avHex(stats.overallAvailability)} showValue={false} /></div>
-        </div>
-        <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Clock className={`h-3.5 w-3.5 ${accentText('emerald', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Avg Uptime</span></div>
-          <div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('emerald', t.light)}`}>{stats.avgUptime.toFixed(1)}h</div>
-        </div>
-        <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><Activity className="h-3.5 w-3.5 text-red-400" /><span className={`text-xs ${t.textFaint}`}>Avg Downtime</span></div>
-          <div className={`text-xl ${TYPE_WEIGHT.bold} text-red-400`}>{stats.avgDowntime.toFixed(1)}h</div>
-        </div>
-        <div className={`${t.glass} rounded-xl p-4`}>
-          <div className="flex items-center gap-1.5 mb-1"><AlertTriangle className={`h-3.5 w-3.5 ${accentText('amber', t.light)}`} /><span className={`text-xs ${t.textFaint}`}>Total Downtime</span></div>
-          <div className={`text-xl ${TYPE_WEIGHT.bold} ${accentText('amber', t.light)}`}>{stats.totalBreakdownHours.toFixed(0)}h</div>
-        </div>
+      <div className="flex flex-col gap-3">
+        <MetricGrid columns={5}>
+          <MetricTile label="Total equipment" icon="equipment" value={s?.totalEquipment} {...tile} />
+          <MetricTile label="Operational" icon="active" value={s?.operational} {...tile} />
+          <MetricTile label="Maintenance" icon="maintenance" tone={s?.inMaintenance ? 'warning' : 'default'} value={s?.inMaintenance} {...tile} />
+          <MetricTile label="Breakdown" icon="breakdown" tone={s?.inBreakdown ? 'danger' : 'default'} value={s?.inBreakdown} {...tile} />
+          <MetricTile label="Availability" icon="percent" value={s ? pctText(s.overallAvailability) : undefined} detail={s ? 'All equipment, lifetime' : undefined} {...tile} />
+        </MetricGrid>
+        {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => stats.refetch()}>Try again</Button>}>{stats.error}</Notice>}
       </div>
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-        <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-          <Search className="h-4 w-4 text-brand-400" />
-          <span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Filters</span>
-        </div>
-        <div className="px-5 pb-4 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, category, department…" />
-          <SelectField size="filter" title="Category" value={categoryFilter} onChange={setCategoryFilter}
-            options={[{ value: 'all', label: 'All Categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
-          <SelectField size="filter" title="Status" value={statusFilter} onChange={setStatusFilter}
-            options={[
-              { value: 'all', label: 'All Status' },
-              { value: 'operational', label: 'Operational' },
-              { value: 'maintenance', label: 'Maintenance' },
-              { value: 'breakdown', label: 'Breakdown' },
-              { value: 'idle', label: 'Idle' },
-            ]} />
-        </div>
-        <div className={`px-5 pb-3 text-xs ${t.textFaint}`}>{filtered.length} of {equipment.length} equipment</div>
-      </div>
+      <Toolbar filtered={hasFilters}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, category or department" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
+        <Select className="w-44" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...Object.entries(STATUS_META).map(([k, m]) => ({ value: k, label: m.label }))]} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
 
-      <PillTabs tabs={TABS} value={tab} onChange={setTab} />
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList aria-label="Availability sections">
+          <TabsTrigger value="overview" icon="gauge">Overview</TabsTrigger>
+          <TabsTrigger value="detailed" icon="analytics">Detailed analysis</TabsTrigger>
+          <TabsTrigger value="trends" icon="efficiency">Metrics</TabsTrigger>
+        </TabsList>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-16"><RefreshCw className={`h-6 w-6 animate-spin ${t.textFaint}`} /></div>
-      ) : tab === 'overview' ? (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Gauge className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Equipment Availability Dashboard</span>
-          </div>
-          {filtered.length === 0 ? (
-            <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data. Add equipment and breakdown data to start tracking.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}>
-                  <tr>
-                    <th className={thCls}>Equipment</th><th className={thCls}>Category</th><th className={thCls}>Department</th>
-                    <th className={thCls}>Status</th><th className={`${thCls} text-right`}>Op. Hours</th><th className={`${thCls} text-right`}>Breakdown h</th>
-                    <th className={`${thCls} text-right`}>Availability</th><th className={`${thCls} text-right`}>Uptime</th><th className={`${thCls} text-right`}>Downtime</th><th className={thCls}><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(eq => {
-                    const scfg = statusCfg(eq.status);
-                    // A real/legacy equipment record missing one of these numeric fields
-                    // otherwise crashed the whole table on .toFixed() (found live, 2026-08-29
-                    // UI audit, audit/07-ui-polish-findings.md) — same class of bug as
-                    // useAvailabilityData's stats merge, one level down at the per-row field.
-                    const opHours = eq.operational_hours ?? 0;
-                    const bdHours = eq.breakdown_hours ?? 0;
-                    const av = eq.availability ?? 0;
-                    const uptime = eq.uptime ?? 0;
-                    const downtime = eq.downtime ?? 0;
-                    return (
-                      <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                        <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{eq.name}</span></td>
-                        <td className={tdCls}>{eq.category}</td>
-                        <td className={tdCls}>{eq.department}</td>
-                        <td className={tdCls}><StatusBadge color={scfg.color} label={scfg.label} /></td>
-                        <td className={`${tdCls} text-right`}>{opHours.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{bdHours.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right`} aria-label={`Availability ${av.toFixed(1)}%`}>
-                          <div className="flex items-center gap-2 justify-end">
-                            <span className={`${TYPE_WEIGHT.bold} text-sm ${avColor(av)}`}>{av.toFixed(1)}%</span>
-                            <div className="w-20"><ProgressBar value={av} color={avHex(av)} showValue={false} /></div>
-                          </div>
-                        </td>
-                        <td className={`${tdCls} text-right ${accentText('emerald', t.light)}`}>{uptime.toFixed(1)}h</td>
-                        <td className={`${tdCls} text-right text-red-400`}>{downtime.toFixed(1)}h</td>
-                        <td className={tdCls}>
-                          <div className="flex gap-1.5 justify-end">
-                            <Link href={`/breakdowns?equipment=${eq.id}`} aria-label={`View breakdowns for ${eq.name}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><AlertTriangle className="h-3 w-3" /> Breakdowns</Link>
-                            <Link href={`/maintenance?equipment=${eq.id}`} aria-label={`View maintenance for ${eq.name}`} className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] ${t.chipBg} ${t.textFaint} ${t.hoverBg} ${t.hoverText}`}><Settings className="h-3 w-3" /> Maintenance</Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : tab === 'detailed' ? (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-          <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-            <Calculator className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Detailed Availability Analysis</span>
-          </div>
-          {filtered.length === 0 ? (
-            <div className={`py-12 text-center text-sm ${t.textFaint}`}>No equipment data available for detailed analysis.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className={`border-b ${t.border}`}>
-                  <tr>
-                    <th className={thCls}>Equipment</th><th className={`${thCls} text-center`}>MTBF</th><th className={`${thCls} text-center`}>MTTR</th>
-                    <th className={thCls}>Last Maintenance</th><th className={thCls}>Next Maintenance</th>
-                    <th className={`${thCls} text-right`}>BD Frequency</th><th className={`${thCls} text-right`}>Cost Impact</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(eq => {
-                    const mtbf = eq.mtbf ?? 0;
-                    const mttr = eq.mttr ?? 0;
-                    const bdHours = eq.breakdown_hours ?? 0;
-                    const opHours = eq.operational_hours ?? 0;
-                    const downtime = eq.downtime ?? 0;
-                    return (
-                    <tr key={eq.id} className={`border-b ${t.border} ${t.hoverBgSoft} transition-colors`}>
-                      <td className={tdCls}><span className={`${TYPE_WEIGHT.medium} ${t.textPrimary}`}>{eq.name}</span></td>
-                      <td className={`${tdCls} text-center`}><StatusBadge color={mtbf > 200 ? '#34d399' : mtbf > 100 ? '#94a3b8' : '#f87171'} label={`${mtbf.toFixed(1)}h`} /></td>
-                      <td className={`${tdCls} text-center`}><StatusBadge color={mttr < 5 ? '#34d399' : mttr < 10 ? '#94a3b8' : '#f87171'} label={`${mttr.toFixed(1)}h`} /></td>
-                      <td className={`${tdCls} text-xs`}>{fmtDate(eq.last_maintenance)}</td>
-                      <td className="px-3 py-2.5 text-xs text-brand-400">{fmtDate(eq.next_maintenance ?? null)}</td>
-                      <td className={`${tdCls} text-right`}>{bdHours > 0 && opHours > 0 ? (bdHours / opHours * 100).toFixed(1) : '0.0'}%</td>
-                      <td className={`${tdCls} text-right text-red-400 ${TYPE_WEIGHT.medium}`}>${(downtime * 250).toLocaleString()}</td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <LineChart className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Availability Trends</span>
-            </div>
-            <div className="p-5">
-              <div className={`rounded-xl border ${t.border} ${t.chipBg} h-48 flex items-center justify-center mb-4`}>
-                <div className="text-center">
-                  <LineChart className={`h-8 w-8 mx-auto mb-2 ${t.textFaint}`} />
-                  <p className={`text-sm ${t.textFaint}`}>Chart integration point</p>
-                  <p className={`text-lg ${TYPE_WEIGHT.bold} mt-1 ${avColor(stats.overallAvailability)}`}>{stats.overallAvailability.toFixed(1)}% current</p>
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className={`flex justify-between ${t.textMuted}`}><span>Last month</span><span className={`${TYPE_WEIGHT.medium} ${avColor(stats.monthAvailability)}`}>{stats.monthAvailability.toFixed(1)}%</span></div>
-                <div className={`flex justify-between ${t.textMuted}`}><span>Last week</span><span className={`${TYPE_WEIGHT.medium} ${avColor(stats.weekAvailability)}`}>{stats.weekAvailability.toFixed(1)}%</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden`}>
-            <div className={`flex items-center gap-2 px-5 py-3 border-b ${t.border}`}>
-              <BarChart3 className="h-4 w-4 text-brand-400" /><span className={`${TYPE_WEIGHT.semibold} text-sm ${t.textPrimary}`}>Department Comparison</span>
-            </div>
-            <div className="p-5 space-y-3">
-              {departments.map(dept => {
-                const deptEq = filtered.filter(e => e.department === dept);
-                const deptAv = deptEq.length > 0 ? deptEq.reduce((s, e) => s + (e.availability ?? 0), 0) / deptEq.length : 0;
-                return (
-                  <div key={dept}>
-                    <div className="flex justify-between mb-1">
-                      <span className={`text-xs ${t.textMuted}`}>{dept}</span>
-                      <span className={`text-xs ${TYPE_WEIGHT.bold} ${avColor(deptAv)}`}>{deptAv.toFixed(1)}%</span>
+        <DataRegion
+          className="mt-4"
+          status={status}
+          subject="equipment availability"
+          error={list.error}
+          onRetry={() => refetch()}
+          empty={hasFilters
+            ? <EmptyState icon="search" title="No equipment matches" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+            : <EmptyState icon="equipment" title="No equipment yet" description="Add equipment and record breakdowns to start tracking availability." action={<Button asChild variant="primary"><Link href="/equipment">Manage equipment</Link></Button>} />}
+        >
+          <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} of {equipment.length} equipment</p>
+          <TabsContent value="overview">
+            <DataTable caption="Equipment availability" rows={rows} columns={OVERVIEW} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort}
+              rowActions={e => (
+                <span className="inline-flex gap-1">
+                  <Button asChild size="sm"><Link href={`/breakdowns?equipment=${e.id}`} aria-label={`View breakdowns for ${e.name}`}>Breakdowns</Link></Button>
+                  <Button asChild size="sm"><Link href={`/maintenance?equipment=${e.id}`} aria-label={`View maintenance for ${e.name}`}>Maintenance</Link></Button>
+                </span>
+              )} />
+          </TabsContent>
+          <TabsContent value="detailed">
+            <DataTable caption="Detailed availability analysis" rows={rows} columns={DETAIL} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort} />
+            <p className="mt-3 font-sans text-caption text-ink-muted">Equipment with no recorded availability is reported by the server with default figures (100% available, MTBF 100 h, MTTR 4 h). Treat those rows as unmeasured.</p>
+          </TabsContent>
+          <TabsContent value="trends">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Panel title="Availability">
+                {s ? (
+                  <dl className="flex flex-col gap-4">
+                    <Reading label="Lifetime, all equipment" pct={s.overallAvailability} />
+                    <Reading label="Last 7 days (from breakdown downtime)" pct={s.weekAvailability} />
+                    <div className="grid grid-cols-3 gap-3 border-t border-line pt-3">
+                      <div><dt className="font-sans text-caption text-ink-muted">Avg uptime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.avgUptime)}</dd></div>
+                      <div><dt className="font-sans text-caption text-ink-muted">Avg downtime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.avgDowntime)}</dd></div>
+                      <div><dt className="font-sans text-caption text-ink-muted">Total downtime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.totalBreakdownHours)}</dd></div>
                     </div>
-                    <ProgressBar value={deptAv} color={avHex(deptAv)} showValue={false} />
-                  </div>
-                );
-              })}
-              {departments.length === 0 && <p className={`text-sm text-center py-4 ${t.textFaint}`}>No department data</p>}
+                  </dl>
+                ) : <p className="font-sans text-body-sm text-ink-muted">{stats.error ? 'The summary could not be loaded; see the notice above.' : 'Loading…'}</p>}
+              </Panel>
+              <Panel title="By department" description="Average availability of the equipment shown.">
+                {departments.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">No department data.</p> : (
+                  <ul className="flex flex-col gap-3">
+                    {departments.map(dept => {
+                      const eq = filtered.filter(e => e.department === dept);
+                      const avg = eq.length ? eq.reduce((sum, e) => sum + num(e.availability), 0) / eq.length : 0;
+                      return (
+                        <li key={dept} className="flex flex-col gap-1">
+                          <div className="flex justify-between font-sans text-body-sm"><span className="text-ink">{dept} <span className="text-ink-muted">({eq.length})</span></span><span className={`font-semibold tabular ${TONE_TEXT[availabilityTone(avg)]}`}>{pctText(avg)}</span></div>
+                          <Progress value={avg} label={`${dept} availability`} className="[&>span]:hidden" />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </Panel>
             </div>
-          </div>
-        </div>
-      )}
+          </TabsContent>
+        </DataRegion>
+      </Tabs>
 
-      <div className="flex justify-end gap-2">
-        <Link href="/equipment" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><ToolCase className="h-3.5 w-3.5" /> Manage Equipment</Link>
-        <PrimaryButton href="/breakdowns/new" icon={Plus}>Report Breakdown</PrimaryButton>
-        <Link href="/reports/availability" className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] ${TYPE_WEIGHT.medium} ${t.chipBg} ${t.textMuted} ${t.hoverBg}`}><BarChart3 className="h-3.5 w-3.5" /> Generate Report</Link>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button asChild><Link href="/equipment">Manage equipment</Link></Button>
+        <Button asChild variant="primary"><Link href="/breakdowns/new">Report breakdown</Link></Button>
+        <Button asChild><Link href="/reports/availability">Generate report</Link></Button>
       </div>
-    </main>
+    </div>
   );
 }
 
-export default function AvailabilitiesPage() {
+function Reading({ label, pct }: { label: string; pct: number }) {
   return (
-    <AppShell>
-      <AvailabilityContent />
-    </AppShell>
+    <div className="flex flex-col gap-1.5">
+      <dt className="font-sans text-label font-medium text-ink">{label}</dt>
+      <dd className="flex items-center gap-3"><span className={`font-display text-metric font-semibold tabular ${TONE_TEXT[availabilityTone(num(pct))]}`}>{pctText(pct)}</span><div className="min-w-0 flex-1"><Progress value={num(pct)} label={label} className="[&>span]:hidden" /></div></dd>
+    </div>
   );
+}
+
+export default function AvailabilityPage() {
+  return <AppShell migrated><AvailabilityContent /></AppShell>;
 }

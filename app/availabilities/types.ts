@@ -40,6 +40,8 @@ export interface EqSummaryRow {
 export interface PeriodRow {
   periodKey: string;
   label: string;
+  /** Sorts periods in time order (the label does not). */
+  sortKey: string;
   avgAvailability: number;
   totalOpHours: number;
   totalBdHours: number;

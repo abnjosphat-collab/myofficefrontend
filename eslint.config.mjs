@@ -197,6 +197,28 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Stage D (Tools-standard rollout): the icon family stays single. icons.tsx is
+  // the only module allowed to import @phosphor-icons/react directly — every
+  // route and map resolves glyphs through the barrel so the global
+  // solid/outline weight toggle keeps working. 'warn' (like the other
+  // coverage rules here), not a CI gate.
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    ignores: ["components/shared/design-system/icons.tsx", "components/ui-system/foundations/**"],
+    rules: {
+      "no-restricted-imports": [
+        "warn",
+        {
+          paths: [
+            {
+              name: "@phosphor-icons/react",
+              message: "Import glyphs from @/components/shared/design-system/icons (the single icon barrel) instead — direct package imports bypass the global weight toggle. See design-system/README.md.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -204,6 +226,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated TypeDoc HTML (git-ignored); its bundled scripts are not our source.
+    "docs/_generated/**",
   ]),
 ]);
 

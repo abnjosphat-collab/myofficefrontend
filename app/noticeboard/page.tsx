@@ -1,30 +1,20 @@
-// app/noticeboard/page.tsx
+// app/noticeboard/page.tsx — company notices and announcements
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import {
-  useTheme, PageHero, StatTile, StatusBadge, ProgressBar, FormField, FormActions,
-  SearchInput, ViewToggle, CenterModal, PrimaryButton, EmptyState, useCollapseSection,
-  GlowCard, ACCENT_HEX, SelectField, TYPE_WEIGHT, Button, IconAction, IconLink,
-} from '@/components/shared/theme';
+  Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader,
+  RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
+  type Column, type IconMeaning, type SortState, type Tone,
+} from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-import { toast } from 'sonner';
-import {
-  Bell, Plus, Trash2, Edit, FileText, AlertTriangle, RefreshCw,
-  Calendar, Paperclip, CheckCircle,
-  X, User, Building, LayoutGrid, Table as TableIcon,
-  Upload, Share2, Copy, BarChart3, Pin, PinOff, Clock4, Archive, EyeOff,
-  Video, Music, FileSpreadsheet,
-  useConfirm,
-} from '@/components/shared/theme';
-import type { Notice, NoticeFormData, NoticeFilters, CalculatedStats, Attachment } from './types';
-import { useNoticeboardData, createNotice, updateNotice, deleteNotice, togglePin, archiveNotice, uploadNoticeAttachment } from './useNoticeboardData';
-import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT } from './attachments';
-
-// ==================== CONSTANTS ====================
+import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
+import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
+import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
+import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, type AttachmentKind } from './attachments';
 
 const CATEGORIES = ['HR', 'Safety', 'IT', 'General', 'Operations', 'Finance'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -32,626 +22,381 @@ const STATUSES = ['Draft', 'Active', 'Archived'];
 const DEPARTMENTS = ['HR', 'IT', 'Operations', 'Finance', 'Marketing', 'Sales', 'General'];
 const TARGET_AUDIENCE = ['All Employees', 'Management Only', 'Department Specific', 'Remote Workers', 'New Hires'];
 const NOTIFICATION_TYPES = ['General Announcement', 'System Alert', 'Training', 'Policy Update', 'Event', 'Reminder'];
+const ALL = '__all__';
+const NO_FILTERS: NoticeFilters = { category: ALL, priority: ALL, status: ALL, department: ALL, is_pinned: null };
 
-const PRIORITY_HEX: Record<string, string> = { Critical: '#f43f5e', High: '#f97316', Medium: '#60a5fa', Low: '#94a3b8' };
-const STATUS_HEX: Record<string, string> = { Active: '#34d399', Draft: '#94a3b8', Archived: '#64748b' };
-
-const truncateText = (text: string | null | undefined, maxLength = 100) => {
-  if (!text) return '';
-  return text.length <= maxLength ? text : text.substring(0, maxLength) + '…';
+const PRIORITY_META: Record<string, { tone: Tone; icon: IconMeaning }> = {
+  Critical: { tone: 'danger', icon: 'critical' }, High: { tone: 'warning', icon: 'warning' }, Medium: { tone: 'info', icon: 'info' }, Low: { tone: 'neutral', icon: 'flag' },
 };
+const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning }> = { Active: { tone: 'success', icon: 'active' }, Draft: { tone: 'neutral', icon: 'draft' }, Archived: { tone: 'neutral', icon: 'archive' } };
+const PRIORITY_HEX: Record<string, string> = { Critical: '#f43f5e', High: '#f97316', Medium: '#60a5fa', Low: '#94a3b8' };
+const KIND_ICON: Record<AttachmentKind, IconMeaning> = { image: 'image', video: 'attachment', audio: 'attachment', pdf: 'pdf', spreadsheet: 'table-view', document: 'documents', archive: 'archive', file: 'attachment' };
 
-function calculateClientSideStats(notices: Notice[]): CalculatedStats {
-  const statusBreakdown: Record<string, number> = {};
-  const priorityBreakdown: Record<string, number> = {};
-  const categoryBreakdown: Record<string, number> = {};
-  let pinned = 0, expired = 0, expiringSoon = 0;
-  const now = new Date();
-  notices.forEach(n => {
-    statusBreakdown[n.status || 'Draft'] = (statusBreakdown[n.status || 'Draft'] || 0) + 1;
-    priorityBreakdown[n.priority || 'Medium'] = (priorityBreakdown[n.priority || 'Medium'] || 0) + 1;
-    categoryBreakdown[n.category || 'General'] = (categoryBreakdown[n.category || 'General'] || 0) + 1;
-    if (n.is_pinned) pinned++;
-    if (n.expires_at) {
-      const d = new Date(n.expires_at);
-      if (!isNaN(d.getTime())) {
-        if (d < now) expired++;
-        else if (Math.floor((d.getTime() - now.getTime()) / 86400000) <= 7) expiringSoon++;
-      }
-    }
-  });
-  return { total_notices: notices.length, status_breakdown: statusBreakdown, priority_breakdown: priorityBreakdown, category_breakdown: categoryBreakdown, pinned_count: pinned, expired_count: expired, expiring_soon_count: expiringSoon };
-}
+const PriorityTag = ({ priority }: { priority: string }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{priority}</StatusBadge>; };
+const StatusTag = ({ status }: { status: string }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
+const truncate = (text: string | null | undefined, max = 100) => (!text ? '' : text.length <= max ? text : `${text.slice(0, max)}…`);
+const dayOf = (v?: string | null) => (v ? v.split('T')[0] : '');
+const expiry = (n: Notice, now: number) => {
+  const t = n.expires_at ? new Date(n.expires_at).getTime() : NaN;
+  if (Number.isNaN(t)) return { expired: false, soon: false };
+  return { expired: t < now, soon: t >= now && t <= now + 7 * 86400000 };
+};
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
-const ATTACHMENT_KIND_ICON = { image: FileText, video: Video, audio: Music, pdf: FileText, spreadsheet: FileSpreadsheet, document: FileText, archive: Archive, file: Paperclip } as const;
-
-// A real image thumbnail for image attachments (the actual "preview" ask — a filename
-// alone doesn't tell you if it's the right poster/photo); every other kind gets a
-// type-specific icon instead of one generic paperclip, so mixed attachments (a PDF
-// next to a safety-briefing clip) are distinguishable at a glance.
-function AttachmentThumb({ attachment, size = 'sm' }: { attachment: Attachment; size?: 'sm' | 'lg' }) {
-  const t = useTheme();
-  const dim = size === 'lg' ? 'h-10 w-10' : 'h-8 w-8';
+function Thumb({ attachment }: { attachment: Attachment }) {
   if (isPreviewableImage(attachment.name) && attachment.url) {
-    // Remote Supabase Storage URL, arbitrary per-notice upload — not a build-time-known
-    // local asset next/image can optimize, same reasoning as PhotoUpload.tsx's <img>s.
+    // A remote storage URL for an arbitrary upload, not a build-time asset next/image can optimise.
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={attachment.url} alt="" className={`${dim} rounded-lg object-cover shrink-0 ${t.border} border`} />;
+    return <img src={attachment.url} alt="" className="size-10 shrink-0 rounded-control border border-line object-cover" />;
   }
-  const Icon = ATTACHMENT_KIND_ICON[attachmentKind(attachment.name)];
-  return (
-    <div className={`${dim} rounded-lg flex items-center justify-center shrink-0 ${t.chipBg}`}>
-      <Icon className={`h-4 w-4 ${t.design === 'dallaglio' ? t.textFaint : 'text-brand-500'}`} weight={t.design === 'dallaglio' ? 'light' : undefined} />
-    </div>
-  );
+  return <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-muted text-ink-muted"><Icon name={KIND_ICON[attachmentKind(attachment.name)]} size="lg" weight="navigation" /></span>;
 }
 
-// ==================== NOTICE DETAILS MODAL ====================
-
-function NoticeDetailsModal({ isOpen, onClose, notice, onDelete, onEdit, onTogglePin }: {
-  isOpen: boolean; onClose: () => void; notice: Notice | null;
-  onDelete: (id: string) => void; onEdit: (n: Notice) => void; onTogglePin: (id: string, s: boolean) => void;
-}) {
-  const t = useTheme();
-  const confirm = useConfirm();
-  const [now] = useState(() => Date.now());
-  if (!isOpen || !notice) return null;
-  const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
-  const expiresSoon = notice.expires_at ? (new Date(notice.expires_at).getTime() > now && new Date(notice.expires_at).getTime() <= now + 7 * 86400000) : false;
-
-  const handleShare = () => {
-    if (navigator.share) navigator.share({ title: notice.title, text: truncateText(notice.content, 200), url: window.location.href });
-    else { navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Notice copied to clipboard'); }
-  };
-
-  const handleTogglePin = async () => {
-    try { await togglePin(notice.id, notice.is_pinned); onTogglePin(notice.id, !notice.is_pinned); }
-    catch { toast.error('Failed to toggle pin'); }
-  };
-
-  return (
-    <CenterModal open={isOpen} onClose={onClose} title={notice.title} width="max-w-2xl">
-      <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
-        <div className={`flex flex-wrap items-center gap-3 text-xs ${t.textFaint}`}>
-          <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{notice.author || 'Unknown'}</span>
-          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(notice.date)}</span>
-          {notice.department && <span className="flex items-center gap-1"><Building className="h-3.5 w-3.5" />{notice.department}</span>}
-          {notice.is_pinned && <StatusBadge color="#f59e0b" label="Pinned" />}
-          <div className="ml-auto flex items-center gap-1.5">
-            <StatusBadge color={PRIORITY_HEX[notice.priority] ?? '#94a3b8'} label={notice.priority} />
-            <StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} />
-          </div>
-        </div>
-
-        <div className={`rounded-lg p-4 text-sm whitespace-pre-wrap leading-relaxed ${t.chipBg} ${t.textMuted}`}>{notice.content}</div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-          <div><p className={t.textFaint}>Target Audience</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.target_audience || 'All Employees'}</p></div>
-          <div><p className={t.textFaint}>Notification Type</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.notification_type || 'General'}</p></div>
-          <div><p className={t.textFaint}>Acknowledgment</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{notice.requires_acknowledgment ? 'Required' : 'Not Required'}</p></div>
-          <div>
-            <p className={t.textFaint}>Expires</p>
-            <p className={`${TYPE_WEIGHT.medium} mt-0.5 ${isExpired ? 'text-rose-500' : expiresSoon ? 'text-amber-500' : t.textMuted}`}>
-              {notice.expires_at ? formatDate(notice.expires_at) : 'Never'}{isExpired && ' (Expired)'}{expiresSoon && !isExpired && ' (Soon)'}
-            </p>
-          </div>
-          {notice.created_at && <div><p className={t.textFaint}>Created</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.created_at)}</p></div>}
-          {notice.updated_at && <div><p className={t.textFaint}>Last Updated</p><p className={`${TYPE_WEIGHT.medium} mt-0.5 ${t.textMuted}`}>{formatDateTime(notice.updated_at)}</p></div>}
-        </div>
-
-        {notice.attachments && notice.attachments.length > 0 && (
-          <div className="space-y-2">
-            <p className={`text-xs ${TYPE_WEIGHT.semibold} ${t.textFaint} flex items-center gap-1.5`}>
-              <Paperclip className="h-3.5 w-3.5" /> Attachments ({notice.attachments.length})
-            </p>
-            {notice.attachments.map((a, i) => (
-              <div key={`${a.url}-${i}`} className={`rounded-lg p-3 flex items-center justify-between gap-3 ${t.chipBg}`}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <AttachmentThumb attachment={a} size="lg" />
-                  <div className="min-w-0">
-                    <p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.name || 'Unnamed file'}</p>
-                    {a.size && <p className={`text-[11px] ${t.textFaint}`}>{a.size}</p>}
-                  </div>
-                </div>
-                {a.url && (
-                  <IconLink meaning="download" href={a.url} title={`Download ${a.name || 'attachment'}`} />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className={`flex flex-wrap gap-1.5 pt-2 border-t ${t.border}`}>
-          <Button variant="secondary" icon={Share2} onClick={handleShare}>Share</Button>
-          <Button variant="secondary" icon={Copy} onClick={() => { navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Copied'); }}>Copy</Button>
-          <Button variant="secondary" icon={notice.is_pinned ? PinOff : Pin} onClick={handleTogglePin}>{notice.is_pinned ? 'Unpin' : 'Pin'}</Button>
-          <span className="ml-auto"><Button variant="danger" icon={Trash2} onClick={async () => { if (await confirm({ title: 'Delete this notice?', destructive: true })) { onDelete(notice.id); onClose(); } }}>Delete</Button></span>
-        </div>
-      </div>
-      <div className={`px-5 py-4 border-t ${t.border} flex justify-end gap-2`}>
-        <Button variant="secondary" onClick={onClose}>Close</Button>
-        <PrimaryButton icon={Edit} accent="violet" size="md" onClick={() => { onEdit(notice); onClose(); }}>Edit Notice</PrimaryButton>
-      </div>
-    </CenterModal>
-  );
-}
-
-// ==================== NOTICE CARD ====================
-
-function NoticeCard({ notice, onView, onEdit, onDelete }: {
-  notice: Notice; onView: (n: Notice) => void; onEdit: (n: Notice) => void; onDelete: (id: string) => void;
-}) {
-  const t = useTheme();
-  const confirm = useConfirm();
-  const [now] = useState(() => Date.now());
-  const isExpired = notice.expires_at ? new Date(notice.expires_at).getTime() < now : false;
-  const expiresSoon = notice.expires_at ? (new Date(notice.expires_at).getTime() > now && new Date(notice.expires_at).getTime() <= now + 7 * 86400000) : false;
-
-  return (
-    <GlowCard onClick={() => onView(notice)} color={notice.is_pinned ? '#f59e0b' : ACCENT_HEX.violet}
-      surface={`${t.glass} rounded-2xl`}
-      className="overflow-hidden">
-      <div className={`px-4 pt-3.5 pb-2 border-b ${t.border}`}>
-        <div className="flex items-start justify-between gap-2">
-          <p className={`text-sm ${TYPE_WEIGHT.semibold} line-clamp-1 ${t.textPrimary}`}>{notice.title}</p>
-          {notice.is_pinned && <StatusBadge color="#f59e0b" label="Pinned" />}
-        </div>
-        <div className={`flex items-center gap-3 flex-wrap text-[11px] mt-1 ${t.textFaint}`}>
-          <span className="flex items-center gap-1"><User className="h-3 w-3" />{notice.author || 'Not specified'}</span>
-          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{formatDate(notice.date)}</span>
-        </div>
-      </div>
-      <div className="px-4 py-3">
-        <p className={`text-xs line-clamp-2 mb-3 ${t.textMuted}`}>{notice.content}</p>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <StatusBadge color="#64748b" label={notice.category} />
-          {isExpired && <StatusBadge color="#f43f5e" label="Expired" />}
-          {expiresSoon && !isExpired && <StatusBadge color="#f59e0b" label="Expires Soon" />}
-          {!!notice.attachments?.length && (
-            <span className={`flex items-center gap-1 text-[11px] ${TYPE_WEIGHT.medium} text-brand-500`}>
-              <Paperclip className="h-3.5 w-3.5" />{notice.attachments.length > 1 ? notice.attachments.length : ''}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className={`px-4 py-2.5 border-t ${t.border} flex items-center justify-between`}>
-        <div className="flex items-center gap-1.5">
-          <StatusBadge color={PRIORITY_HEX[notice.priority] ?? '#94a3b8'} label={notice.priority} />
-          <StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} />
-        </div>
-        <div className="flex items-center gap-1">
-          <IconAction meaning="edit" title={`Edit ${notice.title}`} onClick={e => { e.stopPropagation(); onEdit(notice); }} />
-          <IconAction meaning="danger" title={`Delete ${notice.title}`} onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) onDelete(notice.id); }} />
-        </div>
-      </div>
-    </GlowCard>
-  );
-}
-
-// ==================== EDIT NOTICE MODAL ====================
-
-const blankForm = (): NoticeFormData => ({
-  title: '', content: '', date: new Date().toISOString().split('T')[0], category: 'General', priority: 'Medium', status: 'Draft',
-  is_pinned: false, requires_acknowledgment: false, author: '', department: 'General', expires_at: '',
-  target_audience: 'All Employees', notification_type: 'General Announcement', attachments: [],
+const emptyForm = (): NoticeFormData => ({
+  title: '', content: '', date: new Date().toISOString().slice(0, 10), category: 'General', priority: 'Medium', status: 'Draft', is_pinned: false, requires_acknowledgment: false,
+  author: '', department: 'General', expires_at: '', target_audience: 'All Employees', notification_type: 'General Announcement', attachments: [],
 });
 
-function EditNoticeModal({ isOpen, onClose, notice, onSave, isLoading }: {
-  isOpen: boolean; onClose: () => void; notice: Notice | null; onSave: (d: NoticeFormData) => Promise<void>; isLoading: boolean;
-}) {
-  const t = useTheme();
-  const [form, setForm] = useState<NoticeFormData>(blankForm());
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const inputCls = `w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors ${t.inputBg}`;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setForm(notice ? {
-      title: notice.title || '', content: notice.content || '', date: notice.date ? notice.date.split('T')[0] : new Date().toISOString().split('T')[0],
-      category: notice.category || 'General', priority: notice.priority || 'Medium', status: notice.status || 'Draft',
-      is_pinned: notice.is_pinned || false, author: notice.author || '', department: notice.department || 'General',
-      expires_at: notice.expires_at ? notice.expires_at.split('T')[0] : '', target_audience: notice.target_audience || 'All Employees',
-      notification_type: notice.notification_type || 'General Announcement', requires_acknowledgment: notice.requires_acknowledgment || false,
-      attachments: notice.attachments || [],
-    } : blankForm());
-  }, [notice, isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.content.trim() || !form.date || !form.category) { toast.error('Please fill in all required fields'); return; }
-    await onSave(form);
-  };
-
-  // Previously read the picked File's name/size straight into the form and never
-  // uploaded it anywhere — attachment_url stayed blank, so "Download attachment" on
-  // the finished notice had nothing to link to (looked like it worked; silently
-  // didn't). Now actually uploads via /api/notices/upload-attachment (a broad,
-  // still-explicit allowlist — see backend/app/uploads.py's NOTICE_ATTACHMENT_EXTS)
-  // and appends the result to the attachments list. Multiple files, and multiple
-  // upload rounds, both just append — there's no fixed limit.
-  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = ''; // allow re-picking the same file(s) after a failed upload
-    if (files.length === 0) return;
-    setIsUploadingAttachment(true);
-    const results = await Promise.allSettled(files.map(uploadNoticeAttachment));
-    const uploaded = results.filter((r): r is PromiseFulfilledResult<Attachment> => r.status === 'fulfilled').map(r => r.value);
-    const failCount = results.length - uploaded.length;
-    if (uploaded.length > 0) {
-      setForm(p => ({ ...p, attachments: [...p.attachments, ...uploaded] }));
-      toast.success(`Uploaded ${uploaded.length} attachment${uploaded.length !== 1 ? 's' : ''}`);
+function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const [form, setForm] = useState<NoticeFormData>(emptyForm);
+  const [touched, setTouched] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const key = open ? String(notice?.id ?? 'new') : null;
+  if (key !== loadedFor) {
+    setLoadedFor(key);
+    if (key !== null) {
+      setTouched(false); setUploadError(null);
+      setForm(notice ? {
+        title: notice.title || '', content: notice.content || '', date: dayOf(notice.date) || emptyForm().date, category: notice.category || 'General', priority: notice.priority || 'Medium',
+        status: notice.status || 'Draft', is_pinned: !!notice.is_pinned, requires_acknowledgment: !!notice.requires_acknowledgment, author: notice.author || '', department: notice.department || 'General',
+        expires_at: dayOf(notice.expires_at), target_audience: notice.target_audience || 'All Employees', notification_type: notice.notification_type || 'General Announcement', attachments: notice.attachments || [],
+      } : emptyForm());
     }
-    if (failCount > 0) toast.error(`${failCount} attachment${failCount !== 1 ? 's' : ''} failed to upload`);
-    setIsUploadingAttachment(false);
+  }
+  const set = (p: Partial<NoticeFormData>) => setForm(f => ({ ...f, ...p }));
+
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ''; // allow picking the same file again after a failed upload
+    if (!files.length) return;
+    setUploading(true); setUploadError(null);
+    const results = await Promise.allSettled(files.map(uploadNoticeAttachment));
+    const ok = results.filter((r): r is PromiseFulfilledResult<Attachment> => r.status === 'fulfilled').map(r => r.value);
+    const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (ok.length) { setForm(f => ({ ...f, attachments: [...f.attachments, ...ok] })); toast.success(`Uploaded ${plural(ok.length, 'attachment')}.`); }
+    if (failed.length) setUploadError(`${plural(failed.length, 'attachment')} could not be uploaded: ${(failed[0].reason as Error)?.message ?? 'unknown error'}`);
+    setUploading(false);
   };
 
-  const removeAttachment = (index: number) => setForm(p => ({ ...p, attachments: p.attachments.filter((_, i) => i !== index) }));
+  const submit = async () => {
+    setTouched(true);
+    if (!form.title.trim() || !form.content.trim() || !form.date || !form.category) return false;
+    if (uploading) throw new Error('Wait for the attachments to finish uploading.');
+    if (notice) await updateNotice(notice.id, form); else await createNotice(form);
+    toast.success(notice ? 'Notice updated.' : 'Notice created.');
+    onSaved();
+  };
 
   return (
-    <CenterModal open={isOpen} onClose={onClose} title={notice ? 'Edit Notice' : 'Create New Notice'} width="max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <div className="px-5 py-4 space-y-4 max-h-[65vh] overflow-y-auto">
-          <FormField label="Title" required>
-            <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Enter notice title" aria-label="Title" className={inputCls} />
-          </FormField>
-          <FormField label="Content" required>
-            <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={5}
-              placeholder="Enter notice content" aria-label="Content" className={`w-full px-3 py-2 rounded-lg text-sm outline-none transition-colors resize-none ${t.inputBg}`} />
-          </FormField>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label="Publish Date" required>
-              <input type="date" value={form.date} title="Publish date" aria-label="Publish date" onChange={e => setForm(p => ({ ...p, date: e.target.value }))} className={inputCls} />
-            </FormField>
-            <FormField label="Category" required>
-              <SelectField size="form" value={form.category} title="Category" onChange={v => setForm(p => ({ ...p, category: v }))}
-                options={CATEGORIES.map(c => ({ value: c, label: c }))} />
-            </FormField>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label="Priority">
-              <SelectField size="form" value={form.priority} title="Priority" onChange={v => setForm(p => ({ ...p, priority: v }))}
-                options={PRIORITIES.map(p => ({ value: p, label: p }))} />
-            </FormField>
-            <FormField label="Status">
-              <SelectField size="form" value={form.status} title="Status" onChange={v => setForm(p => ({ ...p, status: v }))}
-                options={STATUSES.map(s => ({ value: s, label: s }))} />
-            </FormField>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FormField label="Author"><input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))} placeholder="Enter author name" aria-label="Author" className={inputCls} /></FormField>
-            <FormField label="Department">
-              <SelectField size="form" value={form.department} title="Department" onChange={v => setForm(p => ({ ...p, department: v }))}
-                options={DEPARTMENTS.map(d => ({ value: d, label: d }))} />
-            </FormField>
-            <FormField label="Target Audience">
-              <SelectField size="form" value={form.target_audience} title="Target audience" onChange={v => setForm(p => ({ ...p, target_audience: v }))}
-                options={TARGET_AUDIENCE.map(a => ({ value: a, label: a }))} />
-            </FormField>
-            <FormField label="Notification Type">
-              <SelectField size="form" value={form.notification_type} title="Notification type" onChange={v => setForm(p => ({ ...p, notification_type: v }))}
-                options={NOTIFICATION_TYPES.map(n => ({ value: n, label: n }))} />
-            </FormField>
-          </div>
-          <FormField label="Expiry Date">
-            <input type="date" value={form.expires_at} title="Expiry date" aria-label="Expiry date" min={form.date} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} className={inputCls} />
-          </FormField>
-          <FormField label={`Attachments${form.attachments.length > 0 ? ` (${form.attachments.length})` : ''}`}>
-            <div className="space-y-2">
-              <label htmlFor="notice-attachment-file"
-                className={`flex items-center gap-2 text-xs ${t.textMuted} ${t.chipBg} rounded-lg px-3 py-2 w-fit ${isUploadingAttachment ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
-                {isUploadingAttachment ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                {isUploadingAttachment ? 'Uploading…' : 'Upload Files'}
-                <input id="notice-attachment-file" type="file" multiple className="hidden" disabled={isUploadingAttachment}
-                  title="Upload attachment files" aria-label="Upload attachment files"
-                  accept={NOTICE_ATTACHMENT_ACCEPT}
-                  onChange={handleAttachmentUpload} />
-              </label>
-              {form.attachments.length > 0 && (
-                <div className="space-y-1.5">
-                  {form.attachments.map((a, i) => (
-                    <div key={`${a.url}-${i}`} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 ${t.chipBg}`}>
-                      <AttachmentThumb attachment={a} />
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{a.name}</p>
-                        {a.size && <p className={`text-[10px] ${t.textFaint}`}>{a.size}</p>}
-                      </div>
-                      <button type="button" title="Remove attachment" onClick={() => removeAttachment(i)}
-                        className={`shrink-0 h-6 w-6 flex items-center justify-center rounded ${t.hoverBg} ${t.textFaint} hover:text-rose-500 transition-colors`}>
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </FormField>
-          <div className="flex flex-wrap gap-6">
-            <label htmlFor="notice-is-pinned" className="flex items-center gap-2 cursor-pointer">
-              <input id="notice-is-pinned" type="checkbox" checked={form.is_pinned} onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} aria-label="Pin to top" className="h-4 w-4 accent-brand-600" />
-              <span className={`text-sm ${t.textMuted}`}>Pin to top</span>
-            </label>
-            <label htmlFor="notice-requires-ack" className="flex items-center gap-2 cursor-pointer">
-              <input id="notice-requires-ack" type="checkbox" checked={form.requires_acknowledgment} onChange={e => setForm(p => ({ ...p, requires_acknowledgment: e.target.checked }))} aria-label="Require acknowledgment" className="h-4 w-4 accent-brand-600" />
-              <span className={`text-sm ${t.textMuted}`}>Require acknowledgment</span>
-            </label>
-          </div>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={notice ? 'Edit notice' : 'Create notice'} description="Title, content, publish date and category are required." submitLabel={notice ? 'Save changes' : 'Create notice'} onSubmit={submit} size="lg">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2"><Field label="Title" required error={touched && !form.title.trim() ? 'Enter a title.' : undefined}><Input value={form.title} onChange={e => set({ title: e.target.value })} placeholder="Enter notice title" /></Field></div>
+        <div className="sm:col-span-2"><Field label="Content" required error={touched && !form.content.trim() ? 'Enter the notice content.' : undefined}><Textarea rows={5} value={form.content} onChange={e => set({ content: e.target.value })} placeholder="Enter notice content" /></Field></div>
+        <Field label="Publish date" required error={touched && !form.date ? 'Enter the publish date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
+        <Field label="Category" required><Select aria-label="Category" value={form.category} onValueChange={v => set({ category: v })} options={CATEGORIES.map(c => ({ value: c, label: c }))} /></Field>
+        <Field label="Priority"><Select aria-label="Priority" value={form.priority} onValueChange={v => set({ priority: v })} options={PRIORITIES.map(p => ({ value: p, label: p }))} /></Field>
+        <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v })} options={STATUSES.map(s => ({ value: s, label: s }))} /></Field>
+        <Field label="Author" optional><Input value={form.author} onChange={e => set({ author: e.target.value })} placeholder="Enter author name" /></Field>
+        <Field label="Department"><Select aria-label="Department" value={form.department} onValueChange={v => set({ department: v })} options={DEPARTMENTS.map(d => ({ value: d, label: d }))} /></Field>
+        <Field label="Target audience"><Select aria-label="Target audience" value={form.target_audience} onValueChange={v => set({ target_audience: v })} options={TARGET_AUDIENCE.map(a => ({ value: a, label: a }))} /></Field>
+        <Field label="Notification type"><Select aria-label="Notification type" value={form.notification_type} onValueChange={v => set({ notification_type: v })} options={NOTIFICATION_TYPES.map(n => ({ value: n, label: n }))} /></Field>
+        <Field label="Expiry date" optional description="Leave blank for a notice that never expires."><Input type="date" min={form.date} value={form.expires_at} onChange={e => set({ expires_at: e.target.value })} /></Field>
+        <div className="sm:col-span-2">
+          <Field label={`Attachments${form.attachments.length ? ` (${form.attachments.length})` : ''}`} optional description="Several files can be added, in more than one go.">
+            <Input type="file" multiple accept={NOTICE_ATTACHMENT_ACCEPT} disabled={uploading} onChange={upload} />
+          </Field>
+          {uploading && <p role="status" className="mt-2 font-sans text-caption text-ink-muted">Uploading…</p>}
+          {uploadError && <p role="alert" className="mt-2 font-sans text-caption text-danger">{uploadError}</p>}
+          {form.attachments.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {form.attachments.map((a, i) => (
+                <li key={`${a.url}-${i}`} className="flex items-center gap-3 rounded-card border border-line px-2.5 py-1.5">
+                  <Thumb attachment={a} />
+                  <span className="min-w-0 flex-1"><span className="block truncate font-sans text-body-sm text-ink">{a.name}</span>{a.size && <span className="block font-sans text-caption text-ink-muted">{a.size}</span>}</span>
+                  <IconButton icon="close" size="sm" label={`Remove attachment ${a.name}`} onClick={() => set({ attachments: form.attachments.filter((_, j) => j !== i) })} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <FormActions onCancel={onClose} submitting={isLoading} submitLabel={notice ? 'Save Changes' : 'Create Notice'} />
-      </form>
-    </CenterModal>
+        <div className="flex flex-wrap gap-6 sm:col-span-2">
+          <Checkbox label="Pin to top" checked={form.is_pinned} onChange={e => set({ is_pinned: e.target.checked })} />
+          <Checkbox label="Require acknowledgment" checked={form.requires_acknowledgment} onChange={e => set({ requires_acknowledgment: e.target.checked })} />
+        </div>
+      </div>
+    </FormDialog>
   );
 }
 
-// ==================== MAIN PAGE ====================
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
+}
+
+function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: { notice: Notice | null; now: number; onClose: () => void; onEdit: (n: Notice) => void; onDelete: (n: Notice) => void; onTogglePin: (n: Notice) => void }) {
+  const ex = notice ? expiry(notice, now) : { expired: false, soon: false };
+  const share = async () => {
+    if (!notice) return;
+    if (navigator.share) { try { await navigator.share({ title: notice.title, text: truncate(notice.content, 200), url: window.location.href }); } catch { /* the user dismissed the share sheet */ } return; }
+    await copy();
+  };
+  const copy = async () => {
+    if (!notice) return;
+    try { await navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Notice copied to the clipboard.'); } catch { toast.error('The notice could not be copied.'); }
+  };
+  return (
+    <Dialog
+      open={!!notice}
+      onOpenChange={open => { if (!open) onClose(); }}
+      title={notice?.title ?? 'Notice'}
+      description={notice ? `${notice.author || 'Unknown author'}, ${formatDate(notice.date)}` : undefined}
+      size="lg"
+      footer={notice && (
+        <>
+          <Button variant="danger" icon="delete" onClick={() => onDelete(notice)}>Delete</Button>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="edit" onClick={() => onEdit(notice)}>Edit notice</Button>
+        </>
+      )}
+    >
+      {notice && (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-2">{notice.is_pinned && <StatusBadge tone="warning" icon="pinned">Pinned</StatusBadge>}<PriorityTag priority={notice.priority} /><StatusTag status={notice.status} />{ex.expired && <StatusBadge tone="danger" icon="expired">Expired</StatusBadge>}{ex.soon && <StatusBadge tone="warning" icon="due-soon">Expires soon</StatusBadge>}</div>
+          <p className="whitespace-pre-wrap rounded-card bg-surface-muted p-4 font-sans text-body text-ink">{notice.content}</p>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Fact label="Department">{notice.department || 'Not specified'}</Fact>
+            <Fact label="Target audience">{notice.target_audience || 'All Employees'}</Fact>
+            <Fact label="Notification type">{notice.notification_type || 'General'}</Fact>
+            <Fact label="Acknowledgment">{notice.requires_acknowledgment ? 'Required' : 'Not required'}</Fact>
+            <Fact label="Expires">{notice.expires_at ? formatDate(notice.expires_at) : 'Never'}</Fact>
+            {notice.created_at && <Fact label="Created">{formatDateTime(notice.created_at)}</Fact>}
+            {notice.updated_at && <Fact label="Last updated">{formatDateTime(notice.updated_at)}</Fact>}
+          </dl>
+          {!!notice.attachments?.length && (
+            <section aria-labelledby="nb-attachments">
+              <h3 id="nb-attachments" className="mb-2 font-sans text-caption text-ink-muted">Attachments ({notice.attachments.length})</h3>
+              <ul className="flex flex-col gap-2">
+                {notice.attachments.map((a, i) => (
+                  <li key={`${a.url}-${i}`} className="flex items-center gap-3 rounded-card border border-line p-2.5">
+                    <Thumb attachment={a} />
+                    <span className="min-w-0 flex-1"><span className="block truncate font-sans text-body text-ink">{a.name || 'Unnamed file'}</span>{a.size && <span className="block font-sans text-caption text-ink-muted">{a.size}</span>}</span>
+                    {a.url && <a href={a.url} target="_blank" rel="noopener noreferrer" className="focus-ring rounded-xs font-sans text-label font-medium text-action underline underline-offset-2">Download<span className="sr-only"> {a.name || 'attachment'}</span></a>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+            <Button icon="external" onClick={share}>Share</Button>
+            <Button icon="copy" onClick={copy}>Copy</Button>
+            <Button icon="pin" onClick={() => onTogglePin(notice)}>{notice.is_pinned ? 'Unpin' : 'Pin'}</Button>
+          </div>
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+const EXPORT_COLUMNS: DLColumn[] = [
+  { key: 'title', label: 'Title', width: 30 },
+  { key: 'category', label: 'Category', width: 16 },
+  { key: 'priority', label: 'Priority', width: 12 },
+  { key: 'status', label: 'Status', width: 12 },
+  { key: 'author', label: 'Author', width: 18 },
+  { key: 'department', label: 'Department', width: 18 },
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
+  { key: 'expires_at', label: 'Expires', width: 14, format: v => (v ? formatDate(v as string) : '') },
+];
 
 function NoticeboardContent() {
-  const t = useTheme();
   const confirm = useConfirm();
-  const sections = useCollapseSection({ records: true });
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
-  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+  const [view, setView] = useViewPreference('noticeboard', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [filters, setFilters] = useState<NoticeFilters>({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // View-only — filters the grid/table below without touching the hero KPI tiles or
-  // Quick Actions counts, which stay true totals (same convention as every other
-  // filter on this page not touching the stats up top).
+  const [filters, setFilters] = useState<NoticeFilters>(NO_FILTERS);
   const [hideExpired, setHideExpired] = useState(false);
-  const { data, setData, isLoading, refreshing, loadError, refresh: fetchNotices } = useNoticeboardData(filters, search);
+  const [sort, setSort] = useState<SortState>(null);
+  const [editing, setEditing] = useState<Notice | undefined>();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
+  const { notices, setNotices, loading, loaded, error, errorStatus, refetch } = useNoticeboardData(filters, search);
+  const viewing = useMemo(() => notices.find(n => n.id === viewingId) ?? null, [notices, viewingId]);
 
-  const handleSaveNotice = async (noticeData: NoticeFormData) => {
-    setIsSubmitting(true);
-    try {
-      if (editingNotice) await updateNotice(editingNotice.id, noticeData);
-      else await createNotice(noticeData);
-      await fetchNotices(true);
-      setIsModalOpen(false); setEditingNotice(null);
-      toast.success(`Notice ${editingNotice ? 'updated' : 'created'} successfully`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save notice');
-    } finally { setIsSubmitting(false); }
+  const expiredNotices = useMemo(() => notices.filter(n => expiry(n, now).expired), [notices, now]);
+  const shown = useMemo(() => (hideExpired ? notices.filter(n => !expiry(n, now).expired) : notices), [notices, hideExpired, now]);
+  const pinned = shown.filter(n => n.is_pinned);
+  const regular = shown.filter(n => !n.is_pinned);
+  const rows = useMemo(() => sortRows([...pinned, ...regular], sort, (n, id) => String(n[id as keyof Notice] ?? '').toLowerCase()), [pinned, regular, sort]);
+  const byPriority = PRIORITIES.map(p => ({ name: p, value: shown.filter(n => n.priority === p).length })).filter(r => r.value > 0);
+
+  const hasFilters = !!search.trim() || filters.category !== ALL || filters.priority !== ALL || filters.status !== ALL || filters.department !== ALL || filters.is_pinned !== null;
+  const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: shown.length, transient: isTransientStatus(errorStatus) });
+  const pending = loading && !loaded;
+  const unavailable = !loaded && !loading;
+  const scope = hasFilters ? 'matching your filters' : undefined;
+  const clearFilters = () => { setFilters(NO_FILTERS); setSearch(''); };
+  const setFilter = <K extends keyof NoticeFilters>(k: K, v: NoticeFilters[K]) => setFilters(f => ({ ...f, [k]: v }));
+
+  const openEditor = (n?: Notice) => { setViewingId(null); setEditing(n); setDialogOpen(true); };
+  const remove = async (n: Notice) => {
+    if (!await confirm({ title: 'Delete this notice?', message: `“${truncate(n.title, 60)}” will be removed for everyone. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    try { await deleteNotice(n.id); setViewingId(null); toast.success('Notice deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
   };
-
-  const handleDeleteNotice = async (id: string) => {
-    try {
-      await deleteNotice(id);
-      setData(prev => prev.filter(n => n.id !== id));
-      if (selectedNotice?.id === id) { setIsDetailsModalOpen(false); setSelectedNotice(null); }
-      toast.success('Notice deleted');
-    } catch (error) { toast.error(error instanceof Error ? error.message : 'Failed to delete notice'); }
+  const pin = async (n: Notice) => {
+    const before = n.is_pinned;
+    setNotices(ps => ps.map(x => (x.id === n.id ? { ...x, is_pinned: !before } : x)));
+    try { await togglePin(n.id, before); } catch (e) { setNotices(ps => ps.map(x => (x.id === n.id ? { ...x, is_pinned: before } : x))); toast.error(`Pin was not changed: ${(e as Error).message}`); }
   };
-
-  const handleTogglePin = (id: string, newPinState: boolean) => {
-    setData(prev => prev.map(n => n.id === id ? { ...n, is_pinned: newPinState } : n));
-    if (selectedNotice?.id === id) setSelectedNotice(prev => prev ? { ...prev, is_pinned: newPinState } : prev);
+  const bulk = async (targets: Notice[], act: (n: Notice) => Promise<unknown>, done: string, failed: string) => {
+    const results = await Promise.allSettled(targets.map(act));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    if (ok) toast.success(`${done} ${plural(ok, 'notice')}.`);
+    if (ok < results.length) toast.warning(`${plural(results.length - ok, 'notice')} ${failed}.`);
+    await refetch();
   };
-
-  const calculatedStats = useMemo(() => calculateClientSideStats(data), [data]);
-  const expiredNotices = data.filter(n => n.expires_at && new Date(n.expires_at) < new Date());
-  const displayNotices = hideExpired ? data.filter(n => !expiredNotices.includes(n)) : data;
-  const pinnedNotices = displayNotices.filter(n => n.is_pinned);
-  const regularNotices = displayNotices.filter(n => !n.is_pinned);
-  const initialUnavailable = Boolean(loadError) && data.length === 0;
-  const metricsUnavailable = isLoading || initialUnavailable;
-  const hasFilters = search || Object.values(filters).some(f => f !== 'all' && f !== null);
-
-  // Both previously rendered with no onClick at all — clicking them did nothing.
-  const handleArchiveAllExpired = async () => {
+  const archiveExpired = async () => {
     const targets = expiredNotices.filter(n => n.status !== 'Archived');
-    if (targets.length === 0) { toast.info('No expired notices to archive'); return; }
-    const results = await Promise.allSettled(targets.map(n => archiveNotice(n.id)));
-    const ok = results.filter(r => r.status === 'fulfilled').length;
-    const fail = results.length - ok;
-    if (ok > 0) toast.success(`Archived ${ok} expired notice${ok !== 1 ? 's' : ''}`);
-    if (fail > 0) toast.warning(`${fail} failed to archive`);
-    await fetchNotices(true);
+    if (!targets.length) { toast.info('There are no expired notices to archive.'); return; }
+    if (!await confirm({ title: `Archive ${plural(targets.length, 'expired notice')}?`, message: 'Archived notices leave the active board. You can reactivate each one by editing its status.', confirmLabel: 'Archive' })) return;
+    await bulk(targets, n => archiveNotice(n.id), 'Archived', 'could not be archived');
+  };
+  const unpinAll = async () => {
+    if (!pinned.length) { toast.info('No notices are pinned.'); return; }
+    if (!await confirm({ title: `Unpin ${plural(pinned.length, 'notice')}?`, message: 'They stay on the board but lose their place at the top.', confirmLabel: 'Unpin all' })) return;
+    await bulk([...pinned], n => togglePin(n.id, true), 'Unpinned', 'could not be unpinned');
   };
 
-  const handleUnpinAll = async () => {
-    if (pinnedNotices.length === 0) { toast.info('No pinned notices'); return; }
-    const targets = [...pinnedNotices];
-    const results = await Promise.allSettled(targets.map(n => togglePin(n.id, true)));
-    const ok = results.filter(r => r.status === 'fulfilled').length;
-    const fail = results.length - ok;
-    if (ok > 0) toast.success(`Unpinned ${ok} notice${ok !== 1 ? 's' : ''}`);
-    if (fail > 0) toast.warning(`${fail} failed to unpin`);
-    await fetchNotices(true);
-  };
-
-  const exportColumns: DLColumn[] = [
-    { key: 'title', label: 'Title', width: 30 },
-    { key: 'category', label: 'Category', width: 16 },
-    { key: 'priority', label: 'Priority', width: 12 },
-    { key: 'status', label: 'Status', width: 12 },
-    { key: 'author', label: 'Author', width: 18 },
-    { key: 'department', label: 'Department', width: 18 },
-    { key: 'date', label: 'Date', width: 14, format: v => v ? formatDate(v as string) : '' },
-    { key: 'expires_at', label: 'Expires', width: 14, format: v => v ? formatDate(v as string) : '' },
+  const COLUMNS: Column<Notice>[] = [
+    { id: 'title', header: 'Title', sortable: true, sticky: true, cell: n => <span className="block min-w-0">{n.is_pinned && <span className="mr-1.5 text-warning" title="Pinned" aria-label="Pinned"><Icon name="pinned" size="sm" /></span>}<span className="font-medium">{n.title}</span><span className="block truncate text-caption text-ink-muted">{truncate(n.content, 70)}</span></span> },
+    { id: 'category', header: 'Category', sortable: true, hideBelow: 'md', cell: n => n.category },
+    { id: 'priority', header: 'Priority', sortable: true, cell: n => <PriorityTag priority={n.priority} /> },
+    { id: 'status', header: 'Status', sortable: true, hideBelow: 'md', cell: n => <StatusTag status={n.status} /> },
+    { id: 'author', header: 'Author', sortable: true, hideBelow: 'lg', cell: n => n.author || <span className="text-ink-muted">Not specified</span> },
+    { id: 'date', header: 'Date', sortable: true, cell: n => <span className="whitespace-nowrap tabular">{formatDate(n.date)}</span> },
   ];
+  const card = (n: Notice) => {
+    const ex = expiry(n, now);
+    return (
+      <RecordCard
+        key={n.id}
+        eyebrow={`${n.author || 'Not specified'} · ${formatDate(n.date)}`}
+        title={n.title}
+        status={<PriorityTag priority={n.priority} />}
+        facts={[
+          { label: 'Notice', value: <span className="line-clamp-2">{n.content}</span> },
+          { label: 'Category', value: n.category },
+          { label: 'Status', value: <span className="inline-flex flex-wrap gap-1.5"><StatusTag status={n.status} />{n.is_pinned && <StatusBadge tone="warning" icon="pinned">Pinned</StatusBadge>}{ex.expired && <StatusBadge tone="danger" icon="expired">Expired</StatusBadge>}{ex.soon && <StatusBadge tone="warning" icon="due-soon">Expires soon</StatusBadge>}</span> },
+          ...(n.attachments?.length ? [{ label: 'Attachments', value: String(n.attachments.length) }] : []),
+        ]}
+        action={<span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${n.title}`} onClick={() => openEditor(n)} /><IconButton icon="delete" variant="danger" size="sm" label={`Delete ${n.title}`} onClick={() => remove(n)} /></span>}
+        onOpen={() => setViewingId(n.id)}
+        openLabel={`View notice ${n.title}`}
+      />
+    );
+  };
 
   return (
-    <main className={`${t.design === 'dallaglio' ? 'w-full' : 'max-w-[1400px] mx-auto'} p-4 sm:p-6 lg:p-8 space-y-6`}>
-      <PageHero
-        icon={Bell}
-        accent="violet"
-        crumbs={['Communications', 'Noticeboard']}
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        breadcrumbs={[{ label: 'Communications' }, { label: 'Noticeboard' }]}
         title="Noticeboard"
-        description="Create, manage, and monitor all company notices and announcements."
-        statsOpen={sections.expanded.records}
-        actions={
+        description="Create, manage and monitor company notices and announcements."
+        actions={(
           <>
-            <IconAction meaning="refresh" title="Refresh notices" spinning={refreshing} disabled={isLoading || refreshing} onClick={() => fetchNotices(true)} />
-            {data.length > 0 && (
+            <IconButton icon="refresh" label="Refresh notices" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            {notices.length > 0 && (
               <DownloadButton
-                data={data as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
+                data={notices as unknown as Record<string, unknown>[]}
+                columns={EXPORT_COLUMNS}
                 filename={exportFilename('Noticeboard')}
                 title="Noticeboard"
                 statusColumn="priority"
                 statusColor={(_v, row) => PRIORITY_HEX[row.priority as string]?.replace('#', '')}
               />
             )}
-            <PrimaryButton icon={Plus} accent="violet" disabled={initialUnavailable} onClick={() => { setEditingNotice(null); setIsModalOpen(true); }}>Create Notice</PrimaryButton>
+            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button>
           </>
-        }
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatTile icon={FileText} color="#60a5fa" label="Total Notices" value={metricsUnavailable ? '—' : data.length} />
-          <StatTile icon={CheckCircle} color="#34d399" label="Active" value={metricsUnavailable ? '—' : data.filter(n => n.status === 'Active').length} />
-          <StatTile icon={Pin} color="#f59e0b" label="Pinned" value={metricsUnavailable ? '—' : pinnedNotices.length} />
-          <StatTile icon={Clock4} color="#f43f5e" label="Expired" value={metricsUnavailable ? '—' : expiredNotices.length} />
-        </div>
-      </PageHero>
-
-      {calculatedStats.total_notices > 0 && (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-          <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 flex items-center gap-2 ${t.textPrimary}`}><BarChart3 className="h-4 w-4" /> Priority Breakdown</h3>
-          <div className="space-y-2.5">
-            {PRIORITIES.map(priority => {
-              const count = calculatedStats.priority_breakdown[priority] || 0;
-              const pct = data.length > 0 ? (count / data.length) * 100 : 0;
-              return (
-                <div key={priority} className="flex items-center gap-3">
-                  <span className={`text-xs w-16 shrink-0 ${t.textMuted}`}>{priority}</span>
-                  <div className="flex-1"><ProgressBar value={Math.round(pct)} color={PRIORITY_HEX[priority]} showValue={false} /></div>
-                  <span className={`text-xs ${TYPE_WEIGHT.medium} w-6 text-right ${t.textPrimary}`}>{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-4 space-y-3`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search notices by title or content…" className="flex-1 min-w-[220px]" />
-          <ViewToggle value={viewMode} onChange={setViewMode} options={[{ value: 'grid', icon: LayoutGrid, label: 'Grid view' }, { value: 'table', icon: TableIcon, label: 'Table view' }]} />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-          <SelectField size="filter" value={filters.category} title="Category filter" onChange={v => setFilters(p => ({ ...p, category: v }))}
-            options={[{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
-          <SelectField size="filter" value={filters.priority} title="Priority filter" onChange={v => setFilters(p => ({ ...p, priority: v }))}
-            options={[{ value: 'all', label: 'All Priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
-          <SelectField size="filter" value={filters.status} title="Status filter" onChange={v => setFilters(p => ({ ...p, status: v }))}
-            options={[{ value: 'all', label: 'All Statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
-          <SelectField size="filter" value={filters.department} title="Department filter" onChange={v => setFilters(p => ({ ...p, department: v }))}
-            options={[{ value: 'all', label: 'All Departments' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} />
-          <SelectField size="filter" value={filters.is_pinned === null ? 'all' : String(filters.is_pinned)} title="Pinned filter"
-            onChange={v => setFilters(p => ({ ...p, is_pinned: v === 'all' ? null : v === 'true' }))}
-            options={[{ value: 'all', label: 'All Notices' }, { value: 'true', label: 'Pinned Only' }, { value: 'false', label: 'Not Pinned' }]} />
-        </div>
-        {hasFilters && (
-          <div className="flex gap-2">
-            <Button variant="ghost" icon={X} onClick={() => { setFilters({ category: 'all', priority: 'all', status: 'all', department: 'all', is_pinned: null }); setSearch(''); }}>Clear Filters</Button>
-            <Button variant="ghost" icon={RefreshCw} disabled={refreshing} onClick={() => fetchNotices(true)}>Refresh</Button>
-          </div>
         )}
-      </div>
+      />
 
-      {loadError && data.length > 0 && (
-        <div role="alert" className={`${t.glass} rounded-2xl border border-amber-500/30 p-4 flex flex-wrap items-center gap-3`}>
-          <AlertTriangle className="h-5 w-5 text-amber-500" />
-          <p className={`text-sm flex-1 ${t.textMuted}`}>Notices may be out of date. {loadError}</p>
-          <Button variant="secondary" size="xs" icon={RefreshCw} disabled={refreshing} onClick={() => fetchNotices(true)}>Try again</Button>
-        </div>
-      )}
+      <MetricGrid columns={4}>
+        <MetricTile label="Total notices" icon="notice" detail={scope} value={notices.length} loading={pending} unavailable={unavailable} />
+        <MetricTile label="Active" icon="active" tone="success" detail={scope} value={notices.filter(n => n.status === 'Active').length} loading={pending} unavailable={unavailable} selected={filters.status === 'Active'} onClick={() => setFilter('status', filters.status === 'Active' ? ALL : 'Active')} />
+        <MetricTile label="Pinned" icon="pinned" detail={scope} value={notices.filter(n => n.is_pinned).length} loading={pending} unavailable={unavailable} selected={filters.is_pinned === true} onClick={() => setFilter('is_pinned', filters.is_pinned === true ? null : true)} />
+        <MetricTile label="Expired" icon="expired" tone="danger" detail={scope} value={expiredNotices.length} loading={pending} unavailable={unavailable} selected={hideExpired === false && false} />
+      </MetricGrid>
 
-      {isLoading ? (
-        <div className={`flex items-center justify-center py-16 ${t.textFaint}`}><RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading notices…</div>
-      ) : loadError && data.length === 0 ? (
-        // A failed fetch used to fall straight through to the "no notices" empty
-        // state below — indistinguishable from a genuinely empty noticeboard. This
-        // is the real error state (only shown when there's nothing already on
-        // screen to fall back to; a failed *refresh* just toasts and keeps showing
-        // the stale list, same as PPE's recordsError pattern).
-        <div className={`${t.glass} rounded-2xl overflow-hidden text-center py-16`}>
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
-          <p className={`text-sm ${TYPE_WEIGHT.semibold} ${t.textMuted} mb-1`}>Couldn&apos;t load notices</p>
-          <p className={`text-xs ${t.textFaint} mb-4`}>The server may still be starting up — try again in a moment.</p>
-          <PrimaryButton icon={RefreshCw} size="md" onClick={() => fetchNotices()}>Retry</PrimaryButton>
-        </div>
-      ) : data.length === 0 ? (
-        <div className={`${t.glass} rounded-2xl overflow-hidden`}>
-          <EmptyState icon={FileText} title="No notices found" message={hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first notice'}
-            action={!hasFilters && !initialUnavailable ? { label: 'Create Your First Notice', onClick: () => { setEditingNotice(null); setIsModalOpen(true); } } : undefined} />
-        </div>
-      ) : viewMode === 'table' ? (
-        <div className={`${t.glass} rounded-2xl ${t.shadow} overflow-hidden overflow-x-auto`}>
-          <table className="w-full">
-            <thead><tr className={`border-b ${t.border}`}>
-              {['Title', 'Category', 'Priority', 'Status', 'Author', 'Date', ''].map(h => (
-                <th key={h} className={`px-3 py-2.5 text-[10px] ${TYPE_WEIGHT.semibold} uppercase tracking-wider text-left ${t.textFaint}`}>{h}</th>
-              ))}
-            </tr></thead>
-            <tbody>
-              {[...pinnedNotices, ...regularNotices].map(notice => (
-                <tr key={notice.id} className={`border-b ${t.border} ${t.hoverBg} cursor-pointer transition-colors`} onClick={() => { setSelectedNotice(notice); setIsDetailsModalOpen(true); }}>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      {notice.is_pinned && <Pin className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                      <div className="min-w-0"><p className={`text-sm ${TYPE_WEIGHT.medium} truncate ${t.textPrimary}`}>{notice.title}</p><p className={`text-xs truncate ${t.textFaint}`}>{truncateText(notice.content, 60)}</p></div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5"><StatusBadge color="#64748b" label={notice.category} /></td>
-                  <td className="px-3 py-2.5"><StatusBadge color={PRIORITY_HEX[notice.priority] ?? '#94a3b8'} label={notice.priority} /></td>
-                  <td className="px-3 py-2.5"><StatusBadge color={STATUS_HEX[notice.status] ?? '#94a3b8'} label={notice.status} /></td>
-                  <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{notice.author || '-'}</td>
-                  <td className={`px-3 py-2.5 text-xs ${t.textMuted}`}>{formatDate(notice.date)}</td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <IconAction meaning="edit" title={`Edit ${notice.title}`} onClick={e => { e.stopPropagation(); setEditingNotice(notice); setIsModalOpen(true); }} />
-                      <IconAction meaning="danger" title={`Delete ${notice.title}`} onClick={async e => { e.stopPropagation(); if (await confirm({ title: 'Delete this notice?', destructive: true })) handleDeleteNotice(notice.id); }} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {pinnedNotices.length > 0 && (
-            <div>
-              <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 flex items-center gap-2 ${t.textPrimary}`}><Bell className="h-4 w-4 text-amber-500" /> Pinned Notices <StatusBadge color="#f59e0b" label={String(pinnedNotices.length)} /></h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pinnedNotices.map(n => <NoticeCard key={n.id} notice={n} onView={n2 => { setSelectedNotice(n2); setIsDetailsModalOpen(true); }} onEdit={n2 => { setEditingNotice(n2); setIsModalOpen(true); }} onDelete={handleDeleteNotice} />)}
-              </div>
-            </div>
-          )}
-          <div>
-            <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>All Notices ({regularNotices.length})</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {regularNotices.map(n => <NoticeCard key={n.id} notice={n} onView={n2 => { setSelectedNotice(n2); setIsDetailsModalOpen(true); }} onEdit={n2 => { setEditingNotice(n2); setIsModalOpen(true); }} onDelete={handleDeleteNotice} />)}
-            </div>
+      {byPriority.length > 0 && <ChartPanel title="Priority breakdown" summary={`Notices by priority: ${byPriority.map(r => `${r.name} ${r.value}`).join(', ')}.`}><Distribution rows={byPriority} /></ChartPanel>}
+
+      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or content" wrapperClassName="min-w-56 max-w-md flex-1" />
+        <Select className="w-40" aria-label="Filter by category" value={filters.category} onValueChange={v => setFilter('category', v)} options={[{ value: ALL, label: 'All categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
+        <Select className="w-40" aria-label="Filter by priority" value={filters.priority} onValueChange={v => setFilter('priority', v)} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
+        <Select className="w-40" aria-label="Filter by status" value={filters.status} onValueChange={v => setFilter('status', v)} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
+        <Select className="w-44" aria-label="Filter by department" value={filters.department} onValueChange={v => setFilter('department', v)} options={[{ value: ALL, label: 'All departments' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} />
+        <Select className="w-40" aria-label="Filter by pinned" value={filters.is_pinned === null ? ALL : String(filters.is_pinned)} onValueChange={v => setFilter('is_pinned', v === ALL ? null : v === 'true')} options={[{ value: ALL, label: 'All notices' }, { value: 'true', label: 'Pinned only' }, { value: 'false', label: 'Not pinned' }]} />
+        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+      </Toolbar>
+
+      <DataRegion
+        status={status}
+        subject="notices"
+        error={error}
+        onRetry={() => refetch()}
+        empty={hasFilters || hideExpired
+          ? <EmptyState icon="search" title="No notices match" description="Try a different search or filter." action={<Button onClick={() => { clearFilters(); setHideExpired(false); }}>Clear filters</Button>} />
+          : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} />}
+      >
+        {view === 'cards' ? (
+          <div className="flex flex-col gap-6">
+            {pinned.length > 0 && <section aria-labelledby="nb-pinned"><h2 id="nb-pinned" className="mb-3 font-display text-section font-semibold text-ink">Pinned notices <span className="font-sans text-label font-normal text-ink-muted">{pinned.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{pinned.map(card)}</div></section>}
+            {regular.length > 0 && <section aria-labelledby="nb-all"><h2 id="nb-all" className="mb-3 font-display text-section font-semibold text-ink">{pinned.length ? 'Other notices' : 'All notices'} <span className="font-sans text-label font-normal text-ink-muted">{regular.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{regular.map(card)}</div></section>}
           </div>
-        </div>
-      )}
+        ) : (
+          <DataTable
+            caption="Notices"
+            rows={rows}
+            columns={COLUMNS}
+            getRowId={n => n.id}
+            sort={sort}
+            onSortChange={setSort}
+            onRowActivate={n => setViewingId(n.id)}
+            rowActions={n => (
+              <span className="inline-flex gap-1">
+                <IconButton icon="edit" size="sm" label={`Edit ${n.title}`} onClick={() => openEditor(n)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${n.title}`} onClick={() => remove(n)} />
+              </span>
+            )}
+          />
+        )}
+      </DataRegion>
 
-      <div className={`${t.glass} rounded-2xl ${t.shadow} p-5`}>
-        <h3 className={`text-sm ${TYPE_WEIGHT.semibold} mb-3 ${t.textPrimary}`}>Quick Actions</h3>
+      <section aria-labelledby="nb-actions" className="flex flex-col gap-3 rounded-card border border-line p-4">
+        <h2 id="nb-actions" className="font-display text-section font-semibold text-ink">Quick actions</h2>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" icon={Archive} onClick={handleArchiveAllExpired}
-            title={`${expiredNotices.filter(n => n.status !== 'Archived').length} expired, not yet archived`}>Archive All Expired</Button>
-          <Button variant={hideExpired ? 'subtle' : 'secondary'} icon={EyeOff} onClick={() => setHideExpired(v => !v)}>
-            {hideExpired ? 'Showing Non-Expired Only' : 'Hide Expired Notices'}
-          </Button>
-          <Button variant="secondary" icon={PinOff} onClick={handleUnpinAll}
-            title={`${pinnedNotices.length} currently pinned`}>Unpin All</Button>
+          <Button icon="archive" onClick={archiveExpired}>Archive all expired ({expiredNotices.filter(n => n.status !== 'Archived').length})</Button>
+          <Button icon="hide" aria-pressed={hideExpired} variant={hideExpired ? 'primary' : 'secondary'} onClick={() => setHideExpired(v => !v)}>{hideExpired ? 'Showing non-expired only' : 'Hide expired notices'}</Button>
+          <Button icon="pin" onClick={unpinAll}>Unpin all ({pinned.length})</Button>
         </div>
-      </div>
+      </section>
 
-      <EditNoticeModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingNotice(null); }} notice={editingNotice} onSave={handleSaveNotice} isLoading={isSubmitting} />
-      <NoticeDetailsModal isOpen={isDetailsModalOpen} onClose={() => { setIsDetailsModalOpen(false); setSelectedNotice(null); }} notice={selectedNotice}
-        onDelete={handleDeleteNotice} onEdit={n => { setIsDetailsModalOpen(false); setEditingNotice(n); setIsModalOpen(true); }} onTogglePin={handleTogglePin} />
-    </main>
+      <DetailDialog notice={viewing} now={now} onClose={() => setViewingId(null)} onEdit={openEditor} onDelete={remove} onTogglePin={pin} />
+      <NoticeDialog notice={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => refetch()} />
+    </div>
   );
 }
 
 export default function NoticeboardManagement() {
-  return <AppShell><NoticeboardContent /></AppShell>;
+  return <AppShell migrated><NoticeboardContent /></AppShell>;
 }
