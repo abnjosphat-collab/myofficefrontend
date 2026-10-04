@@ -26,12 +26,12 @@ credentials or private business records in docs.
 
 ## 2. Git state (two separate repositories)
 
-| Repo | Branch | HEAD when written | Dirty |
+| Repo | Branch | Commits | State |
 |---|---|---|---|
-| `frontend/` | `main` | `1c699f8` | about 183 paths, all uncommitted |
-| `backend/` | `main` | `d2e0e2a` | 1: `docs/NEC_TIMESHEET_RULES.md` (pre-existing, not mine) |
+| `frontend/` | `redesign/ui-system` (pushed; `main` untouched) | `6b460f7` earlier Tools polish edits, `7dcabd9` the redesign | clean, except an untracked debug image `docs/_dbg.png` left out on purpose |
+| `backend/` | `redesign/ui-system` (pushed; `main` untouched) | `67b9b17` earlier NEC rules edit, then the backend changes | clean |
 
-Nothing from this redesign has been committed or pushed. Dirty frontend work, by owner:
+Committed and pushed to the `redesign/ui-system` branch of both repos on 4 Oct 2026 at the owner's request, so a cloud session can continue. Nothing was merged to `main`, deployed, or released; the backend changes are not running live (only the `services.stage_signatures` column is). Because the owner's earlier edits were interleaved with the redesign in many files, only the clearly separate ones (`app/tools/**`, `e2e/smoke.mjs`, `docs/tools-polish-2026-10-02/`, the NEC rules doc) are in their own commit. Earlier note about who owned what, kept for reference:
 
 - **Redesign (this effort):** `components/ui-system/**`, `components/app-shell/**` (new shell files; old TopNavigation,
   SidebarNavigation, BottomBar, PreferencesPanel deleted), migrated route folders (section 5), `lib/useApiList.ts`,
