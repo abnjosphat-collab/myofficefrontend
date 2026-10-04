@@ -2,7 +2,7 @@
 // Canvas signature capture — draw, clear, confirm.
 'use client';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { PenLine, RefreshCw, Lock, CheckCircle2, Upload, useTheme, Button } from '@/components/shared/theme';
+import { Button, Checkbox, Field, Icon, Input, Segmented } from '@/components/ui-system';
 import { api } from '@/lib/apiClient';
 
 export interface SignatureResult {
@@ -143,8 +143,6 @@ export function SignaturePad({
   defaultSaveForNextTime = false,
   reuseSignatures = [],
 }: SignaturePadProps) {
-  const theme = useTheme();
-  const dallaglio = theme.design === 'dallaglio';
   const saveCheckboxId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -356,43 +354,27 @@ export function SignaturePad({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm">
-          <PenLine className={`h-4 w-4 ${dallaglio ? theme.textFaint : 'text-[#86BBD8]'}`} />
-          <span className={theme.textFaint}>Signing as</span>
-          <span className={`font-semibold ${theme.textPrimary}`}>{signerName}</span>
-        </div>
-        {mode === 'draw' && (
-          <button
-            type="button"
-            onClick={clear}
-            disabled={!hasInk}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${theme.textFaint} transition-all ${theme.hoverBg} disabled:pointer-events-none disabled:opacity-40`}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Clear
-          </button>
-        )}
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted">
+          <Icon name="edit" size="sm" /><span>Signing as</span><span className="font-semibold text-ink">{signerName}</span>
+        </p>
+        {mode === 'draw' && <Button variant="ghost" size="sm" icon="reset" onClick={clear} disabled={!hasInk}>Clear</Button>}
       </div>
 
       {reuseSignatures.length > 0 && (
-        <div className={`rounded-xl border ${theme.border} ${theme.chipBg} p-3 space-y-2`}>
-          <p className={`text-xs font-medium ${theme.textMuted}`}>Use the compiler&apos;s signature</p>
+        <div className="flex flex-col gap-2 rounded-card border border-line bg-surface-muted p-3">
+          <p className="font-sans text-caption font-medium text-ink-muted">Use the compiler&apos;s signature</p>
           <div className="flex flex-wrap gap-2">
             {reuseSignatures.map(opt => (
               <button
                 key={opt.label}
                 type="button"
-                onClick={() => onSign({
-                  signerName,
-                  signedAt: new Date().toISOString(),
-                  dataUrl: opt.dataUrl,
-                  method: 'saved',
-                })}
-                className={`inline-flex items-center gap-2 rounded-lg border ${theme.border} px-2 py-1.5 text-xs ${theme.hoverBg}`}
+                onClick={() => onSign({ signerName, signedAt: new Date().toISOString(), dataUrl: opt.dataUrl, method: 'saved' })}
+                className="focus-ring touch-target inline-flex items-center gap-2 rounded-control border border-line bg-surface px-2 py-1.5 font-sans text-caption text-ink hover:bg-surface-subtle"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={opt.dataUrl} alt="" className="h-6 max-w-[72px] object-contain rounded border border-slate-200 bg-white" />
-                <span className={theme.textPrimary}>{opt.label}</span>
+                <img src={opt.dataUrl} alt="" className="h-6 max-w-[72px] rounded-xs border border-line bg-white object-contain" />
+                <span>{opt.label}</span>
               </button>
             ))}
           </div>
@@ -401,26 +383,11 @@ export function SignaturePad({
 
       {/* Mode switch — only when a saved signature actually exists on the account */}
       {allowSaved && saved.has_signature && (
-        <div className={`flex gap-1 rounded-xl border p-1 ${dallaglio ? `${theme.border} ${theme.chipBg}` : 'border-white/10 bg-white/[0.04]'}`}>
-          <button
-            type="button"
-            onClick={() => { setMode('draw'); setUnlockErr(''); }}
-            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              dallaglio ? (mode === 'draw' ? `${theme.glass} ${theme.textPrimary}` : `${theme.textMuted} ${theme.hoverText}`) : mode === 'draw' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
-            }`}
-          >
-            Draw now
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('unlock'); setUnlockErr(''); }}
-            className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-              dallaglio ? (mode === 'unlock' ? `${theme.glass} ${theme.textPrimary}` : `${theme.textMuted} ${theme.hoverText}`) : mode === 'unlock' ? 'bg-[#2A4D69]/70 text-white' : 'text-white/50 hover:text-white'
-            }`}
-          >
-            Use saved signature
-          </button>
-        </div>
+        <Segmented
+          label="How to sign" value={mode} className="w-full [&>button]:flex-1"
+          onValueChange={next => { setMode(next); setUnlockErr(''); }}
+          options={[{ value: 'draw', label: 'Draw now' }, { value: 'unlock', label: 'Use saved signature' }]}
+        />
       )}
 
       {mode === 'draw' ? (
@@ -432,13 +399,9 @@ export function SignaturePad({
             onPointerMove={move}
             onPointerUp={end}
             onPointerLeave={end}
-            className="h-40 w-full cursor-crosshair touch-none rounded-xl border border-slate-300 bg-white shadow-inner"
+            className="h-40 w-full cursor-crosshair touch-none rounded-card border border-line-control bg-white shadow-inner"
           />
-          {!hasInk && (
-            <p className={`-mt-2 text-center text-xs ${theme.textFaint}`}>
-              Draw your signature above, or upload a photo of one
-            </p>
-          )}
+          {!hasInk && <p className="-mt-2 text-center font-sans text-caption text-ink-muted">Draw your signature above, or upload a photo of one</p>}
 
           <input
             ref={fileRef}
@@ -449,83 +412,45 @@ export function SignaturePad({
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
           />
           <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className={`flex items-center gap-1.5 rounded-lg border ${theme.border} ${theme.chipBg} px-3 py-1.5 text-xs font-medium ${theme.textMuted} transition-all ${theme.hoverBg}`}
-            >
-              <Upload className="h-3.5 w-3.5" /> Upload a scan
-            </button>
-            {hasInk && inkSource === 'scanned' && (
-              <span className="text-xs text-emerald-400/80">Scan cleaned up &amp; centred</span>
-            )}
+            <Button size="sm" icon="upload" onClick={() => fileRef.current?.click()}>Upload a scan</Button>
+            {hasInk && inkSource === 'scanned' && <span className="font-sans text-caption text-success">Scan cleaned up &amp; centred</span>}
           </div>
-          {scanErr && <p className="text-xs text-rose-400">{scanErr}</p>}
+          {scanErr && <p role="alert" className="font-sans text-caption text-danger">{scanErr}</p>}
           {allowSaved && (
-            <label htmlFor={saveCheckboxId} className={`flex cursor-pointer items-center gap-2 text-xs ${theme.textFaint}`}>
-              <input
-                id={saveCheckboxId}
-                type="checkbox"
-                checked={saveForNextTime}
-                onChange={e => setSaveForNextTime(e.target.checked)}
-                aria-label={saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
-                className={dallaglio ? 'h-3.5 w-3.5 accent-[var(--d-accent)]' : 'h-3.5 w-3.5 accent-[#86BBD8]'}
-              />
-              {saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
-            </label>
+            <Checkbox
+              id={saveCheckboxId}
+              checked={saveForNextTime}
+              onChange={e => setSaveForNextTime(e.target.checked)}
+              label={saved.has_signature ? 'Replace my saved signature with this one' : 'Save this signature for next time'}
+            />
           )}
         </>
       ) : (
         <form
-          className={`flex flex-col gap-3 rounded-xl border p-4 ${dallaglio ? `${theme.border} ${theme.chipBg}` : 'border-white/15 bg-white/[0.04]'}`}
+          className="flex flex-col gap-3 rounded-card border border-line bg-surface-muted p-4"
           onSubmit={e => { e.preventDefault(); if (password && !unlocking && !submitting) unlockAndSign(); }}
         >
-          <div className={`flex items-center gap-2 text-xs ${dallaglio ? theme.textMuted : 'text-white/50'}`}>
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+          <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted">
+            <Icon name="success" size="sm" className="text-success" />
             Signature on file{saved.source === 'scanned' ? ' (scanned)' : ''}
-          </div>
-          <p className={`text-xs ${dallaglio ? theme.textFaint : 'text-white/40'}`}>
-            Enter your account password to apply it. This password is what attributes the approval to you.
           </p>
-          {/* Paired with the password field below purely for the browser's password
-              manager — a lone password input with no preceding username field, or one
-              outside a <form>, is what makes autofill inconsistent (falls back to
-              "click to invoke, then select" instead of filling automatically). Hidden
-              via sr-only, not display:none/hidden — some autofill implementations
-              ignore fields hidden that way. */}
+          <p className="font-sans text-caption text-ink-muted">Enter your account password to apply it. This password is what attributes the approval to you.</p>
+          {/* Paired with the password field below purely for the browser's password manager: a lone password input with no
+              preceding username field, or one outside a form, is what makes autofill inconsistent. Hidden via sr-only, not
+              display:none, because some autofill implementations ignore fields hidden that way. */}
           <input type="email" name="username" autoComplete="username" value={userEmail || signerName} readOnly className="sr-only" tabIndex={-1} aria-hidden="true" />
-          <div className="relative">
-            <Lock className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${dallaglio ? theme.textFaint : 'text-white/30'}`} />
-            <input
-              type="password"
-              value={password}
-              autoComplete="current-password"
-              onChange={e => { setPassword(e.target.value); setUnlockErr(''); }}
-              placeholder="Account password"
-              aria-label="Account password"
-              className={`w-full rounded-lg py-2.5 pl-9 pr-3 text-sm focus:outline-none ${dallaglio ? theme.inputBg : 'border border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus:border-[#86BBD8]/50'}`}
-            />
-          </div>
-          {unlockErr && <p className="text-xs text-rose-400">{unlockErr}</p>}
+          <Field label="Account password" error={unlockErr || undefined}>
+            <Input type="password" value={password} autoComplete="current-password" onChange={e => { setPassword(e.target.value); setUnlockErr(''); }} placeholder="Account password" aria-label="Account password" />
+          </Field>
         </form>
       )}
 
       <div className="flex gap-2">
-        {dallaglio ? <>
-          <Button variant="secondary" size="md" fullWidth onClick={onCancel} disabled={submitting}>Cancel</Button>
-          <Button variant="primary" size="md" fullWidth onClick={mode === 'draw' ? confirm : unlockAndSign}
-            disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}>
-            {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
-          </Button>
-        </> : <>
-          <button type="button" onClick={onCancel} disabled={submitting}
-            className="flex-1 rounded-xl border border-white/15 bg-white/[0.07] px-4 py-2.5 text-sm font-medium text-white/70 transition-all hover:bg-white/[0.14] hover:text-white disabled:pointer-events-none disabled:opacity-40">Cancel</button>
-          <button type="button" onClick={mode === 'draw' ? confirm : unlockAndSign}
-            disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}
-            className="flex-1 rounded-xl border border-[#86BBD8]/35 bg-[#2A4D69]/60 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#2A4D69]/80 disabled:pointer-events-none disabled:opacity-40">
-            {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
-          </button>
-        </>}
+        <Button fullWidth onClick={onCancel} disabled={submitting}>Cancel</Button>
+        <Button variant="primary" fullWidth onClick={mode === 'draw' ? confirm : unlockAndSign}
+          disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}>
+          {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
+        </Button>
       </div>
     </div>
   );

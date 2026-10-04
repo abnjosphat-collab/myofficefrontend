@@ -33,7 +33,7 @@ import { historyReducer } from './history';
 import { ToolsApiError, toolsApi, toolsLoginErrorMessage } from './toolsApi';
 import { countTools, selectVisibleActivity, selectVisibleTools, type ToolsTab } from './toolSelectors';
 import { buildWorkspaceSearchIndex, searchWorkspace, type WorkspaceSearchResult } from './toolsSearch';
-import { APPEARANCE_KEY, migrateAppearance, persistAppearance } from '@/components/shared/design-system/appearance';
+import { APPEARANCE_KEY, migrateAppearance, persistAppearance } from '@/components/ui-system/appearance/appearance';
 import { parseToolsPreferences, saveToolsPreferences, TOOLS_PREFERENCES_KEY } from './toolsPreferences';
 import { loadSidebarNav, rankTabs, recordTabUse, saveSidebarNav, type SidebarNavState } from './sidebarNav';
 import { abbreviateDepartment, inferEquipmentKind, primaryToolImage, SEED_TOOLS, SEED_ACTIVITY, CATEGORIES, DEPARTMENTS, STATUS, departmentOf, type Status, type Tool, type Movement, type ActionKind, type Employee, type Evidence, type WorkspaceAccount } from './prototype';

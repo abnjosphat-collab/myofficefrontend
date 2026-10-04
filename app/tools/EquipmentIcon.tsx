@@ -3,7 +3,7 @@ import { IconBox, IconCircuitAmmeter, IconCircuitVoltmeter, IconDeviceLaptop, Ic
 import {
   Box as IconoirBox, Lamp as IconoirLamp, Laptop as IconoirLaptop, Wrench as IconoirWrench,
 } from 'iconoir-react';
-import { Laptop, Toolbox as ToolCase, Wrench } from '@/components/shared/design-system/icons';
+import { Laptop, Toolbox as ToolCase, Wrench } from '@/components/ui-system';
 type EquipmentIconFamily = 'technical' | 'myoffice' | 'tabler' | 'iconoir';
 import type { EquipmentKind } from './prototype';
 

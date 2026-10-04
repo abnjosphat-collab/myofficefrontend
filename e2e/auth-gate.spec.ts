@@ -11,14 +11,14 @@
 //     matches ozech's pattern.
 //   - Every other AppShell-based route renders its full shell and content
 //     regardless of auth state; sign-out surfaces via components/app-shell/
-//     AuthMenu.tsx's "Sign In" button (hidden sm:flex — clears this suite's
+//     the account menu's "Sign in" button (hidden sm:flex — clears this suite's
 //     1440x1000 viewport's sm breakpoint), not a redirect. Real data protection
 //     happens at the API/401 layer (lib/apiClient.ts), not the page shell.
 //   - app/admin/page.tsx is a third, hand-rolled pattern (see its own
 //     `if (loading) ... if (!profile) ...` gate): renders the shell, blank main
 //     content, no redirect, no crash, no data leak.
 //   - app/login/page.tsx and app/auth/set-password/page.tsx have no AppShell/
-//     AuthMenu at all — standalone full-screen forms (sign-in, and the
+//     account menu at all — standalone full-screen forms (sign-in, and the
 //     invite/recovery-link landing page respectively; the latter requires a
 //     real session already established by auth/callback, so a raw signed-out
 //     visit doesn't behave like an ordinary route either).

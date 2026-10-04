@@ -1,6 +1,6 @@
 // components/app-shell/AccountMenu.tsx — the signed-in / signed-out slot at the end of the top bar.
-// Auth behaviour is unchanged (signOut then reload; the sign-in dialog hosts the existing AuthForm,
-// 2FA lives in SecurityPanel). The forms themselves are migrated with their own routes.
+// Auth behaviour is unchanged (signOut then reload; the sign-in dialog hosts AuthForm,
+// 2FA lives in SecurityPanel).
 'use client';
 
 import { useState } from 'react';
@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { ROLE_LABELS } from '@/lib/roles';
-import { AuthForm } from './AuthMenu';
+import { AuthForm } from './auth/AuthForm';
 import { SecurityPanel } from './mfa-ui';
 
 function Avatar({ name, url, size = 'md' }: { name: string; url: string | null; size?: 'md' | 'lg' }) {

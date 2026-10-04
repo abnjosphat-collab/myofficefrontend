@@ -1,14 +1,13 @@
-// app/auth/set-password/page.tsx — landing page for invite/password-reset
-// links. auth/callback exchanges the emailed code for a session (so a valid
-// session already exists by the time someone lands here) then redirects here
-// instead of straight into the app, since an invited user has no password
-// yet and a recovery link implies they want to replace their old one.
+// app/auth/set-password/page.tsx — landing page for invite/password-reset links. auth/callback exchanges the emailed code for a
+// session (so a valid session already exists by the time someone lands here) then redirects here instead of straight into the app,
+// since an invited user has no password yet and a recovery link implies they want to replace their old one.
 'use client';
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { PrimaryButton } from '@/components/shared/theme';
+import { Button, Field, Input, Notice } from '@/components/ui-system';
+import { AuthCard, AuthPage } from '@/components/app-shell/auth/AuthLayout';
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -34,39 +33,23 @@ function SetPasswordForm() {
     router.replace(next);
   };
 
-  const inputCls = 'w-full h-11 rounded-xl px-4 text-sm text-white bg-white/[0.06] border border-white/10 placeholder-white/40 outline-none transition-colors focus:bg-white/[0.09] focus:border-brand-300/40';
-
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#050f1c] px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-full bg-[#86BBD8] flex items-center justify-center text-[#1e3a52] font-bold text-lg font-heading">
-            O
-          </div>
-          <h1 className="text-white text-lg font-semibold">Set your password</h1>
-          <p className="text-white/50 text-sm text-center">Choose a password to finish signing in to MyOffice.</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input type="password" placeholder="New password" aria-label="New password" value={password}
-            onChange={e => setPassword(e.target.value)} minLength={6} required className={inputCls} />
-          <input type="password" placeholder="Confirm password" aria-label="Confirm password" value={confirm}
-            onChange={e => setConfirm(e.target.value)} minLength={6} required className={inputCls} />
-
-          {error && <p className="text-rose-400 text-xs">{error}</p>}
-
-          <PrimaryButton type="submit" size="md" fullWidth submitting={submitting}>
-            Save password & continue
-          </PrimaryButton>
+    <AuthPage>
+      <AuthCard title="Set your password" description="Choose a password to finish signing in to MyOffice.">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+          <Field label="New password"><Input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} minLength={6} required /></Field>
+          <Field label="Confirm password"><Input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} minLength={6} required /></Field>
+          {error && <Notice tone="danger" title="Password not saved">{error}</Notice>}
+          <Button type="submit" variant="primary" fullWidth pending={submitting}>Save password and continue</Button>
         </form>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthPage>
   );
 }
 
 export default function SetPasswordPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 bg-[#050f1c]" />}>
+    <Suspense fallback={<div className="fixed inset-0 bg-canvas" />}>
       <SetPasswordForm />
     </Suspense>
   );

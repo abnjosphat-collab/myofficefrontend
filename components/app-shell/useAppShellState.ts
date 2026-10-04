@@ -4,7 +4,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { Accent } from '@/components/shared/theme';
 import { useAuth } from '@/lib/auth-context';
 import {
   CATEGORIES, ALL_MODULES_BY_HREF,
@@ -153,10 +152,10 @@ export function useAppShellState() {
   };
 
   const favoriteModules = useMemo(() => {
-    const result: { module: Module; accent: Accent }[] = [];
+    const result: { module: Module }[] = [];
     for (const cat of visibleCategories) {
       for (const mod of cat.modules) {
-        if (favoriteHrefs.has(mod.href)) result.push({ module: mod, accent: cat.accent });
+        if (favoriteHrefs.has(mod.href)) result.push({ module: mod });
       }
     }
     return result;
@@ -167,7 +166,7 @@ export function useAppShellState() {
     for (const cat of visibleCategories) {
       for (const mod of cat.modules) {
         if (quickActionHrefs.has(mod.href)) {
-          result.push({ id: mod.href, icon: mod.icon, label: mod.title, href: mod.href, accent: cat.accent, removable: true });
+          result.push({ id: mod.href, icon: mod.icon, label: mod.title, href: mod.href, removable: true });
         }
       }
     }
@@ -191,7 +190,7 @@ export function useAppShellState() {
       .slice(0, FREQUENT_LIMIT)
       .map(([href]): QuickAction => {
         const entry = ALL_MODULES_BY_HREF.get(href)!;
-        return { id: href, icon: entry.module.icon, label: entry.module.title, href, accent: entry.accent, removable: true, auto: true };
+        return { id: href, icon: entry.module.icon, label: entry.module.title, href, removable: true, auto: true };
       });
   }, [usageCounts, quickActionHrefs, dismissedAutoHrefs]);
 

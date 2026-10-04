@@ -1,9 +1,7 @@
 // components/app-shell/modules.ts — shared module/category data + usage tracking,
 // extracted from app/page.tsx so any page's shell (sidebar, search, footer) can use it.
-// All icons come from the shared design-system icon module (Phosphor-backed,
-// solid/outline controlled globally by IconStyleProvider) — never import icons
-// directly from lucide/tabler/phosphor on the design-system surface. See
-// components/shared/design-system/icons.tsx.
+// Icons come from the UI system's glyph layer (components/ui-system/foundations/glyphs.ts); categories are told apart by name and
+// glyph, not by colour.
 import {
   Users, ToolCase, Package, CalendarDays, Fan,
   HardHat, Wrench, LineChart, Clock4, Megaphone,
@@ -17,8 +15,7 @@ import {
   Sun, Receipt, Settings, Award, Truck, Radar,
   FileCheck, LayoutDashboard,
   ListTodo, BookOpen,
-} from '@/components/shared/theme';
-import type { Accent } from '@/components/shared/theme';
+} from '@/components/ui-system';
 import type { UserRole } from '@/lib/supabase';
 import { trackModuleOpen } from '@/lib/usage';
 
@@ -38,9 +35,7 @@ export interface Category {
   title: string;
   description: string;
   icon: React.ElementType;
-  accent: Accent;
   modules: Module[];
-  growth?: string;
   /** Minimum role required to see this category at all (grid + sidebar + search).
    * Omitted = visible to everyone signed in, same as every existing category. */
   minRole?: UserRole;
@@ -51,7 +46,6 @@ export interface QuickAction {
   icon: React.ElementType;
   label: string;
   href: string;
-  accent: Accent;
   removable?: boolean;
   auto?: boolean;
   /** Static shortcuts from QUICK_ACTIONS — dismissed by id, not href. */
@@ -61,7 +55,7 @@ export interface QuickAction {
 export const CATEGORIES: Category[] = [
   {
     id: 'core', title: 'Core Management', description: 'Foundational business operations',
-    icon: Building, accent: 'blue', growth: '+12%',
+    icon: Building,
     modules: [
       { icon: Users,    title: 'Personnel',  description: 'Employee profiles & team structure', href: '/employees',  tags: ['HR', 'People'], badge: '12', featured: true, metrics: [{ label: 'Active', value: '48' }, { label: 'Departments', value: '6' }] },
       { icon: ToolCase, title: 'Equipment', description: 'Track equipment across your site',  href: '/equipment',  tags: ['Equipment'], badge: '48', metrics: [{ label: 'Total', value: '234' }, { label: 'In Use', value: '189' }] },
@@ -79,14 +73,14 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'manager-tools', title: 'Manager Tools', description: 'Planning and progress tracking for managers',
-    icon: ListTodo, accent: 'violet', minRole: 'manager',
+    icon: ListTodo, minRole: 'manager',
     modules: [
       { icon: ListTodo, title: 'Events & Tasks', description: 'Post events and to-dos, track completion by type', href: '/tasks-events', tags: ['Planning'], featured: true },
     ],
   },
   {
     id: 'operations', title: 'Operations & Maintenance', description: 'Keep operations running smoothly',
-    icon: Wrench, accent: 'amber', growth: '+8%',
+    icon: Wrench,
     modules: [
       { icon: ClipboardCheck, title: 'Maintenance',  description: 'Work orders & PM schedules',  href: '/maintenance',  tags: ['Work Orders'], badge: '23', featured: true, metrics: [{ label: 'Open', value: '12' }, { label: 'Completed', value: '156' }] },
       { icon: AlertTriangle,  title: 'Breakdowns',   description: 'Log equipment breakdowns',    href: '/breakdowns',   tags: ['Failures'], badge: '4', metrics: [{ label: 'Critical', value: '2' }, { label: 'MTTR', value: '4.2h' }] },
@@ -102,7 +96,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'time', title: 'Time & Attendance', description: 'Time tracking and leave management',
-    icon: Clock4, accent: 'indigo', growth: '+5%',
+    icon: Clock4,
     modules: [
       { icon: Clock4,       title: 'Timesheets', description: 'Daily attendance records',  href: '/timesheets', tags: ['Attendance'], badge: '42', metrics: [{ label: 'Today', value: '38' }, { label: 'On Leave', value: '4' }] },
       { icon: HardHat,      title: 'Artisan Timesheets', description: 'Formal monthly daily timesheets for artisans', href: '/artisan-timesheets', tags: ['Attendance', 'Artisans', 'HR'] },
@@ -115,7 +109,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'safety', title: 'Safety & Compliance', description: 'Highest safety standards',
-    icon: Shield, accent: 'emerald', growth: '+3%',
+    icon: Shield,
     modules: [
       { icon: HardHat,       title: 'PPE',              description: 'Protective equipment tracking',  href: '/ppe',             tags: ['Safety'], badge: '56', metrics: [{ label: 'Issued', value: '234' }, { label: 'Due', value: '18' }] },
       { icon: ClipboardList, title: 'SHEQ Inspections', description: 'Structured safety inspections', href: '/sheq_inspection', tags: ['Compliance'], badge: '12', metrics: [{ label: 'Due', value: '4' }, { label: 'Completed', value: '89' }] },
@@ -132,7 +126,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'analytics', title: 'Analytics & Insights', description: 'Turn data into intelligence',
-    icon: LineChart, accent: 'cyan', growth: '+22%',
+    icon: LineChart,
     modules: [
       { icon: Megaphone, title: 'Notice Board',  description: 'Company announcements', href: '/noticeboard',   tags: ['Comms'], badge: '3' },
       { icon: LayoutDashboard, title: 'Engineering Dashboard', description: 'Live engineering KPIs', href: '/engineering-dashboard', tags: ['Dashboard'] },
@@ -143,16 +137,16 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', accent: 'amber', builtin: true, removable: true },
-  { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents',   accent: 'blue', builtin: true, removable: true },
-  { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees',   accent: 'emerald', builtin: true, removable: true },
+  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', builtin: true, removable: true },
+  { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents', builtin: true, removable: true },
+  { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees', builtin: true, removable: true },
 ];
 
 export const TOTAL_MODULES = CATEGORIES.reduce((sum, c) => sum + c.modules.length, 0);
 export const TOTAL_CATEGORIES = CATEGORIES.length;
 
-export const ALL_MODULES_BY_HREF = new Map<string, { module: Module; accent: Accent }>(
-  CATEGORIES.flatMap(c => c.modules.map(m => [m.href, { module: m, accent: c.accent }] as const))
+export const ALL_MODULES_BY_HREF = new Map<string, { module: Module }>(
+  CATEGORIES.flatMap(c => c.modules.map(m => [m.href, { module: m }] as const))
 );
 
 // ─── Usage tracking (localStorage) — powers "frequently used" auto quick actions ──

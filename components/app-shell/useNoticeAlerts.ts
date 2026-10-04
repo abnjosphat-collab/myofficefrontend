@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { Bell, Pin, type LucideIcon } from '@/components/shared/theme';
+import { Bell, Pin, type LucideIcon } from '@/components/ui-system';
 import { timeAgo, type ActivityItem } from './useDashboardData';
 import { getAllNotices } from '@/app/noticeboard/useNoticeboardData';
 import type { Notice } from '@/app/noticeboard/types';

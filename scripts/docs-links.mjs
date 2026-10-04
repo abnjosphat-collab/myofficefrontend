@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const roots = ['docs', 'components/ui-system', 'components/shared/design-system', 'README.md', 'AGENTS.md', 'CLAUDE.md'];
+const roots = ['docs', 'components/ui-system', 'README.md', 'AGENTS.md', 'CLAUDE.md'];
 const skip = new Set(['_generated', 'node_modules', '.next']);
 
 function markdownFiles(target) {

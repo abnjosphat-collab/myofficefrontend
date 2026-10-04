@@ -20,6 +20,7 @@
   --mo-font-display: var(--font-jakarta), var(--font-body), ui-sans-serif, system-ui, sans-serif;
 
   /* ── Surfaces ────────────────────────────────────────────────────────────── */
+  --mo-paper: #fbfcfb;             /* the Tools workspace's card ground */
   --mo-canvas: #f4f6f5;            /* page ground */
   --mo-surface: #fbfcfb;           /* cards, panels, dialogs, menus */
   --mo-surface-raised: #ffffff;    /* inputs and controls sitting on a surface */
@@ -76,6 +77,7 @@
   /* ── Geometry ───────────────────────────────────────────────────────────── */
   --mo-radius-xs: 4px;
   --mo-radius-control: 7px;
+  --mo-radius-pill: 999px;
   --mo-radius-card: 12px;
   --mo-radius-panel: 16px;
   --mo-control-sm: 32px;
@@ -121,6 +123,12 @@
   --mo-z-toast: 80;
   --mo-z-tooltip: 90;
 
+  /* Tools workspace tokens (its stylesheet reads these with fallbacks). */
+  --mo-amber: #8a5d18;
+  --mo-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 18%, transparent);
+  --mo-shadow-control: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 13%, transparent);
+  --mo-shadow-tile: 0 0 0 3px color-mix(in srgb, var(--mo-focus) 14%, transparent),
+    0 12px 28px -25px color-mix(in srgb, var(--mo-ink) 62%, transparent);
   color-scheme: light;
 }
 

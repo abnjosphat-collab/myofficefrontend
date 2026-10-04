@@ -89,9 +89,9 @@ pulling out logic that doesn't need a DOM at all.
 so RTL's own auto-cleanup never registers without it). Two components have
 render tests today, both picked because they carry real interactive
 behavior that a `calcX.ts`-style unit test can't reach:
-`components/shared/design-system/confirm.test.tsx` (focus-management,
+`components/ui-system/overlays/Confirm` (focus-management,
 Escape/backdrop/button dismissal, the default-to-Cancel-not-Delete
-behavior) and `components/shared/PredictiveInput.test.tsx` (label
+behavior; its own render test was lost with the legacy confirm and is worth rewriting) and `components/shared/PredictiveInput.test.tsx` (label
 association, ghost-text Tab-to-accept, localStorage history persistence and
 its frequency-then-recency ranking). Follow the same house style as
 `lib/dates.test.ts`: one `describe` per component, `render`/`screen` from

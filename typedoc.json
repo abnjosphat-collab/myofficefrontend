@@ -1,7 +1,7 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": [
-    "components/shared/design-system/index.ts",
+    "components/ui-system/index.ts",
     "lib/apiClient.ts",
     "lib/config.ts"
   ],

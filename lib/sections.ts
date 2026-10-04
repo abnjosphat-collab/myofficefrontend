@@ -1,7 +1,7 @@
 // lib/sections.ts — Mechanical / Electrical / Planning employee-section categorization.
 // Legacy Civil and Instrumentation values are mapped on read so old records group
 // correctly until migrated via the Employees form.
-import { ACCENT_HEX } from '@/components/shared/theme';
+import { chartColor } from '@/components/ui-system/foundations/chartTheme';
 
 /** Stable display order for the section groups. */
 export const SECTION_ORDER: string[] = ['Management', 'Mechanical', 'Electrical', 'Planning'];
@@ -13,13 +13,13 @@ const SECTION_ALIASES: Record<string, string> = {
 };
 
 export const SECTION_COLORS: Record<string, string> = {
-  Management: ACCENT_HEX.indigo,
-  Mechanical: ACCENT_HEX.blue,
-  Electrical: ACCENT_HEX.amber,
-  Planning: ACCENT_HEX.emerald,
+  Management: chartColor(1),
+  Mechanical: chartColor(2),
+  Electrical: chartColor(3),
+  Planning: chartColor(4),
   // Legacy — kept so unmigrated rows still color consistently
-  Civil: ACCENT_HEX.emerald,
-  Instrumentation: ACCENT_HEX.violet,
+  Civil: chartColor(4),
+  Instrumentation: chartColor(5),
 };
 
 // Case/whitespace-insensitive canonicalization — source data has inconsistent casing
@@ -45,9 +45,9 @@ export function sectionSelectOptions(current?: string | null): { value: string; 
 }
 
 // A stable, non-arbitrary color for a section outside the 4 predefined ones — hashed
-// from the shared ACCENT_HEX brand palette so the same unlisted section name always
+// from the shared chart palette so the same unlisted section name always
 // gets the same color rather than a new one per render.
-const GROUP_PALETTE = [ACCENT_HEX.blue, ACCENT_HEX.amber, ACCENT_HEX.emerald, ACCENT_HEX.violet, ACCENT_HEX.cyan, ACCENT_HEX.indigo];
+const GROUP_PALETTE = [chartColor(1), chartColor(2), chartColor(3), chartColor(4), chartColor(5), chartColor(6)];
 export function sectionColor(section?: string): string {
   const s = normalizeSection(section);
   if (s === 'Unassigned') return '#94a3b8';

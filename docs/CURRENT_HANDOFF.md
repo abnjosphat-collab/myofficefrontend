@@ -123,6 +123,14 @@ Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdo
 
 ## 9. Pending product decisions
 
+**Design-system consolidation (owner's instruction on 4 Oct 2026: one design system for the whole software), done:**
+- The legacy system is deleted: `components/shared/design-system/` (tokens, `${t.*}` classes, Classic/Dallaglio, its icons, confirm, charts), `components/shared/theme.tsx`, `components/ui/` (shadcn leftovers), `AuthMenu.tsx`, the unused `ShiftTimeRangeField`, the legacy providers, and about 600 lines of legacy rules in `app/globals.css` (including unlayered `:focus-visible`, scrollbar and body-size rules that were overriding the system's own). `globals.css` is now Tailwind, the three `ui-system/foundations` files, the body typeface, `font-mono`/`font-heading` and native option colours.
+- Rebuilt on `ui-system`: sign-in, set-password and callback pages, the access gate, the account/2FA dialogs and the 2FA prompt (`components/app-shell/auth/`), `SignaturePad`, `PhotoUpload`, `PredictiveInput`, the SOP form's typeahead. Module accents/growth figures removed from the module list (categories are told apart by name and glyph).
+- Tokens only the Tools workspace read (`--mo-paper`, `--mo-amber`, `--mo-radius-pill`, `--mo-shadow-*`) moved into `ui-system/foundations/tokens.css`; Tools imports icons and appearance from `ui-system`.
+- `bg-brand-500` (one use, compressors dialogs, file untouched) now resolves to the action colour.
+- Verified: tsc clean, eslint 0 errors, 892 unit tests, docs check, production build, every route spec (the sop-library spec's label queries updated), login and set-password screenshots at 1440 and 390.
+- **Open decision:** `/tools` still has its own component layer (`ToolsUI`, `AnimatedSelect`, `ToolsDateInput`, `ToolsDialog`, the 125 KB `tools.module.css`, about 2,500 lines). It shares the token layer and glyphs. Moving it onto `ui-system` is a rewrite of the page the owner calls the visual standard, so it was not done without a decision.
+
 **Decided by the owner on 4 Oct 2026 (later), and done:**
 - `/quotations` and `/inventory` stay as they are (the browser-only generator; the browser-local inventory with its notice).
 - `/timesheets` roster: PP288 is no longer excluded in code; everyone is on the roster by employment type like everyone else (hide or add a person by hand still works).

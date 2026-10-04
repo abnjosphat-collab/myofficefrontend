@@ -16,7 +16,7 @@ agents.
 | Application wiring and failure handling | [`ENGINEERING_STANDARDS.md`](./ENGINEERING_STANDARDS.md) |
 | UI stack and theme architecture | [`UI_ARCHITECTURE.md`](./UI_ARCHITECTURE.md) |
 | Documentation conventions | [`DOCUMENTATION_STANDARD.md`](./DOCUMENTATION_STANDARD.md) |
-| Shared component contracts | [`../components/shared/design-system/README.md`](../components/shared/design-system/README.md) |
+| Shared component contracts | [`../components/ui-system/README.md`](../components/ui-system/README.md) |
 | Retired Classic principles and migration checklist | [`CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md`](./CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md) |
 | Tools requirements and architecture | [`TOOLS_SYSTEM_SPECIFICATION.md`](./TOOLS_SYSTEM_SPECIFICATION.md) |
 | Tools precision-polish evidence (2 Oct 2026) | [`tools-polish-2026-10-02/`](./tools-polish-2026-10-02/) |

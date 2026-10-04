@@ -88,18 +88,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning: the inline scripts below stamp `data-theme`, `data-design`,
+    // suppressHydrationWarning: the inline scripts below stamp `data-theme`,
     // `data-font` and `--mo-text-scale` onto <html> before React hydrates, so the client
     // attributes deliberately differ from the server-rendered ones. Scoped to this element's own
     // attributes only — it does not suppress warnings for any child.
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable}`}>
       <head>
         {/* Pre-paint: one light appearance (no theme switch), the saved typeface and the saved
-            text size, applied to <html> before first paint so there is no flash or layout jump.
-            /tools keeps its own classic design flag until it migrates. */}
+            text size, applied to <html> before first paint so there is no flash or layout jump. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';h.style.colorScheme='light';h.dataset.design=(location.pathname==='/tools'||location.pathname.indexOf('/tools/')===0)?'classic':'dallaglio';}catch(e){}})();`,
+            __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';h.style.colorScheme='light';}catch(e){}})();`,
           }}
         />
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOTSTRAP }} />

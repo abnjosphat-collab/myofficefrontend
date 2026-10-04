@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
-import { Camera, Upload, X, ZoomIn, ImageIcon, CloseButton, useTheme } from '@/components/shared/theme';
+import { Button, Dialog, Icon, IconButton, Progress } from '@/components/ui-system';
 
 const API = API_BASE;
 
@@ -12,6 +12,8 @@ const ACCEPTED =
   'image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp,' +
   'image/svg+xml,image/heic,image/heif,image/tiff,image/avif,image/*';
 
+// components/shared/PhotoUpload.tsx — photos for a record: a labelled grid with upload and camera capture, a count against the limit,
+// a progress bar while files go up, and a full-size preview. Uploads go to /api/photos/upload and the saved URLs are handed back.
 export interface PhotoUploadProps {
   label: string;
   description?: string;
@@ -20,7 +22,6 @@ export interface PhotoUploadProps {
   folder?: string;
   maxPhotos?: number;
   disabled?: boolean;
-  accentColor?: string;
 }
 
 export function PhotoUpload({
@@ -31,10 +32,7 @@ export function PhotoUpload({
   folder = 'misc',
   maxPhotos = 10,
   disabled = false,
-  accentColor = '#86BBD8',
 }: PhotoUploadProps) {
-  const theme = useTheme();
-  const dallaglio = theme.design === 'dallaglio';
   const uid = useId();
   const fileInputId = `photo-upload-file-${uid}`;
   const cameraInputId = `photo-upload-camera-${uid}`;
@@ -89,181 +87,61 @@ export function PhotoUpload({
   }
 
   const canAdd = !disabled && !uploading && photos.length < maxPhotos;
+  const left = maxPhotos - photos.length;
 
   return (
-    <div className="space-y-2.5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <ImageIcon className={`h-3.5 w-3.5 ${dallaglio ? theme.textFaint : ''}`} style={dallaglio ? undefined : { color: accentColor }} />
-          <p className={`text-xs font-semibold ${dallaglio ? theme.textPrimary : 'text-white/75'}`}>{label}</p>
-          {description && (
-            <span className={`text-[10px] ml-1 ${dallaglio ? theme.textFaint : 'text-white/35'}`}>— {description}</span>
-          )}
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 font-sans text-label font-medium text-ink"><Icon name="image" size="sm" className="text-ink-muted" />{label}</p>
+          {description && <p className="font-sans text-caption text-ink-muted">{description}</p>}
         </div>
-        <span className={`text-[10px] tabular-nums ${dallaglio ? theme.textFaint : 'text-white/30'}`}>
-          {photos.length}&thinsp;/&thinsp;{maxPhotos}
-        </span>
+        <span className="shrink-0 font-sans text-caption text-ink-muted tabular">{photos.length} / {maxPhotos}</span>
       </div>
 
-      {/* Photo grid */}
       {photos.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-label={`${label} photos`}>
           {photos.map((url, idx) => (
-            <div
-              key={idx}
-              className={`relative group aspect-square rounded-xl overflow-hidden ${dallaglio ? `${theme.chipBg} border ${theme.border}` : 'bg-white/[0.04]'}`}
-              style={dallaglio ? undefined : { border: '1px solid rgba(255,255,255,0.10)' }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`${label} attachment ${idx + 1}`}
-                className="w-full h-full object-cover"
-              />
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                <button
-                  type="button"
-                  title="View full size"
-                  onClick={() => setLightbox(url)}
-                  className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/35 transition-colors"
-                >
-                  <ZoomIn className="h-3.5 w-3.5 text-white" />
-                </button>
-                {!disabled && (
-                  <button
-                    type="button"
-                    title="Remove photo"
-                    onClick={() => removePhoto(idx)}
-                    className="h-7 w-7 rounded-lg bg-red-500/30 flex items-center justify-center hover:bg-red-500/55 transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5 text-white" />
-                  </button>
-                )}
-              </div>
-              {/* Index badge */}
-              <span className="absolute top-1.5 left-1.5 h-4 min-w-[1rem] px-1 rounded text-[9px] font-bold text-white/70 bg-black/40 flex items-center justify-center leading-none">
-                {idx + 1}
-              </span>
-            </div>
+            <li key={`${url}-${idx}`} className="relative aspect-square overflow-hidden rounded-card border border-line bg-surface-muted">
+              <button type="button" onClick={() => setLightbox(url)} aria-label={`View ${label} photo ${idx + 1} full size`} className="focus-ring absolute inset-0 block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={`${label} attachment ${idx + 1}`} className="size-full object-cover" />
+              </button>
+              {!disabled && (
+                <IconButton icon="delete" size="sm" label={`Remove ${label} photo ${idx + 1}`} onClick={() => removePhoto(idx)} className="absolute right-1 top-1 bg-surface/90 shadow-card" />
+              )}
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {/* Upload progress */}
-      {uploading && (
-        <div className="space-y-1">
-          <div className={`flex justify-between text-[10px] ${dallaglio ? theme.textFaint : 'text-white/40'}`}>
-            <span>Uploading…</span>
-            <span>{progress}%</span>
-          </div>
-          <div className={`h-1 rounded-full overflow-hidden ${dallaglio ? theme.chipBg : 'bg-white/10'}`}>
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress}%`, background: dallaglio ? 'var(--d-accent)' : accentColor }}
-            />
-          </div>
-        </div>
-      )}
+      {uploading && <Progress value={progress} label="Uploading photos" />}
 
-      {/* Error */}
       {uploadErr && (
-        <p className={`text-[10px] flex items-center gap-1 ${dallaglio ? 'text-[var(--d-danger)]' : 'text-red-400'}`}>
-          <X className="h-3 w-3 shrink-0" />
-          {uploadErr}
-          <button type="button" onClick={() => setUploadErr('')} className="underline ml-auto">
-            dismiss
-          </button>
+        <p role="alert" className="flex items-center gap-2 font-sans text-caption font-medium text-danger">
+          <Icon name="warning" size="xs" weight="emphasis" className="shrink-0" />
+          <span className="min-w-0 flex-1">{uploadErr}</span>
+          <button type="button" onClick={() => setUploadErr('')} className="focus-ring rounded-xs underline">Dismiss</button>
         </p>
       )}
 
-      {/* Action buttons */}
       {canAdd && (
         <div className="flex gap-2">
-          {/* File upload */}
-          <label
-            htmlFor={fileInputId}
-            className={dallaglio
-              ? 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-[9px] cursor-pointer transition-colors text-xs text-[var(--d-ink-muted)] hover:text-[var(--d-accent)] border border-dashed border-[var(--d-line)] bg-[var(--d-surface)] hover:border-[var(--d-accent)]'
-              : 'flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border-[1.5px] border-dashed border-white/15 bg-white/[0.03] hover:border-[var(--photo-upload-accent)]'}
-            style={dallaglio ? undefined : { '--photo-upload-accent': `${accentColor}50` } as React.CSSProperties}
-          >
-            <Upload className="h-3.5 w-3.5 shrink-0" />
-            <span>Upload photo{maxPhotos - photos.length > 1 ? 's' : ''}</span>
-            <input
-              id={fileInputId}
-              ref={fileRef}
-              type="file"
-              multiple
-              accept={ACCEPTED}
-              aria-label={`Upload photo${maxPhotos - photos.length > 1 ? 's' : ''}`}
-              className="hidden"
-              onChange={e => handleFiles(e.target.files)}
-            />
-          </label>
-
-          {/* Camera capture */}
-          <label
-            htmlFor={cameraInputId}
-            className={dallaglio
-              ? 'flex items-center gap-1.5 px-3 py-2.5 rounded-[9px] cursor-pointer transition-colors text-xs text-[var(--d-ink-muted)] hover:text-[var(--d-accent)] border border-[var(--d-line)] bg-[var(--d-surface)] hover:border-[var(--d-accent)]'
-              : 'flex items-center gap-1.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all text-xs text-white/45 hover:text-white/75 border border-white/[0.12] bg-white/[0.03] hover:border-[var(--photo-upload-accent)]'}
-            title="Take a photo with camera"
-            style={dallaglio ? undefined : { '--photo-upload-accent': `${accentColor}40` } as React.CSSProperties}
-          >
-            <Camera className="h-3.5 w-3.5 shrink-0" />
-            <span className="hidden sm:inline">Camera</span>
-            <input
-              id={cameraInputId}
-              ref={cameraRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              aria-label="Take a photo with camera"
-              className="hidden"
-              onChange={e => handleFiles(e.target.files)}
-            />
-          </label>
+          <input id={fileInputId} ref={fileRef} type="file" multiple accept={ACCEPTED} aria-label={`Upload photo${left > 1 ? 's' : ''}`} className="hidden" onChange={e => handleFiles(e.target.files)} />
+          <input id={cameraInputId} ref={cameraRef} type="file" accept="image/*" capture="environment" aria-label="Take a photo with camera" className="hidden" onChange={e => handleFiles(e.target.files)} />
+          <Button className="flex-1 border-dashed" icon="upload" onClick={() => fileRef.current?.click()}>Upload photo{left > 1 ? 's' : ''}</Button>
+          <Button icon="camera" onClick={() => cameraRef.current?.click()} aria-label="Take a photo with camera"><span className="max-sm:hidden">Camera</span></Button>
         </div>
       )}
 
-      {photos.length >= maxPhotos && !disabled && (
-        <p className={`text-[10px] text-center py-1 ${dallaglio ? theme.textFaint : 'text-white/30'}`}>
-          Maximum {maxPhotos} photos reached
-        </p>
-      )}
+      {photos.length >= maxPhotos && !disabled && <p className="text-center font-sans text-caption text-ink-muted">Maximum {maxPhotos} photos reached</p>}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <>
-          {/* Click-outside scrim to dismiss — a real (unstyled) button so it's a valid
-              interactive control; kept out of the tab order since the explicit Close
-              button below is the keyboard-equivalent way to dismiss, and this is a
-              mouse-only affordance. A separate layer (not a wrapping element) so the
-              Close button and image don't need their own stopPropagation. */}
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label="Close photo preview"
-            onClick={() => setLightbox(null)}
-            className="fixed inset-0 z-[200] bg-black/92 backdrop-blur-sm cursor-default"
-          />
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 pointer-events-none">
-            <CloseButton
-              className="absolute top-4 right-4 z-20 pointer-events-auto"
-              onClick={() => setLightbox(null)}
-              label="Close photo preview"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={lightbox}
-              alt="Full size preview"
-              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl pointer-events-auto"
-            />
-          </div>
-        </>
-      )}
+      <Dialog open={lightbox !== null} onOpenChange={open => { if (!open) setLightbox(null); }} title={label} description="Full size preview" size="lg">
+        {lightbox && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightbox} alt="Full size preview" className="mx-auto max-h-[70dvh] max-w-full rounded-card object-contain" />
+        )}
+      </Dialog>
     </div>
   );
 }

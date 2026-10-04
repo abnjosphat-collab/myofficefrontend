@@ -13,6 +13,8 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { Spinner } from '@/components/ui-system';
+import { AuthPage, BrandMark } from '@/components/app-shell/auth/AuthLayout';
 
 function CallbackHandler() {
   const router = useRouter();
@@ -64,21 +66,18 @@ function CallbackHandler() {
   }, [router, searchParams]);
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#050f1c]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 rounded-full bg-[#86BBD8] flex items-center justify-center text-[#1e3a52] font-bold text-lg font-heading animate-pulse">
-          O
-        </div>
-        <div className="h-6 w-6 border-2 border-white/20 border-t-[#86BBD8] rounded-full animate-spin" />
-        <p className="text-white/70 text-sm">Signing you in…</p>
+    <AuthPage>
+      <div role="status" className="flex flex-col items-center gap-4">
+        <BrandMark className="animate-pulse" />
+        <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Spinner />Signing you in…</p>
       </div>
-    </div>
+    </AuthPage>
   );
 }
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 bg-[#050f1c]" />}>
+    <Suspense fallback={<div className="fixed inset-0 bg-canvas" />}>
       <CallbackHandler />
     </Suspense>
   );

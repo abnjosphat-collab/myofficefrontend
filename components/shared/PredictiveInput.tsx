@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { useTheme, DROPDOWN_PANEL_ANIM } from '@/components/shared/theme';
+import { cn, controlClasses, floatingSurface } from '@/components/ui-system';
 
 const MAX_HISTORY = 40;
 
@@ -227,34 +227,31 @@ export function PredictiveInput({
   }
 
   const list = suggestions();
-  const t = useTheme();
   const showPanel = open && list.length > 0 && !disabled;
 
-  const BASE_CLS = `w-full px-3 rounded-lg outline-none transition-all resize-none text-sm ${
-    error ? (t.light ? 'border border-red-400' : 'border border-red-400/50') : ''
-  } ${t.inputBg} ${inputClassName}`;
+  const BASE_CLS = cn(controlClasses, 'resize-none', error && 'border-danger', inputClassName);
 
   // Shared filler content for both branches below — doesn't itself need to be a
   // literal, unconditional JSX child of <label> (only the actual control does, for
   // label-has-for's static nesting check), so a variable reference is fine here.
   const captionId = label ? `${fieldId}-caption` : undefined;
   const captionSpan = label && (
-    <span id={captionId} className="text-xs font-medium block mb-1">
-      {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+    <span id={captionId} className="mb-1.5 block font-sans text-label font-medium text-ink">
+      {label}{required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
     </span>
   );
   const ghostOverlay = !multiline && ghost && (
     <div
       aria-hidden
-      className="absolute left-0 right-0 px-3 h-9 flex items-center pointer-events-none text-sm overflow-hidden"
+      className="pointer-events-none absolute left-0 right-0 flex h-9 items-center overflow-hidden px-3 font-sans text-body"
       style={{ top: label ? 'calc(1.25rem + 4px)' : 0 }}
     >
       <span className="invisible whitespace-pre">{value}</span>
-      <span className={`whitespace-pre ${t.textFaint}`}>{ghost}</span>
-      <span className="ml-1 text-[9px] text-brand-400 border border-brand-400/30 rounded px-0.5">Tab</span>
+      <span className="whitespace-pre text-ink-subtle">{ghost}</span>
+      <span className="ml-1 rounded-xs border border-line px-1 font-sans text-caption text-ink-muted">Tab</span>
     </div>
   );
-  const labelClassName = label ? `block ${t.textFaint}` : undefined;
+  const labelClassName = label ? 'block' : undefined;
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
@@ -282,7 +279,7 @@ export function PredictiveInput({
             aria-controls={listboxId}
             aria-autocomplete="list"
             aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
-            className={BASE_CLS + ' py-2'}
+            className={cn(BASE_CLS, 'py-2 leading-6')}
             onChange={e => handleChange(e.target.value)}
             onFocus={() => setOpen(true)}
             onBlur={handleBlur}
@@ -308,7 +305,7 @@ export function PredictiveInput({
             aria-controls={listboxId}
             aria-autocomplete="list"
             aria-activedescendant={showPanel && list[highlight] ? optionId(highlight) : undefined}
-            className={BASE_CLS + ' h-9'}
+            className={cn(BASE_CLS, 'h-9')}
             onChange={e => handleChange(e.target.value)}
             onFocus={() => setOpen(true)}
             onBlur={handleBlur}
@@ -317,7 +314,7 @@ export function PredictiveInput({
         </label>
       )}
 
-      {error && <p className="text-red-400 text-[11px] mt-0.5">{error}</p>}
+      {error && <p role="alert" className="mt-1 font-sans text-caption font-medium text-danger">{error}</p>}
 
       {/* Dropdown — portaled (see the note above the position-tracking state) so it
           can't be clipped by an overflow-hidden ancestor. */}
@@ -330,7 +327,7 @@ export function PredictiveInput({
           // on <body> while open; this panel is portaled to document.body directly (a
           // sibling of Dialog.Content, not a descendant), so without this it silently
           // inherits `none` and becomes unclickable from inside any modal.
-          className={`pointer-events-auto rounded-xl overflow-hidden ${DROPDOWN_PANEL_ANIM} ${t.glassPopover} ${t.shadow}`}
+          className={cn(floatingSurface, 'pointer-events-auto')}
         >
           <div className="max-h-44 overflow-y-auto p-1">
             {list.map((s, i) => {
@@ -348,19 +345,17 @@ export function PredictiveInput({
                   type="button"
                   onMouseDown={e => { e.preventDefault(); onChange(s); commit(s); setOpen(false); }}
                   onMouseEnter={() => setHighlight(i)}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors ${
-                    i === highlight ? `${t.chipBg} ${t.textPrimary}` : `${t.textMuted} ${t.hoverBgSoft}`
-                  }`}
+                  className={cn('focus-ring flex min-h-9 w-full items-center rounded-control px-2.5 py-1.5 text-left font-sans text-body text-ink', i === highlight && 'bg-surface-muted')}
                 >
                   {before}
-                  <span className="font-semibold text-brand-400">{match}</span>
+                  <span className="font-semibold text-action">{match}</span>
                   {after}
                 </button>
               );
             })}
           </div>
           {!multiline && ghost && (
-            <div className={`px-3 py-1 border-t text-[10px] ${t.border} ${t.textFaint}`}>
+            <div className="border-t border-line-subtle px-3 py-1.5 font-sans text-caption text-ink-muted">
               Tab to accept suggestion · ↑↓ navigate
             </div>
           )}

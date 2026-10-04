@@ -15,14 +15,15 @@ MyOffice uses one layered, open-code UI system derived from the Tools & Equipmen
    only system new work uses.
 3. **`components/app-shell/`** is the application chrome (top bar, sidebar, settings, notifications, feedback, account)
    composed from the system. It is application code, not part of the system.
-4. **`components/shared/design-system/`** is the *legacy* system (Classic/Dallaglio, `${t.*}` tokens). It still renders the
-   bodies of the unmigrated routes and is deleted route by route. Do not extend it.
-5. `/tools` keeps its own CSS module and layout; it is the visual reference, and its tokens are bridged
-   (`--brand` reads `--mo-action`).
+4. There is no other design system. The legacy one (`components/shared/design-system/`, the `${t.*}` token layer, the `.oz-*`
+   classes, `components/ui/`) was deleted on 4 Oct 2026; the shared bits that remain (`components/shared/`) are built from
+   `ui-system`.
+5. `/tools` keeps its own CSS module and layout; it is the visual reference. It shares the token layer (its `--brand` reads
+   `--mo-action`, its surfaces read `--mo-*`) and the glyph layer, but its own components (`ToolsUI`, `AnimatedSelect`,
+   `ToolsDateInput` and the 125 KB `tools.module.css`) are still its own. Moving them onto `ui-system` is an open decision.
 
 **One appearance.** There is no theme switch. Reasons: Tools has none and is the standard; two appearances doubled every
-verification matrix; the dark theme washed structure in violet. Consequence: the legacy `ThemeProvider` is pinned to
-light + Dallaglio-neutral and ignores stored preferences; `.dark` is never applied. Reversing this means redoing the
+verification matrix; the dark theme washed structure in violet. Consequence: `.dark` is never applied and there is no theme provider. Reversing this means redoing the
 palette contrast work for a second surface set.
 
 Do not add Material UI, Chakra, Ant Design or another component framework unless an accepted decision names a capability the
@@ -34,15 +35,13 @@ stack cannot provide.
 flowchart TD
   L["app/layout.tsx (server)<br/>fonts as classes on html, pre-paint scripts"] --> P["components/Providers.tsx"]
   P --> A[AuthProvider + GlobalMfaGate]
-  A --> T["legacy ThemeProvider (pinned light), IconStyle, FontStyle (inert), FontScale (inert)"]
-  T --> AP["AppearanceProvider (typeface, text size, hints)"]
+  A --> AP["AppearanceProvider (typeface, text size, hints)"]
   AP --> TP[TooltipProvider + ui-system ConfirmProvider]
   TP --> R["route page"]
-  R --> S["AppShell (migrated prop)"]
+  R --> S["AppShell"]
   S --> F["AppFrame: skip link, ShellTopBar, ShellSidebar, main"]
   S --> D["Dialogs: settings, customise favourites, quick actions, active notices"]
-  F --> M["migrated page body (ui-system)"]
-  F --> G["legacy page body (zoom on its own subtree only)"]
+  F --> M["page body (ui-system)"]
 ```
 
 `AppShell` provides `useAppShellState()` (favourites, quick actions, sidebar, search query) through `AppShellContext`.
@@ -60,14 +59,11 @@ Checked by `scripts/verify-shell-parity.mjs`. Service worker and update behaviou
 
 ## CSS layering (`app/globals.css`)
 
-Order matters because later `@theme` entries win and unlayered legacy rules beat Tailwind utilities:
-
-1. Tailwind and `tw-animate-css`, then the legacy bases (`studio.css`, Dallaglio palette, `tools-theme.css`).
-2. `ui-system/foundations/tokens.css`, `theme.css`, `base.css` (the new tokens, the Tailwind bridge and element defaults).
-3. Legacy `@theme` entries for `--font-sans` and `--radius-*` were **removed** so the system owns them; `--font-active` is
-   bridged to `--mo-font-body` for CSS that still reads it; legacy body/heading rules were deleted in favour of `base.css`.
-4. `dallaglio/palette.css` forces every heading to weight 350 with high specificity. Headings carrying the shared
-   `.font-display` class are exempt (`:not(.font-display)`), otherwise migrated pages and dialog titles rendered too light.
+`app/globals.css` is Tailwind, `tw-animate-css`, the three `ui-system/foundations` files (`tokens.css`, `theme.css`,
+`base.css`: the tokens, the Tailwind bridge and element defaults), an unlayered body typeface rule, the `font-mono` and
+`font-heading` theme entries and the native `<option>` colours. It holds no component, colour or type rules; those live in
+`ui-system`. (Until 4 Oct 2026 it also held about 600 lines of legacy rules, including an unlayered `:focus-visible` outline and
+body size that overrode the system's own.)
 
 Text size is `--mo-text-scale` on `<html>` (85 to 130 per cent), read inside every `--text-*` theme value, so portals inherit it.
 `APPEARANCE_BOOTSTRAP` (inlined in `<head>`) sets it before first paint.

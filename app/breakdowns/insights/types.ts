@@ -108,23 +108,3 @@ export const formatTime = (minutes: number): string => {
 export const formatCurrency = (value: number): string => {
   return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 };
-
-export const PIE_COLORS = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
-  '#0ea5e9', '#a855f7', '#eab308', '#10b981', '#06b6d4',
-];
-
-export const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#f59e0b',
-  low: '#22c55e',
-};
-
-export const STATUS_COLORS: Record<string, string> = {
-  logged: '#3b82f6',
-  in_progress: '#f59e0b',
-  resolved: '#22c55e',
-  closed: '#6b7280',
-};

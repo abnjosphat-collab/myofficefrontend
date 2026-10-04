@@ -1,17 +1,15 @@
 // app/login/page.tsx — standalone sign-in page.
 //
-// Sign-in has always lived only in the header's AuthMenu dialog (and its trigger is
-// hidden on small screens), so nothing could *link* to logging in: a feature that got
-// a 401 had nowhere to send the user. This page is that destination —
-// /login?next=/maintenance returns you to where you were headed after signing in.
-// The 401 toast in lib/apiClient.ts points here.
+// Sign-in used to live only in the top bar's account menu (and its trigger is hidden on small screens), so nothing could *link* to
+// logging in: a feature that got a 401 had nowhere to send the user. This page is that destination —
+// /login?next=/maintenance returns you to where you were headed after signing in. The 401 toast in lib/apiClient.ts points here.
 'use client';
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AuthForm } from '@/components/app-shell/AuthMenu';
+import { AuthForm } from '@/components/app-shell/auth/AuthForm';
+import { AuthCard, AuthPage } from '@/components/app-shell/auth/AuthLayout';
 import { useAuth } from '@/lib/auth-context';
-import { useTheme, ArrowLeft } from '@/components/shared/theme';
 
 /** Only allow same-app relative paths — a full URL in ?next= would be an open redirect. */
 function safeNext(raw: string | null): string {
@@ -23,27 +21,24 @@ function LoginContent() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get('next'));
   const { user, loading } = useAuth();
-  const t = useTheme();
-  const dallaglio = t.design === 'dallaglio';
 
-  // Already signed in (e.g. an old tab landed here) — nothing to do, go to the target.
+  // Already signed in (e.g. an old tab landed here): nothing to do, go to the target.
   useEffect(() => {
     if (!loading && user) router.replace(next);
   }, [loading, user, next, router]);
 
   return (
-    <div className={`fixed inset-0 flex items-center justify-center p-4 ${dallaglio ? t.pageBg : 'bg-[#08090b]'}`}>
-      <div className="w-full max-w-sm">
-        <a href="/tools" className={`mb-4 inline-flex min-h-11 items-center gap-2 rounded-[9px] border px-4 text-[12px] font-medium transition ${dallaglio ? `${t.glass} ${t.textMuted} ${t.hoverText}` : 'border-white/10 bg-white/[.04] text-white/80 hover:border-violet-300/35 hover:bg-violet-300/10 hover:text-white'} focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-violet-300`}><ArrowLeft className="h-[17px] w-[17px]" weight={dallaglio ? 'light' : undefined} aria-hidden="true"/>Return to Tools &amp; Equipment</a>
+    <AuthPage back>
+      <AuthCard title="Welcome back" description="Sign in to access MyOffice.">
         <AuthForm defaultMode="login" redirectTo={next} />
-      </div>
-    </div>
+      </AuthCard>
+    </AuthPage>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 bg-[#08090b]" />}>
+    <Suspense fallback={<div className="fixed inset-0 bg-canvas" />}>
       <LoginContent />
     </Suspense>
   );

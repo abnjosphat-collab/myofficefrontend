@@ -21,8 +21,8 @@ const a11yWarnRules = Object.fromEntries(
 // label-has-for is deprecated upstream in favor of label-has-associated-control (which
 // stays enabled above and already covers the real requirement: a label needs a matching
 // htmlFor/id OR to nest its control). label-has-for's default `required` option demands
-// BOTH nesting AND id — unsatisfiable for a generic wrapper component (e.g. FormField in
-// components/shared/design-system/components.tsx) whose control is passed in as an opaque
+// BOTH nesting AND id — unsatisfiable for a generic wrapper component (e.g. Field in
+// components/ui-system/primitives/Field.tsx) whose control is passed in as an opaque
 // `children` prop, since such a component can never author a literal nested <input>/
 // <select>/<textarea> tag even when its actual (correct, htmlFor/id-associated) label is
 // fine. Turned off rather than satisfied per-callsite with a fake nested element.
@@ -123,26 +123,23 @@ const eslintConfig = defineConfig([
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
-  // Design-token drift: raw Tailwind text-size utilities bypass TYPE_SCALE
-  // (components/shared/design-system/tokens.tsx), which is how the app is supposed to
-  // stay visually consistent and theme-aware. This doesn't retroactively fix the many
-  // existing call sites — set to 'warn' so CI doesn't go red on day one — it just stops
-  // new drift from being introduced silently. Migrate call sites to TYPE_SCALE
-  // opportunistically, e.g. when a page is touched for other work.
+  // Design-token drift: raw Tailwind text-size utilities bypass the UI system's type roles
+  // (components/ui-system/foundations/typography.ts: text-body, text-label, text-caption, ...),
+  // which is how the app stays visually consistent. 'warn' so a deliberate exception does not
+  // block CI, but it stops new drift from being introduced silently.
   {
     files: ["app/**/*.tsx", "components/**/*.tsx"],
-    ignores: ["components/ui/**"], // shadcn primitives own their own sizing contract
     plugins: { local: localRules },
     rules: {
       "no-restricted-syntax": [
         "warn",
         {
           selector: "JSXAttribute[name.name='className'] Literal[value=/\\btext-(xs|sm)\\b/]",
-          message: "Raw text-xs/text-sm bypasses TYPE_SCALE (components/shared/design-system/tokens.tsx) — prefer a TYPE_SCALE token so size stays consistent and theme-aware.",
+          message: "Raw text-xs/text-sm bypasses the UI system's type roles (components/ui-system/foundations/typography.ts); use text-body, text-body-sm, text-label or text-caption.",
         },
         {
           selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\btext-(xs|sm)\\b/]",
-          message: "Raw text-xs/text-sm bypasses TYPE_SCALE (components/shared/design-system/tokens.tsx) — prefer a TYPE_SCALE token so size stays consistent and theme-aware.",
+          message: "Raw text-xs/text-sm bypasses the UI system's type roles (components/ui-system/foundations/typography.ts); use text-body, text-body-sm, text-label or text-caption.",
         },
       ],
       "local/no-bg-class-collision": "warn",
@@ -197,14 +194,12 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Stage D (Tools-standard rollout): the icon family stays single. icons.tsx is
-  // the only module allowed to import @phosphor-icons/react directly — every
-  // route and map resolves glyphs through the barrel so the global
-  // solid/outline weight toggle keeps working. 'warn' (like the other
-  // coverage rules here), not a CI gate.
+  // One icon family: components/ui-system/foundations is the only place allowed to import
+  // @phosphor-icons/react directly; every route resolves glyphs through the UI system so weight
+  // and size stay consistent. 'warn' (like the other coverage rules here), not a CI gate.
   {
     files: ["**/*.ts", "**/*.tsx"],
-    ignores: ["components/shared/design-system/icons.tsx", "components/ui-system/foundations/**"],
+    ignores: ["components/ui-system/foundations/**"],
     rules: {
       "no-restricted-imports": [
         "warn",
@@ -212,7 +207,7 @@ const eslintConfig = defineConfig([
           paths: [
             {
               name: "@phosphor-icons/react",
-              message: "Import glyphs from @/components/shared/design-system/icons (the single icon barrel) instead — direct package imports bypass the global weight toggle. See design-system/README.md.",
+              message: "Import glyphs from @/components/ui-system (the single icon layer) instead; direct package imports bypass its weight and size policy. See components/ui-system/README.md.",
             },
           ],
         },

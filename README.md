@@ -34,11 +34,9 @@ Supabase will fail without them.
   `page.tsx` + `types.ts` + `useXData.ts` hook split (data model / data-fetching
   layer / rendering) — see any recently-touched page for the pattern before
   adding a new one.
-- **`components/shared/design-system/`** — the shared component library
-  (`PageHero`, `StatTile`, `RecordCard`, icons, theming). **Read its own
-  [`README.md`](components/shared/design-system/README.md) before building a
-  new page** — it documents real anti-patterns other pages have shipped and
-  since fixed, not just a component list.
+- **`components/ui-system/`** — the one design system (tokens, icons, primitives,
+  overlays, patterns, shell). **Read its own
+  [`README.md`](components/ui-system/README.md) before building a new page.**
 - **`components/app-shell/`** — the sidebar/module-grid shell (`AppShell`) that
   wraps every real ERP page (not the demo verticals).
 - **`lib/apiClient.ts`** — the one place that attaches the Supabase auth token

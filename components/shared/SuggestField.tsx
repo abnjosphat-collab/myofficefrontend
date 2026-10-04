@@ -1,6 +1,5 @@
-// components/shared/SuggestField.tsx — the legacy PredictiveInput (typeahead from this user's input
+// components/shared/SuggestField.tsx — PredictiveInput (typeahead from this user's input
 // history) inside a UI-system <Field>: binds the Field's label/description/error to the input.
-// Interim: replaced by a UI-system SuggestInput when PredictiveInput is rebuilt.
 'use client';
 
 import { controlClasses, useFieldProps } from '@/components/ui-system';

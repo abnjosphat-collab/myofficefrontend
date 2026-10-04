@@ -18,7 +18,7 @@ import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
-} from '@/components/shared/theme';
+} from '@/components/ui-system';
 
 export interface DashboardStats {
   employeeCount: number | null;

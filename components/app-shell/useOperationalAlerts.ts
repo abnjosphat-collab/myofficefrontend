@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { CalendarDays, Clock, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/shared/theme';
+import { CalendarDays, Clock, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
 import { timeAgo, type ActivityItem } from './useDashboardData';
 
 async function safeJson(url: string, needsAuth = false): Promise<any> {

@@ -2,20 +2,15 @@
 // A failed save keeps the dialog open with everything typed; only a successful save closes it.
 'use client';
 
-import { useState, type ComponentProps } from 'react';
-import { AutofillInput } from '@/components/shared/theme';
-import { Field, FormDialog, Input, Select, Textarea, controlClasses } from '@/components/ui-system';
+import { useState } from 'react';
+import { SuggestField } from '@/components/shared/SuggestField';
+import { Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import {
   SOP_CLASSIFICATIONS, SOP_RISK_TIERS, SOP_RISK_TIER_LABEL, SOP_SECTION_LABELS, SOP_STATUSES, SOP_STATUS_LABEL, emptySopForm, sopToFormValues,
   type SopDocument, type SopFormValues,
 } from '@/lib/sops/types';
 
 const NOT_ASSESSED = '__none__';
-
-/** Legacy typeahead (per-key input history) inside a Field; interim until it is rebuilt on the UI system. */
-function History({ field, label, ...props }: { field: string; label: string } & Omit<ComponentProps<typeof AutofillInput>, 'field' | 'ariaLabel' | 'className'>) {
-  return <AutofillInput field={field} ariaLabel={label} className={`${controlClasses} h-9`} {...props} />;
-}
 
 export function SopFormDialog({ open, onOpenChange, sop, onSubmit }: {
   open: boolean;
@@ -58,15 +53,15 @@ export function SopFormDialog({ open, onOpenChange, sop, onSubmit }: {
       <p className="font-sans text-body-sm text-ink-muted">Only code, title, department and owner are required. Every other field, including each section, can be filled in as the SOP matures.</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="SOP code" required error={missing(values.code, 'Enter the SOP code.')}><Input value={values.code} disabled={isEdit} onChange={e => set('code', e.target.value)} placeholder="SOP-OPS-001" /></Field>
-        <Field label="Title" required error={missing(values.title, 'Enter the title.')}><History field="sop_title" label="Title" value={values.title} onChange={v => set('title', v)} placeholder="Lockout and tagout" /></Field>
-        <Field label="Department" required error={missing(values.department, 'Enter the department.')}><History field="sop_department" label="Department" value={values.department} onChange={v => set('department', v)} placeholder="Operations" /></Field>
+        <Field label="Title" required error={missing(values.title, 'Enter the title.')}><SuggestField historyKey="sop_title" value={values.title} onChange={v => set('title', v)} placeholder="Lockout and tagout" /></Field>
+        <Field label="Department" required error={missing(values.department, 'Enter the department.')}><SuggestField historyKey="sop_department" value={values.department} onChange={v => set('department', v)} placeholder="Operations" /></Field>
         <Field label="Status"><Select aria-label="Status" value={values.status} onValueChange={v => set('status', v as SopFormValues['status'])} options={SOP_STATUSES.map(s => ({ value: s, label: SOP_STATUS_LABEL[s] }))} /></Field>
         <Field label="Classification"><Select aria-label="Classification" value={values.classification} onValueChange={v => set('classification', v as SopFormValues['classification'])} options={SOP_CLASSIFICATIONS.map(c => ({ value: c, label: c }))} /></Field>
         <Field label="Risk tier"><Select aria-label="Risk tier" value={values.risk_tier || NOT_ASSESSED} onValueChange={v => set('risk_tier', (v === NOT_ASSESSED ? '' : v) as SopFormValues['risk_tier'])} options={[{ value: NOT_ASSESSED, label: 'Not yet assessed' }, ...SOP_RISK_TIERS.map(t => ({ value: String(t), label: SOP_RISK_TIER_LABEL[t] }))]} /></Field>
-        <Field label="Owner" required error={missing(values.owner, 'Enter the owner.')}><History field="sop_owner" label="Owner" value={values.owner} onChange={v => set('owner', v)} placeholder="J. Moyo" /></Field>
-        <Field label="Approver" optional><History field="sop_approver" label="Approver" value={values.approver} onChange={v => set('approver', v)} /></Field>
-        <Field label="Version"><History field="sop_version" label="Version" value={values.version} onChange={v => set('version', v)} placeholder="0.1" /></Field>
-        <Field label="Supersedes" optional><History field="sop_supersedes" label="Supersedes" value={values.supersedes} onChange={v => set('supersedes', v)} placeholder="For example, SOP-OPS-000 v1.0" /></Field>
+        <Field label="Owner" required error={missing(values.owner, 'Enter the owner.')}><SuggestField historyKey="sop_owner" value={values.owner} onChange={v => set('owner', v)} placeholder="J. Moyo" /></Field>
+        <Field label="Approver" optional><SuggestField historyKey="sop_approver" value={values.approver} onChange={v => set('approver', v)} placeholder="" /></Field>
+        <Field label="Version"><SuggestField historyKey="sop_version" value={values.version} onChange={v => set('version', v)} placeholder="0.1" /></Field>
+        <Field label="Supersedes" optional><SuggestField historyKey="sop_supersedes" value={values.supersedes} onChange={v => set('supersedes', v)} placeholder="For example, SOP-OPS-000 v1.0" /></Field>
         <Field label="Effective date" optional><Input type="date" value={values.effective_date} onChange={e => set('effective_date', e.target.value)} /></Field>
         <Field label="Next review date" optional><Input type="date" value={values.next_review_date} onChange={e => set('next_review_date', e.target.value)} /></Field>
         <div className="sm:col-span-2">
@@ -79,7 +74,7 @@ export function SopFormDialog({ open, onOpenChange, sop, onSubmit }: {
         <Field key={key} label={label} optional><Textarea rows={3} value={values.sections[key]} onChange={e => setSection(key, e.target.value)} /></Field>
       ))}
       <Field label="Change note" required={isEdit} optional={!isEdit} description="Every save creates a new revision. This note appears in the SOP's history." error={isEdit ? missing(values.change_note, 'Say what changed and why.') : undefined}>
-        <History field="sop_change_note" label="Change note" value={values.change_note} onChange={v => set('change_note', v)} placeholder={isEdit ? 'What changed and why' : 'Initial draft'} />
+        <SuggestField historyKey="sop_change_note" value={values.change_note} onChange={v => set('change_note', v)} placeholder={isEdit ? 'What changed and why' : 'Initial draft'} />
       </Field>
     </FormDialog>
   );

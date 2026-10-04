@@ -1,19 +1,17 @@
 // components/app-shell/mfa-ui.tsx — the two MFA (authenticator-app / TOTP) UI flows:
-//   • SecurityDialog  — enroll / disable 2FA (reached from the avatar area)
-//   • MfaChallenge    — the 6-digit prompt shown during sign-in for enrolled users
-// Both are thin shells over lib/mfa.ts (Supabase does the crypto). Styling mirrors
-// AuthMenu's light auth-card chrome. Requires MFA enabled in the Supabase dashboard.
+//   • SecurityPanel — enroll / disable 2FA (reached from the account menu)
+//   • MfaChallenge  — the 6-digit prompt shown during sign-in for enrolled users
+// Both are thin shells over lib/mfa.ts (Supabase does the crypto), built from the UI system. Requires MFA enabled in the Supabase dashboard.
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button, Field, Input, Notice, Spinner } from '@/components/ui-system';
 import {
   enroll, verifyEnrollment, challengeAndVerify, unenroll,
   getVerifiedFactor, type EnrollResult,
 } from '@/lib/mfa';
 import { useAuth } from '@/lib/auth-context';
+import { AuthCard, AuthPage } from './auth/AuthLayout';
 
 const CODE_RE = /^\d{6}$/;
 
@@ -22,11 +20,11 @@ function errMsg(e: unknown): string {
   if (/mfa.*not enabled|factor.*not enabled|unsupported/i.test(m)) {
     return 'Two-factor auth is not enabled for this project yet. Ask an admin to turn on TOTP in the Supabase dashboard.';
   }
-  if (/invalid.*code|totp|verification/i.test(m)) return 'That code was not accepted — check your authenticator app and try again.';
+  if (/invalid.*code|totp|verification/i.test(m)) return 'That code was not accepted. Check your authenticator app and try again.';
   return m;
 }
 
-// ─── SecurityDialog body — manage 2FA for the signed-in user ─────────────────
+// ─── SecurityPanel — manage 2FA for the signed-in user ───────────────────────
 export function SecurityPanel({ onDone }: { onDone?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [enrolled, setEnrolled] = useState(false);
@@ -50,9 +48,8 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
 
   const startEnroll = async () => {
     setError(''); setNotice(''); setBusy(true);
-    try {
-      setPending(await enroll());
-    } catch (e) { setError(errMsg(e)); }
+    try { setPending(await enroll()); }
+    catch (e) { setError(errMsg(e)); }
     finally { setBusy(false); }
   };
 
@@ -61,10 +58,7 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
     setError(''); setBusy(true);
     try {
       await verifyEnrollment(pending.factorId, code);
-      setEnrolled(true);
-      setFactorId(pending.factorId);
-      setPending(null);
-      setCode('');
+      setEnrolled(true); setFactorId(pending.factorId); setPending(null); setCode('');
       setNotice('Two-factor authentication is now on.');
     } catch (e) { setError(errMsg(e)); }
     finally { setBusy(false); }
@@ -75,72 +69,48 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
     setError(''); setBusy(true);
     try {
       await unenroll(factorId);
-      setEnrolled(false);
-      setFactorId(null);
+      setEnrolled(false); setFactorId(null);
       setNotice('Two-factor authentication has been turned off.');
     } catch (e) { setError(errMsg(e)); }
     finally { setBusy(false); }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6">
-      <h2 className="text-lg font-bold text-[#2A4D69] font-heading">Security</h2>
-      <p className="text-xs text-[#6B7B8E] mt-1 mb-4">Two-factor authentication (authenticator app)</p>
-
+    <div className="flex flex-col gap-4">
+      <p className="font-sans text-body-sm text-ink-muted">Two-factor authentication with an authenticator app.</p>
       {loading ? (
-        <div className="h-10 flex items-center text-sm text-[#6B7B8E]">
-          <div className="h-4 w-4 border-2 border-[#2A4D69]/30 border-t-[#2A4D69] rounded-full animate-spin mr-2" /> Checking status…
-        </div>
+        <p role="status" className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Spinner />Checking status…</p>
       ) : pending ? (
-        <div className="space-y-3">
-          <p className="text-sm text-[#1a1a2e]">Scan this QR code in Google Authenticator, Authy, 1Password, or similar — then enter the 6-digit code it shows.</p>
-          {/* Supabase returns an SVG data-URI; render at a fixed size */}
+        <div className="flex flex-col gap-3">
+          <p className="font-sans text-body text-ink">Scan this QR code in Google Authenticator, Authy, 1Password or similar, then enter the 6-digit code it shows.</p>
           <div className="flex justify-center">
+            {/* Supabase returns an SVG data URI; shown at a fixed size */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={pending.qrCode} alt="Authenticator QR code" width={176} height={176} className="rounded-lg border border-[#2A4D69]/10" />
+            <img src={pending.qrCode} alt="Authenticator QR code" width={176} height={176} className="rounded-control border border-line bg-white" />
           </div>
-          <p className="text-[11px] text-[#6B7B8E] text-center break-all">
-            Can&apos;t scan? Key in this secret: <span className="font-mono text-[#2A4D69]">{pending.secret}</span>
-          </p>
-          <div className="space-y-1">
-            <Label className="text-xs font-medium text-[#2A4D69]">6-digit code</Label>
-            <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000"
-              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-              className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-sm tracking-widest text-center" />
-          </div>
-          {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
+          <p className="break-all text-center font-sans text-caption text-ink-muted">Can&apos;t scan? Key in this secret: <span className="font-mono text-ink">{pending.secret}</span></p>
+          <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center tracking-[0.4em]" /></Field>
+          {error && <Notice tone="danger" title="Not verified">{error}</Notice>}
           <div className="flex gap-2">
-            <Button type="button" disabled={busy} onClick={confirmEnroll} className="flex-1 bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold">
-              {busy ? 'Verifying…' : 'Verify & enable'}
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={() => { setPending(null); setCode(''); setError(''); }}>Cancel</Button>
+            <Button variant="primary" className="flex-1" pending={busy} onClick={confirmEnroll}>Verify and enable</Button>
+            <Button disabled={busy} onClick={() => { setPending(null); setCode(''); setError(''); }}>Cancel</Button>
           </div>
         </div>
       ) : enrolled ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> 2FA is active on your account.
-          </div>
-          {notice && <div className="text-emerald-700 text-xs">{notice}</div>}
-          {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
-          <Button type="button" variant="outline" disabled={busy} onClick={disable} className="w-full text-red-600 border-red-200 hover:bg-red-50">
-            {busy ? 'Disabling…' : 'Disable 2FA'}
-          </Button>
+        <div className="flex flex-col gap-3">
+          <Notice tone="info" icon="shield" title="2FA is active on your account.">{notice || 'You will be asked for a code each time you sign in.'}</Notice>
+          {error && <Notice tone="danger" title="Not turned off">{error}</Notice>}
+          <Button variant="danger" fullWidth pending={busy} onClick={disable}>Disable 2FA</Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-[#1a1a2e]">Add a second step at sign-in using an authenticator app. Recommended for admin and manager accounts.</p>
-          {notice && <div className="text-emerald-700 text-xs">{notice}</div>}
-          {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
-          <Button type="button" disabled={busy} onClick={startEnroll} className="w-full bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold">
-            {busy ? 'Starting…' : 'Enable 2FA'}
-          </Button>
+        <div className="flex flex-col gap-3">
+          <p className="font-sans text-body text-ink">Add a second step at sign-in using an authenticator app. Recommended for admin and manager accounts.</p>
+          {notice && <p role="status" className="font-sans text-body-sm text-success">{notice}</p>}
+          {error && <Notice tone="danger" title="Could not start">{error}</Notice>}
+          <Button variant="primary" fullWidth pending={busy} onClick={startEnroll}>Enable 2FA</Button>
         </div>
       )}
-
-      {onDone && (
-        <button type="button" onClick={onDone} className="mt-4 w-full text-center text-xs text-[#6B7B8E] hover:text-[#2A4D69]">Close</button>
-      )}
+      {onDone && <Button variant="ghost" onClick={onDone}>Close</Button>}
     </div>
   );
 }
@@ -155,10 +125,8 @@ export function MfaChallenge({ onVerified, onCancel }: { onVerified: () => void;
 
   useEffect(() => {
     (async () => {
-      try {
-        const f = await getVerifiedFactor();
-        setFactorId(f?.id ?? null);
-      } catch { /* fall through — show error on submit */ }
+      try { const f = await getVerifiedFactor(); setFactorId(f?.id ?? null); }
+      catch { /* fall through; the error shows on submit */ }
       finally { setReady(true); }
     })();
   }, []);
@@ -168,47 +136,29 @@ export function MfaChallenge({ onVerified, onCancel }: { onVerified: () => void;
     if (!factorId) { setError('No authenticator is set up on this account.'); return; }
     if (!CODE_RE.test(code)) { setError('Enter the 6-digit code from your app.'); return; }
     setError(''); setBusy(true);
-    try {
-      await challengeAndVerify(factorId, code);
-      onVerified();
-    } catch (err) { setError(errMsg(err)); }
+    try { await challengeAndVerify(factorId, code); onVerified(); }
+    catch (err) { setError(errMsg(err)); }
     finally { setBusy(false); }
   };
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-2xl shadow-2xl border border-[#2A4D69]/10 p-6 space-y-3">
-      <div className="text-center mb-1">
-        <h2 className="text-lg font-bold text-[#2A4D69] font-heading">Two-factor verification</h2>
-        <p className="text-xs text-[#6B7B8E] mt-1">Enter the 6-digit code from your authenticator app.</p>
-      </div>
-      <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000"
-        value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-        className="border-[#2A4D69]/20 focus:border-[#2A4D69] text-base tracking-[0.5em] text-center" />
-      {error && <div className="text-red-600 text-xs bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</div>}
-      <Button type="submit" disabled={busy || !ready} className="w-full bg-[#2A4D69] hover:bg-[#1e3a52] text-white font-semibold">
-        {busy ? 'Verifying…' : 'Verify'}
-      </Button>
-      {onCancel && (
-        <button type="button" onClick={onCancel} className="w-full text-center text-xs text-[#6B7B8E] hover:text-[#2A4D69]">Cancel</button>
-      )}
-    </form>
+    <AuthCard title="Two-factor verification" description="Enter the 6-digit code from your authenticator app." headingId="mfa-title">
+      <form onSubmit={submit} className="flex flex-col gap-3.5">
+        <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" autoFocus value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center text-body tracking-[0.5em]" /></Field>
+        {error && <Notice tone="danger" title="Not verified">{error}</Notice>}
+        <Button type="submit" variant="primary" fullWidth pending={busy} disabled={!ready}>Verify</Button>
+        {onCancel && <Button variant="ghost" onClick={onCancel}>Cancel</Button>}
+      </form>
+    </AuthCard>
   );
 }
 
 // ─── GlobalMfaGate — the single enforcement point for 2FA ────────────────────
-// Mounted once, at the root (see components/Providers.tsx). AuthContext holds
-// user/session at null for as long as mfaPending is true — see the long
-// comment on applySession() in lib/auth-context.tsx for why the check has to
-// live there and not in each login form. This component only has to render
-// what that state says; it isn't itself part of the enforcement.
+// Mounted once, at the root (see components/Providers.tsx). AuthContext holds user/session at null for as long as mfaPending is
+// true (see applySession() in lib/auth-context.tsx for why the check lives there and not in each login form). This component only
+// renders what that state says; it is not itself part of the enforcement.
 export function GlobalMfaGate() {
   const { mfaPending, completeMfaChallenge } = useAuth();
   if (!mfaPending) return null;
-  return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#050f1c] p-4">
-      <div className="w-full max-w-sm">
-        <MfaChallenge onVerified={completeMfaChallenge} />
-      </div>
-    </div>
-  );
+  return <AuthPage><MfaChallenge onVerified={completeMfaChallenge} /></AuthPage>;
 }

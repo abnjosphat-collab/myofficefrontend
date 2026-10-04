@@ -47,12 +47,12 @@ export default {
     await dialog.getByRole('button', { name: 'Create SOP' }).click();
     check(await dialog.getByText('Enter the SOP code.').isVisible() && await dialog.getByText('Enter the owner.').isVisible(), 'required fields show errors');
     await dialog.getByLabel(/^SOP code/).fill('SOP-NEW-001');
-    await dialog.getByLabel('Title', { exact: true }).fill('New thing');
-    await dialog.getByLabel('Department', { exact: true }).fill('Operations');
-    await dialog.getByLabel('Owner', { exact: true }).fill('J. Moyo');
+    await dialog.getByLabel(/^Title/).fill('New thing');
+    await dialog.getByLabel(/^Department/).fill('Operations');
+    await dialog.getByLabel(/^Owner/).fill('J. Moyo');
     await dialog.getByRole('button', { name: 'Create SOP' }).click();
     await page.waitForTimeout(1200);
-    check(await dialog.isVisible() && (await dialog.getByLabel('Title', { exact: true }).inputValue()) === 'New thing', 'a failed save keeps the dialog open with the typed values');
+    check(await dialog.isVisible() && (await dialog.getByLabel(/^Title/).inputValue()) === 'New thing', 'a failed save keeps the dialog open with the typed values');
     check(await page.getByText('SOP service rejected the save').isVisible(), 'the failure is reported');
     postMode = 'ok';
     await dialog.getByRole('button', { name: 'Create SOP' }).click();

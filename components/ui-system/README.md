@@ -106,15 +106,16 @@ Measured with `scripts/linen-audit.mjs` (captures in `docs/linen/before` and `do
 
 - **Type:** the migrated pages already use 12 to 13 distinct size/weight pairs; none is below 12 px except tooltips (11 px, short, high contrast). Headings and `role="heading"` use `text-wrap: balance`; paragraphs, list items and definitions use `text-wrap: pretty`; table figures are tabular. Caption gets +0.005em tracking so 12 px text does not crowd. No font was added.
 - **Legacy headings:** unmigrated pages had 350-weight headings (`dallaglio/palette.css`); raised to 500 with tracking -0.03em, so no important text is very thin. They disappear as routes migrate.
-- **Icons:** the UI system uses four sizes (14, 16, 18, 20) in one family and weight policy (control light, navigation regular, emphasis fill); the audit found no icon more than 1.5 px off its label's centre on any page. The legacy Tools workspace uses eight sizes (13 to 22); it is user-owned and was left alone.
+- **Icons:** the UI system uses four sizes (14, 16, 18, 20) in one family and weight policy (control light, navigation regular, emphasis fill); the audit found no icon more than 1.5 px off its label's centre on any page. The Tools workspace uses eight sizes (13 to 22); it is user-owned and was left alone.
 - **Contrast:** no text on the nine pages falls below WCAG AA (4.5:1, or 3:1 for large text), measured against the effective background.
 - **Text spacing (WCAG 1.4.12):** with the minimum overrides applied, no page scrolls horizontally. The only clipped text is the skip link (hidden until focused) and the home module descriptions, which are clamped to two lines by design and shown in full in the quick-view dialog.
 - **Not verified:** a real installed PWA or touch device (Playwright emulates viewport and pointer type, not the installed window), the Tools workspace reference page (its own sign-in covers it in this harness), and user-set text sizes beyond the 85 to 130 % scale.
 
 ## What is not finished
 
-The legacy design system (`components/shared/design-system/`, the `${t.*}` token layer, `GlowCard`, `CenterModal`,
-`PrimaryButton`, `PageHero`, `.oz-*` classes) still serves the 35 routes whose page body is unmigrated, and several
-interim bridges exist (legacy `ThemeProvider` pinned to light, `AuthForm`/`SecurityPanel` inside dialogs, `ApprovalGate`, `PhotoUpload`,
-`PredictiveInput`, `AutofillInput`). They are deleted route by route as replacements are verified. The list and counts
-are in the ledger, not here.
+There is one design system. The legacy one (`components/shared/design-system/`, the `${t.*}` token layer, `GlowCard`,
+`CenterModal`, `PrimaryButton`, `PageHero`, the `.oz-*` classes, `components/ui/`) is deleted; sign-in, password, two-factor,
+the signature pad, photo upload and typeahead are built from this system. What remains outside it is the Tools & Equipment
+workspace's own component layer (`app/tools`: `ToolsUI`, `AnimatedSelect`, `ToolsDateInput`, `tools.module.css`); it shares
+the tokens and glyphs and is the visual reference. Moving those components onto this system is an open decision (see
+`docs/CURRENT_HANDOFF.md`).
