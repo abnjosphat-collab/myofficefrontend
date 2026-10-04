@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { AnimatedSelect } from './AnimatedSelect';
 import { ToolsIcon as Icon } from './ToolsIcon';
+import { tileEmergeProps } from './ToolsUI';
 import s from './tools.module.css';
 
 export type SourceRegisterRecord={id:string;department:string;notes?:string;original_name:string;content_type:string;size_bytes:number;uploaded_by:string;uploaded_at:string;url?:string};
@@ -16,6 +18,7 @@ export function SourceRegisterForm({departments,onSave,onCancel}:{departments:st
 }
 
 export function ToolsSourceRegisters({items,search,onUpload}:{items:SourceRegisterRecord[];search:string;onUpload:()=>void}) {
+  const reduced=useReducedMotion();
   const query=search.trim().toLowerCase();const visible=items.filter(item=>!query||`${item.original_name} ${item.department} ${item.notes||''} ${item.uploaded_by}`.toLowerCase().includes(query));
-  return <section className={s.sourceRegisters}><div className={s.sourceRegistersHeader}><div><h2>Source registers</h2><p>Original documents kept for reference while the live database is updated.</p></div><button className={s.primary} onClick={onUpload}><Icon name="upload" size={17}/>Upload register</button></div>{visible.length?<div className={s.sourceRegisterList}>{visible.map(item=><article key={item.id} className={s.sourceRegisterCard}><span className={s.sourceRegisterIcon}><Icon name={item.content_type==='application/pdf'?'pdf':'attachment'} size={22}/></span><div><strong>{item.original_name}</strong><p>{item.department}{item.notes?` · ${item.notes}`:''}</p><small>{formatSize(item.size_bytes)} · Uploaded by {item.uploaded_by} · {new Date(item.uploaded_at).toLocaleString()}</small></div>{item.url?<a className={s.secondary} href={item.url} target="_blank" rel="noreferrer"><Icon name="download" size={15}/>Open file</a>:<span className={s.formHint}>File link unavailable</span>}</article>)}</div>:<div className={s.empty}><Icon name="upload" size={30}/><h2>{items.length?'No matching source registers':'No source registers yet'}</h2><p>{items.length?'Try a different search.':'Upload the original PDF, spreadsheet, Word document or scan before updating the live register.'}</p><button className={s.primary} onClick={onUpload}>Upload the first register</button></div>}</section>;
+  return <section className={s.sourceRegisters}><div className={s.sourceRegistersHeader}><div><h2>Source registers</h2><p>Original documents kept for reference while the live database is updated.</p></div><button className={s.primary} onClick={onUpload}><Icon name="upload" size={17}/>Upload register</button></div>{visible.length?<div className={s.sourceRegisterList}>{visible.map((item,i)=><motion.article key={item.id} className={s.sourceRegisterCard} {...tileEmergeProps(i, reduced)}><span className={s.sourceRegisterIcon}><Icon name={item.content_type==='application/pdf'?'pdf':'attachment'} size={22}/></span><div><strong>{item.original_name}</strong><p>{item.department}{item.notes?` · ${item.notes}`:''}</p><small>{formatSize(item.size_bytes)} · Uploaded by {item.uploaded_by} · {new Date(item.uploaded_at).toLocaleString()}</small></div>{item.url?<a className={s.secondary} href={item.url} target="_blank" rel="noreferrer"><Icon name="download" size={15}/>Open file</a>:<span className={s.formHint}>File link unavailable</span>}</motion.article>)}</div>:<div className={s.empty}><Icon name="upload" size={30}/><h2>{items.length?'No matching source registers':'No source registers yet'}</h2><p>{items.length?'Try a different search.':'Upload the original PDF, spreadsheet, Word document or scan before updating the live register.'}</p><button className={s.primary} onClick={onUpload}>Upload the first register</button></div>}</section>;
 }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Employee, Tool } from './prototype';
@@ -13,12 +13,13 @@ const employees: Employee[] = [
 const tools: Tool[] = [{ id: 'ENG-01', backendId: 'tool-1', name: 'Angle grinder', make: 'Makita', serial: 'S-1', category: 'Power tools', kind: 'angle-grinder', status: 'available', location: 'Store', condition: 'Good', department: 'Engineering', eligibleEmployees: [] }];
 
 describe('ToolsPeople', () => {
-  it('groups the employee register by department', () => {
+  it('groups the employee register by department', async () => {
     render(<ToolsPeople employees={employees} tools={tools} competencies={[]} search="" canManage onAdd={()=>{}} onIssue={()=>{}} onSaveCompetency={async()=>{}}/>);
-    expect(screen.getByRole('heading',{name:'Engineering'})).toBeVisible();
-    expect(screen.getByRole('heading',{name:'Mining'})).toBeVisible();
-    expect(screen.getByRole('button',{name:'View Alex Moyo'})).toBeVisible();
-    expect(screen.getByRole('button',{name:'View Mina Dube'})).toBeVisible();
+    // Tiles emerge with a short entrance animation; await the settled visible state.
+    await waitFor(() => expect(screen.getByRole('heading',{name:'Engineering'})).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('heading',{name:'Mining'})).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('button',{name:'View Alex Moyo'})).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('button',{name:'View Mina Dube'})).toBeVisible());
   });
 
   it('saves all three tool-specific eligibility requirements from employee details', async () => {

@@ -16,6 +16,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onRecordInspection=vi.fn().mockResolvedValue(undefined);
     render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
+    await user.click(screen.getByText('Record inspection or maintenance'));
     await user.click(screen.getByRole('button',{name:'Inspection type'}));
     await user.click(await screen.findByRole('option',{name:'Repair verification'}));
     fireEvent.change(screen.getByLabelText('Repair quotation'),{target:{value:'600'}});
@@ -29,6 +30,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onReportIncident=vi.fn().mockResolvedValue(undefined);
     render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
+    await user.click(screen.getByText('Report loss, damage or theft'));
     fireEvent.change(screen.getByLabelText('Occurred at'),{target:{value:'2030-02-01T10:30'}});
     await user.click(screen.getByRole('button',{name:'Employee involved'}));
     await user.click(await screen.findByRole('option',{name:'Tariro Moyo · E-1'}));

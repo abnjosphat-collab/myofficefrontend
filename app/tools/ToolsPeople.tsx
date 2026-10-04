@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { CompetencyRecord } from './complianceTypes';
 import { ToolsIcon as Icon } from './ToolsIcon';
-import { ToolsDialog } from './ToolsUI';
+import { ToolsDialog, tileEmergeProps } from './ToolsUI';
 import type { Employee, Tool } from './prototype';
 import { competencyForEmployeeTool, groupEmployeesByDepartment, isCurrentCompetency } from './toolEligibility';
 import s from './tools.module.css';
@@ -70,6 +71,7 @@ export function ToolsPeople({ employees, tools, competencies, search, canManage,
 }) {
   const [selected,setSelected]=useState<Employee|null>(null);
   const [toolSearch,setToolSearch]=useState('');
+  const reduced=useReducedMotion();
   const query = search.trim().toLowerCase();
   const visible = employees.filter(employee => `${employee.name} ${employee.employeeNumber} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
   const groups = groupEmployeesByDepartment(visible);
@@ -82,10 +84,10 @@ export function ToolsPeople({ employees, tools, competencies, search, canManage,
   if (!employees.length) return <div className={s.empty}><Icon name="user" size={32}/><h2>Build your employee register</h2><p>Add the people who may receive tools and equipment. This register is separate from MyOffice.</p><button className={s.primary} onClick={onAdd}><Icon name="plus" size={16}/>Add the first employee</button></div>;
   return <>
     <div className={s.peopleDepartmentGroups}>
-      {groups.map(group=><section key={group.department} className={s.peopleDepartmentSection} aria-labelledby={`people-${group.department.replaceAll(' ','-')}`}>
+      {groups.map((group,gi)=><motion.section key={group.department} className={s.peopleDepartmentSection} aria-labelledby={`people-${group.department.replaceAll(' ','-')}`} {...tileEmergeProps(gi, reduced)}>
         <header className={s.peopleDepartmentHeading}><div><span className={s.departmentMark}><Icon name="department" size={17}/></span><div><h2 id={`people-${group.department.replaceAll(' ','-')}`}>{group.department}</h2><p>{group.employees.length} {group.employees.length===1?'employee':'employees'}</p></div></div></header>
-        <div className={s.peopleRegister}>{group.employees.map(employee=><button type="button" key={employee.id} className={s.personCard} onClick={()=>{setSelected(employee);setToolSearch('');}} aria-label={`View ${employee.name}`}><span className={s.personAvatar}><Icon name="user" size={20}/></span><div><strong>{employee.name}</strong><small>{employee.employeeNumber}</small>{employee.jobTitle&&<p>{employee.jobTitle}</p>}{employee.supervisorName&&<p>Supervisor: {employee.supervisorName}</p>}</div><span className={s.personState}>{employee.active?'Active':'Inactive'}</span><Icon name="chevron" size={16}/></button>)}</div>
-      </section>)}
+        <div className={s.peopleRegister}>{group.employees.map((employee,i)=><motion.button type="button" key={employee.id} className={s.personCard} onClick={()=>{setSelected(employee);setToolSearch('');}} aria-label={`View ${employee.name}`} {...tileEmergeProps(gi + i, reduced)}><span className={s.personAvatar}><Icon name="user" size={20}/></span><div><strong>{employee.name}</strong><small>{employee.employeeNumber}</small>{employee.jobTitle&&<p>{employee.jobTitle}</p>}{employee.supervisorName&&<p>Supervisor: {employee.supervisorName}</p>}</div><span className={s.personState}>{employee.active?'Active':'Inactive'}</span><Icon name="chevron" size={16}/></motion.button>)}</div>
+      </motion.section>)}
       {!visible.length&&<div className={s.empty}><Icon name="search" size={28}/><h2>No matching employees</h2><p>Try a name, employee number, supervisor or department.</p></div>}
     </div>
     <ToolsDialog open={!!selected} onClose={()=>setSelected(null)} title={selected?.name||'Employee details'} description={selected?`${selected.employeeNumber} · ${selected.department}`:''} wide>

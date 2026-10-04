@@ -8,7 +8,7 @@ import {
   FilePdf, UploadSimple, Info, Eye, EyeSlash, ArrowUp, ArrowDown,
   TreeStructure, TextAa, Bell, Wrench, House, ChatCircleText, DotsSixVertical, MagnifyingGlassPlus,
   MagnifyingGlassMinus, ChartLineUp, UserGear, Toolbox, CalendarBlank,
-} from '@phosphor-icons/react';
+} from '@/components/shared/design-system/icons';
 
 // A consistent thin Phosphor set gives equipment distinct, familiar silhouettes.
 const icons = {

@@ -4,6 +4,7 @@ import { createContext, useContext, useId, useRef, useState, type CSSProperties,
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { emergeProps } from '@/components/shared/design-system/motion';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { attachmentError, type Evidence } from './prototype';
 import s from './tools.module.css';
@@ -28,6 +29,14 @@ export function ActionHint({ label, children }: { label: ReactNode; children: Re
 export function AnimatedText({ children, value }: { children: ReactNode; value: string | number }) {
   const reduced = useReducedMotion();
   return <AnimatePresence initial={false} mode="wait"><motion.span key={value} initial={{ opacity: 0, y: reduced ? 0 : 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : .16 }} className={s.animatedText}>{children}</motion.span></AnimatePresence>;
+}
+
+/** Shared tile-entrance motion — delegates to the design-system calm entrance
+ *  (identical values: fade with a slight rise, staggered per index and capped so
+ *  long lists settle together). Mount-only (no exit); instant under reduced motion.
+ *  Spread onto any motion element. */
+export function tileEmergeProps(index = 0, reduced: boolean | null = false) {
+  return emergeProps(index, reduced);
 }
 
 export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {

@@ -62,37 +62,68 @@ async function checkPage(context, route) {
 // ─── Targeted checks for the flows that regressed before ─────────────────────────
 async function targeted(context) {
   const results = [];
+  // Tools needs its own session + shaped fixtures: the generic mock returns []
+  // for everything, which leaves Tools signed out (workspace aria-hidden) and
+  // breaks shape-sensitive endpoints like /auth/me and /compliance.
+  const TOOLS_ACCOUNT = { id: 'a1', name: 'Smoke Admin', username: 'admin', role: 'admin', can_issue: true };
+  const TOOLS_FIXTURES = {
+    '/api/tools-workspace/auth/me': TOOLS_ACCOUNT,
+    '/api/tools-workspace/employees': [],
+    '/api/tools-workspace/tools': [],
+    '/api/tools-workspace/history': [],
+    '/api/tools-workspace/source-registers': [],
+    '/api/tools-workspace/notifications': { alerts: [], unread_count: 0 },
+    '/api/tools-workspace/compliance': { competencies: [], inspections: [], incidents: [], gate_passes: [] },
+    '/api/tools-workspace/analytics': { usage: [], errors: [], feedback: [] },
+    '/api/tools-workspace/accounts': [TOOLS_ACCOUNT],
+  };
   const run = async (name, fn) => {
     const page = await context.newPage();
     const errs = [];
     page.on('pageerror', e => {
       if (!IGNORABLE_PAGE_ERROR.test(e.message)) errs.push(e.message);
     });
-    await page.route('**/api/**', mockApi);
-    await page.addInitScript(() => { try { localStorage.setItem('oz_prefsSeen', '1'); } catch {} });
+    await page.route('**/api/**', async route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (route.request().method() !== 'GET') return route.abort('blockedbyclient');
+      if (pathname in TOOLS_FIXTURES) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TOOLS_FIXTURES[pathname]) });
+      }
+      return mockApi(route);
+    });
+    await page.addInitScript((account) => {
+      try {
+        localStorage.setItem('oz_prefsSeen', '1');
+        localStorage.setItem('myoffice.tools.session.v1', JSON.stringify({ ...account, password: '', canIssue: true, token: 'smoke' }));
+      } catch {}
+    }, TOOLS_ACCOUNT);
     try { await fn(page); results.push([name, errs.length ? `uncaught: ${errs[0]}` : null]); }
     catch (e) { results.push([name, e.message.split('\n')[0]]); }
     await page.close();
   };
+  // Tools lands on the Overview tab; register controls live on Equipment.
+  const gotoEquipment = async page => {
+    await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
+    await page.getByRole('button', { name: 'Equipment', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('button', { name: 'Equipment', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Open filter and sort controls' }).waitFor({ state: 'visible', timeout: 15000 });
+  };
 
   await run('Tools workspace renders its primary controls', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.waitForTimeout(1500);
-    if (await page.getByRole('heading', { name: 'Tools & Equipment E-System' }).count() === 0) throw new Error('Tools heading missing');
-    if (await page.getByRole('button', { name: 'Open filter and sort controls' }).count() === 0) throw new Error('primary register controls missing');
+    await page.getByRole('heading', { name: 'Overview' }).first().waitFor({ state: 'visible', timeout: 30000 });
+    await gotoEquipment(page);
   });
 
   await run('Tools settings open from sticky top bar', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.waitForTimeout(1500);
-    await page.getByRole('button', { name: 'Open settings' }).click();
-    await page.waitForTimeout(600);
-    if (await page.getByRole('heading', { name: 'Settings' }).count() === 0) throw new Error('settings dialog did not open');
+    await page.getByRole('button', { name: 'Open settings' }).first().waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('button', { name: 'Open settings' }).first().click();
+    await page.getByRole('heading', { name: 'Settings' }).first().waitFor({ state: 'visible', timeout: 15000 });
   });
 
   await run('Tools filter dropdown opens inside the viewport', async page => {
-    await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.waitForTimeout(1500);
+    await gotoEquipment(page);
     await page.getByRole('button', { name: 'Open filter and sort controls' }).click();
     await page.getByRole('button', { name: 'Status' }).click();
     const option = page.getByRole('option', { name: 'All active tools' });

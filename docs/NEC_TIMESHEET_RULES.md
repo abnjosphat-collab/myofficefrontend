@@ -6,10 +6,20 @@ Scoped product rules confirmed for **NEC cycle** timesheets (13th–12th). Perio
 
 - NEC payroll month runs **13th → 12th** (not calendar month).
 - **Leaves** and **Overtime** are authoritative from their modules; scan columns are reconciliation only.
-- **Night shift column** on paper = **night-shift allowance** (separate from normal hours): any **18:00–06:00** hours from the **rostered shift** (start/end on the row), **including module OT worked after shift end** on that day (e.g. 18:00–04:00 + 2h OT → 12h night allow.). When module OT **starts before 06:00** on the same payroll date (tail of the night roster), the allowance completes the full **12h** window even if shift times on the row are incomplete or wrong. Module OT hours use stored `hours` or **start/end** when `hours` is null. **Automatic** — not a manual toggle. **Callout** / breakdown work at night uses `callout_overtime_hours`, not night allowance. Grid totals: `rosterNightAllowanceHours` → `nightAllowanceBonus` (see `calcTotals.ts`). Employee codes are **normalized** (e.g. `C1160`) when joining timesheets to leave/overtime modules.
+- **Night shift column** on paper = **night-shift allowance** (separate from normal hours): any **18:00–06:00** hours from the **rostered shift** (start/end on the row), **including module OT worked after shift end** on that day (e.g. 18:00–04:00 + 2h OT → 12h night allow.). When module OT **explicitly identifies a night shift/roster tail and starts before 06:00** on the same payroll date, the allowance completes the full **12h** window even if shift times on the row are incomplete or wrong. Module OT hours use stored `hours` or **start/end** when `hours` is null. **Automatic** — not a manual toggle. **Callout** / breakdown work at night uses `callout_overtime_hours`, not night allowance. Grid totals: `rosterNightAllowanceHours` → `nightAllowanceBonus` (see `calcTotals.ts`). Employee codes are **normalized** (e.g. `C1160`) when joining timesheets to leave/overtime modules.
 - **Standby** = flat 8h per contiguous flagged run (calendar gaps start a new run).
 
 ## Normal hours
+
+### Confirmed holiday and standby import rules (2 October 2026)
+
+- Worked-holiday daily cells show the normal shift once: **10h** (or **12h** for a 12h shift). The additional holiday premium appears only in the **2.0x total column**, not as a repeated extra-hours line in the daily cell. Preserve module-sourced `holiday_overtime_hours` for calculation and audit details; do not add those hours to the displayed normal shift.
+- Worked holidays retain **normal shift hours plus separate 2.0x overtime from the Overtime module**. Usual 8h/day workers receive **10 normal hours** on a worked holiday; 12h shift workers receive **12 normal hours**. The user designates **15 September 2026** for the October NEC import.
+- Import worked-holiday base rows with `status: work` so normal hours remain in Actual. The current `holiday` status routes regular hours only to 2.0x. Set holiday overtime from deduplicated module records; do not add the same premium twice. Non-worked paid holidays and leave do not become worked holidays.
+- **8 standby allowance hours per distinct standby period**, regardless of its duration; **two periods = 16h**. Use `standby*`/comments as period evidence. Preserve explicit boundaries even when periods touch; do not pay 8h per flagged day.
+- Match against the current live Employees register, including temporary mine codes. Timesheets use numeric database IDs. Never invent mine numbers or create employees from uncertain scans.
+- Blank normal cells remain unresolved. Leaves/OT come from their modules; missing leave is a reconciliation issue. NEC includes all non-rejected module records, including pending and unsigned records, without changing source approval/signature state.
+- Missing night allowance is completed from explicit rostered shifts: **18:00-06:00 = 12h**, **03:00-06:00 = 3h**, separate from normal hours and counted once.
 
 - Working days: preserve recorded normal hours (8 / 10 / 12 by role).
 - **OFF** = 0 normal hours. **Blank ≠ OFF**.
@@ -22,13 +32,15 @@ Single source: `app/timesheets/calcTotals.ts` (`calcEmployeeTotals`) — grid, s
 - **Actual** = uncapped sum of **normal** (`regular_hours`) for the period (includes leave-as-8h). Excludes double-time days (`weekend` / `holiday` worked → **2.0×** column only). Actual is a **reporting** figure; it stays full even when hours exceed 208.
 - **Reg** = `min(Actual, 208)` — payable regular cap. **NEC exception:** if the employee has **no Absent** days in the period, **Reg defaults to 208** even when Actual is below 208 (shift pattern + normal **Off** rest days do not block this — only deliberate **Absent** does).
 - **Normal excess** = `max(Actual − 208, 0)` — allocated to **1.5×**, not subtracted from Actual (always from Actual, not from the Reg floor).
-- **1.5×** = normal excess **plus** module `overtime_hours` (additional OT from the Overtime module). Excel export: single **OT 1.5×** column with formula `MAX(0, Actual h − 208) + h1 + h2 + …` — one `+term` per approved 1.5× OT line (chronological); extend in the formula bar for manual 1.5× hours (no extra column). Do not persist excess on rows and add it again at render time.
+- **1.5×** = normal excess **plus** module `overtime_hours` (additional OT from the Overtime module). Excel export: single **OT 1.5×** column with formula `MAX(0, Actual h − 208) + h1 + h2 + …` — one `+term` per eligible non-rejected 1.5× OT line (chronological); extend in the formula bar for manual 1.5× hours (no extra column). Do not persist excess on rows and add it again at render time.
 - **2.0×** = double-time day totals plus `holiday_overtime_hours` on ordinary days; other categories stay separate.
 - **Payable total** = Reg + 1.5× + 2.0× + night + standby + night allowance (Actual is not added again).
 
-## Batch exception (Sep 2026 import only)
+## Source approval policy (confirmed 2 October 2026)
 
-For **2026-08-13 … 2026-09-12** NEC grid reconciliation, unsigned/pending leave and overtime were included **without changing** their approval/signature status. Implemented via `app/timesheets/necModuleBatch.ts` — **not** a global policy.
+For every NEC cycle, include **all non-rejected Leaves and Overtime**, whether approved, pending or unsigned. Source modules retain ownership; inclusion never signs or approves a source record. Approved records show green indicators; pending/unsigned records show amber indicators and explicit pending labels. Mixed approval states show both. Payroll totals include pending records provisionally. Salaried eligibility is unchanged. The earlier Aug-Sep 2026 exception in `necModuleBatch.ts` remains historical compatibility only. Approval metadata is rebuilt from source modules and never stored or drag-filled.
+
+**Callouts and breakdown overtime receive no night-shift allowance**, even before 06:00. A clock time alone must never imply a full night roster. Full-night completion requires explicit night-shift/roster evidence; genuine shifts starting at 03:00 receive their actual 03:00-06:00 overlap (3h).
 
 ## API completeness
 

@@ -3,7 +3,7 @@ import { IconBox, IconCircuitAmmeter, IconCircuitVoltmeter, IconDeviceLaptop, Ic
 import {
   Box as IconoirBox, Lamp as IconoirLamp, Laptop as IconoirLaptop, Wrench as IconoirWrench,
 } from 'iconoir-react';
-import { Laptop, Toolbox as ToolCase, Wrench } from '@phosphor-icons/react';
+import { Laptop, Toolbox as ToolCase, Wrench } from '@/components/shared/design-system/icons';
 type EquipmentIconFamily = 'technical' | 'myoffice' | 'tabler' | 'iconoir';
 import type { EquipmentKind } from './prototype';
 
