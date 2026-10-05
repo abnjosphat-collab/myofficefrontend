@@ -34,6 +34,18 @@ export function toolsLoginErrorMessage(error: unknown): string {
   return 'The sign-in server could not be reached. Check your connection and try again.';
 }
 
+/** Sign-in and sign-up wait through a server that is waking up: a request that never arrived (a network failure) or that was answered "service unavailable" (503) is tried again a few times, 2 s, 4 s then 8 s apart, before the failure is reported. Anything else (wrong password, a refusal) is reported at once, and a 502/504 is not retried because the server may already have acted on a sign-up. */
+export async function retryUndelivered<T>(run: () => Promise<T>, delays: number[] = [2000, 4000, 8000]): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await run(); }
+    catch (error) {
+      const undelivered = error instanceof TypeError || (error instanceof ToolsApiError && error.status === 503);
+      if (!undelivered || attempt >= delays.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
+
 async function request<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -59,5 +71,5 @@ export const toolsApi = {
   put: <T>(path: string, token: string, body: unknown) => request<T>(path, token, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(path: string, token: string, body: unknown) => request<T>(path, token, { method: 'PATCH', body: JSON.stringify(body) }),
   download,
-  anonymousPost: <T>(path: string, body: unknown) => request<T>(path, undefined, { method: 'POST', body: JSON.stringify(body) }),
+  anonymousPost: <T>(path: string, body: unknown) => retryUndelivered(() => request<T>(path, undefined, { method: 'POST', body: JSON.stringify(body) })),
 };

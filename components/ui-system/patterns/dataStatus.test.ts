@@ -50,9 +50,17 @@ describe('deriveDataStatus', () => {
 
 describe('isTransientStatus', () => {
   it('treats gateway, timeout, throttle and network failures as transient', () => {
-    for (const status of [undefined, null, 0, 408, 429, 502, 503, 504]) expect(isTransientStatus(status)).toBe(true);
+    for (const status of [undefined, null, 0, 408, 429, 500, 502, 503, 504]) expect(isTransientStatus(status)).toBe(true);
   });
   it('treats client and server logic errors as permanent', () => {
-    for (const status of [400, 401, 403, 404, 422, 500]) expect(isTransientStatus(status)).toBe(false);
+    for (const status of [400, 401, 403, 404, 422, 501, 505]) expect(isTransientStatus(status)).toBe(false);
+  });
+});
+
+describe('isTransientStatus agrees with the retry rule', () => {
+  it('shows "still loading" for exactly the statuses that are retried', async () => {
+    const { ApiError } = await import('@/lib/apiClient');
+    const { isTransientError } = await import('@/lib/transientRetry');
+    for (let status = 100; status < 600; status++) expect(isTransientStatus(status), String(status)).toBe(isTransientError(new ApiError('x', status)));
   });
 });

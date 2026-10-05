@@ -22,14 +22,16 @@ export interface DataStatusInput {
   errorStatus?: number | null;
   /** Human-readable failure of the latest attempt, if any. */
   error?: string | null;
-  /** The failure is expected to clear on its own (502/503/504, network, Supabase waking up). */
+  /** The failure is expected to clear on its own (server errors such as 500/502/503/504, timeouts, network, Supabase waking up). */
   transient?: boolean;
   /** Number of records the region would render. */
   count: number;
 }
 
+/** Must agree with lib/transientRetry.ts (what is retried is what is shown as "still loading"): timeouts, rate limits, no answer, and server-side failures (500, 502, 503, 504...) except "not implemented" and "version not supported". */
 export function isTransientStatus(status: number | null | undefined): boolean {
-  return status === undefined || status === null || status === 0 || status === 502 || status === 503 || status === 504 || status === 408 || status === 429;
+  if (status === undefined || status === null || status === 0) return true;
+  return status === 408 || status === 429 || (status >= 500 && status !== 501 && status !== 505);
 }
 
 export function deriveDataStatus(input: DataStatusInput): DataStatus {
