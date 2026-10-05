@@ -22,6 +22,8 @@ for (const file of roots.flatMap(markdownFiles)) {
     const target = match[1];
     if (/^(https?:|mailto:|#)/.test(target)) continue;
     const resolved = path.resolve(path.dirname(file), decodeURIComponent(target.split('#')[0]));
+    // A link that leaves this repository (to the sibling backend or the workspace README) cannot be checked in a single-repo checkout.
+    if (path.relative(root, resolved).startsWith('..')) continue;
     if (!fs.existsSync(resolved)) broken.push(`${path.relative(root, file)}: ${target}`);
   }
 }
