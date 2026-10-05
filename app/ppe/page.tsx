@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  deriveDataStatus, isTransientStatus, useConfirm,
+  deriveDataStatus, isTransientStatus, useConfirm, MoreMenu
 } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
 import { normalizeSection } from '@/lib/sections';
@@ -124,27 +124,27 @@ function PPEContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
         title="PPE management"
         description="Who holds what, what is due, and what to order."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh PPE" variant="outline" pending={recs.loading && recs.loaded} onClick={reload} />
-            <Button icon="settings" onClick={() => setMatrixOpen(true)}>Replacement matrix</Button>
+            <IconButton icon="refresh" label="Refresh PPE" variant="ghost" pending={recs.loading && recs.loaded} onClick={reload} />
+            <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
             <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
           </>
         )}
       />
       {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from it; the issue form still works by typing.</Notice>}
 
-      <MetricGrid columns={5}>
-        <MetricTile label="People" icon="employees" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
-        <MetricTile label="Active items" icon="ppe" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
-        <MetricTile label="Expiring soon" icon="due-soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
-        <MetricTile label="Overdue" icon="overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
-        <MetricTile label="On the order list" icon="cart" value={order.entries.length} loading={order.loading && !order.loaded} unavailable={!order.loaded && !order.loading} selected={tab === 'order'} onClick={() => setTab('order')} />
+      <MetricGrid compact>
+        <MetricTile compact label="People" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
+        <MetricTile compact label="Active items" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
+        <MetricTile compact label="Expiring soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
+        <MetricTile compact label="Overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
+        <MetricTile compact label="On the order list" value={order.entries.length} loading={order.loading && !order.loaded} unavailable={!order.loaded && !order.loading} selected={tab === 'order'} onClick={() => setTab('order')} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>

@@ -40,13 +40,13 @@ function ReliabilityContent() {
   const sectionSummary = sections.length ? `Mean time to repair by section, in hours: ${sections.map(s => `${s.section} ${s.mttr}`).join(', ')}.` : 'No section data.';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Reliability' }]}
         title="MTBF and MTTR analytics"
         description="Fleet reliability and availability, calculated from the breakdowns recorded in MyOffice."
         meta={loaded ? `Based on ${recordCount} recorded ${recordCount === 1 ? 'breakdown' : 'breakdowns'}.` : undefined}
-        actions={<IconButton icon="refresh" label="Refresh analytics" variant="outline" pending={loading && loaded} onClick={refresh} />}
+        actions={<IconButton icon="refresh" label="Refresh analytics" variant="ghost" pending={loading && loaded} onClick={refresh} />}
       />
 
       <DataRegion
@@ -57,11 +57,11 @@ function ReliabilityContent() {
         empty={<EmptyState icon="analytics" title="No breakdowns recorded yet" description="Reliability figures are calculated from breakdown records. They appear here as soon as breakdowns are logged." />}
       >
         <div className="flex flex-col gap-6">
-          <MetricGrid columns={4}>
-            <MetricTile label="Fleet MTBF" icon="clock" value={`${fleet.mtbf} days`} detail="Mean time between failures" loading={pending} unavailable={unavailable} />
-            <MetricTile label="Fleet MTTR" icon="wrench" value={`${fleet.mttr} h`} detail="Mean time to repair" loading={pending} unavailable={unavailable} />
-            <MetricTile label="Availability" icon="availability" tone="success" value={`${fleet.availability}%`} loading={pending} unavailable={unavailable} />
-            <MetricTile label="High RPN items" icon="critical" tone="danger" value={fleet.highRpn} detail="Risk priority number above 100" loading={pending} unavailable={unavailable} />
+          <MetricGrid compact>
+            <MetricTile compact label="Fleet MTBF" value={`${fleet.mtbf} days`} detail="Mean time between failures" loading={pending} unavailable={unavailable} />
+            <MetricTile compact label="Fleet MTTR" value={`${fleet.mttr} h`} detail="Mean time to repair" loading={pending} unavailable={unavailable} />
+            <MetricTile compact label="Availability" tone="success" value={`${fleet.availability}%`} loading={pending} unavailable={unavailable} />
+            <MetricTile compact label="High RPN items" tone="danger" value={fleet.highRpn} detail="Risk priority number above 100" loading={pending} unavailable={unavailable} />
           </MetricGrid>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
