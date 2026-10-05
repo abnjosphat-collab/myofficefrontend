@@ -152,14 +152,14 @@ function TrainingContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Training' }]}
         title="Training and certification"
         description="Employee qualifications, expiry dates and compliance."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh training records" variant="outline" pending={refreshing} onClick={() => fetchAll(true)} />
+            <IconButton icon="refresh" label="Refresh training records" variant="ghost" pending={refreshing} onClick={() => fetchAll(true)} />
             <DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${new Date().toISOString().slice(0, 10)}`} title="Training & Certification Register" />
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
           </>
@@ -168,12 +168,12 @@ function TrainingContent() {
 
       {error && <Notice tone="danger" title="Something went wrong" action={<Button size="sm" onClick={() => setError('')}>Dismiss</Button>}>{error}</Notice>}
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Certifications" icon="training" value={counts.total} loading={loading} unavailable={unavailable(registerUnavailable)} />
-        <MetricTile label="Compliance" icon="percent" tone={complianceTone(compliance.compliance_rate)} value={`${compliance.compliance_rate}%`} loading={loading} unavailable={unavailable(complianceUnavailable)} />
-        <MetricTile label="Valid" icon="valid" tone="success" value={counts.valid} loading={loading} unavailable={unavailable(registerUnavailable)} />
-        <MetricTile label="Due soon" icon="due-soon" tone="warning" value={counts.dueSoon} loading={loading} unavailable={unavailable(registerUnavailable)} />
-        <MetricTile label="Expired" icon="expired" tone="danger" value={counts.expired} loading={loading} unavailable={unavailable(registerUnavailable)} />
+      <MetricGrid compact>
+        <MetricTile compact label="Certifications" value={counts.total} loading={loading} unavailable={unavailable(registerUnavailable)} />
+        <MetricTile compact label="Compliance" tone={complianceTone(compliance.compliance_rate)} value={`${compliance.compliance_rate}%`} loading={loading} unavailable={unavailable(complianceUnavailable)} />
+        <MetricTile compact label="Valid" tone="success" value={counts.valid} loading={loading} unavailable={unavailable(registerUnavailable)} />
+        <MetricTile compact label="Due soon" tone="warning" value={counts.dueSoon} loading={loading} unavailable={unavailable(registerUnavailable)} />
+        <MetricTile compact label="Expired" tone="danger" value={counts.expired} loading={loading} unavailable={unavailable(registerUnavailable)} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>

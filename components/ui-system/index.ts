@@ -54,7 +54,7 @@ export { floatingSurface, optionRow } from './overlays/surfaces';
 export { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel } from './overlays/Menu';
 
 // Patterns
-export { PageHeader, Toolbar } from './patterns/PageHeader';
+export { PageHeader, Toolbar, FilterField } from './patterns/PageHeader';
 export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
