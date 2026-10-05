@@ -186,15 +186,15 @@ function SheqContent() {
   const actionRows = [{ name: 'Completed', value: totals.totalActionsDone }, { name: 'In progress', value: totals.totalActionsProg }, { name: 'Pending', value: totals.totalActionsPend }];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ dashboard' }]}
         title="SHEQ safety dashboard"
         description="Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu."
         actions={(
           <>
-            <Button variant={autoRefresh ? "primary" : "secondary"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
-            <IconButton icon="refresh" label="Refresh dashboard" variant="outline" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
+            <Button variant={autoRefresh ? "secondary" : "ghost"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
+            <IconButton icon="refresh" label="Refresh dashboard" variant="ghost" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
           </>
         )}
       />
@@ -218,14 +218,14 @@ function SheqContent() {
         skeletonRows={4}
         empty={<EmptyState icon="compliance" title="No safety records yet" description="The dashboard fills in as near miss, work stoppage, VFL, PTO, inspection and Pachedu records are logged." />}
       >
-        <MetricGrid columns={4}>
-          <MetricTile label="Total reports" icon="flag" detail="All six modules" value={totals.totalReports} loading={pending} />
-          <MetricTile label="Near miss" icon="warning" href="/near_miss" detail={`${stats.nm.mechanical} mech, ${stats.nm.electrical} elec, ${stats.nm.general} general`} value={stats.nm.total} loading={pending} />
-          <MetricTile label="Work stoppages" icon="cancel" href="/work_stoppage" detail={`${stats.ws.actPend} ${stats.ws.actPend === 1 ? 'action' : 'actions'} pending`} value={stats.ws.total} loading={pending} />
-          <MetricTile label="VFL observations" icon="eye" href="/vfl" detail={`${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe`} value={stats.vfl.total} loading={pending} />
-          <MetricTile label="PTO reports" icon="task" href="/pto" tone={stats.pto.highRisk ? 'warning' : 'default'} detail={`${stats.pto.highRisk} high risk`} value={stats.pto.total} loading={pending} />
-          <MetricTile label="Inspections" icon="compliance" href="/sheq_inspection" detail={`${stats.insp.openFindings} open ${stats.insp.openFindings === 1 ? 'finding' : 'findings'}`} value={stats.insp.total} loading={pending} />
-          <MetricTile label="Pending actions" icon="pending" tone={totals.totalActionsPend > 5 ? 'warning' : 'default'} detail={`${totals.totalActionsDone} completed`} value={totals.totalActionsPend} loading={pending} />
+        <MetricGrid compact>
+          <MetricTile compact label="Total reports" detail="All six modules" value={totals.totalReports} loading={pending} />
+          <MetricTile compact label="Near miss" href="/near_miss" detail={`${stats.nm.mechanical} mech, ${stats.nm.electrical} elec, ${stats.nm.general} general`} value={stats.nm.total} loading={pending} />
+          <MetricTile compact label="Work stoppages" href="/work_stoppage" detail={`${stats.ws.actPend} ${stats.ws.actPend === 1 ? 'action' : 'actions'} pending`} value={stats.ws.total} loading={pending} />
+          <MetricTile compact label="VFL observations" href="/vfl" detail={`${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe`} value={stats.vfl.total} loading={pending} />
+          <MetricTile compact label="PTO reports" href="/pto" tone={stats.pto.highRisk ? 'warning' : 'default'} detail={`${stats.pto.highRisk} high risk`} value={stats.pto.total} loading={pending} />
+          <MetricTile compact label="Inspections" href="/sheq_inspection" detail={`${stats.insp.openFindings} open ${stats.insp.openFindings === 1 ? 'finding' : 'findings'}`} value={stats.insp.total} loading={pending} />
+          <MetricTile compact label="Pending actions" tone={totals.totalActionsPend > 5 ? 'warning' : 'default'} detail={`${totals.totalActionsDone} completed`} value={totals.totalActionsPend} loading={pending} />
         </MetricGrid>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-6">
