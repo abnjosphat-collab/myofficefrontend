@@ -8,7 +8,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented,
   Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
-  type Column,
+  type Column, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -146,40 +146,46 @@ function AvailabilitiesContent() {
   const best = periodRows.length ? findBestWorstPeriod(periodRows) : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Availability records' }]}
         title="Availability records"
         description="Availability = (operational hours − downtime) ÷ operational hours × 100."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh availability records" variant="outline" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh availability records" variant="ghost" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={recordsExport} filename={`Availability_Records_${dateFrom}_to_${dateTo}`} title="Equipment Availability Records" subtitle={`Period: ${dateFrom} to ${dateTo}`} formats={['excel']} />}
-            <Button asChild><Link href="/breakdowns">Breakdowns</Link></Button>
+            <Button asChild variant="ghost"><Link href="/breakdowns">Breakdowns</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={openNew}>Log record</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Equipment" icon="equipment" value={eqList.loaded ? equipment.length : undefined} loading={eqList.loading && !eqList.loaded} unavailable={!eqList.loaded && !eqList.loading} />
-        <MetricTile label="Avg availability" icon="percent" value={fleet.avg == null ? undefined : pct(fleet.avg)} detail="Latest entry per machine" {...tile} />
-        <MetricTile label="Below 90%" icon="warning" tone={fleet.below90 ? 'danger' : 'default'} value={fleet.below90} {...tile} />
-        <MetricTile label="Total downtime" icon="clock" value={hrs(fleet.downtime)} {...tile} />
-        <MetricTile label="Records in range" icon="documents" value={filtered.length} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Equipment" value={eqList.loaded ? equipment.length : undefined} loading={eqList.loading && !eqList.loaded} unavailable={!eqList.loaded && !eqList.loading} />
+        <MetricTile compact label="Avg availability" value={fleet.avg == null ? undefined : pct(fleet.avg)} detail="Latest entry per machine" {...tile} />
+        <MetricTile compact label="Below 90%" tone={fleet.below90 ? 'danger' : 'default'} value={fleet.below90} {...tile} />
+        <MetricTile compact label="Total downtime" value={hrs(fleet.downtime)} {...tile} />
+        <MetricTile compact label="Records in range" value={filtered.length} {...tile} />
       </MetricGrid>
 
       {derived.error && manual.loaded && <Notice tone="warning" title="Records derived from breakdowns could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => derived.refetch()}>Try again</Button>}>{derived.error} Only manual entries are shown, so some days may be missing.</Notice>}
       {eqList.error && <Notice tone="warning" title="The equipment list could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => eqList.refetch()}>Try again</Button>}>{eqList.error} Department and category filters are limited, and a record cannot be logged until it loads.</Notice>}
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search equipment" wrapperClassName="min-w-48 max-w-xs flex-1" />
+      <Toolbar
+        filtered={hasFilters} onClear={clearFilters}
+        activeCount={(catFilter !== ALL ? 1 : 0) + [dateFrom, dateTo].filter(Boolean).length}
+        moreFilters={(
+          <>
+            {cats.length > 0 && <FilterField label="Category"><Select aria-label="Filter by category" value={catFilter} onValueChange={setCatFilter} options={[{ value: ALL, label: 'All categories' }, ...cats.map(c => ({ value: c, label: c }))]} /></FilterField>}
+            <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+            <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search equipment" wrapperClassName="min-w-48 max-w-xs flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-44" aria-label="Filter by equipment" value={eqFilter} onValueChange={setEqFilter} options={[{ value: ALL, label: 'All equipment' }, ...equipment.map(e => ({ value: String(e.id), label: e.name }))]} />
         {depts.length > 0 && <Select className="w-44" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} />}
-        {cats.length > 0 && <Select className="w-44" aria-label="Filter by category" value={catFilter} onValueChange={setCatFilter} options={[{ value: ALL, label: 'All categories' }, ...cats.map(c => ({ value: c, label: c }))]} />}
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <Tabs value={tab} onValueChange={setTab}>
