@@ -65,8 +65,19 @@ let _sp: SpareLookup[] | null = null;
 // data the moment it lands.
 const _inflight = new Map<string, Promise<unknown[]>>();
 
+// A list whose cache was cleared (see invalidateSparesCache) is read again by every picker that is showing it.
+const _listeners = new Map<string, Set<() => void>>();
+const refreshLookup = (label: string) => _listeners.get(label)?.forEach(fn => fn());
+
 function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, load: () => Promise<T[]>, label: string): T[] {
   const [list, setList] = useState<T[]>(cacheGet() ?? []);
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setVersion(v => v + 1);
+    const set = _listeners.get(label) ?? new Set<() => void>();
+    set.add(bump); _listeners.set(label, set);
+    return () => { set.delete(bump); };
+  }, [label]);
   useEffect(() => {
     if (cacheGet()) return; // already loaded this session
     let p = _inflight.get(label) as Promise<T[]> | undefined;
@@ -81,7 +92,7 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
     p.then((items) => { cacheSet(items); if (!cancelled) setList(items); })
       .catch((e) => console.warn(`Failed to load ${label}:`, e)); // retries next mount
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
   return list;
 }
 
@@ -104,6 +115,12 @@ export function useEmployees(): EmployeeLookup[] {
 // saveEmployee/removeEmployee right after a successful write.
 export function invalidateEmployeesCache(): void {
   _emp = null;
+}
+
+/** Stock quantities changed (an issue was recorded or deleted): the next read of the spares lists gets the new quantities. */
+export function invalidateSparesCache(): void {
+  _sp = null;
+  refreshLookup('spares');
 }
 
 export function useEquipment(): EquipmentLookup[] {

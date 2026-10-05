@@ -144,14 +144,14 @@ function PPEContent() {
         <MetricTile label="Active items" icon="ppe" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
         <MetricTile label="Expiring soon" icon="due-soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
         <MetricTile label="Overdue" icon="overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
-        <MetricTile label="On the order list" icon="cart" value={order.entries.length} selected={tab === 'order'} onClick={() => setTab('order')} />
+        <MetricTile label="On the order list" icon="cart" value={order.entries.length} loading={order.loading && !order.loaded} unavailable={!order.loaded && !order.loading} selected={tab === 'order'} onClick={() => setTab('order')} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="PPE sections">
           <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
-          <TabsTrigger value="order" icon="cart">{`Order list${order.entries.length ? ` (${order.entries.length})` : ''}`}</TabsTrigger>
+          <TabsTrigger value="order" icon="cart">{`Order list${order.loaded && order.entries.length ? ` (${order.entries.length})` : ''}`}</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
         </TabsList>
 
@@ -188,7 +188,14 @@ function PPEContent() {
           {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}
         </TabsContent>
 
-        <TabsContent value="order" className="mt-4"><OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} /></TabsContent>
+        <TabsContent value="order" className="mt-4">
+          <DataRegion
+            status={deriveDataStatus({ loaded: order.loaded, loading: order.loading, error: order.error, errorStatus: order.errorStatus, count: 1, transient: isTransientStatus(order.errorStatus) })}
+            subject="the order list" error={order.error} onRetry={() => { void order.refetch(); }}
+          >
+            <OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} />
+          </DataRegion>
+        </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={records} employeeCount={holders.length} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}</TabsContent>
       </Tabs>
 

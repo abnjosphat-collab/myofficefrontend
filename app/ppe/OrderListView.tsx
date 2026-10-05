@@ -1,5 +1,5 @@
-// app/ppe/OrderListView.tsx — the items someone has flagged to order. It lives in this browser only (it is a staging list for one purchase
-// order, not a record), and says so. The top shows it the way a purchase order needs it, one line per item and size with how many and
+// app/ppe/OrderListView.tsx — the items someone has flagged to order. The list is shared: everyone who signs in sees and changes the same
+// one (it is a staging list for one purchase order, not a record), and says so. The top shows it the way a purchase order needs it, one line per item and size with how many and
 // for whom (downloadable); below, each flagged item can be issued, which clears it from the list, or removed.
 'use client';
 
@@ -41,7 +41,7 @@ export function OrderListView({ entries, onRemove, onClear, onIssue }: { entries
   if (entries.length === 0) return <EmptyState icon="cart" title="The order list is empty" description="On the Due items tab, select the items to order and choose Add to the order list." />;
   return (
     <div className="flex flex-col gap-4">
-      <Notice tone="info" title="Kept in this browser">{entries.length} {entries.length === 1 ? 'item' : 'items'}, {lines} purchase order {lines === 1 ? 'line' : 'lines'}. Nobody else sees this list, and clearing the browser&apos;s data clears it.</Notice>
+      <Notice tone="info" title="Shared order list">{entries.length} {entries.length === 1 ? 'item' : 'items'}, {lines} purchase order {lines === 1 ? 'line' : 'lines'}. Everyone who signs in sees this same list, and it is kept on the server.</Notice>
       <div className="flex flex-wrap items-center gap-3">
         <SearchField value={search} onValueChange={setSearch} placeholder="Search the order list" wrapperClassName="min-w-48 max-w-sm flex-1" />
         <Select aria-label="PPE type" className="w-44" value={type} onValueChange={setType} options={[{ value: ALL, label: 'All types' }, ...TYPE_OPTIONS]} />

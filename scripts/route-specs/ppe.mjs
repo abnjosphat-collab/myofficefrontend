@@ -1,7 +1,9 @@
 // /ppe: employees with PPE (tiles as filters, search, detail), due items (select, order list, not required), the order list, the replacement
-// matrix, the summary, and issue/edit/delete. Mock shapes mirror the real router.
+// matrix, the summary, and issue/edit/delete. The order list is shared (kept on the server): added, listed and removed through the API.
+// Mock shapes mirror the real router.
 const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const rec = (id, over = {}) => ({ id: String(id), employee_id: 'C100', employee_name: 'Ann Alpha', position: 'Fitter', department: 'MAINTENANCE', ppe_type: 'safety_shoes', item_name: 'Bata Industrial', size: '8', issue_date: day(-100), expiry_date: day(200), condition: 'good', status: 'active', notes: '', issued_by: 'Store', location: 'Workshop', mine_section: 'Mechanical', ...over });
+const ORDER = new Map();
 const RECS = [
   rec(1, { expiry_date: day(-10) }),
   rec(2, { ppe_type: 'helmet', item_name: 'MSA V-Gard', size: '', expiry_date: day(12) }),
@@ -20,6 +22,12 @@ const spec = {
     'PATCH /api/ppe/1': request => ({ ...RECS[0], ...request.postDataJSON() }),
     'PATCH /api/ppe/4': request => ({ ...RECS[3], ...request.postDataJSON() }),
     'DELETE /api/ppe/2': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
+    '/api/ppe-order-list': request => {
+      if (request.method() === 'POST') { for (const e of request.postDataJSON().entries) if (!ORDER.has(e.record_id)) ORDER.set(e.record_id, e); return { added: 1 }; }
+      if (request.method() === 'DELETE') { ORDER.clear(); return { ok: true }; }
+      return [...ORDER.values()];
+    },
+    'POST /api/ppe-order-list/remove': request => { for (const id of request.postDataJSON().record_ids) ORDER.delete(id); return { ok: true }; },
     '/api/ppe/matrix': request => (request.method() === 'PUT' ? { updated: 2 } : { safety_shoes: 12, helmet: 24 }),
     '/api/employees/': [{ employee_id: 'C100', first_name: 'Ann', last_name: 'Alpha', designation: 'Fitter', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C400', first_name: 'Dee', last_name: 'Delta', designation: 'Welder', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C300', first_name: '', last_name: '', designation: '', section: '' }],
   },
@@ -74,6 +82,7 @@ const spec = {
     await due.getByRole('checkbox').nth(1).check();
     await page.getByRole('button', { name: 'Add to the order list' }).click();
     check(await page.getByRole('tab', { name: /^Order list \(1\)/ }).isVisible(), 'adding to the order list updates the tab count');
+    check(calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe-order-list' && c.body.entries.length === 1 && c.body.entries[0].record_id) && ORDER.size === 1, 'the item is added to the shared order list on the server');
 
     // mark not required sends the status
     await due.getByRole('checkbox').nth(2).check();
@@ -85,6 +94,10 @@ const spec = {
     await page.getByRole('tab', { name: /^Order list/ }).click();
     check(await page.getByRole('heading', { name: 'Purchase order lines' }).isVisible(), 'the order list shows purchase order lines');
     await shot(page, 'order@1440');
+    check(await page.getByText('Shared order list').isVisible(), 'the order list says it is shared');
+    await page.getByRole('button', { name: /^Remove/ }).first().click().catch(() => {});
+    await page.waitForTimeout(400);
+    check(ORDER.size === 0 && calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe-order-list/remove'), 'removing an item removes it from the shared list on the server');
 
     // matrix
     await page.getByRole('button', { name: 'Replacement matrix' }).click();

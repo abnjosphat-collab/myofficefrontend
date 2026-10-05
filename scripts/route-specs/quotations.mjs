@@ -1,9 +1,17 @@
-// /quotations: a browser-only generator. Nothing is pre-filled; the draft survives a reload; an incomplete quotation cannot be exported
-// and says why; PDF and Word files download; saved quotations can be opened and deleted; a bad logo is refused.
+// /quotations: a generator whose PDF and Word files are built in the browser. Nothing is pre-filled; the draft survives a reload; an
+// incomplete quotation cannot be exported and says why; saved quotations are kept on the server (shared), can be opened and deleted, a
+// refused save says why, and a list a browser saved before sharing is moved up once; a bad logo is refused.
+const STORE = new Map();
+const shape = (id, draft, savedAt) => ({ id, savedAt, savedBy: 'fixture@x.com', draft });
+let failSave = false;
 const spec = {
   route: '/quotations',
   h1: 'Quotation generator',
-  data: {},
+  data: {
+    '/api/quotations': () => [...STORE.values()],
+    'PUT /api/quotations/QT-TEST-1': request => { if (failSave) return { __status: 422, body: { detail: 'Save rejected (fixture)' } }; const b = request.postDataJSON(); const row = shape('QT-TEST-1', b.draft, b.saved_at); STORE.set('QT-TEST-1', row); return row; },
+    'DELETE /api/quotations/QT-TEST-1': () => { STORE.delete('QT-TEST-1'); return { ok: true }; },
+  },
   async ready(page, calls, { check, shot }) {
     check((await page.getByLabel('Client name').inputValue()) === '' && (await page.getByLabel('Company name').inputValue()) === '', 'nothing is pre-filled (no invented company or client)');
     check(!(await page.getByText(/Elite Solutions|Tech Innovations|Premium/).first().isVisible().catch(() => false)), 'no demo company, client or template appears');
@@ -47,9 +55,17 @@ const spec = {
     check(!!word && /^quotation-QT-.*\.docx$/.test(word.suggestedFilename()), 'the Word file downloads', word?.suggestedFilename());
     await word?.saveAs('node_modules/.cache/mo-audit/quotation-export.docx').catch(() => {});
 
-    // saving
+    // saving: a refusal says why and keeps nothing; then it is saved on the server
+    await page.getByLabel('Quotation number').fill('QT-TEST-1');
+    failSave = true;
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    check(await page.getByRole('tab', { name: 'Saved (1)' }).isVisible(), 'saving adds the quotation to the saved list');
+    await page.getByText(/QT-TEST-1 was not saved: Save rejected \(fixture\)/).waitFor({ timeout: 5000 }).catch(() => {});
+    check(await page.getByText(/was not saved: Save rejected \(fixture\)/).isVisible() && STORE.size === 0, 'a refused save says why and nothing is kept');
+    failSave = false;
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('tab', { name: 'Saved (1)' }).waitFor({ timeout: 5000 }).catch(() => {});
+    check(await page.getByRole('tab', { name: 'Saved (1)' }).isVisible() && STORE.has('QT-TEST-1'), 'saving keeps the quotation on the server and adds it to the saved list');
+    check(calls.some(c => c.method === 'PUT' && c.pathname === '/api/quotations/QT-TEST-1' && c.body?.draft?.client?.name === 'Acme Mining'), 'the whole quotation is sent');
     await page.getByRole('tab', { name: 'Saved (1)' }).click();
     await shot(page, 'saved@1440');
     await page.getByRole('button', { name: 'New', exact: true }).click();
@@ -67,7 +83,7 @@ const spec = {
     const c2 = page.getByRole('alertdialog'); await c2.waitFor({ timeout: 5000 });
     await c2.getByRole('button', { name: 'Delete' }).click();
     await c2.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    check(await page.getByText('Nothing saved yet').isVisible(), 'deleting the last saved quotation shows the empty state');
+    check(await page.getByText('Nothing saved yet').isVisible() && STORE.size === 0, 'deleting the last saved quotation removes it from the server and shows the empty state');
     await page.getByRole('tab', { name: 'Edit' }).click();
 
     // a logo that is not an image is refused

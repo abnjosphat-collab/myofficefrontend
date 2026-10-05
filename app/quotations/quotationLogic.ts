@@ -11,7 +11,7 @@ export interface Draft {
   number: string; date: string; validUntil: string; currency: string; taxRate: string; discount: string; paymentTerms: string; deliveryTime: string;
   theme: string; notes: string; terms: string; client: Party; lines: Line[];
 }
-export interface Saved { id: string; savedAt: string; draft: Draft }
+export interface Saved { id: string; savedAt: string; draft: Draft; /** Who saved it (from the server); empty for one saved before quotations were shared. */ savedBy?: string }
 
 export const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' }, { code: 'EUR', symbol: '€', name: 'Euro' }, { code: 'GBP', symbol: '£', name: 'British Pound' },
@@ -88,7 +88,7 @@ export function readDraft(raw: unknown): Draft | undefined {
 }
 export const readSaved = (raw: unknown): Saved[] | undefined => {
   if (!Array.isArray(raw)) return undefined;
-  return raw.flatMap(s => { const d = s && typeof s === 'object' ? readDraft((s as Record<string, unknown>).draft) : undefined; const o = s as Record<string, unknown>; return d ? [{ id: text(o.id) || d.number, savedAt: text(o.savedAt), draft: d }] : []; });
+  return raw.flatMap(s => { const d = s && typeof s === 'object' ? readDraft((s as Record<string, unknown>).draft) : undefined; const o = s as Record<string, unknown>; return d ? [{ id: text(o.id) || d.number, savedAt: text(o.savedAt), draft: d, savedBy: text(o.savedBy) }] : []; });
 };
 export const readCompany = (raw: unknown): Company | undefined => {
   if (!raw || typeof raw !== 'object') return undefined;

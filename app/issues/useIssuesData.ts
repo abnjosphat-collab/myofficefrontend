@@ -7,7 +7,7 @@
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { useApiResource } from '@/lib/useApiResource';
-import type { Spare, Stats, StockIssue } from './types';
+import type { Spare, Stats, StockIssue, StockMovement } from './types';
 
 export function useIssuesData() {
   const issues = useApiList<StockIssue>('/api/issues', undefined, { paged: true });
@@ -17,5 +17,5 @@ export function useIssuesData() {
   return { issues, stats, spares, refresh };
 }
 
-export const createIssue = (payload: object) => api.post<StockIssue>('/api/issues', payload);
-export const deleteIssue = async (id: number) => { await api.delete(`/api/issues/${id}`); };
+export const createIssue = (payload: object) => api.post<StockIssue & StockMovement>('/api/issues', payload);
+export const deleteIssue = (id: number) => api.delete<StockMovement>(`/api/issues/${id}`);

@@ -41,6 +41,9 @@ export interface StockIssue {
   notes?: string;
 }
 
+/** What the server says about stock when an issue is recorded, changed or deleted. */
+export interface StockMovement { stock?: { stock_code: string; before: number; after: number; short_by: number }[]; stock_warnings?: string[] }
+
 export interface Stats {
   total: number;
   today: number;

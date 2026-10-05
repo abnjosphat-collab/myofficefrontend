@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button, Combobox, Field, Icon, IconButton, Input, Notice, Panel } from '@/components/ui-system';
 import { useEmployees } from '@/hooks/useLookups';
 import { formatCurrency, lineTotal, nowLocal } from '@/components/shared/utils';
+import { invalidateSparesCache } from '@/hooks/useLookups';
 import { createIssue } from './useIssuesData';
 import type { IssueItemRow, Spare } from './types';
 
@@ -62,11 +63,13 @@ export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy,
     if (bad.recipient || bad.items || bad.qty) return;
     setSaving(true);
     try {
-      await createIssue({
+      const made = await createIssue({
         issued_at: new Date(issuedAt).toISOString(), recipient_name: recipient.trim(), issued_by: issuedBy.trim() || null, notes: notes.trim() || null,
         items: used.map(i => ({ stock_code: i.stockCode || null, description: (i.description || i.stockCode).trim(), qty: i.qty, unit: i.unit || 'UN', unit_price: i.unit_price || null })),
       });
-      toast.success('Issue recorded.');
+      invalidateSparesCache();
+      toast.success((made.stock?.length ?? 0) > 0 ? 'Issue recorded and the stock taken off.' : 'Issue recorded.');
+      (made.stock_warnings ?? []).forEach(w => toast.warning(w, { duration: 10_000 }));
       setRecipient(''); setNotes(''); setIssuedAt(nowLocal()); setItems([blankItem()]); setTouched(false);
       await onRecorded();
     } catch (e) { setError((e as Error).message || 'The issue could not be recorded.'); }
@@ -116,7 +119,7 @@ export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy,
         </section>
 
         {error && <Notice tone="danger" title="The issue was not recorded">{error} What you typed is still here.</Notice>}
-        <Notice tone="info" title="A record only">This page records who received what. It does not change the stock quantities in Spares.</Notice>
+        <Notice tone="info" title="Issuing takes stock off">Each item with a stock code is taken off that spare in the Spares register (never below zero). An item without a code, or one that is not in the register, is only recorded. Deleting an issue puts its stock back.</Notice>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="font-sans text-caption text-ink-muted">{used.length} {used.length === 1 ? 'item' : 'items'} to {recipient || 'nobody yet'}</p>
           <Button type="submit" variant="primary" icon="check" pending={saving}>Record issue</Button>

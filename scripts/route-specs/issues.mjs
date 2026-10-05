@@ -1,4 +1,4 @@
-// /issues: record a stock issue (form first), the issue log, analytics, detail and delete.
+// /issues: record a stock issue (form first; it takes the stock off the spare and reports a shortfall), the issue log, analytics, detail and delete (which puts the stock back).
 const today = new Date();
 const iso = offset => { const d = new Date(today); d.setDate(d.getDate() + offset); d.setHours(10, 0, 0, 0); return d.toISOString(); };
 const ISSUES = [
@@ -16,8 +16,8 @@ const spec = {
   route: '/issues',
   h1: 'Stock issues',
   data: {
-    '/api/issues': request => (request.method() === 'POST' ? (failCreate ? { __status: 422, body: { detail: 'Quantity rejected (fixture)' } } : { id: 99 }) : ISSUES),
-    'DELETE /api/issues/2': {},
+    '/api/issues': request => (request.method() === 'POST' ? (failCreate ? { __status: 422, body: { detail: 'Quantity rejected (fixture)' } } : { id: 99, stock: [{ stock_code: 'BRG-1', before: 3, after: 1, short_by: 0 }], stock_warnings: ['SEAL-9: only 1 in stock, so it is now 0 (1 short).'] }) : ISSUES),
+    'DELETE /api/issues/2': { ok: true, stock: [{ stock_code: 'SEAL-9', before: 10, after: 14, short_by: 0 }], stock_warnings: [] },
     '/api/issues/stats/summary': { total: 3, today: 0, this_week: 1, unique_recipients: 3 },
     '/api/spares': SPARES,
     '/api/employees': [{ id: 1, employee_id: 'E1', first_name: 'Ann', last_name: 'Alpha', department: 'Mining' }],
@@ -26,7 +26,7 @@ const spec = {
     const log = page.getByRole('table', { name: 'Stock issue log' });
     check(await log.getByRole('row').count() === 4, 'header plus three issues (a legacy record with no items or date does not crash)');
     check(await log.getByText('No price').first().isVisible(), 'an issue with no price says so instead of $0');
-    check(await page.getByText(/does not change the stock quantities/).isVisible(), 'the page says it records issues and does not change stock');
+    check(await page.getByText(/is taken off that spare in the Spares register/).isVisible(), 'the page says issuing takes stock off the spare');
     await shot(page, 'page@1440');
 
     // validation is explained on the field and nothing is sent
@@ -57,6 +57,7 @@ const spec = {
     const post = calls.filter(c => c.method === 'POST' && c.pathname === '/api/issues').pop();
     check(post?.body.recipient_name === 'Ann Alpha' && post.body.items.length === 1 && post.body.items[0].stock_code === 'BRG-1' && post.body.items[0].qty === 2 && post.body.items[0].unit_price === 12.5 && /T/.test(post.body.issued_at), 'saving sends the recipient, the item and an ISO date', JSON.stringify(post?.body).slice(0, 160));
     check((await page.getByLabel('Issued to').inputValue()) === '', 'the form is cleared after a good save');
+    check(await page.getByText('Issue recorded and the stock taken off.').isVisible() && await page.getByText(/SEAL-9: only 1 in stock/).isVisible(), 'a good save says the stock was taken off and reports a shortfall');
 
     // detail and delete
     await log.getByRole('row').filter({ hasText: 'Ann Alpha' }).first().click();

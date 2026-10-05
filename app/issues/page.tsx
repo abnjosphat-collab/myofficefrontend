@@ -15,6 +15,7 @@ import { AnalyticsPanel } from './AnalyticsPanel';
 import { IssueForm } from './IssueForm';
 import { hasPrice, issueCost } from './analytics';
 import { exportIssuesExcel, exportIssuesPdf } from './exportIssues';
+import { invalidateSparesCache } from '@/hooks/useLookups';
 import { deleteIssue, useIssuesData } from './useIssuesData';
 import type { StockIssue } from './types';
 
@@ -53,7 +54,7 @@ function IssuesContent() {
 
   const remove = async (i: StockIssue) => {
     if (!await confirm({ title: 'Delete this issue record?', message: `${i.recipient_name}, ${fmtDateTime(i.issued_at)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteIssue(i.id); setViewingId(null); toast.success('Issue record deleted.'); await refresh(); }
+    try { const done = await deleteIssue(i.id); invalidateSparesCache(); setViewingId(null); toast.success((done?.stock?.length ?? 0) > 0 ? 'Issue record deleted and its stock put back.' : 'Issue record deleted.'); (done?.stock_warnings ?? []).forEach(w => toast.warning(w, { duration: 10_000 })); await refresh(); }
     catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
   };
   const run = async (fn: () => Promise<void>, done: string) => { try { await fn(); toast.success(done); } catch (e) { toast.error(`Export failed: ${(e as Error).message}`); } };
