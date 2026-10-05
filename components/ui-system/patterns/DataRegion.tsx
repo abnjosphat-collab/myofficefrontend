@@ -19,7 +19,7 @@ export interface EmptyStateProps {
 /** Nothing to show *because there is nothing* (a successful, empty result). Never use for failures. */
 export function EmptyState({ icon = 'empty', title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-6 py-12 text-center', className)}>
+    <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-line-subtle bg-surface px-6 py-10 text-center', className)}>
       <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name={icon} size="xl" /></span>
       <div className="max-w-md">
         <h3 className="font-display text-title font-semibold text-ink">{title}</h3>
@@ -56,7 +56,7 @@ export function Notice({ tone = 'info', icon, title, children, action }: {
     danger: 'border-danger-line bg-danger-soft text-danger',
   } as const;
   return (
-    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex flex-wrap items-center gap-3 rounded-card border px-4 py-3', tones[tone])}>
+    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex flex-wrap items-center gap-3 rounded-card border px-3.5 py-2.5', tones[tone])}>
       <Icon name={icon ?? (tone === 'info' ? 'info' : 'warning')} size="lg" weight="emphasis" />
       <div className="min-w-0 flex-1">
         <p className="font-sans text-label font-semibold">{title}</p>

@@ -13,11 +13,11 @@ export const cardVariants = cva('relative rounded-card border bg-surface text-in
     interactive: {
       true: [
         'focus-ring cursor-pointer text-left transition-[border-color,box-shadow,background-color] duration-[var(--mo-duration-base)] ease-standard',
-        'hover:border-line-strong hover:shadow-card-hover',
+        'hover:border-action/35',
       ],
-      false: 'shadow-card',
+      false: '',
     },
-    selected: { true: 'border-action bg-action-soft/60', false: 'border-line' },
+    selected: { true: 'border-action bg-action-soft/60', false: 'border-line-subtle' },
   },
   defaultVariants: { padding: 'md', interactive: false, selected: false },
 });

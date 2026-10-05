@@ -46,7 +46,7 @@ export function RecordCard({ eyebrow, title, subtitle, status, facts, meta, acti
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1 basis-40">
           {eyebrow && <p className="truncate font-sans text-caption text-ink-muted tabular">{eyebrow}</p>}
-          <h3 className="font-display text-title font-semibold leading-snug text-ink [overflow-wrap:anywhere]">
+          <h3 className="font-display text-title font-medium leading-snug text-ink [overflow-wrap:anywhere]">
             {onOpen ? (
               <button
                 type="button"
