@@ -10,7 +10,7 @@ export function SkeletonRows({ rows = 5, label = 'Loading records' }: { rows?: n
   return (
     <div role="status" aria-live="polite" aria-label={label} className="flex flex-col gap-2.5">
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="flex items-center gap-3 rounded-card border border-line-subtle bg-surface p-3.5">
+        <div key={index} className="flex items-center gap-3 rounded-card bg-surface-subtle p-3.5">
           <Skeleton className="size-9 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <Skeleton className="h-3.5 w-2/5" />
