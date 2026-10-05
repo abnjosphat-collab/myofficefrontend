@@ -43,8 +43,10 @@ const spec = {
     await page.getByRole('searchbox').fill('delta');
     await page.getByText('No one matches').waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('No one matches').isVisible(), 'an archived person is not in the active results');
+    await page.getByRole('button', { name: /^Filters/ }).click();
     await page.getByRole('combobox', { name: 'Show' }).click();
     await page.getByRole('option', { name: 'Everyone' }).click();
+    await page.keyboard.press('Escape');
     check(await page.getByRole('button', { name: 'Open Dee Delta' }).isVisible() && await page.getByText('Archived', { exact: true }).first().isVisible(), 'asking for everyone finds them, marked Archived');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
@@ -87,7 +89,8 @@ const spec = {
     check(await page.getByText(/was not deleted: Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
     // organised roster export
-    await page.getByRole('button', { name: 'Organised roster' }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Organised roster' }).click();
     const ro = dialog('Download the organised roster');
     await ro.waitFor({ timeout: 5000 });
     check(await ro.getByText(/3 groups, 5 people/).isVisible(), 'the export previews how many groups and people it will hold');
@@ -97,11 +100,12 @@ const spec = {
     await ro.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
 
     // registry download
-    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.getByRole('button', { name: 'Registry (Excel)' }).click()]);
+    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'More' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)' }).click(); })()]);
     check(!!dl2 && /Personnel_Registry/.test(dl2.suggestedFilename()), 'the registry download produces a workbook', dl2?.suggestedFilename());
 
     // normalise: shows what it will change; a refused batch says so
-    await page.getByRole('button', { name: 'Normalise', exact: true }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Normalise' }).click();
     const nr = dialog('Normalise the roster');
     await nr.waitFor({ timeout: 5000 });
     check(await nr.getByText('Fay Zeta').isVisible() && await nr.getByRole('heading', { name: 'Changes to be made' }).locator('xpath=..').getByText('Fitter Assistant').isVisible(), 'it lists each change before making it');
