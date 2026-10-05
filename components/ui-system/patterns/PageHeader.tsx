@@ -56,6 +56,11 @@ function flatten(nodes: ReactNode): ReactNode[] {
   return Children.toArray(nodes).flatMap(n => (isValidElement<{ children?: ReactNode }>(n) && n.type === Fragment ? flatten(n.props.children) : [n]));
 }
 
+/** A labelled control inside the Toolbar's Filters popover (`moreFilters`). */
+export function FilterField({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="flex flex-col gap-1"><span className="font-sans text-caption text-ink-muted">{label}</span>{children}</div>;
+}
+
 /**
  * Toolbar row beneath the header: search and common filters on the left, view and sort on the right, one row.
  *
