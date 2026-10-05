@@ -23,7 +23,7 @@
 | `/auth/set-password` | Own chrome | No | No | Not checked | password setup |
 | `/av` | Redirect | No | No | Yes, 2026-10-04 | Retired duplicate of Availabilities (owner decision 4 Oct 2026); the old page was replaced by a redirect. |
 | `/availabilities` | Migrated | Yes | 2 | Yes, 2026-10-03 | Availability records, manual plus derived from breakdowns. Failures of any of the three sources are stated; the period tables are now chronological. |
-| `/availability` | Migrated | Yes | No | Yes, 2026-10-03 | Equipment availability overview, detailed analysis and metrics. Demo-equipment fallback, invented cost impact and placeholder chart removed. The route is not linked from the navigation. |
+| `/availability` | Migrated | Yes | 1 | Yes, 2026-10-03 | Equipment availability overview, detailed analysis and metrics. Demo-equipment fallback, invented cost impact and placeholder chart removed. The route is not linked from the navigation. |
 | `/breakdowns` | Migrated | Yes | 3 | Yes, 2026-10-04 | Register pattern with Records and Analytics tabs. The Analytics tab follows the page filters (not the search). |
 | `/breakdowns/analytics` | Migrated | Yes | No | Yes, 2026-10-04 | Dashboard pattern on the same insight views as the Breakdowns page. |
 | `/competency` | Migrated | Yes | No | Yes, 2026-10-03 | Skill matrix; saves use the real employee_id (data bug fixed); department filter removed (no data). |
