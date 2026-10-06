@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, Combobox, DataRegion, DataTable, EmptyState, Field, IconButton, Notice, PageHeader, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm, type Column,
+  Button, Combobox, DataRegion, DataTable, EmptyState, Field, IconButton, Notice, PageHeader, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm, type Column, FilterField
 } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanEditor } from './ArtisanEditor';
@@ -127,12 +127,12 @@ function ArtisanContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Artisan timesheets' }]}
         title="Artisan timesheets"
         description="Formal monthly daily timesheets for class 1 artisans and winder technicians."
-        actions={<IconButton icon="refresh" label="Refresh artisan timesheets" variant="outline" pending={(staff.loading && staff.loaded) || (saved.loading && saved.loaded)} onClick={() => { void staff.refetch(); void saved.refetch(); reference.refetch(); }} />}
+        actions={<IconButton icon="refresh" label="Refresh artisan timesheets" variant="ghost" pending={(staff.loading && staff.loaded) || (saved.loading && saved.loaded)} onClick={() => { void staff.refetch(); void saved.refetch(); reference.refetch(); }} />}
       />
 
       <DataRegion
@@ -160,11 +160,18 @@ function ArtisanContent() {
           </TabsContent>
 
           <TabsContent value="saved" className="mt-4 flex flex-col gap-4">
-            <Toolbar filtered={listEmployee !== ANY || listYear !== ANY || listMonth !== ANY}>
+            <Toolbar
+              filtered={listEmployee !== ANY || listYear !== ANY || listMonth !== ANY}
+              onClear={() => { setListEmployee(ANY); setListYear(ANY); setListMonth(ANY); }}
+              activeCount={listMonth !== ANY ? 1 : 0}
+              moreFilters={(
+                <>
+                <FilterField label="Month"><Select aria-label="Filter by month" value={listMonth} onValueChange={setListMonth} options={[{ value: ANY, label: 'All months' }, ...MONTHS]} /></FilterField>
+                </>
+              )}
+            >
               <Select aria-label="Filter by employee" className="w-64" value={listEmployee} onValueChange={setListEmployee} options={[{ value: ANY, label: 'All artisans' }, ...artisanOptions.map(o => ({ value: o.value, label: o.label }))]} />
               <Select aria-label="Filter by year" className="w-36" value={listYear} onValueChange={setListYear} options={[{ value: ANY, label: 'All years' }, ...YEARS]} />
-              <Select aria-label="Filter by month" className="w-40" value={listMonth} onValueChange={setListMonth} options={[{ value: ANY, label: 'All months' }, ...MONTHS]} />
-              {(listEmployee !== ANY || listYear !== ANY || listMonth !== ANY) && <Button variant="ghost" icon="close" onClick={() => { setListEmployee(ANY); setListYear(ANY); setListMonth(ANY); }}>Clear filters</Button>}
             </Toolbar>
             <DataRegion status={listStatus} subject="saved timesheets" error={saved.error} onRetry={() => saved.refetch()} empty={<EmptyState icon="archive" title="No saved timesheets match" description="Open a month and save it, or clear the filters." />}>
               <DataTable caption="Saved artisan timesheets" rows={saved.items} columns={COLUMNS} getRowId={r => String(r.id)} onRowActivate={r => { void openSaved(r); }}

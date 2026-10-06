@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader,
   SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type SortState,
+  type Column, type SortState, FilterField
 } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -69,14 +69,14 @@ function IssuesContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Inventory' }, { label: 'Stock issues' }]}
         title="Stock issues"
         description="Record the items issued to people, and look back over the cost."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh stock issues" variant="outline" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh stock issues" variant="ghost" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
             <Menu>
               <MenuTrigger asChild><Button icon="download" disabled={issues.length === 0}>Download</Button></MenuTrigger>
               <MenuContent>
@@ -89,12 +89,12 @@ function IssuesContent() {
       />
 
       <div className="flex flex-col gap-3">
-        <MetricGrid columns={5}>
-          <MetricTile label="Total records" icon="documents" value={s?.total} {...statTile} />
-          <MetricTile label="Today" icon="today" value={s?.today} {...statTile} />
-          <MetricTile label="This week" icon="week" value={s?.this_week} {...statTile} />
-          <MetricTile label="Recipients" icon="employees" value={s?.unique_recipients} {...statTile} />
-          <MetricTile label="Total cost" icon="cost" value={list.loaded ? formatCurrencyShort(totalCost) : undefined} loading={list.loading && !list.loaded} unavailable={unavailable} />
+        <MetricGrid compact>
+          <MetricTile compact label="Total records" value={s?.total} {...statTile} />
+          <MetricTile compact label="Today" value={s?.today} {...statTile} />
+          <MetricTile compact label="This week" value={s?.this_week} {...statTile} />
+          <MetricTile compact label="Recipients" value={s?.unique_recipients} {...statTile} />
+          <MetricTile compact label="Total cost" value={list.loaded ? formatCurrencyShort(totalCost) : undefined} loading={list.loading && !list.loaded} unavailable={unavailable} />
         </MetricGrid>
         {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => stats.refetch()}>Try again</Button>}>{stats.error}</Notice>}
       </div>
@@ -114,11 +114,18 @@ function IssuesContent() {
         </TabsList>
 
         <TabsContent value="log" className="mt-4 flex flex-col gap-4">
-          <Toolbar filtered={hasFilters}>
-            <SearchField value={search} onValueChange={setSearch} placeholder="Search recipient, item or notes" wrapperClassName="min-w-56 max-w-md flex-1" />
-            <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-            <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-            {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
+          <Toolbar
+            filtered={hasFilters}
+            onClear={clearFilters}
+            activeCount={[dateFrom, dateTo].filter(Boolean).length}
+            moreFilters={(
+              <>
+              <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+              <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+              </>
+            )}
+          >
+            <SearchField value={search} onValueChange={setSearch} placeholder="Search recipient, item or notes" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
           </Toolbar>
           <DataRegion
             status={status} subject="stock issues" error={list.error} onRetry={() => refresh()}

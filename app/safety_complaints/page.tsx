@@ -8,7 +8,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
   SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus,
-  sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone,
+  sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -273,17 +273,17 @@ function SafetyComplaintsContent() {
   ];
 
   const filterSelect = (id: string, label: string, options: string[], value: string, set: (v: string) => void) => (options.length > 0
-    ? <Select className="w-44" aria-label={label} value={value} onValueChange={set} options={[{ value: ALL, label: `All ${id}` }, ...options.map(o => ({ value: o, label: o }))]} /> : null);
+    ? <FilterField label={label.replace('Filter by ', '').replace(/^./, c => c.toUpperCase())}><Select aria-label={label} value={value} onValueChange={set} options={[{ value: ALL, label: `All ${id}` }, ...options.map(o => ({ value: o, label: o }))]} /></FilterField> : null);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Safety complaints' }]}
         title="Safety complaints"
         description="Register, track and resolve safety complaints with full accountability."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh complaints" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh complaints" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -299,25 +299,31 @@ function SafetyComplaintsContent() {
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Total" icon="flag" value={stats.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Open" icon="warning" tone="danger" value={stats.open} loading={pending} unavailable={unavailable} {...tileFilter('open')} />
-        <MetricTile label="In progress" icon="pending" tone="warning" value={stats.inProgress} loading={pending} unavailable={unavailable} {...tileFilter('in-progress')} />
-        <MetricTile label="Closed" icon="closed" tone="success" value={stats.closed} loading={pending} unavailable={unavailable} {...tileFilter('closed')} />
-        <MetricTile label="Overdue" icon="overdue" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} {...tileFilter('overdue')} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Open" tone="danger" value={stats.open} loading={pending} unavailable={unavailable} {...tileFilter('open')} />
+        <MetricTile compact label="In progress" tone="warning" value={stats.inProgress} loading={pending} unavailable={unavailable} {...tileFilter('in-progress')} />
+        <MetricTile compact label="Closed" tone="success" value={stats.closed} loading={pending} unavailable={unavailable} {...tileFilter('closed')} />
+        <MetricTile compact label="Overdue" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} {...tileFilter('overdue')} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search issue, person or location" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters} onClear={clearFilters}
+        activeCount={[sectionF, categoryF, byWhoF, locationF].filter(v => v !== ALL).length + [dateFrom, dateTo].filter(v => v !== '').length}
+        moreFilters={(
+          <>
+            <FilterField label="Section"><Select aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} /></FilterField>
+            <FilterField label="Category"><Select aria-label="Filter by category" value={categoryF} onValueChange={setCategoryF} options={[{ value: ALL, label: 'All categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} /></FilterField>
+            {filterSelect('responsible', 'Filter by responsible person', byWhoOptions, byWhoF, setByWhoF)}
+            {filterSelect('locations', 'Filter by location', locationOptions, locationF, setLocationF)}
+            <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+            <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search issue, person or location" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))]} />
         <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: cap(p) }))]} />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
-        <Select className="w-44" aria-label="Filter by category" value={categoryF} onValueChange={setCategoryF} options={[{ value: ALL, label: 'All categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
-        {filterSelect('responsible', 'Filter by responsible person', byWhoOptions, byWhoF, setByWhoF)}
-        {filterSelect('locations', 'Filter by location', locationOptions, locationF, setLocationF)}
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

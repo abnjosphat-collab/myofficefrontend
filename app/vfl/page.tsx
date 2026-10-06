@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
   Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone,
+  type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -297,14 +297,14 @@ function VFLContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Visible felt leadership' }]}
         title="Visible felt leadership"
         description="Safety observations and coaching tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh observations" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh observations" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -320,21 +320,31 @@ function VFLContent() {
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Total" icon="eye" value={reports.length} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Draft" icon="draft" value={count('draft')} loading={pending} unavailable={unavailable} {...tile('draft')} />
-        <MetricTile label="Submitted" icon="submitted" value={count('submitted')} loading={pending} unavailable={unavailable} {...tile('submitted')} />
-        <MetricTile label="Reviewed" icon="reviewed" value={count('reviewed')} loading={pending} unavailable={unavailable} {...tile('reviewed')} />
-        <MetricTile label="Closed" icon="closed" tone="success" value={count('closed')} loading={pending} unavailable={unavailable} {...tile('closed')} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total" value={reports.length} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Draft" value={count('draft')} loading={pending} unavailable={unavailable} {...tile('draft')} />
+        <MetricTile compact label="Submitted" value={count('submitted')} loading={pending} unavailable={unavailable} {...tile('submitted')} />
+        <MetricTile compact label="Reviewed" value={count('reviewed')} loading={pending} unavailable={unavailable} {...tile('reviewed')} />
+        <MetricTile compact label="Closed" tone="success" value={count('closed')} loading={pending} unavailable={unavailable} {...tile('closed')} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, description or actions" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={[dateFrom, dateTo].filter(Boolean).length}
+        trailing={(<>
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+        moreFilters={(
+          <>
+          <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+          <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, description or actions" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
         <Segmented label="Behaviour" value={behaviourF} onValueChange={setBehaviourF} options={[{ value: ALL, label: 'All' }, { value: 'Safe Behaviour', label: `Safe (${safe})` }, { value: 'Unsafe Behaviour', label: `Unsafe (${unsafe})` }]} />
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

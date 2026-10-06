@@ -102,35 +102,40 @@ function ShiftsContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time and attendance' }, { label: 'Shifts' }]}
         title="Shifts"
         description="Who is on duty, off duty or on standby, by shift cycle."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh shifts" variant="outline" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded)} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded)} onClick={() => refresh()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('Shifts')} title="Shifts" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Assigned" icon="employees" value={items.length} detail={`${today.active} active`} selected={f.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
-        <MetricTile label="On duty" icon="active" tone="success" value={today.on} detail={today.onStandby ? `${today.onStandby} also on standby` : undefined} {...statusTile('on')} {...tile} />
-        <MetricTile label="Off duty" icon="inactive" value={today.off} detail={today.soon ? `${today.soon} back within 3 days` : undefined} {...statusTile('off')} {...tile} />
-        <MetricTile label="Standby" icon="clock" tone={today.standby ? 'warning' : 'default'} value={today.standby} {...statusTile('standby')} {...tile} />
-        <MetricTile label="On leave today" icon="calendar" value={today.onLeave ?? undefined} unavailable={!leaves.loaded && !leaves.loading} loading={leaves.loading && !leaves.loaded} />
+      <MetricGrid compact>
+        <MetricTile compact label="Assigned" value={items.length} detail={`${today.active} active`} selected={f.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
+        <MetricTile compact label="On duty" tone="success" value={today.on} detail={today.onStandby ? `${today.onStandby} also on standby` : undefined} {...statusTile('on')} {...tile} />
+        <MetricTile compact label="Off duty" value={today.off} detail={today.soon ? `${today.soon} back within 3 days` : undefined} {...statusTile('off')} {...tile} />
+        <MetricTile compact label="Standby" tone={today.standby ? 'warning' : 'default'} value={today.standby} {...statusTile('standby')} {...tile} />
+        <MetricTile compact label="On leave today" value={today.onLeave ?? undefined} unavailable={!leaves.loaded && !leaves.loading} loading={leaves.loading && !leaves.loaded} />
       </MetricGrid>
       {leaves.error && <Notice tone="warning" title="Leave records could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => leaves.refetch()}>Try again</Button>}>{leaves.error} The on-leave count and the leave marks in the schedule are incomplete.</Notice>}
 
-      <Toolbar filtered={hasFilters} trailing={tab === 'assignments' ? <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} /> : undefined}>
-        <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search name, ID, designation or department" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clear}
+        trailing={(<>
+          <Select className="w-36" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
+          {tab === 'assignments' ? <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} /> : undefined}
+        </>)}
+      >
+        <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search name, ID, designation or department" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-48" aria-label="Filter by pattern" value={f.type} onValueChange={v => set({ type: v })} options={[{ value: ALL, label: 'All patterns' }, ...(Object.keys(SHIFT_PATTERNS) as ShiftType[]).map(t => ({ value: t, label: `${SHIFT_PATTERNS[t].label} (${typeCounts[t] ?? 0})` }))]} />
         <Select className="w-44" aria-label="Filter by today's status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'Any status today' }, ...STATUS_KEYS.map(s => ({ value: s, label: DAY_STATUS[s].label }))]} />
-        <Select className="w-40" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

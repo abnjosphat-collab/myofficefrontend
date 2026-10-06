@@ -132,7 +132,7 @@ function CompetencyContent() {
   const unavailable = !loaded && !loading;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Competency matrix' }]}
         title="Competency matrix"
@@ -142,10 +142,10 @@ function CompetencyContent() {
         )}
       />
 
-      <MetricGrid columns={3}>
-        <MetricTile label="Total assessed" icon="training" value={employees.length} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Fully certified" icon="valid" tone="success" value={fullyQualified} detail="All skills at level 3 or above" loading={pending} unavailable={unavailable} />
-        <MetricTile label="Need renewal" icon="due-soon" tone="warning" value={needsRenewal} detail="At least one skill at level 1" loading={pending} unavailable={unavailable} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total assessed" value={employees.length} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Fully certified" tone="success" value={fullyQualified} detail="All skills at level 3 or above" loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Need renewal" tone="warning" value={needsRenewal} detail="At least one skill at level 1" loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
       <Toolbar>

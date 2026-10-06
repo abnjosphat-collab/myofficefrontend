@@ -193,7 +193,7 @@ function ContractorsContent() {
   const unavailable = !loaded;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Contractors' }]}
         title="Contractors"
@@ -215,11 +215,11 @@ function ContractorsContent() {
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total contractors" icon="contractor" value={stats.total} loading={loading && !loaded} unavailable={unavailable && !loading} />
-        <MetricTile label="Active" icon="active" value={stats.active} tone="success" loading={loading && !loaded} unavailable={unavailable && !loading} />
-        <MetricTile label="Inactive" icon="inactive" value={stats.inactive} loading={loading && !loaded} unavailable={unavailable && !loading} />
-        <MetricTile label="Current jobs" icon="task" value={stats.jobs} loading={loading && !loaded} unavailable={unavailable && !loading} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total contractors" value={stats.total} loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile compact label="Active" value={stats.active} tone="success" loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile compact label="Inactive" value={stats.inactive} loading={loading && !loaded} unavailable={unavailable && !loading} />
+        <MetricTile compact label="Current jobs" value={stats.jobs} loading={loading && !loaded} unavailable={unavailable && !loading} />
       </MetricGrid>
 
       <Toolbar trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>

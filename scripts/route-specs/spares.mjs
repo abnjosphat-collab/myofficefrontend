@@ -48,7 +48,9 @@ const spec = {
 
     // favourites persist
     await page.getByRole('button', { name: 'Add S3 to favourites' }).click();
+    await page.getByRole('button', { name: /^Filters/ }).click();
     await page.getByRole('button', { name: 'Favourites', exact: true }).click();
+    await page.keyboard.press('Escape');
     check(await cards.count() === 1, 'the Favourites filter shows only starred parts');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 

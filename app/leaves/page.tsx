@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
-  type Column,
+  type Column, FilterField
 } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -101,26 +101,26 @@ function LeavesContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time and attendance' }, { label: 'Leaves' }]}
         title="Leave management"
         description="Apply for leave, review requests and record decisions."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh leave requests" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh leave requests" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={['Leaves', f.search || null, f.status !== 'all' ? f.status : null, f.type !== 'all' ? f.type : null].filter(Boolean).join('_')} title="Leave Records" subtitle={[f.search && `Employee: ${f.search}`, f.status !== 'all' && `Status: ${f.status}`].filter(Boolean).join(' | ') || 'All records'} formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Requests" icon="calendar" value={stats.total} selected={f.status === 'all'} onClick={() => set({ status: 'all' })} {...tile} />
-        <MetricTile label="Pending" icon="pending" tone={stats.pending ? 'warning' : 'default'} value={stats.pending} selected={f.status === 'pending'} onClick={() => set({ status: f.status === 'pending' ? 'all' : 'pending' })} {...tile} />
-        <MetricTile label="Approved" icon="success" tone="success" value={stats.approved} detail={`${stats.approvalRate}% of decided`} selected={f.status === 'approved'} onClick={() => set({ status: f.status === 'approved' ? 'all' : 'approved' })} {...tile} />
-        <MetricTile label="On leave now" icon="employees" value={stats.on_leave_now} {...tile} />
-        <MetricTile label="Days requested" icon="clock" value={stats.total_days_requested} detail={`${stats.average_days} on average`} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Requests" value={stats.total} selected={f.status === 'all'} onClick={() => set({ status: 'all' })} {...tile} />
+        <MetricTile compact label="Pending" tone={stats.pending ? 'warning' : 'default'} value={stats.pending} selected={f.status === 'pending'} onClick={() => set({ status: f.status === 'pending' ? 'all' : 'pending' })} {...tile} />
+        <MetricTile compact label="Approved" tone="success" value={stats.approved} detail={`${stats.approvalRate}% of decided`} selected={f.status === 'approved'} onClick={() => set({ status: f.status === 'approved' ? 'all' : 'approved' })} {...tile} />
+        <MetricTile compact label="On leave now" value={stats.on_leave_now} {...tile} />
+        <MetricTile compact label="Days requested" value={stats.total_days_requested} detail={`${stats.average_days} on average`} {...tile} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -130,14 +130,24 @@ function LeavesContent() {
         </TabsList>
 
         <TabsContent value="requests" className="mt-4 flex flex-col gap-4">
-          <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-            <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search employee, ID, position or department" wrapperClassName="min-w-56 max-w-md flex-1" />
+          <Toolbar
+            filtered={hasFilters}
+            onClear={clear}
+            activeCount={[f.from, f.to].filter(Boolean).length}
+            trailing={(<>
+              <Select className="w-36" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
+              <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+            </>)}
+            moreFilters={(
+              <>
+              <FilterField label="Leave on or after"><Input type="date" aria-label="Leave on or after" value={f.from} onChange={e => set({ from: e.target.value })} /></FilterField>
+              <FilterField label="Leave on or before"><Input type="date" aria-label="Leave on or before" value={f.to} onChange={e => set({ to: e.target.value })} /></FilterField>
+              </>
+            )}
+          >
+            <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search employee, ID, position or department" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
             <Select className="w-44" aria-label="Filter by leave type" value={f.type} onValueChange={v => set({ type: v })} options={[{ value: 'all', label: 'All leave types' }, ...Object.entries(LEAVE_TYPES).map(([k, t]) => ({ value: k, label: t.name }))]} />
             <Select className="w-36" aria-label="Filter by status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: 'all', label: 'All statuses' }, { value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }]} />
-            <Input type="date" aria-label="Leave on or after" className="w-40" value={f.from} onChange={e => set({ from: e.target.value })} />
-            <Input type="date" aria-label="Leave on or before" className="w-40" value={f.to} onChange={e => set({ to: e.target.value })} />
-            <Select className="w-40" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
-            {hasFilters && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
           </Toolbar>
 
           {view === 'table' && selected.size > 0 && (

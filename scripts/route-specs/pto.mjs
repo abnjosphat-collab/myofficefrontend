@@ -32,7 +32,9 @@ const spec = {
     check(await page.getByText('Risk identified').first().isVisible(), 'a high-risk observation is flagged in words');
     check(await page.getByText('1 of 2 completed, 1 overdue').isVisible(), 'action progress and overdue count are stated in words');
     await shot(page, 'cards@1440');
+    await page.getByRole('button', { name: /^Filters/ }).click();
     await page.getByRole('button', { name: /^High risk/ }).click();
+    await page.keyboard.press('Escape');
     check(await cards.count() === 1, 'the High risk filter keeps only the observation with a "No" answer (a record with no assessment is not flagged)');
     await page.getByRole('button', { name: 'Clear filters' }).click();
     await page.getByRole('button', { name: /^Closed/ }).first().click();
