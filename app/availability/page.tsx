@@ -13,6 +13,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { fmtDate as formatDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Equipment } from './types';
+import { averageAvailability, figureText, hasFigure } from './figures';
 import { useAvailabilityData } from './useAvailabilityData';
 
 const ALL = '__all__';
@@ -32,15 +33,18 @@ const pctText = (n: number | null | undefined) => (missing(n) ? '—' : `${Numbe
 const hrs = (n: number | null | undefined) => (missing(n) ? '—' : `${Number(n).toFixed(1)} h`);
 const when = (d: string | null | undefined) => (d ? formatDate(d) : 'Not scheduled');
 const num = (n: number | null | undefined) => Number(n) || 0;
+const pctOrNoData = (n: number | null | undefined) => figureText(n, v => `${v.toFixed(1)}%`);
+const hrsOrNoData = (n: number | null | undefined) => figureText(n, v => `${v.toFixed(1)} h`);
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'name', label: 'Equipment', width: 24 }, { key: 'category', label: 'Category', width: 18 },
   { key: 'department', label: 'Department', width: 18, format: v => (v as string) ?? '' },
   { key: 'status', label: 'Status', width: 14, format: v => meta(v as Equipment['status']).label },
   { key: 'operational_hours', label: 'Operating hours', width: 14 }, { key: 'breakdown_hours', label: 'Breakdown hours', width: 16 },
-  { key: 'availability', label: 'Availability %', width: 14, format: v => pctText(v as number) },
+  { key: 'availability', label: 'Availability %', width: 14, format: v => figureText(v as number | null, n => `${n.toFixed(1)}%`) },
   { key: 'uptime', label: 'Uptime', width: 12 }, { key: 'downtime', label: 'Downtime', width: 12 },
-  { key: 'mtbf', label: 'MTBF (h)', width: 12 }, { key: 'mttr', label: 'MTTR (h)', width: 12 },
+  { key: 'mtbf', label: 'MTBF (h)', width: 12, format: v => figureText(v as number | null, String) },
+  { key: 'mttr', label: 'MTTR (h)', width: 12, format: v => figureText(v as number | null, String) },
   { key: 'last_maintenance', label: 'Last maintenance', width: 16, format: v => when(v as string | null) },
   { key: 'next_maintenance', label: 'Next maintenance', width: 16, format: v => when(v as string | null) },
 ];
@@ -82,12 +86,12 @@ function AvailabilityContent() {
     { id: 'status', header: 'Status', sortable: true, cell: e => <StatusBadge tone={meta(e.status).tone} icon={meta(e.status).icon}>{meta(e.status).label}</StatusBadge> },
     { id: 'operational_hours', header: 'Operating', sortable: true, hideBelow: 'md', numeric: true, cell: e => <span className="tabular">{hrs(e.operational_hours)}</span> },
     { id: 'breakdown_hours', header: 'Breakdown', sortable: true, hideBelow: 'md', numeric: true, cell: e => <span className="tabular">{hrs(e.breakdown_hours)}</span> },
-    { id: 'availability', header: 'Availability', sortable: true, cell: e => <div className="flex items-center gap-2"><span className={`w-14 text-right font-semibold tabular ${missing(e.availability) ? 'text-ink-muted' : TONE_TEXT[availabilityTone(num(e.availability))]}`}>{pctText(e.availability)}</span><div className="hidden w-24 sm:block"><Progress value={num(e.availability)} label={`${e.name} availability`} className="[&>span]:hidden" /></div></div> },
+    { id: 'availability', header: 'Availability', sortable: true, cell: e => <div className="flex items-center gap-2"><span className={`${hasFigure(e.availability) ? 'w-14 text-right font-semibold' : 'text-caption'} tabular ${hasFigure(e.availability) ? TONE_TEXT[availabilityTone(Number(e.availability))] : 'text-ink-muted'}`}>{pctOrNoData(e.availability)}</span>{hasFigure(e.availability) && <div className="hidden w-24 sm:block"><Progress value={Number(e.availability)} label={`${e.name} availability`} className="[&>span]:hidden" /></div>}</div> },
   ];
   const DETAIL: Column<Equipment>[] = [
     { id: 'name', header: 'Equipment', sortable: true, sticky: true, cell: e => <span className="font-medium text-ink">{e.name}</span> },
-    { id: 'mtbf', header: 'MTBF', sortable: true, cell: e => <StatusBadge tone={num(e.mtbf) > 200 ? 'success' : num(e.mtbf) > 100 ? 'neutral' : 'danger'}>{hrs(e.mtbf)}</StatusBadge> },
-    { id: 'mttr', header: 'MTTR', sortable: true, cell: e => <StatusBadge tone={num(e.mttr) < 5 ? 'success' : num(e.mttr) < 10 ? 'neutral' : 'danger'}>{hrs(e.mttr)}</StatusBadge> },
+    { id: 'mtbf', header: 'MTBF', sortable: true, cell: e => <StatusBadge tone={!hasFigure(e.mtbf) ? 'neutral' : num(e.mtbf) > 200 ? 'success' : num(e.mtbf) > 100 ? 'neutral' : 'danger'}>{hrsOrNoData(e.mtbf)}</StatusBadge> },
+    { id: 'mttr', header: 'MTTR', sortable: true, cell: e => <StatusBadge tone={!hasFigure(e.mttr) ? 'neutral' : num(e.mttr) < 5 ? 'success' : num(e.mttr) < 10 ? 'neutral' : 'danger'}>{hrsOrNoData(e.mttr)}</StatusBadge> },
     { id: 'last_maintenance', header: 'Last maintenance', sortable: true, hideBelow: 'md', cell: e => when(e.last_maintenance) },
     { id: 'next_maintenance', header: 'Next maintenance', sortable: true, hideBelow: 'md', cell: e => when(e.next_maintenance) },
     { id: 'share', header: 'Downtime share', hideBelow: 'lg', numeric: true, cell: e => <span className="tabular">{num(e.operational_hours) > 0 ? pctText((num(e.breakdown_hours) / num(e.operational_hours)) * 100) : '—'}</span> },
@@ -156,7 +160,7 @@ function AvailabilityContent() {
           </TabsContent>
           <TabsContent value="detailed">
             <DataTable caption="Detailed availability analysis" rows={rows} columns={DETAIL} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort} />
-            <p className="mt-3 font-sans text-caption text-ink-muted">Equipment with no recorded availability is reported by the server with default figures (100% available, MTBF 100 h, MTTR 4 h). Treat those rows as unmeasured.</p>
+            <p className="mt-3 font-sans text-caption text-ink-muted">Equipment with no availability record shows No data for availability, MTBF and MTTR, because nothing has been measured. It is left out of the department averages.</p>
           </TabsContent>
           <TabsContent value="trends">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -173,16 +177,16 @@ function AvailabilityContent() {
                   </dl>
                 ) : <p className="font-sans text-body-sm text-ink-muted">{stats.error ? 'The summary could not be loaded; see the notice above.' : 'Loading…'}</p>}
               </Panel>
-              <Panel title="By department" description="Average availability of the equipment shown.">
+              <Panel title="By department" description="Average availability of the equipment shown that has a measured figure.">
                 {departments.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">No department data.</p> : (
                   <ul className="flex flex-col gap-3">
                     {departments.map(dept => {
                       const eq = filtered.filter(e => e.department === dept);
-                      const avg = eq.length ? eq.reduce((sum, e) => sum + num(e.availability), 0) / eq.length : 0;
+                      const { average: avg, measured } = averageAvailability(eq);
                       return (
                         <li key={dept} className="flex flex-col gap-1">
-                          <div className="flex justify-between font-sans text-body-sm"><span className="text-ink">{dept} <span className="text-ink-muted">({eq.length})</span></span><span className={`font-semibold tabular ${TONE_TEXT[availabilityTone(avg)]}`}>{pctText(avg)}</span></div>
-                          <Progress value={avg} label={`${dept} availability`} className="[&>span]:hidden" />
+                          <div className="flex justify-between font-sans text-body-sm"><span className="text-ink">{dept} <span className="text-ink-muted">({measured === eq.length ? eq.length : `${measured} of ${eq.length} measured`})</span></span><span className={`font-semibold tabular ${avg === null ? 'text-ink-muted' : TONE_TEXT[availabilityTone(avg)]}`}>{pctOrNoData(avg)}</span></div>
+                          {avg !== null && <Progress value={avg} label={`${dept} availability`} className="[&>span]:hidden" />}
                         </li>
                       );
                     })}

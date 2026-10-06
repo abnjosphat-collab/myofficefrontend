@@ -10,14 +10,17 @@ export interface Equipment {
   department: string | null;
   operational_hours: number;
   breakdown_hours: number;
-  availability: number;
+  /** Null when the equipment has no availability record: unmeasured, not 100%. */
+  availability: number | null;
   status: 'operational' | 'maintenance' | 'breakdown' | 'idle';
   last_maintenance: string | null;
   next_maintenance?: string | null;
   uptime: number;
   downtime: number;
-  mtbf: number;
-  mttr: number;
+  /** Null when there is no availability record (not a default of 100 h). */
+  mtbf: number | null;
+  /** Null when there is no availability record (not a default of 4 h). */
+  mttr: number | null;
 }
 
 export interface AvailabilityStats {
