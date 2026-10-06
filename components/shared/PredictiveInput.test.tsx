@@ -124,3 +124,31 @@ describe('PredictiveInput', () => {
     expect(screen.getByText('This field is required')).toBeInTheDocument();
   });
 });
+
+describe('PredictiveInput with a register list (options)', () => {
+  const options = [{ value: '1', label: 'Alpha pump' }, { value: '2', label: 'Beta pump', disabled: true, note: 'Out of service' }];
+  it('without options nothing about the old behaviour changes (history still suggests)', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('prd_hist_k_hist', JSON.stringify([{ value: 'Old value', count: 2, lastUsed: 1 }]));
+    render(<Controlled historyKey="k_hist" placeholder="x" />);
+    await user.click(screen.getByRole('combobox')); await user.keyboard('ol');
+    expect(screen.getByRole('option', { name: /Old value/ })).toBeInTheDocument();
+  });
+  it('options rank first, useHistory=false keeps history out, and onPick receives the option', async () => {
+    const user = userEvent.setup(); const picked: string[] = [];
+    localStorage.setItem('prd_hist_k_opt', JSON.stringify([{ value: 'Alpha history', count: 9, lastUsed: 1 }]));
+    render(<Controlled historyKey="k_opt" placeholder="x" options={options} useHistory={false} onPick={o => picked.push(o.value)} />);
+    await user.click(screen.getByRole('combobox')); await user.keyboard('al');
+    expect(screen.queryByRole('option', { name: /Alpha history/ })).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(picked).toEqual(['1']);
+  });
+  it('a disabled option is shown with its note and is not picked by Enter', async () => {
+    const user = userEvent.setup(); const picked: string[] = [];
+    render(<Controlled historyKey="k_dis" placeholder="x" options={options} useHistory={false} onPick={o => picked.push(o.value)} />);
+    await user.click(screen.getByRole('combobox')); await user.keyboard('beta');
+    expect(screen.getByText('Out of service')).toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(picked).toEqual([]);
+  });
+});

@@ -312,6 +312,12 @@
       "date": "2026-10-04",
       "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards and requisition screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; stock tiles as filters, search, the category panel, favourites, cards and table, detail, edit (numbers sent as numbers, categories kept), delete with confirmation and a refusal, a refused add that keeps the typing, and the requisition builder (adding a part, an incomplete line flagged, save, load, delete, PDF download). No live data.",
       "note": "Register pattern with a requisition drawer. Cards are flat (the old page grouped only the current page by category)."
+    },
+    "/maintenance-prototype": {
+      "status": "verified",
+      "date": "2026-10-06",
+      "scope": "PROTOTYPE route, not a product page. Rendered with a fixture session and an in-memory source (no API, invented rows) at 1440 and 390 px by scripts/prototype-maintenance-review.mjs (24 checks, screenshots inspected in docs/plans/prototype/), and the route spec at 1440, 390, 820x1100, 844x390 and 1180x820 (no page-wide horizontal scroll). Every data state was forced and looked at. Not checked: 320 px, 130 per cent text size, real device, screen reader, Safari and Firefox, real data.",
+      "note": "Review-only route on the prototype branch; not in the navigation and not to be merged to main. See docs/plans/maintenance-prototype.md."
     }
   }
 }

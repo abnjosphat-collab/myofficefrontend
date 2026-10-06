@@ -177,3 +177,7 @@ Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdo
 
 The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; the never-auto-refresh rule;
 the failure-state patterns; the owner's constraints in section 1.
+
+## 10. Maintenance workflow rebuild (6 Oct 2026)
+
+Phase 0 (plan) and Phase 1 (clickable prototype) are done and awaiting the owner's review; nothing is merged or deployed. Plan: `docs/plans/maintenance-workflow.md` (pull request on branch `plan/maintenance-workflow`, with the draft, unapplied migration in the backend repository on `plan/maintenance-migration`). Prototype: branch `prototype/maintenance-workflow`, route `/maintenance-prototype` (review only, never to be merged to `main`), described in [`plans/maintenance-prototype.md`](./plans/maintenance-prototype.md). The reusable parts (`RegisterField`, the `PredictiveInput` register mode, the screens in `app/maintenance/`) are written to become the real screens in Phase 2; `app/maintenance-prototype/` and `scripts/prototype-maintenance-review.mjs` are not. Phase 2 starts only on the owner's written approval of the prototype.
