@@ -111,7 +111,7 @@ function SpareImportContent() {
   const preview = extracted.slice(0, 30).map((r, i) => ({ ...r, n: i + 1 }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Spares', href: '/spares' }, { label: 'Import' }]}
         title="Import spares from a spreadsheet"
@@ -206,12 +206,12 @@ function SpareImportContent() {
 
       {step === 2 && result && (
         <div className="flex flex-col gap-4">
-          <MetricGrid columns={5}>
-            <MetricTile label="Added" icon="plus" tone="success" value={result.created} />
-            <MetricTile label="Updated" icon="edit" value={result.updated ?? 0} />
-            <MetricTile label="Skipped" icon="inactive" value={result.skipped} />
-            <MetricTile label="Errors" icon="warning" tone={result.errors ? 'danger' : 'default'} value={result.errors} />
-            <MetricTile label="In the file" icon="documents" value={result.total} />
+          <MetricGrid compact>
+            <MetricTile compact label="Added" tone="success" value={result.created} />
+            <MetricTile compact label="Updated" value={result.updated ?? 0} />
+            <MetricTile compact label="Skipped" value={result.skipped} />
+            <MetricTile compact label="Errors" tone={result.errors ? 'danger' : 'default'} value={result.errors} />
+            <MetricTile compact label="In the file" value={result.total} />
           </MetricGrid>
           {result.errors > 0 && <Notice tone="warning" title={`${result.errors} ${result.errors === 1 ? 'row' : 'rows'} could not be saved`}>The rest were saved. Check the register for the missing parts, or ask for the server log to see which rows failed.</Notice>}
           <div className="flex flex-wrap gap-2">
