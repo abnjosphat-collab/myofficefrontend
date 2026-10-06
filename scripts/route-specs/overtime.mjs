@@ -121,7 +121,8 @@ const spec = {
     check(await page.getByText(/The request was not deleted: Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
     // bulk entry: one refused person stays with the reason, the saved one leaves the list
-    await page.getByRole('button', { name: 'Bulk entry' }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Bulk entry' }).click();
     const bk = dialog('Bulk overtime');
     await bk.waitFor({ timeout: 5000 });
     await bk.getByRole('button', { name: 'Submit' }).click();
