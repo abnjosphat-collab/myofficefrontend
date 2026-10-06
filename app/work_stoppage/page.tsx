@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
   Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone,
+  type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -310,14 +310,14 @@ function WorkStoppageContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Work stoppage' }]}
         title="Work stoppages"
         description="Document and track unsafe acts, unsafe practices and SHEQ compliance issues."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh work stoppages" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh work stoppages" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -333,21 +333,31 @@ function WorkStoppageContent() {
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Reports" detail="issued" icon="flag" value={stats.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Pending" detail="actions" icon="pending" tone="warning" value={stats.pending} loading={pending} unavailable={unavailable} {...tile('pending')} />
-        <MetricTile label="In progress" detail="actions" icon="clock" value={stats.inProgress} loading={pending} unavailable={unavailable} {...tile('in-progress')} />
-        <MetricTile label="Completed" detail="actions" icon="closed" tone="success" value={stats.completed} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Overdue" detail="actions" icon="overdue" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} {...tile('overdue')} />
+      <MetricGrid compact>
+        <MetricTile compact label="Reports" detail="issued" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Pending" detail="actions" tone="warning" value={stats.pending} loading={pending} unavailable={unavailable} {...tile('pending')} />
+        <MetricTile compact label="In progress" detail="actions" value={stats.inProgress} loading={pending} unavailable={unavailable} {...tile('in-progress')} />
+        <MetricTile compact label="Completed" detail="actions" tone="success" value={stats.completed} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Overdue" detail="actions" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} {...tile('overdue')} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, description or issuer" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={[dateFrom, dateTo].filter(Boolean).length}
+        trailing={(<>
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+        moreFilters={(
+          <>
+          <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+          <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, description or issuer" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
         <Select className="w-52" aria-label="Filter by action status" value={statusF} onValueChange={setStatusF} options={STATUS_FILTERS} />
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

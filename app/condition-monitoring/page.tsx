@@ -110,14 +110,14 @@ function ConditionMonitoringContent() {
   const unavailable = !loaded && !loading;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Condition monitoring' }]}
         title="Condition monitoring"
         description="Oil analysis, vibration and thermography records."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh readings" variant="outline" pending={loading && loaded} onClick={() => fetchReadings()} />
+            <IconButton icon="refresh" label="Refresh readings" variant="ghost" pending={loading && loaded} onClick={() => fetchReadings()} />
             {displayed.length > 0 && (
               <DownloadButton
                 data={displayed as unknown as Record<string, unknown>[]}
@@ -133,11 +133,11 @@ function ConditionMonitoringContent() {
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total readings" icon="analytics" value={counts.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Critical" icon="critical" tone="danger" value={counts.critical} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Caution" icon="warning" tone="warning" value={counts.caution} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Normal" icon="success" tone="success" value={counts.normal} loading={pending} unavailable={unavailable} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total readings" value={counts.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Critical" tone="danger" value={counts.critical} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Caution" tone="warning" value={counts.caution} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Normal" tone="success" value={counts.normal} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
       <Toolbar>
