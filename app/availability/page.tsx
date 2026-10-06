@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
+  Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows,
   type Column, type IconMeaning, type SortState, type Tone,
 } from '@/components/ui-system';
@@ -99,14 +99,14 @@ function AvailabilityContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Availability' }]}
         title="Equipment availability"
         description="Availability = (operating hours − breakdown hours) ÷ operating hours × 100."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh availability" variant="outline" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh availability" variant="ghost" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => meta(row.status as Equipment['status']).hex} />}
             <Button asChild><Link href="/breakdowns">Breakdowns</Link></Button>
           </>
@@ -114,21 +114,24 @@ function AvailabilityContent() {
       />
 
       <div className="flex flex-col gap-3">
-        <MetricGrid columns={5}>
-          <MetricTile label="Total equipment" icon="equipment" value={s?.totalEquipment} {...tile} />
-          <MetricTile label="Operational" icon="active" value={s?.operational} {...tile} />
-          <MetricTile label="Maintenance" icon="maintenance" tone={s?.inMaintenance ? 'warning' : 'default'} value={s?.inMaintenance} {...tile} />
-          <MetricTile label="Breakdown" icon="breakdown" tone={s?.inBreakdown ? 'danger' : 'default'} value={s?.inBreakdown} {...tile} />
-          <MetricTile label="Availability" icon="percent" value={s ? pctText(s.overallAvailability) : undefined} detail={s ? 'All equipment, lifetime' : undefined} {...tile} />
+        <MetricGrid compact>
+          <MetricTile compact label="Total equipment" value={s?.totalEquipment} {...tile} />
+          <MetricTile compact label="Operational" value={s?.operational} {...tile} />
+          <MetricTile compact label="Maintenance" tone={s?.inMaintenance ? 'warning' : 'default'} value={s?.inMaintenance} {...tile} />
+          <MetricTile compact label="Breakdown" tone={s?.inBreakdown ? 'danger' : 'default'} value={s?.inBreakdown} {...tile} />
+          <MetricTile compact label="Availability" value={s ? pctText(s.overallAvailability) : undefined} detail={s ? 'All equipment, lifetime' : undefined} {...tile} />
         </MetricGrid>
         {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => stats.refetch()}>Try again</Button>}>{stats.error}</Notice>}
       </div>
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, category or department" wrapperClassName="min-w-56 max-w-md flex-1" />
-        <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
+      <Toolbar
+        filtered={hasFilters} onClear={clearFilters} activeCount={category !== ALL ? 1 : 0}
+        moreFilters={(
+          <FilterField label="Category"><Select aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} /></FilterField>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, category or department" wrapperClassName="min-w-56 max-w-md flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-44" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...Object.entries(STATUS_META).map(([k, m]) => ({ value: k, label: m.label }))]} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <Tabs value={tab} onValueChange={setTab}>
