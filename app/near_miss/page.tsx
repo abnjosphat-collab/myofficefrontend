@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select,
-  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone,
+  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -213,14 +213,14 @@ function NearMissContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Near miss' }]}
         title="Near miss reporting"
         description="Report dangerous occurrences. Every report helps prevent a future incident."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh reports" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh reports" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -236,20 +236,27 @@ function NearMissContent() {
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Total reports" icon="warning" value={stats.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Mechanical" icon="mechanical" value={stats.mechanical} loading={pending} unavailable={unavailable} selected={section === 'Mechanical'} onClick={() => setSection(section === 'Mechanical' ? ALL : 'Mechanical')} />
-        <MetricTile label="Electrical" icon="electrical" value={stats.electrical} loading={pending} unavailable={unavailable} selected={section === 'Electrical'} onClick={() => setSection(section === 'Electrical' ? ALL : 'Electrical')} />
-        <MetricTile label="General" icon="general" value={stats.general} loading={pending} unavailable={unavailable} selected={section === 'General'} onClick={() => setSection(section === 'General' ? ALL : 'General')} />
-        <MetricTile label="Unique reporters" icon="employees" value={stats.reporters} loading={pending} unavailable={unavailable} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total reports" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Mechanical" value={stats.mechanical} loading={pending} unavailable={unavailable} selected={section === 'Mechanical'} onClick={() => setSection(section === 'Mechanical' ? ALL : 'Mechanical')} />
+        <MetricTile compact label="Electrical" value={stats.electrical} loading={pending} unavailable={unavailable} selected={section === 'Electrical'} onClick={() => setSection(section === 'Electrical' ? ALL : 'Electrical')} />
+        <MetricTile compact label="General" value={stats.general} loading={pending} unavailable={unavailable} selected={section === 'General'} onClick={() => setSection(section === 'General' ? ALL : 'General')} />
+        <MetricTile compact label="Unique reporters" value={stats.reporters} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, reporter or location" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={[dateFrom, dateTo].filter(Boolean).length}
+        moreFilters={(
+          <>
+          <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+          <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search department, reporter or location" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-44" aria-label="Filter by section" value={section} onValueChange={setSection} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s.value, label: s.label }))]} />
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       {byReporter.length > 0 && (

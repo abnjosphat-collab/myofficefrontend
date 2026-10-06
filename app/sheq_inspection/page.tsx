@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField,
   Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone,
+  type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
@@ -296,14 +296,14 @@ function InspectionContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ inspections' }]}
         title="SHEQ inspections"
         description="Safety, health, environment and quality compliance tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh inspections" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh inspections" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -319,21 +319,31 @@ function InspectionContent() {
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Inspections" icon="compliance" value={stats.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Open" detail="findings" icon="warning" tone="warning" value={stats.open} loading={pending} unavailable={unavailable} />
-        <MetricTile label="In progress" detail="findings" icon="clock" value={stats.inProgress} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Closed" detail="findings" icon="closed" tone="success" value={stats.closed} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Overdue" detail="findings" icon="overdue" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} />
+      <MetricGrid compact>
+        <MetricTile compact label="Inspections" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Open" detail="findings" tone="warning" value={stats.open} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="In progress" detail="findings" value={stats.inProgress} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Closed" detail="findings" tone="success" value={stats.closed} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Overdue" detail="findings" tone="danger" value={stats.overdue} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search title, inspector or location" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={[dateFrom, dateTo].filter(Boolean).length}
+        trailing={(<>
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+        moreFilters={(
+          <>
+          <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
+          <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search title, inspector or location" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))]} />
         <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...INSPECTION_STATUSES.map(s => ({ value: s, label: INSPECTION_META[s].label }))]} />
-        <Input type="date" aria-label="From date" className="w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <Input type="date" aria-label="To date" className="w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

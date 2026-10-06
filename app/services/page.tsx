@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge,
-  Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
+  Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column, FilterField, MoreMenu
 } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -99,35 +99,45 @@ function ServicesContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Third party services' }]}
         title="Third party services"
         description="Contractor jobs, and where each one is in the approval circuit from planning to payment."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh services" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            <Button icon="upload" disabled={!list.loaded} onClick={() => setImporting(true)}>Import or scan</Button>
+            <IconButton icon="refresh" label="Refresh services" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <MoreMenu items={[{ label: 'Import or scan', icon: 'upload', disabled: !list.loaded, onSelect: () => setImporting(true) }]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Jobs" icon="service" value={counts.total} selected={filters.status === ''} onClick={() => set({ status: '' })} {...tile} />
-        <MetricTile label={STATUS.in_progress.label} icon="pending" tone={counts.in_progress ? 'warning' : 'default'} value={counts.in_progress} selected={filters.status === 'in_progress'} onClick={() => set({ status: filters.status === 'in_progress' ? '' : 'in_progress' })} {...tile} />
-        <MetricTile label={STATUS.completed.label} icon="success" tone="success" value={counts.completed} selected={filters.status === 'completed'} onClick={() => set({ status: filters.status === 'completed' ? '' : 'completed' })} {...tile} />
-        <MetricTile label={STATUS.not_started.label} icon="draft" value={counts.not_started} selected={filters.status === 'not_started'} onClick={() => set({ status: filters.status === 'not_started' ? '' : 'not_started' })} {...tile} />
-        <MetricTile label="This month" icon="month" value={counts.thisMonth} detail="By service date" {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Jobs" value={counts.total} selected={filters.status === ''} onClick={() => set({ status: '' })} {...tile} />
+        <MetricTile compact label={STATUS.in_progress.label} tone={counts.in_progress ? 'warning' : 'default'} value={counts.in_progress} selected={filters.status === 'in_progress'} onClick={() => set({ status: filters.status === 'in_progress' ? '' : 'in_progress' })} {...tile} />
+        <MetricTile compact label={STATUS.completed.label} tone="success" value={counts.completed} selected={filters.status === 'completed'} onClick={() => set({ status: filters.status === 'completed' ? '' : 'completed' })} {...tile} />
+        <MetricTile compact label={STATUS.not_started.label} value={counts.not_started} selected={filters.status === 'not_started'} onClick={() => set({ status: filters.status === 'not_started' ? '' : 'not_started' })} {...tile} />
+        <MetricTile compact label="This month" value={counts.thisMonth} detail="By service date" {...tile} />
       </MetricGrid>
 
-      <Toolbar filtered={filtered} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEWS} />}>
-        <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search jobs and references" wrapperClassName="min-w-48 max-w-md flex-1" />
+      <Toolbar
+        filtered={filtered}
+        onClear={() => { setFilters(NO_FILTERS); setPage(1); }}
+        activeCount={[filters.from, filters.to].filter(Boolean).length}
+        trailing={(<>
+          <Select aria-label="Order" className="w-36" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
+          <ViewToggle value={view} onValueChange={setView} options={VIEWS} />
+        </>)}
+        moreFilters={(
+          <>
+          <FilterField label="From date"><Input type="date" aria-label="From date" value={filters.from} onChange={e => set({ from: e.target.value })} /></FilterField>
+          <FilterField label="To date"><Input type="date" aria-label="To date" value={filters.to} onChange={e => set({ to: e.target.value })} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search jobs and references" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select aria-label="Category" className="w-44" value={filters.category || ALL} onValueChange={v => set({ category: v === ALL ? '' : v })} options={[{ value: ALL, label: 'Every category' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
-        <Input type="date" aria-label="From date" className="w-40" value={filters.from} onChange={e => set({ from: e.target.value })} />
-        <Input type="date" aria-label="To date" className="w-40" value={filters.to} onChange={e => set({ to: e.target.value })} />
-        <Select aria-label="Order" className="w-48" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
-        {filtered && <Button variant="ghost" icon="close" onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

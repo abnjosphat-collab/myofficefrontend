@@ -152,28 +152,30 @@ function Directory({ caller }: { caller: UserProfile }) {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Admin panel' }]}
         title="Admin panel"
         description="User roles. Permissions are determined entirely by role."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh users" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
-            <Button asChild><Link href="/admin/lists">Manage shared lists</Link></Button>
+            <IconButton icon="refresh" label="Refresh users" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <Button asChild variant="ghost"><Link href="/admin/lists">Manage shared lists</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setInviteOpen(true)}>Invite user</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        {ROLES.map(r => <MetricTile key={r} label={ROLE_LABELS[r]} icon={ROLE_UI[r].icon} value={counts(r)} loading={pending} unavailable={unavailable} selected={roleF === r} onClick={() => setRoleF(roleF === r ? ALL : r)} />)}
+      <MetricGrid compact>
+        {ROLES.map(r => <MetricTile compact key={r} label={ROLE_LABELS[r]} icon={ROLE_UI[r].icon} value={counts(r)} loading={pending} unavailable={unavailable} selected={roleF === r} onClick={() => setRoleF(roleF === r ? ALL : r)} />)}
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search name or email" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={() => { setSearch(''); setRoleF(ALL); }}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name or email" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-44" aria-label="Filter by role" value={roleF} onValueChange={setRoleF} options={[{ value: ALL, label: 'All roles' }, ...ROLES.map(r => ({ value: r, label: ROLE_LABELS[r] }))]} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={() => { setSearch(''); setRoleF(ALL); }}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

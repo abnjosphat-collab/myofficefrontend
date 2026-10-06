@@ -21,6 +21,8 @@ export interface MetricTileProps {
   href?: string;
   onClick?: () => void;
   selected?: boolean;
+  /** Quiet one-line form: label and number only, no icon well, no chevron, no shadow. For a summary strip. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -36,7 +38,27 @@ const toneIcon = {
  * filter shortcuts: icon well, label, value, optional detail, optional chevron.
  * Interactive tiles are real links/buttons with the shared focus ring and stay still.
  */
-export function MetricTile({ label, value, icon, detail, tone = 'default', loading, unavailable, href, onClick, selected, className }: MetricTileProps) {
+export function MetricTile({ label, value, icon, detail, tone = 'default', loading, unavailable, href, onClick, selected, compact, className }: MetricTileProps) {
+  if (compact) {
+    const quiet = cn(
+      'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
+      selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
+      (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-action/35',
+      className,
+    );
+    const line = (
+      <>
+        <span className="text-ink-muted">{label}</span>
+        <span className="font-display font-semibold text-ink tabular">
+          {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : value}
+        </span>
+        {detail && !loading && <span className="text-caption text-ink-subtle">{detail}</span>}
+      </>
+    );
+    if (href) return <Link href={href} className={quiet}>{line}</Link>;
+    if (onClick) return <button type="button" onClick={onClick} aria-pressed={selected} className={quiet}>{line}</button>;
+    return <div className={quiet}>{line}</div>;
+  }
   const body = (
     <>
       {icon && <span className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-control sm:size-10', toneIcon[tone])}><Icon name={icon} size="lg" weight="navigation" /></span>}
@@ -65,7 +87,8 @@ export function MetricTile({ label, value, icon, detail, tone = 'default', loadi
  * Responsive row of tiles: one swipeable row on phones (so a register's records start on the first screen instead of
  * below three rows of tiles), a wrapping grid from `sm` up to `columns` on desktop.
  */
-export function MetricGrid({ children, columns = 4, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; className?: string }) {
+export function MetricGrid({ children, columns = 4, compact, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; /** A slim wrapping strip for compact tiles. */ compact?: boolean; className?: string }) {
+  if (compact) return <div className={cn('flex flex-wrap items-center gap-2', className)}>{children}</div>;
   // Tablet width (768 and up) already gets its columns, so five tiles are not stacked in three rows at 820 px.
   const cols = { 2: 'lg:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-3 lg:grid-cols-5' } as const;
   return <div className={cn('gap-2.5 sm:grid sm:grid-cols-2 sm:gap-3', 'max-sm:flex max-sm:snap-x max-sm:overflow-x-auto max-sm:pb-1 max-sm:[&>*]:w-[9.5rem] max-sm:[&>*]:shrink-0 max-sm:[&>*]:snap-start', cols[columns], className)}>{children}</div>;

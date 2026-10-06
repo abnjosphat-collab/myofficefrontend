@@ -19,12 +19,24 @@ export interface EmptyStateProps {
 /** Nothing to show *because there is nothing* (a successful, empty result). Never use for failures. */
 export function EmptyState({ icon = 'empty', title, description, action, className }: EmptyStateProps) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-line bg-surface px-6 py-12 text-center', className)}>
+    <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-line-subtle bg-surface px-6 py-10 text-center', className)}>
       <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name={icon} size="xl" /></span>
       <div className="max-w-md">
         <h3 className="font-display text-title font-semibold text-ink">{title}</h3>
         {description && <p className="mt-1 font-sans text-body-sm text-ink-muted">{description}</p>}
       </div>
+      {action}
+    </div>
+  );
+}
+
+/** Slim single-line status (retrying, may be out of date). Same honesty as `Notice`, a fraction of the height. */
+export function StatusLine({ tone = 'info', children, action }: { tone?: 'info' | 'warning'; children: ReactNode; action?: ReactNode }) {
+  const tones = { info: 'text-info', warning: 'text-warning' } as const;
+  return (
+    <div role="status" className={cn('flex min-h-8 flex-wrap items-center gap-x-2 gap-y-1 font-sans text-body-sm', tones[tone])}>
+      {tone === 'info' ? <Spinner className="size-3.5 shrink-0" /> : <Icon name="warning" size="sm" weight="emphasis" className="shrink-0" />}
+      <span className="min-w-0 flex-1 text-ink-muted">{children}</span>
       {action}
     </div>
   );
@@ -44,7 +56,7 @@ export function Notice({ tone = 'info', icon, title, children, action }: {
     danger: 'border-danger-line bg-danger-soft text-danger',
   } as const;
   return (
-    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex flex-wrap items-center gap-3 rounded-card border px-4 py-3', tones[tone])}>
+    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex flex-wrap items-center gap-3 rounded-card border px-3.5 py-2.5', tones[tone])}>
       <Icon name={icon ?? (tone === 'info' ? 'info' : 'warning')} size="lg" weight="emphasis" />
       <div className="min-w-0 flex-1">
         <p className="font-sans text-label font-semibold">{title}</p>
@@ -82,9 +94,7 @@ export function DataRegion({ status, subject, error, onRetry, empty, children, s
   if (status === 'retrying') {
     return (
       <div className={cn('flex flex-col gap-3', className)}>
-        <Notice tone="info" title={`Still loading ${subject}`} action={<Spinner className="text-info" />}>
-          The service is slow to respond. Retrying automatically.{error ? ` Last answer: ${error}` : ''}
-        </Notice>
+        <StatusLine tone="info"><strong className="font-medium text-ink">Still loading {subject}.</strong> The service is slow to respond. Retrying automatically.{error ? ` Last answer: ${error}` : ''}</StatusLine>
         <SkeletonRows rows={Math.min(skeletonRows, 3)} label={`Loading ${subject}`} />
       </div>
     );
@@ -104,7 +114,7 @@ export function DataRegion({ status, subject, error, onRetry, empty, children, s
   if (status === 'empty') return <div className={className}>{empty ?? <EmptyState title={`No ${subject} yet`} />}</div>;
   return (
     <div className={cn('flex flex-col gap-3', className)}>
-      {status === 'stale-error' && <Notice tone="warning" title={`${cap} may be out of date`} action={retry}>{error ?? 'The latest refresh failed. Showing the last records received.'}</Notice>}
+      {status === 'stale-error' && <StatusLine tone="warning" action={retry}><strong className="font-medium text-ink">{cap} may be out of date.</strong> {error ?? 'The latest refresh failed. Showing the last records received.'}</StatusLine>}
       {status === 'refreshing' && (
         <p role="status" className="flex items-center gap-2 font-sans text-caption text-ink-muted"><Spinner className="size-3.5" />Refreshing {subject}…</p>
       )}

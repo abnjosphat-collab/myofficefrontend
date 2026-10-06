@@ -36,20 +36,20 @@ function EngineeringDashboardContent() {
   const maxFailures = Math.max(1, ...topFailures.map(f => f.failures));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Engineering' }, { label: 'Dashboard' }]}
         title="Engineering dashboard"
         description="Open job cards and breakdown activity, taken from the records in MyOffice."
         meta={monthName}
-        actions={<IconButton icon="refresh" label="Refresh dashboard" variant="outline" pending={(jobCards.loading && jobCards.loaded) || (breakdowns.loading && breakdowns.loaded)} onClick={refreshAll} />}
+        actions={<IconButton icon="refresh" label="Refresh dashboard" variant="ghost" pending={(jobCards.loading && jobCards.loaded) || (breakdowns.loading && breakdowns.loaded)} onClick={refreshAll} />}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Open job cards" icon="task" value={jobCards.items.length} loading={jcPending} unavailable={!jobCards.loaded && !jcPending} />
-        <MetricTile label="Overdue job cards" icon="overdue" tone="warning" value={overdue} detail="Scheduled date has passed" loading={jcPending} unavailable={!jobCards.loaded && !jcPending} />
-        <MetricTile label="Breakdowns this month" icon="breakdown" tone={month.failures > 0 ? 'danger' : 'default'} value={month.failures} loading={bdPending} unavailable={!breakdowns.loaded && !bdPending} />
-        <MetricTile label="Mean time to repair" icon="wrench" value={month.mttr === null ? 'No data' : `${month.mttr} h`} detail="Breakdowns this month" loading={bdPending} unavailable={!breakdowns.loaded && !bdPending} />
+      <MetricGrid compact>
+        <MetricTile compact label="Open job cards" value={jobCards.items.length} loading={jcPending} unavailable={!jobCards.loaded && !jcPending} />
+        <MetricTile compact label="Overdue job cards" tone="warning" value={overdue} detail="Scheduled date has passed" loading={jcPending} unavailable={!jobCards.loaded && !jcPending} />
+        <MetricTile compact label="Breakdowns this month" tone={month.failures > 0 ? 'danger' : 'default'} value={month.failures} loading={bdPending} unavailable={!breakdowns.loaded && !bdPending} />
+        <MetricTile compact label="Mean time to repair" value={month.mttr === null ? 'No data' : `${month.mttr} h`} detail="Breakdowns this month" loading={bdPending} unavailable={!breakdowns.loaded && !bdPending} />
       </MetricGrid>
 
       <DataRegion status={bdStatus} subject="breakdown activity" error={breakdowns.error} onRetry={() => breakdowns.refetch()} empty={<EmptyState icon="analytics" title="No breakdowns recorded yet" description="Breakdown charts appear as soon as breakdowns are logged." />}>

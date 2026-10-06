@@ -15,7 +15,7 @@ export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, Compon
   return (
     <TabsPrimitive.List
       ref={ref}
-      className={cn('flex min-w-0 items-end gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
+      className={cn('flex min-w-0 items-end gap-6 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
       {...props}
     />
   );
@@ -36,9 +36,9 @@ export const TabsTrigger = forwardRef<ElementRef<typeof TabsPrimitive.Trigger>, 
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        'focus-ring touch-target relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 font-sans text-label font-medium text-ink-muted',
+        'focus-ring touch-target relative -mb-px inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-0.5 font-sans text-label font-normal text-ink-muted',
         'transition-colors duration-[var(--mo-duration-base)] hover:text-ink',
-        'data-[state=active]:border-action data-[state=active]:text-ink',
+        'data-[state=active]:border-action data-[state=active]:text-action',
         className,
       )}
       {...props}

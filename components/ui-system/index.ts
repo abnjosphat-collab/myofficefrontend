@@ -54,7 +54,8 @@ export { floatingSurface, optionRow } from './overlays/surfaces';
 export { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel } from './overlays/Menu';
 
 // Patterns
-export { PageHeader, Toolbar } from './patterns/PageHeader';
+export { PageHeader, Toolbar, FilterField } from './patterns/PageHeader';
+export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';
@@ -62,7 +63,7 @@ export { DataTable } from './patterns/DataTable';
 export type { Column, DataTableProps } from './patterns/DataTable';
 export { Pagination } from './patterns/Pagination';
 export { ViewToggle, useViewPreference, VIEW_GRID_LIST, VIEW_CARDS_TABLE } from './patterns/ViewToggle';
-export { DataRegion, EmptyState, Notice } from './patterns/DataRegion';
+export { DataRegion, EmptyState, Notice, StatusLine } from './patterns/DataRegion';
 export { DestinationSearch } from './patterns/DestinationSearch';
 export { ChartPanel } from './patterns/ChartPanel';
 export { Distribution } from './patterns/Distribution';

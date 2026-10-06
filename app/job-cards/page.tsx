@@ -172,14 +172,14 @@ function JobCardsContent() {
   const options = (['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => ({ value: s, label: `${s === 'all' ? 'All' : STATUS[s].label} (${counts[s]})` }));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Job cards' }]}
         title="Job cards"
         description="Work order and job card management."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh job cards" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh job cards" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}

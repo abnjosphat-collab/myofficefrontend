@@ -145,7 +145,8 @@ const spec = {
     check(await page.getByText(/Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
     // import: a spreadsheet previews, skips blank rows, lists a refused row with its reason
-    await page.getByRole('button', { name: 'Import or scan' }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Import or scan' }).click();
     const im = dialog('Import or scan');
     await im.waitFor({ timeout: 5000 });
     failImportFor = 'Painting';

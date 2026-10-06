@@ -57,7 +57,7 @@ export function DataTable<T>({
   return (
     // A scrollable region must be keyboard-focusable so keyboard users can scroll it (axe: scrollable-region-focusable).
     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-    <div className={cn('max-w-full overflow-auto rounded-card border border-line bg-surface shadow-card', className)} tabIndex={0} role="region" aria-label={`${caption} (scrollable)`}>
+    <div className={cn('max-w-full overflow-auto rounded-card border border-line-subtle bg-surface', className)} tabIndex={0} role="region" aria-label={`${caption} (scrollable)`}>
       <table className="w-full border-separate border-spacing-0 text-left font-sans text-body-sm text-ink">
         <caption className="sr-only">{caption}</caption>
         <thead>
@@ -82,7 +82,7 @@ export function DataTable<T>({
                   aria-sort={active ? (sort?.direction === 'asc' ? 'ascending' : 'descending') : column.sortable ? 'none' : undefined}
                   style={column.width ? { width: column.width } : undefined}
                   className={cn(
-                    'sticky top-0 z-[var(--mo-z-sticky)] whitespace-nowrap border-b border-line bg-surface-subtle px-3.5 py-2 font-sans text-label font-semibold text-ink-muted',
+                    'sticky top-0 z-[var(--mo-z-sticky)] whitespace-nowrap border-b border-line bg-surface-subtle px-3.5 py-2 font-sans text-label font-medium text-ink-muted',
                     column.numeric && 'text-right', column.sticky && 'left-0 z-[calc(var(--mo-z-sticky)+1)]', hide(column), column.className,
                   )}
                 >

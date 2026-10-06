@@ -40,8 +40,10 @@ const spec = {
     await page.getByRole('searchbox').fill('');
 
     // the date filter matches a request that overlaps the range
+    await page.getByRole('button', { name: /^Filters/ }).click();
     await page.getByLabel('Leave on or after').fill(local(2));
     await page.getByLabel('Leave on or before').fill(local(11));
+    await page.keyboard.press('Escape');
     check(await cards.count() === 2, 'a request that overlaps the date range is included (Ann ends in the range, Ben starts in it)');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
