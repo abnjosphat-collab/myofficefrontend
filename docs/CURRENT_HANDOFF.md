@@ -172,6 +172,7 @@ Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdo
 10. `/timesheets` roster and retry: decided and done (see above).
 11. `/artisan-timesheets` saved list: summary mode done (see above).
 12. DECIDED 5 Oct 2026 (owner: save to Supabase) and BUILT (branch `feature/shared-lists-and-stock`, not yet merged or live): the PPE order list (`/api/ppe-order-list`, table `ppe_order_list`) and saved quotations (`/api/quotations`, table `saved_quotations`) are kept on the server and shared by everyone who signs in; what a browser held before is moved up once and then removed from the browser; a quotation can be deleted by whoever saved it or a manager. The quotation being typed and the company details stay in the browser. The migration `backend/supabase_migration_shared_lists.sql` has NOT been applied: it only adds the two tables; apply it before the backend and frontend go live.
+13. `/ppe` DEFECT FIXED (6 Oct 2026): issuing from the order list saved the new record but left the item that was due `active` and overdue, so the employee's card still showed it as due and compliance counted it. The old record is now marked `returned` when its replacement is issued from the order list (a failure to do so is reported, the issue itself stands); a plain "Issue PPE" is unchanged. Route spec `/ppe` covers it.
 
 ## 10. Preserve
 
