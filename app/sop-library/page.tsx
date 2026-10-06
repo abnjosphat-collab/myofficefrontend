@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, EmptyState, MetricGrid, MetricTile, PageHeader, SearchField, Segmented, Select, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
-  type DataStatus,
+  type DataStatus, FilterField
 } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { ApiError } from '@/lib/apiClient';
@@ -99,7 +99,7 @@ function SopLibraryContent() {
   const list = showArchive ? archived : filtered;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'MyOffice' }, { label: 'SOP library' }]}
         title="SOP library"
@@ -107,21 +107,29 @@ function SopLibraryContent() {
         actions={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="SOPs" icon="documents" value={counts.total} loading={loading && !loaded} unavailable={!loaded && !loading} />
-        <MetricTile label="Effective" icon="valid" tone="success" value={counts.effective} loading={loading && !loaded} unavailable={!loaded && !loading} />
-        <MetricTile label="Draft" icon="draft" value={counts.draft} loading={loading && !loaded} unavailable={!loaded && !loading} />
-        <MetricTile label="Due for review" icon="due-soon" tone="warning" value={counts.dueForReview} loading={loading && !loaded} unavailable={!loaded && !loading} />
+      <MetricGrid compact>
+        <MetricTile compact label="SOPs" value={counts.total} loading={loading && !loaded} unavailable={!loaded && !loading} />
+        <MetricTile compact label="Effective" tone="success" value={counts.effective} loading={loading && !loaded} unavailable={!loaded && !loading} />
+        <MetricTile compact label="Draft" value={counts.draft} loading={loading && !loaded} unavailable={!loaded && !loading} />
+        <MetricTile compact label="Due for review" tone="warning" value={counts.dueForReview} loading={loading && !loaded} unavailable={!loaded && !loading} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<Segmented label="Library scope" value={scope} onValueChange={switchScope} options={[{ value: 'library', label: 'Library' }, { value: 'archive', label: 'Archive' }]} />}>
+      <Toolbar
+        filtered={hasFilters}
+        activeCount={(owner !== ALL ? 1 : 0) + (review !== ALL ? 1 : 0)}
+        trailing={<Segmented label="Library scope" value={scope} onValueChange={switchScope} options={[{ value: 'library', label: 'Library' }, { value: 'archive', label: 'Archive' }]} />}
+        moreFilters={!showArchive ? (
+          <>
+            <FilterField label="Owner"><Select aria-label="Filter by owner" value={owner} onValueChange={setOwner} options={[{ value: ALL, label: 'All owners' }, ...owners.map(o => ({ value: o, label: o }))]} /></FilterField>
+            <FilterField label="Review date"><Select aria-label="Filter by review date" value={review} onValueChange={setReview} options={[{ value: ALL, label: 'Any review date' }, { value: 'overdue', label: 'Review overdue' }, { value: 'due_soon', label: 'Due within 30 days' }]} /></FilterField>
+          </>
+        ) : undefined}
+      >
         {!showArchive && (
           <>
-            <SearchField value={search} onValueChange={setSearch} placeholder="Search code, title or summary" wrapperClassName="min-w-56 max-w-sm flex-1" />
+            <SearchField value={search} onValueChange={setSearch} placeholder="Search code, title or summary" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
             <Select className="w-44" aria-label="Filter by department" value={department} onValueChange={setDepartment} options={[{ value: ALL, label: 'All departments' }, ...departments.map(d => ({ value: d, label: d }))]} />
             <Select className="w-40" aria-label="Filter by status" value={status} onValueChange={setStatus} options={[{ value: ALL, label: 'All statuses' }, ...SOP_STATUSES.map(s => ({ value: s, label: SOP_STATUS_LABEL[s] }))]} />
-            <Select className="w-40" aria-label="Filter by owner" value={owner} onValueChange={setOwner} options={[{ value: ALL, label: 'All owners' }, ...owners.map(o => ({ value: o, label: o }))]} />
-            <Select className="w-44" aria-label="Filter by review date" value={review} onValueChange={setReview} options={[{ value: ALL, label: 'Any review date' }, { value: 'overdue', label: 'Review overdue' }, { value: 'due_soon', label: 'Due within 30 days' }]} />
           </>
         )}
       </Toolbar>

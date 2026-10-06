@@ -122,14 +122,14 @@ function ComplianceRegisterContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Compliance register' }]}
         title="Statutory compliance register"
         description="Regulatory certificates and inspection tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh register" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh register" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {displayed.length > 0 && (
               <DownloadButton
                 data={displayed as unknown as Record<string, unknown>[]}
@@ -145,10 +145,10 @@ function ComplianceRegisterContent() {
         )}
       />
 
-      <MetricGrid columns={3}>
-        <MetricTile label="Current" icon="valid" tone="success" value={counts.current} loading={pending} unavailable={unavailable} selected={filter === 'current'} onClick={() => setFilter(filter === 'current' ? 'all' : 'current')} />
-        <MetricTile label="Due soon" icon="due-soon" tone="warning" value={counts.due_soon} loading={pending} unavailable={unavailable} selected={filter === 'due_soon'} onClick={() => setFilter(filter === 'due_soon' ? 'all' : 'due_soon')} />
-        <MetricTile label="Overdue" icon="overdue" tone="danger" value={counts.overdue} loading={pending} unavailable={unavailable} selected={filter === 'overdue'} onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')} />
+      <MetricGrid compact>
+        <MetricTile compact label="Current" tone="success" value={counts.current} loading={pending} unavailable={unavailable} selected={filter === 'current'} onClick={() => setFilter(filter === 'current' ? 'all' : 'current')} />
+        <MetricTile compact label="Due soon" tone="warning" value={counts.due_soon} loading={pending} unavailable={unavailable} selected={filter === 'due_soon'} onClick={() => setFilter(filter === 'due_soon' ? 'all' : 'due_soon')} />
+        <MetricTile compact label="Overdue" tone="danger" value={counts.overdue} loading={pending} unavailable={unavailable} selected={filter === 'overdue'} onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')} />
       </MetricGrid>
 
       <Toolbar>
