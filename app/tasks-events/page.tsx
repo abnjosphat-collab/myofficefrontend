@@ -11,7 +11,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, Skeleton, StatusBadge,
   Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type SortState,
+  type Column, type SortState, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -94,25 +94,25 @@ function Board({ completedBy }: { completedBy: string }) {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Manager tools' }, { label: 'Events and tasks' }]}
         title="Events and tasks"
         description="Upcoming events and to-dos in one list, checked off when done."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh events and tasks" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh events and tasks" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total" icon="task" value={items.length} loading={pending} unavailable={unavailable} selected={statusF === ALL && !overdueOnly} onClick={clearFilters} />
-        <MetricTile label="Pending" icon="pending" value={pendingItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'pending'} onClick={() => setStatusF(statusF === 'pending' ? ALL : 'pending')} />
-        <MetricTile label="Completed" icon="success" tone="success" value={completedItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'completed'} onClick={() => setStatusF(statusF === 'completed' ? ALL : 'completed')} />
-        <MetricTile label="Overdue" icon="warning" tone={overdueCount ? 'danger' : 'default'} value={overdueCount} loading={pending} unavailable={unavailable} selected={overdueOnly} onClick={() => setOverdueOnly(v => !v)} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total" value={items.length} loading={pending} unavailable={unavailable} selected={statusF === ALL && !overdueOnly} onClick={clearFilters} />
+        <MetricTile compact label="Pending" value={pendingItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'pending'} onClick={() => setStatusF(statusF === 'pending' ? ALL : 'pending')} />
+        <MetricTile compact label="Completed" tone="success" value={completedItems.length} loading={pending} unavailable={unavailable} selected={statusF === 'completed'} onClick={() => setStatusF(statusF === 'completed' ? ALL : 'completed')} />
+        <MetricTile compact label="Overdue" tone={overdueCount ? 'danger' : 'default'} value={overdueCount} loading={pending} unavailable={unavailable} selected={overdueOnly} onClick={() => setOverdueOnly(v => !v)} />
       </MetricGrid>
 
       {loaded && items.length > 0 && (
@@ -126,12 +126,19 @@ function Board({ completedBy }: { completedBy: string }) {
         </div>
       )}
 
-      <Toolbar filtered={hasFilters}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or description" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={priorityF !== ALL ? 1 : 0}
+        moreFilters={(
+          <>
+          <FilterField label="Priority"><Select aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or description" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, { value: 'pending', label: 'Pending' }, { value: 'completed', label: 'Completed' }]} />
         <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, ...TASK_TYPES.map(v => ({ value: v, label: v }))]} />
-        <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(v => ({ value: v, label: v }))]} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

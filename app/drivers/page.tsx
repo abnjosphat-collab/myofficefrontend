@@ -157,14 +157,14 @@ function DriversContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Drivers' }]}
         title="Authorised drivers"
         description="Licensed personnel approved to operate mine vehicles."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh drivers" variant="outline" pending={loading && loaded} onClick={() => loadData()} />
+            <IconButton icon="refresh" label="Refresh drivers" variant="ghost" pending={loading && loaded} onClick={() => loadData()} />
             <Menu>
               <MenuTrigger asChild><Button variant="secondary" icon="download" iconAfter="chevron-down" disabled={filtered.length === 0}>Download</Button></MenuTrigger>
               <MenuContent align="end" className="min-w-48">
@@ -177,11 +177,11 @@ function DriversContent() {
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total drivers" icon="drivers" value={stats.total} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Active" icon="active" tone="success" value={stats.active} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Inactive or suspended" icon="warning" tone="warning" value={stats.inactive} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Departments" icon="departments" value={stats.depts} loading={pending} unavailable={unavailable} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total drivers" value={stats.total} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Active" tone="success" value={stats.active} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Inactive or suspended" tone="warning" value={stats.inactive} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Departments" value={stats.depts} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
       <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>

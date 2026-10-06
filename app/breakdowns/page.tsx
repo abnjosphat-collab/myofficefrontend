@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select,
-  StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
+  StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
@@ -86,38 +86,52 @@ function BreakdownsContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Breakdowns' }]}
         title="Equipment breakdowns"
         description="Log, track and resolve equipment failures."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh breakdowns" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh breakdowns" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {list.loaded && matches.length > 0 && <DownloadButton data={matches as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('breakdowns')} title="Equipment Breakdowns" formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total" icon="breakdown" value={stats.total} selected={!filtered} onClick={clear} {...tile} />
-        <MetricTile label="Open" icon="active" tone={stats.open ? 'warning' : 'default'} value={stats.open} detail="Logged or in progress" selected={f.status === OPEN} onClick={() => set({ status: f.status === OPEN ? ALL : OPEN })} {...tile} />
-        <MetricTile label="Critical" icon="critical" tone={stats.critical ? 'danger' : 'default'} value={stats.critical} selected={f.priority === 'critical'} onClick={() => set({ priority: f.priority === 'critical' ? ALL : 'critical' })} {...tile} />
-        <MetricTile label="Average downtime" icon="clock" value={stats.avgDowntimeMinutes === null ? 'None yet' : minutesToDisplay(stats.avgDowntimeMinutes)} detail={stats.avgDowntimeCount ? `${stats.avgDowntimeCount} finished with times` : 'No finished breakdown has times'} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total" value={stats.total} selected={!filtered} onClick={clear} {...tile} />
+        <MetricTile compact label="Open" tone={stats.open ? 'warning' : 'default'} value={stats.open} detail="Logged or in progress" selected={f.status === OPEN} onClick={() => set({ status: f.status === OPEN ? ALL : OPEN })} {...tile} />
+        <MetricTile compact label="Critical" tone={stats.critical ? 'danger' : 'default'} value={stats.critical} selected={f.priority === 'critical'} onClick={() => set({ priority: f.priority === 'critical' ? ALL : 'critical' })} {...tile} />
+        <MetricTile compact label="Average downtime" value={stats.avgDowntimeMinutes === null ? 'None yet' : minutesToDisplay(stats.avgDowntimeMinutes)} detail={stats.avgDowntimeCount ? `${stats.avgDowntimeCount} finished with times` : 'No finished breakdown has times'} {...tile} />
       </MetricGrid>
 
-      <Toolbar filtered={filtered} trailing={tab === 'records' ? <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} /> : undefined}>
-        <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search machine, artisan, place or notes" wrapperClassName="min-w-48 max-w-md flex-1" />
+      <Toolbar
+        filtered={filtered} onClear={clear}
+        activeCount={[f.type !== ALL, f.department !== ALL, f.location !== ALL, f.from !== '', f.to !== ''].filter(Boolean).length}
+        trailing={tab === 'records' ? (
+          <>
+            <Select aria-label="Sort by" className="w-36" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
+            <IconButton icon="sort" variant="ghost" label={dir === 'asc' ? 'Ascending, reverse' : 'Descending, reverse'} onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
+            <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+          </>
+        ) : undefined}
+        moreFilters={(
+          <>
+            <FilterField label="Kind of fault"><Select aria-label="Kind of fault" value={f.type} onValueChange={v => set({ type: v })} options={opts('Any kind', TYPES)} /></FilterField>
+            {departments.length > 1 && <FilterField label="Department"><Select aria-label="Department" value={f.department} onValueChange={v => set({ department: v })} options={[{ value: ALL, label: 'Any department' }, ...departments.map(d => ({ value: d, label: d }))]} /></FilterField>}
+            <FilterField label="Location"><Select aria-label="Location" value={f.location} onValueChange={v => set({ location: v })} options={[{ value: ALL, label: 'Any location' }, ...locations.map(l => ({ value: l, label: l }))]} /></FilterField>
+            <div role="group" aria-label="Date range" className="flex flex-col gap-3">
+              <FilterField label="From date"><Input aria-label="From date" type="date" value={f.from} onChange={e => set({ from: e.target.value })} /></FilterField>
+              <FilterField label="To date"><Input aria-label="To date" type="date" value={f.to} onChange={e => set({ to: e.target.value })} /></FilterField>
+            </div>
+          </>
+        )}
+      >
+        <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search machine, artisan, place or notes" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select aria-label="Status" className="w-40" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'Any status' }, { value: OPEN, label: 'Open' }, ...STATUSES.map(m => ({ value: m.value, label: m.label }))]} />
         <Select aria-label="Priority" className="w-36" value={f.priority} onValueChange={v => set({ priority: v })} options={opts('Any priority', PRIORITIES)} />
-        <Select aria-label="Kind of fault" className="w-36" value={f.type} onValueChange={v => set({ type: v })} options={opts('Any kind', TYPES)} />
-        {departments.length > 1 && <Select aria-label="Department" className="w-40" value={f.department} onValueChange={v => set({ department: v })} options={[{ value: ALL, label: 'Any department' }, ...departments.map(d => ({ value: d, label: d }))]} />}
-        <Select aria-label="Location" className="w-44" value={f.location} onValueChange={v => set({ location: v })} options={[{ value: ALL, label: 'Any location' }, ...locations.map(l => ({ value: l, label: l }))]} />
-        <div role="group" aria-label="Date range" className="flex items-center gap-2"><Input aria-label="From date" type="date" className="w-40" value={f.from} onChange={e => set({ from: e.target.value })} /><span className="font-sans text-body-sm text-ink-muted">to</span><Input aria-label="To date" type="date" className="w-40" value={f.to} onChange={e => set({ to: e.target.value })} /></div>
-        {tab === 'records' && <Select aria-label="Sort by" className="w-36" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />}
-        {tab === 'records' && <IconButton icon="sort" variant="outline" label={dir === 'asc' ? 'Ascending, reverse' : 'Descending, reverse'} onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))} />}
-        {filtered && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
       </Toolbar>
 
       <Tabs value={tab} onValueChange={setTab}>

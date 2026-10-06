@@ -8,7 +8,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useConfirm, useViewPreference,
-  type Column, type SortState,
+  type Column, type SortState, FilterField, MoreMenu
 } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -133,26 +133,26 @@ function OvertimeContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Overtime' }]}
         title="Overtime"
         description="Submit overtime, approve it with a signature, and see where the hours go."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh overtime" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh overtime" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
-            <Button icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Bulk entry</Button>
+            <MoreMenu items={[{ label: 'Bulk entry', icon: 'employees', disabled: !list.loaded, onSelect: () => setBulkOpen(true) }]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Requests" icon="clock" value={stats.total} selected={filters.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
-        <MetricTile label="Pending" icon="pending" tone={stats.pending ? 'warning' : 'default'} value={stats.pending} selected={filters.status === 'pending'} onClick={() => set({ status: filters.status === 'pending' ? ALL : 'pending' })} {...tile} />
-        <MetricTile label="Approved" icon="success" tone="success" value={stats.approved} selected={filters.status === 'approved'} onClick={() => set({ status: filters.status === 'approved' ? ALL : 'approved' })} {...tile} />
-        <MetricTile label="Total hours" icon="calendar" value={`${Math.round(stats.hours)}h`} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Requests" value={stats.total} selected={filters.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
+        <MetricTile compact label="Pending" tone={stats.pending ? 'warning' : 'default'} value={stats.pending} selected={filters.status === 'pending'} onClick={() => set({ status: filters.status === 'pending' ? ALL : 'pending' })} {...tile} />
+        <MetricTile compact label="Approved" tone="success" value={stats.approved} selected={filters.status === 'approved'} onClick={() => set({ status: filters.status === 'approved' ? ALL : 'approved' })} {...tile} />
+        <MetricTile compact label="Total hours" value={`${Math.round(stats.hours)}h`} {...tile} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -163,14 +163,24 @@ function OvertimeContent() {
         </TabsList>
 
         <TabsContent value="records" className="mt-4 flex flex-col gap-4">
-          <Toolbar filtered={filtered} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-            <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search requests" wrapperClassName="min-w-48 max-w-md flex-1" />
+          <Toolbar
+            filtered={filtered}
+            onClear={clear}
+            activeCount={[filters.from, filters.to].filter(Boolean).length}
+            trailing={(<>
+              <Select aria-label="Order" className="w-36" value={order} onValueChange={v => { setOrder(v as 'asc' | 'desc'); setSort(null); }} options={ORDER} />
+              <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+            </>)}
+            moreFilters={(
+              <>
+              <FilterField label="From date"><Input type="date" aria-label="From date" value={filters.from} onChange={e => set({ from: e.target.value })} /></FilterField>
+              <FilterField label="To date"><Input type="date" aria-label="To date" value={filters.to} onChange={e => set({ to: e.target.value })} /></FilterField>
+              </>
+            )}
+          >
+            <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search requests" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
             <Select aria-label="Status" className="w-36" value={filters.status} onValueChange={v => set({ status: v })} options={STATUS_OPTIONS} />
             <Select aria-label="Type" className="w-36" value={filters.type} onValueChange={v => set({ type: v })} options={TYPE_OPTIONS} />
-            <Input type="date" aria-label="From date" className="w-40" value={filters.from} onChange={e => set({ from: e.target.value })} />
-            <Input type="date" aria-label="To date" className="w-40" value={filters.to} onChange={e => set({ to: e.target.value })} />
-            <Select aria-label="Order" className="w-36" value={order} onValueChange={v => { setOrder(v as 'asc' | 'desc'); setSort(null); }} options={ORDER} />
-            {filtered && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
           </Toolbar>
           {months.length > 0 && (
             <div role="group" aria-label="Filter by month" className="flex gap-1.5 overflow-x-auto pb-0.5">

@@ -3,12 +3,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
-  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, usePersistentState, useViewPreference, type Column,
+  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu,
 } from '@/components/ui-system';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { apiCreate, apiDelete, apiUpdate } from './api';
@@ -30,6 +30,7 @@ const PAGE_SIZE = 24;
 const validIds = (raw: unknown): number[] | undefined => (Array.isArray(raw) ? raw.filter((n): n is number => typeof n === 'number') : undefined);
 
 function SparesContent() {
+  const router = useRouter();
   const confirm = useConfirm();
   const list = useSparesRegister();
   const saved = useSavedRequisitions();
@@ -94,40 +95,52 @@ function SparesContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Spares' }]}
         title="Spare parts"
         description="What is in stock against its minimum, and the requisitions to restock it."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh spares" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            <Button icon="cart" onClick={() => setReqOpen(true)}>{`Requisition${filled(lines).length ? ` (${filled(lines).length})` : ''}`}</Button>
-            <Button asChild icon="upload"><Link href="/spares/import">Import Excel</Link></Button>
+            <IconButton icon="refresh" label="Refresh spares" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <MoreMenu items={[
+              { label: `Requisition${filled(lines).length ? ` (${filled(lines).length})` : ''}`, icon: 'cart', onSelect: () => setReqOpen(true) },
+              { label: 'Import Excel', icon: 'upload', onSelect: () => router.push('/spares/import') },
+            ]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ spare: null })}>Add spare</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Parts" icon="spares" value={stats.total} selected={!filtered} onClick={clear} {...tile} />
-        <MetricTile label="Out of stock" icon="out-of-stock" tone={stats.out ? 'danger' : 'default'} value={stats.out} selected={f.stock === 'out'} onClick={() => set({ stock: f.stock === 'out' ? 'all' : 'out' })} {...tile} />
-        <MetricTile label="Low stock" icon="low-stock" tone={stats.low ? 'warning' : 'default'} value={stats.low} selected={f.stock === 'low'} onClick={() => set({ stock: f.stock === 'low' ? 'all' : 'low' })} {...tile} />
-        <MetricTile label="Safety stock" icon="safe" value={stats.safety} selected={f.stock === 'safety'} onClick={() => set({ stock: f.stock === 'safety' ? 'all' : 'safety' })} {...tile} />
-        <MetricTile label="Categories" icon="categories" value={stats.categories} detail={`${formatCurrencyShort(stats.value)} on hand`} selected={showCategories} onClick={() => setShowCategories(v => !v)} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Parts" value={stats.total} selected={!filtered} onClick={clear} {...tile} />
+        <MetricTile compact label="Out of stock" tone={stats.out ? 'danger' : 'default'} value={stats.out} selected={f.stock === 'out'} onClick={() => set({ stock: f.stock === 'out' ? 'all' : 'out' })} {...tile} />
+        <MetricTile compact label="Low stock" tone={stats.low ? 'warning' : 'default'} value={stats.low} selected={f.stock === 'low'} onClick={() => set({ stock: f.stock === 'low' ? 'all' : 'low' })} {...tile} />
+        <MetricTile compact label="Safety stock" value={stats.safety} selected={f.stock === 'safety'} onClick={() => set({ stock: f.stock === 'safety' ? 'all' : 'safety' })} {...tile} />
+        <MetricTile compact label="Categories" value={stats.categories} detail={`${formatCurrencyShort(stats.value)} on hand`} selected={showCategories} onClick={() => setShowCategories(v => !v)} {...tile} />
       </MetricGrid>
 
       {showCategories && <CategoryPanel rows={breakdown} active={f.category} onPick={cat => set({ category: cat })} />}
 
-      <Toolbar filtered={filtered} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search parts" wrapperClassName="min-w-48 max-w-md flex-1" />
+      <Toolbar
+        filtered={filtered} onClear={clear} activeCount={(f.priority !== 'all' ? 1 : 0) + (f.favouritesOnly ? 1 : 0)}
+        trailing={(
+          <>
+            <Select aria-label="Sort by" className="w-40" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
+            <IconButton icon="sort" variant="ghost" label={dir === 'asc' ? 'Ascending, reverse' : 'Descending, reverse'} onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
+            <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+          </>
+        )}
+        moreFilters={(
+          <>
+            <FilterField label="Priority"><Select aria-label="Priority" value={f.priority} onValueChange={v => set({ priority: v })} options={PRIORITIES} /></FilterField>
+            <Button variant={f.favouritesOnly ? 'primary' : 'secondary'} icon="starred" aria-pressed={f.favouritesOnly} onClick={() => set({ favouritesOnly: !f.favouritesOnly })}>Favourites</Button>
+          </>
+        )}
+      >
+        <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search parts" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select aria-label="Stock level" className="w-40" value={f.stock} onValueChange={v => set({ stock: v as StockFilter })} options={STOCKS} />
         <Select aria-label="Category" className="w-44" value={f.category} onValueChange={v => set({ category: v })} options={categories} />
-        <Select aria-label="Priority" className="w-36" value={f.priority} onValueChange={v => set({ priority: v })} options={PRIORITIES} />
-        <Select aria-label="Sort by" className="w-44" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
-        <IconButton icon="sort" variant="outline" label={dir === 'asc' ? 'Ascending, reverse' : 'Descending, reverse'} onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
-        <Button variant={f.favouritesOnly ? 'primary' : 'secondary'} icon="starred" aria-pressed={f.favouritesOnly} onClick={() => set({ favouritesOnly: !f.favouritesOnly })}>Favourites</Button>
-        {filtered && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, EmptyState, Field, IconButton, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Skeleton, Textarea, Toolbar, useConfirm,
+  Button, EmptyState, Field, IconButton, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Skeleton, Textarea, Toolbar, useConfirm, MoreMenu
 } from '@/components/ui-system';
 import { AddEmployeesDialog } from './AddEmployeesDialog';
 import { BulkAssignDialog } from './BulkAssignDialog';
@@ -133,30 +133,32 @@ function TimesheetsContent() {
   const shiftMonth = (by: number) => setCurrentMonth(d => new Date(d.getFullYear(), d.getMonth() + by, 1));
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Timesheets' }]}
         title="Maintenance timesheets"
         description={`${activeTab === 'salaried' ? 'Salaried' : 'NEC'} roster, ${fmtPeriod(activePeriod)}.`}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh timesheets" variant="outline" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
-            {activeTab === 'nec' && <Button icon="documents" disabled={unavailable} onClick={() => setShowImport(true)}>Import scans</Button>}
-            <Button icon="download" disabled={unavailable} onClick={() => setShowDownload(true)}>Download</Button>
+            <IconButton icon="refresh" label="Refresh timesheets" variant="ghost" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
+            <MoreMenu items={[
+              ...(activeTab === 'nec' ? [{ label: 'Import scans', icon: 'documents' as const, disabled: unavailable, onSelect: () => setShowImport(true) }] : []),
+              { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => setShowDownload(true) },
+            ]} />
             <Button variant="primary" icon="calendar" disabled={unavailable || tabEmployees.length === 0} onClick={() => setBulkOpen({ anchor: tabEmployees[0] })}>Bulk entry</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="People" icon="employees" value={tabEmployees.length} detail={activeTab === 'salaried' ? 'Salaried roster' : 'NEC roster'} {...tile} />
-        <MetricTile label="Regular hours" icon="clock" value={`${summary.reg.toFixed(0)}h`} detail={`Night allowance ${summary.night.toFixed(0)}h${summary.standby > 0 ? `, standby ${summary.standby}h` : ''}`} {...tile} />
-        <MetricTile label="Overtime 1.5×" icon="activity" value={`${summary.ot15.toFixed(0)}h`} {...tile} />
-        <MetricTile label="Overtime 2.0×" icon="activity" value={`${summary.ot20.toFixed(0)}h`} {...tile} />
-        <MetricTile label="Filled" icon="calendar" value={`${completion}%`} tone={completion === 100 ? 'success' : 'default'} detail={`${summary.filled} of ${summary.possible} days`} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="People" value={tabEmployees.length} detail={activeTab === 'salaried' ? 'Salaried roster' : 'NEC roster'} {...tile} />
+        <MetricTile compact label="Regular hours" value={`${summary.reg.toFixed(0)}h`} detail={`Night allowance ${summary.night.toFixed(0)}h${summary.standby > 0 ? `, standby ${summary.standby}h` : ''}`} {...tile} />
+        <MetricTile compact label="Overtime 1.5×" value={`${summary.ot15.toFixed(0)}h`} {...tile} />
+        <MetricTile compact label="Overtime 2.0×" value={`${summary.ot20.toFixed(0)}h`} {...tile} />
+        <MetricTile compact label="Filled" value={`${completion}%`} tone={completion === 100 ? 'success' : 'default'} detail={`${summary.filled} of ${summary.possible} days`} {...tile} />
       </MetricGrid>
 
-      <section aria-label="Period" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card sm:flex-row sm:items-center sm:justify-between">
+      <section aria-label="Period" className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <Segmented label="Roster" value={activeTab} onValueChange={v => { setActiveTab(v as Tab); setSelectedIds(new Set()); }} options={[{ value: 'nec', label: 'NEC' }, { value: 'salaried', label: 'Salaried' }]} />
           <div className="flex items-center gap-2">
