@@ -43,7 +43,7 @@ export function MetricTile({ label, value, icon, detail, tone = 'default', loadi
     const quiet = cn(
       'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
       selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
-      (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-line-strong',
+      (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-action/35',
       className,
     );
     const line = (
