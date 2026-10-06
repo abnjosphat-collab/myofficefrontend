@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
   Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, sortRows, useConfirm, useViewPreference,
-  type Column, type SortState, type Tone,
+  type Column, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -161,7 +161,7 @@ function InventoryPageContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Inventory' }]}
         title="Inventory"
@@ -187,19 +187,23 @@ function InventoryPageContent() {
         This register is not connected to a shared service. Items are saved on this device and are not visible to other people or devices.
       </Notice>
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Items" icon="package" value={counts.total} selected={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
-        <MetricTile label="In stock" icon="valid" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} />
-        <MetricTile label="Low stock" icon="low-stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} />
-        <MetricTile label="Out of stock" icon="out-of-stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} />
-        <MetricTile label="Stock value" icon="value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+      <MetricGrid compact>
+        <MetricTile compact label="Items" value={counts.total} selected={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
+        <MetricTile compact label="In stock" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} />
+        <MetricTile compact label="Low stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} />
+        <MetricTile compact label="Out of stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} />
+        <MetricTile compact label="Stock value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, SKU or description" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        activeCount={supplier !== ALL ? 1 : 0}
+        trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}
+        moreFilters={suppliers.length > 0 ? <FilterField label="Supplier"><Select aria-label="Filter by supplier" value={supplier} onValueChange={setSupplier} options={[{ value: ALL, label: 'All suppliers' }, ...suppliers.map(s => ({ value: s, label: s }))]} /></FilterField> : undefined}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, SKU or description" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Segmented label="Stock status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTERS} />
         {categories.length > 0 && <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />}
-        {suppliers.length > 0 && <Select className="w-44" aria-label="Filter by supplier" value={supplier} onValueChange={setSupplier} options={[{ value: ALL, label: 'All suppliers' }, ...suppliers.map(s => ({ value: s, label: s }))]} />}
       </Toolbar>
 
       {inventory.length === 0 ? (

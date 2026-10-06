@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader,
   RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone,
+  type Column, type IconMeaning, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -307,14 +307,14 @@ function NoticeboardContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Communications' }, { label: 'Noticeboard' }]}
         title="Noticeboard"
         description="Create, manage and monitor company notices and announcements."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh notices" variant="outline" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh notices" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
             {notices.length > 0 && (
               <DownloadButton
                 data={notices as unknown as Record<string, unknown>[]}
@@ -330,23 +330,33 @@ function NoticeboardContent() {
         )}
       />
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Total notices" icon="notice" detail={scope} value={notices.length} loading={pending} unavailable={unavailable} />
-        <MetricTile label="Active" icon="active" tone="success" detail={scope} value={notices.filter(n => n.status === 'Active').length} loading={pending} unavailable={unavailable} selected={filters.status === 'Active'} onClick={() => setFilter('status', filters.status === 'Active' ? ALL : 'Active')} />
-        <MetricTile label="Pinned" icon="pinned" detail={scope} value={notices.filter(n => n.is_pinned).length} loading={pending} unavailable={unavailable} selected={filters.is_pinned === true} onClick={() => setFilter('is_pinned', filters.is_pinned === true ? null : true)} />
-        <MetricTile label="Expired" icon="expired" tone="danger" detail={scope} value={expiredNotices.length} loading={pending} unavailable={unavailable} selected={hideExpired === false && false} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total notices" detail={scope} value={notices.length} loading={pending} unavailable={unavailable} />
+        <MetricTile compact label="Active" tone="success" detail={scope} value={notices.filter(n => n.status === 'Active').length} loading={pending} unavailable={unavailable} selected={filters.status === 'Active'} onClick={() => setFilter('status', filters.status === 'Active' ? ALL : 'Active')} />
+        <MetricTile compact label="Pinned" detail={scope} value={notices.filter(n => n.is_pinned).length} loading={pending} unavailable={unavailable} selected={filters.is_pinned === true} onClick={() => setFilter('is_pinned', filters.is_pinned === true ? null : true)} />
+        <MetricTile compact label="Expired" tone="danger" detail={scope} value={expiredNotices.length} loading={pending} unavailable={unavailable} selected={hideExpired === false && false} />
       </MetricGrid>
 
       {byPriority.length > 0 && <ChartPanel title="Priority breakdown" summary={`Notices by priority: ${byPriority.map(r => `${r.name} ${r.value}`).join(', ')}.`}><Distribution rows={byPriority} /></ChartPanel>}
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or content" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters}
+        onClear={clearFilters}
+        activeCount={[filters.status, filters.department].filter(v => v !== ALL).length + (filters.is_pinned !== null ? 1 : 0)}
+        trailing={(<>
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+        moreFilters={(
+          <>
+          <FilterField label="Status"><Select aria-label="Filter by status" value={filters.status} onValueChange={v => setFilter('status', v)} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} /></FilterField>
+          <FilterField label="Department"><Select aria-label="Filter by department" value={filters.department} onValueChange={v => setFilter('department', v)} options={[{ value: ALL, label: 'All departments' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} /></FilterField>
+          <FilterField label="Pinned"><Select aria-label="Filter by pinned" value={filters.is_pinned === null ? ALL : String(filters.is_pinned)} onValueChange={v => setFilter('is_pinned', v === ALL ? null : v === 'true')} options={[{ value: ALL, label: 'All notices' }, { value: 'true', label: 'Pinned only' }, { value: 'false', label: 'Not pinned' }]} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={search} onValueChange={setSearch} placeholder="Search title or content" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-40" aria-label="Filter by category" value={filters.category} onValueChange={v => setFilter('category', v)} options={[{ value: ALL, label: 'All categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
         <Select className="w-40" aria-label="Filter by priority" value={filters.priority} onValueChange={v => setFilter('priority', v)} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
-        <Select className="w-40" aria-label="Filter by status" value={filters.status} onValueChange={v => setFilter('status', v)} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: s }))]} />
-        <Select className="w-44" aria-label="Filter by department" value={filters.department} onValueChange={v => setFilter('department', v)} options={[{ value: ALL, label: 'All departments' }, ...DEPARTMENTS.map(d => ({ value: d, label: d }))]} />
-        <Select className="w-40" aria-label="Filter by pinned" value={filters.is_pinned === null ? ALL : String(filters.is_pinned)} onValueChange={v => setFilter('is_pinned', v === ALL ? null : v === 'true')} options={[{ value: ALL, label: 'All notices' }, { value: 'true', label: 'Pinned only' }, { value: 'false', label: 'Not pinned' }]} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion
