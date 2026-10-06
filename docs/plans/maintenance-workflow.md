@@ -1010,7 +1010,9 @@ Update `docs/CURRENT_HANDOFF.md`, `docs/WORK_ORDERS.md` (status semantics stay; 
 
 ## Q. OPEN QUESTIONS FOR THE OWNER
 
-Each has my recommended answer, so a plain "agreed" is enough. They are ordered by how much they change the plan.
+**Decision, 6 Oct 2026:** the owner delegated these to the author ("just decide yourself"). Every recommended answer below is adopted as the working decision; each stays open to change at any review. This settles the questions only. It is not approval of the plan, and Phase 1 still needs the owner's written approval.
+
+Each has a recommended answer, which is now the adopted decision (see above). They are ordered by how much they change the plan.
 
 | # | Question | Recommended answer |
 |---|---|---|
