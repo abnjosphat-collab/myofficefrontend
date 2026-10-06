@@ -110,26 +110,26 @@ function MaintenanceContent() {
     : tab === 'orders' ? <Button variant="primary" icon="plus" disabled={!orders.loaded} onClick={() => setFormFor({ order: null })}>New work order</Button> : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Work orders' }]}
         title="Work orders"
         description="Raise a job, follow it to completion, and plan the recurring ones."
         actions={(
           <>
-            <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="outline" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
+            <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="ghost" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
             {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => STATUS_HEX[String(row.status)] ?? '94A3B8'} />}
             {headerAction}
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Work orders" icon="wrench" value={counts.all} selected={tab === 'orders' && f.status === 'all'} onClick={() => { setTab('orders'); set({ status: 'all' }); }} {...tile} />
-        <MetricTile label="Pending" icon="pending" tone={counts.pending ? 'warning' : 'default'} value={counts.pending} selected={tab === 'orders' && f.status === 'pending'} onClick={() => { setTab('orders'); set({ status: f.status === 'pending' ? 'all' : 'pending' }); }} {...tile} />
-        <MetricTile label="In progress" icon="activity" value={counts['in-progress']} selected={tab === 'orders' && f.status === 'in-progress'} onClick={() => { setTab('orders'); set({ status: f.status === 'in-progress' ? 'all' : 'in-progress' }); }} {...tile} />
-        <MetricTile label="Completed" icon="success" tone="success" value={counts.completed} selected={tab === 'orders' && f.status === 'completed'} onClick={() => { setTab('orders'); set({ status: f.status === 'completed' ? 'all' : 'completed' }); }} {...tile} />
-        <MetricTile label="Overdue" icon="overdue" tone={counts.overdue ? 'danger' : 'default'} value={counts.overdue} detail={`${counts['on-hold']} on hold`} selected={tab === 'orders' && f.status === 'overdue'} onClick={() => { setTab('orders'); set({ status: f.status === 'overdue' ? 'all' : 'overdue' }); }} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Work orders" value={counts.all} selected={tab === 'orders' && f.status === 'all'} onClick={() => { setTab('orders'); set({ status: 'all' }); }} {...tile} />
+        <MetricTile compact label="Pending" tone={counts.pending ? 'warning' : 'default'} value={counts.pending} selected={tab === 'orders' && f.status === 'pending'} onClick={() => { setTab('orders'); set({ status: f.status === 'pending' ? 'all' : 'pending' }); }} {...tile} />
+        <MetricTile compact label="In progress" value={counts['in-progress']} selected={tab === 'orders' && f.status === 'in-progress'} onClick={() => { setTab('orders'); set({ status: f.status === 'in-progress' ? 'all' : 'in-progress' }); }} {...tile} />
+        <MetricTile compact label="Completed" tone="success" value={counts.completed} selected={tab === 'orders' && f.status === 'completed'} onClick={() => { setTab('orders'); set({ status: f.status === 'completed' ? 'all' : 'completed' }); }} {...tile} />
+        <MetricTile compact label="Overdue" tone={counts.overdue ? 'danger' : 'default'} value={counts.overdue} detail={`${counts['on-hold']} on hold`} selected={tab === 'orders' && f.status === 'overdue'} onClick={() => { setTab('orders'); set({ status: f.status === 'overdue' ? 'all' : 'overdue' }); }} {...tile} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -140,10 +140,15 @@ function MaintenanceContent() {
         </TabsList>
 
         <TabsContent value="orders" className="mt-4 flex flex-col gap-4">
-          <Toolbar filtered={filtered} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-            <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search machine, artisan or WO number" wrapperClassName="min-w-48 max-w-md flex-1" />
-            <Select aria-label="Order" className="w-44" value={f.sort} onValueChange={v => set({ sort: v as SortKey })} options={SORTS} />
-            {filtered && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
+          <Toolbar
+            filtered={filtered}
+            onClear={clear}
+            trailing={(<>
+              <Select aria-label="Order" className="w-36" value={f.sort} onValueChange={v => set({ sort: v as SortKey })} options={SORTS} />
+              <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+            </>)}
+          >
+            <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search machine, artisan or WO number" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
           </Toolbar>
           <div role="group" aria-label="Filter by priority" className="flex flex-wrap items-center gap-1.5">
             <span className="font-sans text-caption text-ink-muted">Priority:</span>

@@ -139,7 +139,8 @@ const spec = {
     else check(await page.getByText(/Saved \d+ entr/).first().isVisible().catch(() => false), 'copying into empty days saves the entries');
 
     // download
-    await page.getByRole('button', { name: 'Download' }).first().click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Download' }).click();
     const dl = page.getByRole('dialog', { name: 'Download timesheet' });
     await dl.waitFor({ timeout: 5000 });
     const [file] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), dl.getByRole('button', { name: 'Download' }).click()]);
@@ -147,7 +148,8 @@ const spec = {
     await file?.saveAs('node_modules/.cache/mo-audit/timesheet-export.xlsx').catch(() => {});
 
     // NEC import opens
-    await page.getByRole('button', { name: 'Import scans' }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Import scans' }).click();
     const imp = page.getByRole('dialog', { name: 'Import scanned NEC timesheets' });
     await imp.waitFor({ timeout: 5000 });
     check(await imp.getByRole('button', { name: 'Start import for this period' }).isVisible(), 'the scan import opens on its first step');
