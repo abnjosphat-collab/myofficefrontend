@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, Notice, PageHeader, Segmented, Select, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, pageSlice } from '@/components/ui-system';
+import { Button, Checkbox, PageHeader, StatusLine, Segmented, Select, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, pageSlice } from '@/components/ui-system';
 import type { RegisterOption, RegisterRef } from '@/components/shared/RegisterField';
 import { AssignmentPicker, personOption, type AssignInput } from '../maintenance/AssignmentPicker';
 import { QuickWorkOrderForm, type QuickInput } from '../maintenance/QuickWorkOrderForm';
@@ -142,8 +142,8 @@ function Prototype() {
   const hdr = recordId === null ? 'Work orders' : 'Work order';
   return (
     <div className="flex flex-col gap-4">
-      <Notice tone="info" icon="info" title="Prototype: example data, nothing is saved">Every machine, person and record here is invented. Use the switchers to see each state. This page is for review only and is not part of the navigation.</Notice>
-      <details open className="rounded-card border border-line-subtle bg-surface-subtle p-3">
+      <StatusLine tone="info"><strong className="font-medium text-ink">Prototype with example data.</strong> Nothing is saved. Open the controls below to force each state.</StatusLine>
+      <details className="rounded-card border border-line-subtle bg-surface-subtle p-3">
         <summary className="cursor-pointer font-sans text-label font-semibold text-ink">Prototype controls (not part of the product)</summary>
       <div className="mt-3 flex flex-wrap items-end gap-3" role="group" aria-label="Prototype controls">
         <label className="flex flex-col gap-1 font-sans text-caption text-ink-muted">Data state<Select aria-label="Data state" className="w-64" value={scenario} onValueChange={v => { setScenario(v as Scenario); setPage(1); }} options={SCENARIOS} /></label>
@@ -154,17 +154,7 @@ function Prototype() {
       </div>
       </details>
 
-      {record ? (
-        <WorkOrderRecordView
-          order={{ ...record, allowed_transitions: allowedTransitions(record.status, role) }} role={role} onBack={() => { setRecordId(null); setConflict(null); }}
-          onTransition={t => transition(record, t)} onSave={p => saveOrder(record, p)} conflict={conflict} onReloadConflict={() => setConflict(null)}
-          onSignoff={async sig => { await wait(); patchOrder(record.id, x => withEvent(x, 'Foreman sign-off', { awaiting_signoff: false }, !!sig)); toast.success('Signed off.'); }}
-          onAssign={() => setAssignFor([record])} onRemoveAssignment={async a => { patchOrder(record.id, x => withEvent(x, `Removed assignment of ${a.person.text}`, { assignments: x.assignments.filter(y => y.id !== a.id) })); }}
-          onComment={async body => { await wait(200); patchOrder(record.id, x => ({ ...x, comments: [...x.comments, { id: x.comments.length + 1, at: stamp(), who: ME.text, body }] })); }}
-          machines={machineOptions} people={peopleOptions} sections={SECTION_OPTIONS}
-        />
-      ) : (
-        <>
+      <>
           <PageHeader breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: hdr }]} title="Work orders" description="Raise a job, follow it to completion, and plan the recurring ones."
             actions={(<>{tab === 'schedules' ? <Button variant="primary" icon="plus" onClick={() => setScheduleOpen(true)}>New schedule</Button> : tab === 'requests' ? <Button variant="primary" icon="plus" onClick={() => setRequestOpen(true)}>Request work</Button> : <><Button icon="breakdown" onClick={() => setQuick('breakdown')}>Breakdown</Button><Button variant="primary" icon="plus" onClick={() => setQuick('quick')}>New work order</Button></>}</>)} />
           <Tabs value={tab} onValueChange={setTab}>
@@ -191,7 +181,16 @@ function Prototype() {
             </TabsContent>
             <TabsContent value="schedules" className="mt-4"><p className="font-sans text-body-sm text-ink-muted">Schedules are listed here once saved. Use New schedule to review the form and its preview; nothing is stored in the prototype.</p></TabsContent>
           </Tabs>
-        </>
+      </>
+      {record && (
+        <WorkOrderRecordView
+          order={{ ...record, allowed_transitions: allowedTransitions(record.status, role) }} role={role} onBack={() => { setRecordId(null); setConflict(null); }}
+          onTransition={t => transition(record, t)} onSave={p => saveOrder(record, p)} conflict={conflict} onReloadConflict={() => setConflict(null)}
+          onSignoff={async sig => { await wait(); patchOrder(record.id, x => withEvent(x, 'Foreman sign-off', { awaiting_signoff: false }, !!sig)); toast.success('Signed off.'); }}
+          onAssign={() => setAssignFor([record])} onRemoveAssignment={async a => { patchOrder(record.id, x => withEvent(x, `Removed assignment of ${a.person.text}`, { assignments: x.assignments.filter(y => y.id !== a.id) })); }}
+          onComment={async body => { await wait(200); patchOrder(record.id, x => ({ ...x, comments: [...x.comments, { id: x.comments.length + 1, at: stamp(), who: ME.text, body }] })); }}
+          machines={machineOptions} people={peopleOptions} sections={SECTION_OPTIONS}
+        />
       )}
 
       <QuickWorkOrderForm open={quick !== null} onOpenChange={o => { if (!o) setQuick(null); }} preset={quick === 'breakdown' ? 'breakdown' : undefined} machines={machineOptions} machinesLoad={load} onRetryMachines={() => setRegisterFails(false)} onCreate={createQuick} />

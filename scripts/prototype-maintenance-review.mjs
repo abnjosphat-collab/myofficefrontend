@@ -23,7 +23,8 @@ async function open(w = 1440, h = 900) {
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png` });
 let { ctx, page } = await open();
 
-// --- Assignment picker with leave
+// --- Assignment picker with leave (the record is a pop-up, so set the conflict switch on the page first)
+await page.getByText('Prototype controls').click(); await page.getByLabel('Next work order save conflicts').check(); await page.getByText('Prototype controls').click();
 await page.getByPlaceholder('Search machine, number or person').fill('WO-00227'); await page.waitForTimeout(300); await page.getByRole('button', { name: /^Open work order WO-00227/ }).click();
 await page.waitForTimeout(400);
 ok(await page.getByText('The assigned person is now on leave').isVisible(), 'record shows the assignee-on-leave banner');
@@ -55,7 +56,6 @@ await page.getByRole('button', { name: 'Start', exact: true }).click(); await pa
 ok(await page.getByText(/reference is needed for/).isVisible(), 'Start is refused in place with the missing permit named (no confirm dialog first)');
 // version conflict keeps the typed value
 await page.getByRole('tab', { name: 'Basic info' }).click();
-await page.getByLabel('Next work order save conflicts').check();
 const desc = page.locator('textarea').first(); await desc.fill('My edited description');
 await page.getByRole('button', { name: 'Save changes' }).click(); await page.waitForTimeout(700);
 ok(await page.getByText('Changed by someone else').isVisible(), 'a save conflict shows who changed it');
@@ -67,7 +67,7 @@ await ctx.close();
 // --- States
 for (const [value, label] of [['loading', /^Loading/], ['retrying', /^Retrying/], ['error', /^Failed \(400/], ['forbidden', /^Forbidden/], ['empty', /^Empty/], ['stale', /^Failed refresh/]]) {
   ({ ctx, page } = await open());
-  await page.getByLabel('Data state').click(); await page.getByRole('option', { name: label }).click(); await page.waitForTimeout(500);
+  await page.getByText('Prototype controls').click(); await page.getByLabel('Data state').click(); await page.getByRole('option', { name: label }).click(); await page.waitForTimeout(500);
   await shot(page, `08-state-${value}`);
   const text = await page.locator('main').innerText();
   if (value === 'error' || value === 'forbidden') ok(!/No work orders yet/.test(text), `${value}: failure is not shown as an empty list`);

@@ -23,7 +23,7 @@ At the top of the page, **Prototype controls** force each state: data state (rea
 | Assign someone, with people on leave greyed and the reason shown | `AssignmentPicker` | R7, R8 |
 | Work order list: stat strip as filters, saved views, filters, bulk bar, cards or table, paging, every data state | `WorkOrderListView`, `savedViews.ts` | R1, R2, R35 |
 | Quick and breakdown work order, four fields, retry-safe | `QuickWorkOrderForm` | R4, R5, R37 |
-| Work order record with tabs (Basic info, Feedback, Assignments, Permits, Comments, Audit trail), status actions, sign-off, conflict banner | `WorkOrderRecordView` | R3, R6, R9, R10, R11, R13, R14 |
+| Work order record as a **pop-up over the list** (owner's feedback, 6 Oct) with tabs (Basic info, Feedback, Assignments, Permits, Comments, Audit trail), status actions, sign-off, conflict banner | `WorkOrderRecordView` | R3, R6, R9, R10, R11, R13, R14 |
 | Request form, request inbox, review with signature, reject with reason | `RequestForm`, `RequestInboxView` | R15 to R20 |
 | Schedule with many machines and a preview of the next occurrences | `ScheduleFlowForm` | R21 to R24 |
 
@@ -66,5 +66,10 @@ Not prototyped (as the plan said): the scheduler board and the KPI board (round 
 
 1. Is the register-first Tab behaviour right (ghost text only for an available person, unavailable people listed greyed)?
 2. Cards or table as the list default on a desktop (the existing page defaults to cards; the plan's wireframe drew a table)?
-3. Should the record be a page (`/maintenance/[id]`) as planned, or stay a dialog as today?
+3. The record is now a pop-up, as you asked. This replaces the plan's full page `/maintenance/[id]`; a phone may still want a full page, so say if the pop-up should become a full-height sheet there.
 4. Round 2: prototype the scheduler board and KPI board before building, or build the work order, request and schedule slices first?
+
+## Changes after the first review (6 Oct 2026)
+
+- The work order record opens as a pop-up over the list instead of replacing the page.
+- Less noise: the prototype banner is one line and the controls are collapsed by default; the priority chips became one "Any priority" filter beside type and assignee; the card no longer repeats priority (only High and Urgent show a badge); tab counts show only when above zero; the record's header lost its breadcrumb and large title.

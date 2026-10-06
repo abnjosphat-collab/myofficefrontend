@@ -42,6 +42,7 @@ export function WorkOrderListView({ items, total, counts, status, error, onRetry
       <StatusBadge tone={statusMeta(o.status).tone}>{statusMeta(o.status).label}</StatusBadge>
       {isOverdueFlow(o) && <StatusBadge tone="danger">Overdue</StatusBadge>}
       {o.awaiting_signoff && <StatusBadge tone="info">Awaiting sign-off</StatusBadge>}
+      {(o.priority === 'urgent' || o.priority === 'high') && <StatusBadge tone={priorityMeta(o.priority).tone}>{priorityMeta(o.priority).label}</StatusBadge>}
     </>
   );
   const assigneeText = (o: FlowOrder) => o.assignee.text
@@ -75,8 +76,7 @@ export function WorkOrderListView({ items, total, counts, status, error, onRetry
       </MetricGrid>
 
       <div role="group" aria-label="Saved views" className="flex flex-wrap items-center gap-1.5">
-        <span className="font-sans text-caption text-ink-muted">Views:</span>
-        {views.map(v => {
+                {views.map(v => {
           const on = JSON.stringify(v.filters) === JSON.stringify(filters);
           return (
             <span key={v.id} className="inline-flex items-center gap-0.5">
@@ -94,13 +94,9 @@ export function WorkOrderListView({ items, total, counts, status, error, onRetry
       >
         <SearchField value={filters.search} onValueChange={search => set({ search })} placeholder="Search machine, number or person" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
         <Select aria-label="Type" className="w-40" value={filters.classification} onValueChange={v => set({ classification: v as FlowFilters['classification'] })} options={CLASSES} />
+        <Select aria-label="Priority" className="w-36" value={filters.priorities.length === 1 ? filters.priorities[0] : 'all'} onValueChange={v => set({ priorities: v === 'all' ? [] : [v as WorkOrderPriority] })} options={[{ value: 'all', label: 'Any priority' }, ...(Object.keys(PRIORITY) as WorkOrderPriority[]).map(value => ({ value, label: PRIORITY[value].label }))]} />
         <Select aria-label="Assignee" className="w-40" value={filters.assignee} onValueChange={v => set({ assignee: v as FlowFilters['assignee'] })} options={[{ value: 'all', label: 'Anyone' }, { value: 'me', label: 'Assigned to me' }, { value: 'unassigned', label: 'Unassigned' }]} />
       </Toolbar>
-      <div role="group" aria-label="Filter by priority" className="flex flex-wrap items-center gap-1.5">
-        <span className="font-sans text-caption text-ink-muted">Priority:</span>
-        {(Object.keys(PRIORITY) as WorkOrderPriority[]).map(p => { const on = filters.priorities.includes(p); return <Button key={p} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on} onClick={() => set({ priorities: on ? filters.priorities.filter(x => x !== p) : [...filters.priorities, p] })}>{PRIORITY[p].label}</Button>; })}
-      </div>
-
       {view === 'table' && selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">
           <span className="font-sans text-label font-semibold text-ink">{selected.size} selected</span>
@@ -122,7 +118,7 @@ export function WorkOrderListView({ items, total, counts, status, error, onRetry
               <li key={o.id} className="relative">
                 <RecordCard
                   eyebrow={`#${o.number}`} title={o.machine.text} subtitle={o.description} openLabel={`Open work order ${o.number}, ${o.machine.text}`} onOpen={() => onOpen(o)} status={badges(o)}
-                  facts={[{ label: 'Assigned', value: o.assignee.text || (o.needs_assignment ? 'Needs assignment' : 'Unassigned') }, { label: 'Priority', value: priorityMeta(o.priority).label }, ...(o.due_date ? [{ label: 'Due', value: fmtDate(o.due_date) }] : [])]}
+                  facts={[{ label: 'Assigned', value: o.assignee.text || (o.needs_assignment ? 'Needs assignment' : 'Unassigned') }, ...(o.due_date ? [{ label: 'Due', value: fmtDate(o.due_date) }] : [])]}
                   meta={<div className="w-full min-w-40"><Progress value={o.progress} label={`${o.machine.text} progress`} /></div>}
                 />
               </li>

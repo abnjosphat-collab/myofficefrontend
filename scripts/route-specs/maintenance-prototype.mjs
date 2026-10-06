@@ -7,7 +7,7 @@ const spec = {
   h1: 'Work orders',
   data: {},
   async ready(page, calls, { check, shot, expectNoOverflow }) {
-    check(await page.getByText('Prototype: example data, nothing is saved').isVisible(), 'the page says it is a prototype with example data');
+    check(await page.getByText('Prototype with example data.').isVisible(), 'the page says it is a prototype with example data');
     await shot(page, 'list@1440');
 
     await page.getByRole('button', { name: 'New work order' }).first().click();

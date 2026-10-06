@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import {
-  Button, DataTable, EmptyState, Field, FormDialog, Input, MoreMenu, Notice, PageHeader, Progress, Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Checkbox,
+  Button, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MoreMenu, Notice, Progress, Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Checkbox,
   type Column,
 } from '@/components/ui-system';
 import { RegisterField, type RegisterLoad, type RegisterOption } from '@/components/shared/RegisterField';
@@ -71,44 +71,40 @@ export function WorkOrderRecordView({ order, role, onBack, onTransition, onSave,
   const more = order.allowed_transitions.filter(t => !direct.includes(t));
 
   return (
+    <Dialog
+      open onOpenChange={o => { if (!o) onBack(); }} size="xl" title={order.machine.text}
+      description={[`#${order.number}`, order.section.text, source, order.due_date ? `Due ${fmtDate(order.due_date)}` : ''].filter(Boolean).join(' · ')}
+      footer={<Button onClick={onBack}>Close</Button>}
+    >
     <div className="flex flex-col gap-4">
-      <PageHeader
-        breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Work orders' }, { label: order.number }]}
-        title={order.machine.text}
-        description={[`#${order.number}`, order.section.text, source, `Due ${order.due_date ? fmtDate(order.due_date) : 'not set'}`].filter(Boolean).join(' · ')}
-        actions={(
-          <>
-            <Button icon="chevron-left" onClick={onBack}>All work orders</Button>
-            {direct.map(t => <Button key={t} variant="primary" pending={busy} onClick={() => void begin(t)}>{actionLabel(order.status, t)}</Button>)}
-            {manager && order.awaiting_signoff && <Button variant="primary" icon="check" onClick={() => { setSignoffSig(''); setSignoffOpen(true); }}>Sign off</Button>}
-            <MoreMenu items={[...more.map(t => ({ label: actionLabel(order.status, t), onSelect: () => void begin(t) })), { label: 'Print', icon: 'print' as const, onSelect: () => window.print() }]} />
-          </>
-        )}
-      />
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-        <StatusBadge tone={priorityMeta(order.priority).tone}>{priorityMeta(order.priority).label} priority</StatusBadge>
+        <StatusBadge tone={priorityMeta(order.priority).tone}>{priorityMeta(order.priority).label}</StatusBadge>
         {classificationLabel(order) && <StatusBadge tone="info">{classificationLabel(order)}</StatusBadge>}
-        {order.awaiting_signoff && <StatusBadge tone="warning">Awaiting sign-off</StatusBadge>}
-        <div className="ml-auto w-full max-w-48"><Progress value={order.progress} label={`Progress on ${order.machine.text}`} /></div>
+        <div className="w-24"><Progress value={order.progress} label={`Progress on ${order.machine.text}`} /></div>
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          {direct.map(t => <Button key={t} variant="primary" pending={busy} onClick={() => void begin(t)}>{actionLabel(order.status, t)}</Button>)}
+          {manager && order.awaiting_signoff && <Button variant="primary" icon="check" onClick={() => { setSignoffSig(''); setSignoffOpen(true); }}>Sign off</Button>}
+          <MoreMenu items={[...more.map(t => ({ label: actionLabel(order.status, t), onSelect: () => void begin(t) })), { label: 'Print', icon: 'print' as const, onSelect: () => window.print() }]} />
+        </span>
       </div>
 
       {actionError && <Notice tone="danger" icon="warning" title="The change was not made">{actionError}</Notice>}
       {conflict && (
         <Notice tone="warning" icon="warning" title="Changed by someone else" action={<Button size="sm" onClick={onReloadConflict}>Show their version</Button>}>
-          {conflict.who} saved this work order at {conflict.at}. Your changes are still in the form below; review before saving again.
+          {conflict.who} saved this work order at {conflict.at}. Your changes are still in the form; review before saving again.
         </Notice>
       )}
       {order.assignee_now_on_leave && <Notice tone="warning" icon="calendar" title="The assigned person is now on leave">{order.assignee.text} has approved leave on the planned day. Assign someone else.</Notice>}
-      {order.awaiting_signoff && <Notice tone="info" icon="check" title="Completed, awaiting foreman sign-off">The job is done and signed by the artisan. {manager ? 'Use Sign off when you have checked it.' : 'A foreman has to sign it off.'}</Notice>}
+      {order.awaiting_signoff && !manager && <Notice tone="info" icon="check" title="Completed, awaiting foreman sign-off">A foreman has to sign it off.</Notice>}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Work order sections">
           <TabsTrigger value="basic" icon="documents">Basic info</TabsTrigger>
           <TabsTrigger value="feedback" icon="wrench">Feedback</TabsTrigger>
-          <TabsTrigger value="assign" icon="user">Assignments ({order.assignments.length})</TabsTrigger>
+          <TabsTrigger value="assign" icon="user">Assignments{order.assignments.length ? ` (${order.assignments.length})` : ''}</TabsTrigger>
           <TabsTrigger value="permits" icon="shield">Permits</TabsTrigger>
-          <TabsTrigger value="comments" icon="chat">Comments ({order.comments.length})</TabsTrigger>
+          <TabsTrigger value="comments" icon="chat">Comments{order.comments.length ? ` (${order.comments.length})` : ''}</TabsTrigger>
           <TabsTrigger value="audit" icon="history">Audit trail</TabsTrigger>
         </TabsList>
         <TabsContent value="basic" className="mt-4"><BasicTab key={`${order.id}-${order.version}`} order={order} manager={manager} onSave={onSave} machines={machines} people={people} sections={sections} /></TabsContent>
@@ -138,6 +134,7 @@ export function WorkOrderRecordView({ order, role, onBack, onTransition, onSave,
         <Field label="Foreman signature" required><SignOffField label="Foreman signature" signerName={order.foreman.text} value={signoffSig} onChange={setSignoffSig} /></Field>
       </FormDialog>
     </div>
+    </Dialog>
   );
 }
 
