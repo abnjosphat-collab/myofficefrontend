@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
   Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone,
+  type Column, type IconMeaning, type SortState, type Tone, FilterField,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
@@ -99,34 +99,40 @@ function EquipmentContent() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Equipment' }]}
         title="Equipment management"
         description="Every asset with its status, location and details."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh equipment" variant="outline" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh equipment" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {items.length > 0 && <DownloadButton data={items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
           </>
         )}
       />
 
-      <MetricGrid columns={5}>
-        <MetricTile label="Total" icon="equipment" value={items.length} selected={f.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
-        <MetricTile label="Operational" icon="active" tone="success" value={counts.operational ?? 0} {...statusTile('operational')} {...tile} />
-        <MetricTile label="Maintenance" icon="maintenance" tone={counts.maintenance ? 'warning' : 'default'} value={counts.maintenance ?? 0} {...statusTile('maintenance')} {...tile} />
-        <MetricTile label="Out of service" icon="breakdown" tone={counts.out_of_service ? 'danger' : 'default'} value={counts.out_of_service ?? 0} {...statusTile('out_of_service')} {...tile} />
-        <MetricTile label="Reserved" icon="pending" value={counts.reserved ?? 0} {...statusTile('reserved')} {...tile} />
+      <MetricGrid compact>
+        <MetricTile compact label="Total" value={items.length} selected={f.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
+        <MetricTile compact label="Operational" tone="success" value={counts.operational ?? 0} {...statusTile('operational')} {...tile} />
+        <MetricTile compact label="Maintenance" tone={counts.maintenance ? 'warning' : 'default'} value={counts.maintenance ?? 0} {...statusTile('maintenance')} {...tile} />
+        <MetricTile compact label="Out of service" tone={counts.out_of_service ? 'danger' : 'default'} value={counts.out_of_service ?? 0} {...statusTile('out_of_service')} {...tile} />
+        <MetricTile compact label="Reserved" value={counts.reserved ?? 0} {...statusTile('reserved')} {...tile} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-        <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search name, ID, model, category or serial" wrapperClassName="min-w-56 max-w-md flex-1" />
+      <Toolbar
+        filtered={hasFilters} onClear={clear} activeCount={[f.category, f.location].filter(v => v !== ALL).length}
+        trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}
+        moreFilters={(
+          <>
+            <FilterField label="Category"><Select aria-label="Filter by category" value={f.category} onValueChange={v => set({ category: v })} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} /></FilterField>
+            <FilterField label="Location"><Select aria-label="Filter by location" value={f.location} onValueChange={v => set({ location: v })} options={[{ value: ALL, label: 'All locations' }, ...locationOptions.map(l => ({ value: l, label: l }))]} /></FilterField>
+          </>
+        )}
+      >
+        <SearchField value={f.search} onValueChange={v => set({ search: v })} placeholder="Search name, ID, model, category or serial" wrapperClassName="min-w-56 max-w-md flex-1 max-md:max-w-none max-md:basis-full" />
         <Select className="w-44" aria-label="Filter by status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: STATUS_LABELS[s] }))]} />
-        <Select className="w-44" aria-label="Filter by category" value={f.category} onValueChange={v => set({ category: v })} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />
-        <Select className="w-44" aria-label="Filter by location" value={f.location} onValueChange={v => set({ location: v })} options={[{ value: ALL, label: 'All locations' }, ...locationOptions.map(l => ({ value: l, label: l }))]} />
-        {hasFilters && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
       </Toolbar>
 
       <DataRegion

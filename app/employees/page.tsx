@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE,
+  Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE,
   deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
 } from '@/components/ui-system';
 import { exportFilename } from '@/lib/exportUtils';
@@ -38,10 +38,6 @@ const CLASSES = [{ value: ALL, label: 'All classes' }, ...CLASS_OPTIONS.map(c =>
 const SECTIONS = [{ value: ALL, label: 'All sections' }, ...SECTION_ORDER.map(s => ({ value: s, label: s })), { value: 'Unassigned', label: 'Unassigned' }];
 const PAGE_SIZE = 50;
 
-/** A labelled filter inside the Filters popover. */
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flex flex-col gap-1"><span className="font-sans text-caption text-ink-muted">{label}</span>{children}</div>;
-}
 
 function EmployeesContent() {
   const confirm = useConfirm();
