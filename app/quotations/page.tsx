@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, Skeleton, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState,
+  Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, Skeleton, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, MoreMenu
 } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
@@ -87,7 +87,7 @@ function QuotationsContent() {
     catch (e) { toast.error(`${s.id} was not deleted: ${e instanceof Error ? e.message : 'the server did not accept it.'}`); }
   };
 
-  if (!ready) return <div className="flex flex-col gap-6" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
+  if (!ready) return <div className="flex flex-col gap-4" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -96,9 +96,11 @@ function QuotationsContent() {
         description="Write a quotation and export it as a PDF or Word file."
         actions={(
           <>
-            <Button icon="plus" onClick={startNew}>New</Button>
             <Button icon="save" onClick={save}>Save</Button>
-            <Button icon="download" pending={busy === 'word'} disabled={busy !== null} onClick={() => run('word')}>Word</Button>
+            <MoreMenu pending={busy === 'word'} items={[
+              { label: 'New', icon: 'plus', onSelect: startNew },
+              { label: 'Word', icon: 'download', disabled: busy !== null, onSelect: () => run('word') },
+            ]} />
             <Button variant="primary" icon="pdf" pending={busy === 'pdf'} disabled={busy !== null} onClick={() => run('pdf')}>PDF</Button>
           </>
         )}
@@ -106,11 +108,11 @@ function QuotationsContent() {
       <Notice tone="info" title="What is kept where">The draft you are typing and your company details stay in this browser. Quotations you Save are kept on the server, so everyone who signs in can open them. The page cannot email a quotation: export it and send the file yourself.</Notice>
       {blocked.length > 0 && <Notice tone="danger" title="Fix these before exporting"><span className="flex flex-col gap-0.5">{blocked.map(b => <span key={b}>{b}</span>)}</span></Notice>}
 
-      <MetricGrid columns={4}>
-        <MetricTile label="Line items" icon="documents" value={used} />
-        <MetricTile label="Subtotal" icon="cost" value={money(totals.subtotal, draft.currency)} />
-        <MetricTile label="Total" icon="value" value={money(totals.total, draft.currency)} detail={`Tax ${Number(draft.taxRate) || 0}%, discount ${Number(draft.discount) || 0}%`} />
-        <MetricTile label="Valid until" icon="calendar" value={draft.validUntil ? fmtDate(draft.validUntil) : 'Not set'} />
+      <MetricGrid compact>
+        <MetricTile compact label="Line items" value={used} />
+        <MetricTile compact label="Subtotal" value={money(totals.subtotal, draft.currency)} />
+        <MetricTile compact label="Total" value={money(totals.total, draft.currency)} detail={`Tax ${Number(draft.taxRate) || 0}%, discount ${Number(draft.discount) || 0}%`} />
+        <MetricTile compact label="Valid until" value={draft.validUntil ? fmtDate(draft.validUntil) : 'Not set'} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>

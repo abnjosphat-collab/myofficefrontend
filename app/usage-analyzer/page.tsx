@@ -121,14 +121,14 @@ function UsageAnalyzerContent() {
   const showRemoteError = dataSource === 'all' && remoteError !== null && remoteEvents.length === 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Analytics and insights' }, { label: 'Usage analyzer' }]}
         title="Usage analyzer"
         description="How this workspace is being used: most-opened modules, activity over time, busiest hours, dwell time and feedback."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh usage data" variant="outline" pending={remoteLoading} onClick={() => (dataSource === 'all' ? loadRemote() : refresh())} />
+            <IconButton icon="refresh" label="Refresh usage data" variant="ghost" pending={remoteLoading} onClick={() => (dataSource === 'all' ? loadRemote() : refresh())} />
             {dataSource === 'local' && <Button variant="danger-quiet" icon="delete" onClick={clearAll}>Clear</Button>}
           </>
         )}
@@ -143,15 +143,15 @@ function UsageAnalyzerContent() {
         : !hasData ? <EmptyState icon="analytics" title="No usage recorded yet" description="As you open modules, browse pages, search and leave feedback, this page fills with charts: most-used modules, activity trends, a time-of-day heatmap, dwell time and more." />
         : (
           <>
-            <MetricGrid columns={4}>
-              <MetricTile label="Interactions" icon="activity" value={s.moduleOpens + s.pageViews} />
-              <MetricTile label="Module opens" icon="app" value={s.moduleOpens} />
-              <MetricTile label="Active days" icon="calendar" value={s.activeDays} />
-              <MetricTile label="Searches" icon="search" value={s.searches} />
-              <MetricTile label="Busiest hour" icon="clock" value={busiestLabel} />
-              <MetricTile label="Average rating" icon="starred" value={s.avgFeedbackRating ? `${s.avgFeedbackRating.toFixed(1)} of 5` : 'No data'} detail={`From ${s.feedbackCount} feedback`} />
-              {dataSource === 'all' && <MetricTile label="Signed-in users" icon="employees" value={userSplit.distinctUsers} />}
-              {dataSource === 'all' && <MetricTile label="Anonymous visitors" icon="user" value={userSplit.distinctAnonymousSessions} />}
+            <MetricGrid compact>
+              <MetricTile compact label="Interactions" value={s.moduleOpens + s.pageViews} />
+              <MetricTile compact label="Module opens" value={s.moduleOpens} />
+              <MetricTile compact label="Active days" value={s.activeDays} />
+              <MetricTile compact label="Searches" value={s.searches} />
+              <MetricTile compact label="Busiest hour" value={busiestLabel} />
+              <MetricTile compact label="Average rating" value={s.avgFeedbackRating ? `${s.avgFeedbackRating.toFixed(1)} of 5` : 'No data'} detail={`From ${s.feedbackCount} feedback`} />
+              {dataSource === 'all' && <MetricTile compact label="Signed-in users" value={userSplit.distinctUsers} />}
+              {dataSource === 'all' && <MetricTile compact label="Anonymous visitors" value={userSplit.distinctAnonymousSessions} />}
             </MetricGrid>
 
             <Panel title="By module" action={moduleFilter ? <Button size="sm" onClick={() => setModuleFilter(null)}>Showing {moduleLabel} only. Clear</Button> : undefined}>

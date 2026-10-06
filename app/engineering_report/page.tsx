@@ -80,7 +80,7 @@ function EngineeringReportContent() {
         actions={(
           <>
             <Select className="w-40" aria-label="Report period" value={period} onValueChange={setPeriod} options={options} />
-            <IconButton icon="refresh" label="Refresh report" variant="outline" pending={refreshing} onClick={() => refetchAll()} />
+            <IconButton icon="refresh" label="Refresh report" variant="ghost" pending={refreshing} onClick={() => refetchAll()} />
             <Button variant="primary" icon="print" onClick={() => window.print()}>Print or save as PDF</Button>
           </>
         )}
@@ -88,16 +88,16 @@ function EngineeringReportContent() {
 
       <Section title="Maintenance performance" source={breakdowns} subject="breakdown records">
         <div className="flex flex-col gap-3">
-          <MetricGrid columns={4}>
-            <MetricTile label="Breakdowns" icon="breakdown" tone={vsTarget(maint.breakdowns, REPORT_TARGETS.breakdownsPerMonth, false)} value={maint.breakdowns} detail={`Target ${REPORT_TARGETS.breakdownsPerMonth} or fewer`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
-            <MetricTile label="Mean time to repair" icon="wrench" tone={vsTarget(maint.mttrHours, REPORT_TARGETS.mttrHours, false)} value={maint.mttrHours === null ? 'No data' : `${fixed(maint.mttrHours)} h`} detail={`Target ${REPORT_TARGETS.mttrHours} h or less`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
-            <MetricTile label="Work orders completed" icon="task" tone={vsTarget(maint.completionPct, REPORT_TARGETS.workOrderCompletionPct, true)} value={maint.completionPct === null ? 'No data' : `${maint.completionPct}%`} detail={`Of ${maint.workOrdersRaised} raised this month. Target ${REPORT_TARGETS.workOrderCompletionPct}%`} loading={pending(jobCards)} unavailable={jcUnavailable} />
-            <MetricTile label="Open work orders" icon="pending" value={maint.openWorkOrders} detail="Open or in progress, all dates" loading={pending(jobCards)} unavailable={jcUnavailable} />
+          <MetricGrid compact>
+            <MetricTile compact label="Breakdowns" tone={vsTarget(maint.breakdowns, REPORT_TARGETS.breakdownsPerMonth, false)} value={maint.breakdowns} detail={`Target ${REPORT_TARGETS.breakdownsPerMonth} or fewer`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile compact label="Mean time to repair" tone={vsTarget(maint.mttrHours, REPORT_TARGETS.mttrHours, false)} value={maint.mttrHours === null ? 'No data' : `${fixed(maint.mttrHours)} h`} detail={`Target ${REPORT_TARGETS.mttrHours} h or less`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile compact label="Work orders completed" tone={vsTarget(maint.completionPct, REPORT_TARGETS.workOrderCompletionPct, true)} value={maint.completionPct === null ? 'No data' : `${maint.completionPct}%`} detail={`Of ${maint.workOrdersRaised} raised this month. Target ${REPORT_TARGETS.workOrderCompletionPct}%`} loading={pending(jobCards)} unavailable={jcUnavailable} />
+            <MetricTile compact label="Open work orders" value={maint.openWorkOrders} detail="Open or in progress, all dates" loading={pending(jobCards)} unavailable={jcUnavailable} />
           </MetricGrid>
-          <MetricGrid columns={3}>
-            <MetricTile label="Total downtime" icon="clock" value={`${maint.downtimeHours.toFixed(0)} h`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
-            <MetricTile label="Work orders closed" icon="success" tone="success" value={maint.workOrdersCompleted} loading={pending(jobCards)} unavailable={jcUnavailable} />
-            <MetricTile label="Compliance overdue" icon="overdue" tone={comp.overdue === 0 ? 'success' : 'danger'} value={comp.overdue} loading={pending(compliance)} unavailable={unavailable(compliance)} />
+          <MetricGrid compact>
+            <MetricTile compact label="Total downtime" value={`${maint.downtimeHours.toFixed(0)} h`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
+            <MetricTile compact label="Work orders closed" tone="success" value={maint.workOrdersCompleted} loading={pending(jobCards)} unavailable={jcUnavailable} />
+            <MetricTile compact label="Compliance overdue" tone={comp.overdue === 0 ? 'success' : 'danger'} value={comp.overdue} loading={pending(compliance)} unavailable={unavailable(compliance)} />
           </MetricGrid>
         </div>
       </Section>
@@ -135,11 +135,11 @@ function EngineeringReportContent() {
       </div>
 
       <Section title="Production performance" source={production} subject="production records">
-        <MetricGrid columns={4}>
-          <MetricTile label="Tonnes milled" icon="package" tone={vsTarget(prod.records ? prod.tonnes : null, REPORT_TARGETS.tonnesPerDay * (prod.records || 1), true)} value={`${prod.tonnes.toLocaleString()} t`} detail={`Target ${REPORT_TARGETS.tonnesPerDay.toLocaleString()} t per record`} loading={pending(production)} unavailable={unavailable(production)} />
-          <MetricTile label="Average recovery" icon="percent" tone={vsTarget(prod.recoveryPct, REPORT_TARGETS.recoveryPct, true)} value={prod.recoveryPct === null ? 'No data' : `${fixed(prod.recoveryPct)}%`} detail={`Target ${REPORT_TARGETS.recoveryPct}%`} loading={pending(production)} unavailable={unavailable(production)} />
-          <MetricTile label="Gold produced" icon="value" value={`${prod.goldOz.toFixed(1)} oz`} loading={pending(production)} unavailable={unavailable(production)} />
-          <MetricTile label="Shift records" icon="documents" value={prod.records} loading={pending(production)} unavailable={unavailable(production)} />
+        <MetricGrid compact>
+          <MetricTile compact label="Tonnes milled" tone={vsTarget(prod.records ? prod.tonnes : null, REPORT_TARGETS.tonnesPerDay * (prod.records || 1), true)} value={`${prod.tonnes.toLocaleString()} t`} detail={`Target ${REPORT_TARGETS.tonnesPerDay.toLocaleString()} t per record`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile compact label="Average recovery" tone={vsTarget(prod.recoveryPct, REPORT_TARGETS.recoveryPct, true)} value={prod.recoveryPct === null ? 'No data' : `${fixed(prod.recoveryPct)}%`} detail={`Target ${REPORT_TARGETS.recoveryPct}%`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile compact label="Gold produced" value={`${prod.goldOz.toFixed(1)} oz`} loading={pending(production)} unavailable={unavailable(production)} />
+          <MetricTile compact label="Shift records" value={prod.records} loading={pending(production)} unavailable={unavailable(production)} />
         </MetricGrid>
       </Section>
 

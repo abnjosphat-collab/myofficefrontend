@@ -100,7 +100,8 @@ const spec = {
     check(ORDER.size === 0 && calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe-order-list/remove'), 'removing an item removes it from the shared list on the server');
 
     // matrix
-    await page.getByRole('button', { name: 'Replacement matrix' }).click();
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Replacement matrix' }).click();
     const mx = dialog('Replacement matrix');
     await mx.waitFor({ timeout: 5000 });
     await mx.getByLabel('Months').first().fill('18');

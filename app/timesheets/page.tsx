@@ -33,7 +33,7 @@ function PeriodNotes({ storageKey, people }: { storageKey: string; people: Emplo
   const [notes, setNotes] = useState<Record<string, string>>(() => { try { const v = JSON.parse(window.localStorage.getItem(storageKey) || '{}'); return v && typeof v === 'object' ? v as Record<string, string> : {}; } catch { return {}; } });
   const update = (id: string, note: string) => { const next = { ...notes, [id]: note }; setNotes(next); try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* kept until the page closes */ } };
   return (
-    <section aria-label="Period notes" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5 shadow-card">
+    <section aria-label="Period notes" className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-4">
       <div><h2 className="font-display text-title font-semibold text-ink">Period notes</h2><p className="font-sans text-body-sm text-ink-muted">Context for each person in this period. Kept in this browser only.</p></div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {people.map(p => <Field key={p.id} label={p.name} optional><Textarea rows={2} value={notes[p.id] || ''} onChange={e => update(p.id, e.target.value)} placeholder={`Notes for ${p.name.split(' ')[0]}`} /></Field>)}
