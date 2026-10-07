@@ -27,6 +27,8 @@ export interface Module {
   tags?: string[];
   badge?: string;
   featured?: boolean;
+  /** Active only on this exact address (a landing page whose address is also the prefix of its sibling pages). */
+  exact?: boolean;
   metrics?: { label: string; value: string }[];
 }
 
@@ -79,18 +81,28 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
+    id: 'maintenance', title: 'Maintenance', description: 'Work orders, requests, schedules and the planner',
+    icon: Wrench,
+    modules: [
+      { icon: LayoutDashboard, title: 'Overview',     description: 'What needs attention today', href: '/maintenance-preview', exact: true, tags: ['Maintenance'], featured: true },
+      { icon: ClipboardCheck,  title: 'Work orders',  description: 'Raise, assign, do and sign off jobs', href: '/maintenance-preview/work-orders', tags: ['Work Orders'] },
+      { icon: ClipboardPlus,   title: 'Requests',     description: 'Ask for work; approve with a signature', href: '/maintenance-preview/requests', tags: ['Requests'] },
+      { icon: CalendarClock,   title: 'Schedules',    description: 'Recurring work that raises work orders', href: '/maintenance-preview/schedules', tags: ['Planned'] },
+      { icon: CalendarDays,    title: 'Planner',      description: 'People against days, leave visible', href: '/maintenance-preview/planner', tags: ['Planning'] },
+      { icon: AlertTriangle,   title: 'Breakdowns',   description: 'Log equipment breakdowns',    href: '/breakdowns',   tags: ['Failures'] },
+      { icon: Radar,           title: 'Condition Monitoring', description: 'Oil, vibration & thermography', href: '/condition-monitoring', tags: ['Predictive'] },
+      { icon: TrendingUp,      title: 'Reliability',  description: 'MTBF / MTTR metrics', href: '/reliability', tags: ['Metrics'] },
+    ],
+  },
+  {
     id: 'operations', title: 'Operations & Maintenance', description: 'Keep operations running smoothly',
     icon: Wrench,
     modules: [
-      { icon: ClipboardCheck, title: 'Maintenance',  description: 'Work orders & PM schedules',  href: '/maintenance',  tags: ['Work Orders'], badge: '23', featured: true, metrics: [{ label: 'Open', value: '12' }, { label: 'Completed', value: '156' }] },
-      { icon: AlertTriangle,  title: 'Breakdowns',   description: 'Log equipment breakdowns',    href: '/breakdowns',   tags: ['Failures'], badge: '4', metrics: [{ label: 'Critical', value: '2' }, { label: 'MTTR', value: '4.2h' }] },
       { icon: PackageOpen,    title: 'Spares',       description: 'Spare parts inventory',       href: '/spares',       tags: ['Parts'], badge: '89', metrics: [{ label: 'Available', value: '342' }, { label: 'On Order', value: '56' }] },
       { icon: Fan,            title: 'Compressors',  description: 'Monitor compressor health',  href: '/compressors',  tags: ['Equipment'], badge: '6', metrics: [{ label: 'Running', value: '4' }, { label: 'Efficiency', value: '87%' }] },
       { icon: Clock,          title: 'Standby',      description: 'On-call schedules',          href: '/standby',     tags: ['Scheduling'], badge: '8', metrics: [{ label: 'On Call', value: '6' }, { label: 'Coverage', value: '92%' }] },
       { icon: ClipboardPlus,  title: 'Requisitions', description: 'Purchase & supply requests', href: '/requisitions', tags: ['Procurement'], badge: '7' },
       { icon: Wrench,         title: 'Third Party Services', description: 'Contractor jobs through the PR/PO/GRV approval circuit', href: '/services', tags: ['Services', 'Invoices', 'Contractors'], badge: '34' },
-      { icon: Radar,          title: 'Condition Monitoring', description: 'Oil, vibration & thermography', href: '/condition-monitoring', tags: ['Predictive'] },
-      { icon: TrendingUp,     title: 'Reliability',      description: 'MTBF / MTTR metrics', href: '/reliability', tags: ['Metrics'] },
       { icon: FileCheck2,     title: 'Job Cards',        description: 'Work order job cards', href: '/job-cards', tags: ['Work Orders'] },
     ],
   },
