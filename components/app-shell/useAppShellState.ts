@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { getEvents, recentModuleHrefs, USAGE_EVENT } from '@/lib/usage';
 import {
   CATEGORIES, ALL_MODULES_BY_HREF,
   USAGE_KEY, AUTO_QA_DISMISSED_KEY, BUILTIN_QA_DISMISSED_KEY, MANUAL_QA_KEY, FAVORITES_KEY, SIDEBAR_COLLAPSED_KEY,
@@ -49,6 +50,7 @@ export function useAppShellState() {
   const [dismissedBuiltinIds, setDismissedBuiltinIds] = useState<Set<string>>(new Set());
   const [quickActionsManageOpen, setQuickActionsManageOpen] = useState(false);
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
+  const [recentHrefs, setRecentHrefs] = useState<string[]>([]);
 
   useEffect(() => {
     const defaultFavorites = visibleCategories.flatMap(c => c.modules.filter(m => m.featured).map(m => m.href));
@@ -63,6 +65,7 @@ export function useAppShellState() {
     setDismissedAutoHrefs(new Set(readJSON<string[]>(AUTO_QA_DISMISSED_KEY, [])));
     setDismissedBuiltinIds(new Set(readJSON<string[]>(BUILTIN_QA_DISMISSED_KEY, [])));
     setUsageCounts(readJSON<Record<string, number>>(USAGE_KEY, {}));
+    setRecentHrefs(recentModuleHrefs(getEvents()));
     setSidebarCollapsedState(readJSON<boolean>(SIDEBAR_COLLAPSED_KEY, false));
     // Deliberately mount-only (see comment above) — visibleCategories is read for its
     // value at that moment, not tracked reactively, same tradeoff as everything else here.
@@ -70,10 +73,18 @@ export function useAppShellState() {
   }, []);
 
   useEffect(() => {
-    const refresh = () => setUsageCounts(readJSON<Record<string, number>>(USAGE_KEY, {}));
+    // USAGE_EVENT fires synchronously on every tracked open in this tab, so Recent
+    // (and the frequent counts beside it) stay live during same-tab navigation;
+    // focus/visibility cover cross-tab writes, which dispatch no event here.
+    const refresh = () => {
+      setUsageCounts(readJSON<Record<string, number>>(USAGE_KEY, {}));
+      setRecentHrefs(recentModuleHrefs(getEvents()));
+    };
+    window.addEventListener(USAGE_EVENT, refresh);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
     return () => {
+      window.removeEventListener(USAGE_EVENT, refresh);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', refresh);
     };
@@ -151,6 +162,13 @@ export function useAppShellState() {
     setUsageCounts({});
   };
 
+  // Resolved against the visible catalogue so a role-gated module can never leak
+  // into Recent, and unknown hrefs (renamed routes, stale history) drop out.
+  const recentModules = useMemo(() => {
+    const byHref = new Map(visibleCategories.flatMap(c => c.modules.map(m => [m.href, m] as const)));
+    return recentHrefs.map(href => byHref.get(href)).filter((m): m is Module => !!m);
+  }, [recentHrefs, visibleCategories]);
+
   const favoriteModules = useMemo(() => {
     const result: { module: Module }[] = [];
     for (const cat of visibleCategories) {
@@ -211,6 +229,7 @@ export function useAppShellState() {
     searchQuery, setSearchQuery,
     customizeOpen, setCustomizeOpen,
     favoriteHrefs, favoriteModules, toggleFavorite, addFavorites,
+    recentModules,
     quickActionHrefs, customQuickActions, toggleQuickAction,
     dismissedAutoHrefs, dismissAutoAction, restoreAutoAction,
     dismissedBuiltinIds, setBuiltinQuickActionVisible,

@@ -267,6 +267,23 @@ export function clearSearchHistory() {
 export interface Counted { key: string; label: string; count: number }
 
 /** Most-opened modules (by href), newest label wins for display. */
+/** Most-recently-opened modules (by href), newest first, each href once. Only
+ *  module opens count — page views, searches and feedback are not navigation. */
+export function recentModuleHrefs(events: UsageEvent[], limit = 5): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (let i = events.length - 1; i >= 0 && out.length < limit; i--) {
+    const e = events[i];
+    if (e.type !== 'module_open') continue;
+    if (typeof e.href !== 'string' || !e.href) continue;
+    if (seen.has(e.href)) continue;
+    seen.add(e.href);
+    out.push(e.href);
+  }
+  return out;
+}
+
+/** Most-opened modules (by href), newest label wins for display. */
 export function topModules(events: UsageEvent[], limit = 12): Counted[] {
   const counts = new Map<string, { count: number; label: string }>();
   for (const e of events) {

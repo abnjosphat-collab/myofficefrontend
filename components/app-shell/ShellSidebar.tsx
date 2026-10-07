@@ -15,13 +15,14 @@ import { ShellBrand } from './ShellBrand';
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
 
 export function ShellSidebar({
-  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, onToggleFavorite, visibleCategories,
+  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   favoriteModules: { module: Module }[];
+  recentModules: Module[];
   onToggleFavorite: (href: string) => void;
   visibleCategories: Category[];
 }) {
@@ -40,6 +41,7 @@ export function ShellSidebar({
   const close = () => onOpenChange(false);
   const go = (href: string) => () => { trackModuleUsage(href); close(); };
   const favourites = favoriteModules.filter(({ module }) => module.href !== current?.href);
+  const recent = recentModules.filter(m => m.href !== current?.href);
 
   const spotlight = (compact: boolean) => current
     ? <NavSpotlight label={current.title} icon={current.icon} href={current.href} collapsed={compact} onNavigate={go(current.href)} />
@@ -88,6 +90,22 @@ export function ShellSidebar({
           className={cn(editing && 'pr-10')}
         />
       ))}
+
+      {recent.length > 0 && (
+        <>
+          <NavHeading>Recent</NavHeading>
+          {recent.map(module => (
+            <NavItem
+              key={module.href}
+              label={module.title}
+              icon={module.icon}
+              href={module.href}
+              active={isActive(pathname, module.href)}
+              onNavigate={go(module.href)}
+            />
+          ))}
+        </>
+      )}
 
       <NavHeading>All modules</NavHeading>
       {visibleCategories.map(category => (
