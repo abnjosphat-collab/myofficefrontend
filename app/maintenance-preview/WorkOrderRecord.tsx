@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button, Dialog, EmptyState, MoreMenu, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from '@/components/ui-system';
 import { SignOffField } from '@/app/maintenance/SignOffField';
-import { Person, WorkStatus } from './cards';
-import { PEOPLE, PRIORITY_LABEL, TOOLS, fmt, fmtLong, isOverdue, STATUS_LABEL, type WorkOrder } from './fixtures';
+import { PriorityBadge, StatusBadges } from './parts';
+import { PEOPLE, TOOLS, fmt, fmtLong, isOverdue, STATUS_LABEL, type WorkOrder } from './fixtures';
 import { RegisterField, personItems } from './RegisterField';
 import { usePreview } from './store';
 
@@ -41,8 +41,7 @@ export function WorkOrderRecord({ order, compact }: { order: WorkOrder; compact?
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-body-sm text-ink-muted">
-          <WorkStatus status={order.status} overdue={overdue} />
-          <span>{PRIORITY_LABEL[order.priority]} priority · {order.type}</span>
+          <StatusBadges w={order} /><PriorityBadge p={order.priority} /><span>{order.type}</span>
         </p>
         <div className="flex items-center gap-2">
           {order.status === 'awaiting-signoff' && <Button variant="primary" icon="check" onClick={() => setSigning(true)}>Sign off</Button>}
@@ -52,8 +51,8 @@ export function WorkOrderRecord({ order, compact }: { order: WorkOrder; compact?
       </div>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[['Assigned', order.assignees.length ? <Person key="a" name={order.assignees.join(', ')} size="sm" /> : 'Unassigned'], ['Due', <span key="d" className={overdue ? 'font-semibold text-danger' : undefined}>{fmtLong(order.due)}{overdue ? ', overdue' : ''}</span>], ['Section', order.section || 'Not set'], ['Raised', `${fmt(order.raised)} by ${order.raisedBy}`]].map(([k, v], i) => (
-          <div key={String(k)} className="mp-rise flex flex-col gap-1 rounded-card bg-surface-subtle p-3" style={{ ['--mp-i' as string]: i }}><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v}</dd></div>
+        {[['Assigned', order.assignees.length ? order.assignees.join(', ') : 'Unassigned'], ['Due', <span key="d" className={overdue ? 'font-semibold text-danger' : undefined}>{fmtLong(order.due)}{overdue ? ', overdue' : ''}</span>], ['Section', order.section || 'Not set'], ['Raised', `${fmt(order.raised)} by ${order.raisedBy}`]].map(([k, v]) => (
+          <div key={String(k)} className="flex flex-col gap-1 rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v}</dd></div>
         ))}
       </dl>
       {(order.source) && <p className="font-sans text-body-sm text-ink-muted">From <span className="text-ink">{order.source}</span>{compact && <> · <Link className="focus-ring rounded-xs text-action underline-offset-2 hover:underline" href={`/maintenance-preview/work-orders/${order.id}`}>Open as a page</Link></>}</p>}

@@ -1,99 +1,84 @@
-// app/maintenance-preview/work-orders/page.tsx — work orders as cards grouped by urgency (what is late comes first); the table is one click away.
+// app/maintenance-preview/work-orders/page.tsx — Work orders, pattern R (register, docs/PAGE_PATTERNS.md): filter tiles, toolbar, cards or table.
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, DataTable, Dialog, EmptyState, FilterField, MoreMenu, SearchField, Segmented, Select, StatusBadge, Toolbar, cn, type Column } from '@/components/ui-system';
-import { InfoCard, Meter, Person, Reveal, Section, WorkStatus } from '../cards';
-import { PRIORITY_LABEL, STATUS_LABEL, STATUS_TONE, dayOffset, fmt, isOverdue, progressOf, rel, type WorkOrder } from '../fixtures';
+import { Button, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, Progress, RecordCard, SearchField, Select, Toolbar, ViewToggle, VIEW_CARDS_TABLE, useViewPreference, type Column } from '@/components/ui-system';
+import { fmt, isOverdue, progressOf, type WorkOrder } from '../fixtures';
 import { NewWorkOrderDialog } from '../NewWorkOrderDialog';
-import { PageFrame } from '../PageFrame';
+import { PageFrame, PriorityBadge, StatusBadges } from '../parts';
 import { usePreview } from '../store';
 import { WorkOrderRecord } from '../WorkOrderRecord';
 
-const VIEWS = [{ value: 'all', label: 'All' }, { value: 'mine', label: 'Mine' }, { value: 'overdue', label: 'Overdue' }, { value: 'unassigned', label: 'Unassigned' }] as const;
-type ViewId = (typeof VIEWS)[number]['value'];
-const MODES = [{ value: 'cards', label: 'Cards' }, { value: 'table', label: 'Table' }] as const;
-
-const weekEnd = dayOffset(7);
-const groupOf = (w: WorkOrder) => (w.status === 'completed' ? 'Done' : isOverdue(w) ? 'Overdue' : w.due <= weekEnd ? 'This week' : 'Later');
-const GROUPS = ['Overdue', 'This week', 'Later', 'Done'] as const;
+const ALL = 'all';
+type Filter = 'all' | 'pending' | 'in-progress' | 'awaiting-signoff' | 'overdue';
+const SORTS = [{ value: 'due', label: 'Due soonest' }, { value: 'number', label: 'Newest first' }];
 
 export default function WorkOrdersPage() {
   const { orders } = usePreview();
   const router = useRouter();
+  const [view, setView] = useViewPreference('maintenance-preview-wo', VIEW_CARDS_TABLE);
+  const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
-  const [view, setView] = useState<ViewId>('all');
-  const [status, setStatus] = useState('all');
-  const [mode, setMode] = useState<'cards' | 'table'>('cards');
+  const [sort, setSort] = useState('due');
   const [open, setOpen] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
-  const [showDone, setShowDone] = useState(false);
 
+  const counts = useMemo(() => ({ all: orders.length, pending: orders.filter(o => o.status === 'pending').length, 'in-progress': orders.filter(o => o.status === 'in-progress').length, 'awaiting-signoff': orders.filter(o => o.status === 'awaiting-signoff').length, overdue: orders.filter(isOverdue).length }), [orders]);
   const rows = useMemo(() => orders.filter(o => {
-    if (view === 'mine' && !o.assignees.includes('A. Moyo')) return false;
-    if (view === 'overdue' && !isOverdue(o)) return false;
-    if (view === 'unassigned' && (o.assignees.length > 0 || o.status === 'completed')) return false;
-    if (status !== 'all' && o.status !== status) return false;
+    if (filter === 'overdue' ? !isOverdue(o) : filter !== 'all' && o.status !== filter) return false;
     const t = q.trim().toLowerCase();
     return !t || [o.machine, o.title, o.number, ...o.assignees].some(s => s.toLowerCase().includes(t));
-  }), [orders, q, view, status]);
+  }).sort((a, b) => (sort === 'due' ? a.due.localeCompare(b.due) : b.id - a.id)), [orders, filter, q, sort]);
+  const filtered = filter !== 'all' || q !== '';
+  const clear = () => { setFilter('all'); setQ(''); };
+  const toggle = (f: Filter) => setFilter(cur => (cur === f ? 'all' : f));
   const current = orders.find(o => o.id === open) ?? null;
-  const filtered = view !== 'all' || status !== 'all' || q !== '';
-  const clear = () => { setView('all'); setStatus('all'); setQ(''); };
+  const openRecord = (w: WorkOrder) => (typeof window !== 'undefined' && window.matchMedia('(min-width: 821px)').matches ? setOpen(w.id) : router.push(`/maintenance-preview/work-orders/${w.id}`));
 
   const COLUMNS: Column<WorkOrder>[] = [
-    { id: 'wo', header: 'Work order', sticky: true, cell: w => <div className="min-w-0"><p className="font-medium text-ink [overflow-wrap:anywhere]">{w.machine}, {w.title}{(w.priority === 'high' || w.priority === 'urgent') && <span className="ml-2 text-caption font-semibold text-danger">{PRIORITY_LABEL[w.priority]}</span>}</p><p className="text-caption text-ink-muted tabular">{[w.number, w.type, w.source].filter(Boolean).join(' · ')}</p></div> },
-    { id: 'status', header: 'Status', cell: w => <span className="flex flex-wrap gap-1"><StatusBadge tone={STATUS_TONE[w.status]}>{STATUS_LABEL[w.status]}</StatusBadge>{isOverdue(w) && <StatusBadge tone="danger">Overdue</StatusBadge>}</span> },
-    { id: 'who', header: 'Assigned', hideBelow: 'md', cell: w => (w.assignees.length ? w.assignees.join(', ') : <span className="text-ink-muted">Unassigned</span>) },
-    { id: 'due', header: 'Due', hideBelow: 'md', cell: w => <span className={cn('tabular', isOverdue(w) && 'font-semibold text-danger')}>{fmt(w.due)}</span> },
+    { id: 'wo', header: 'Work order', sticky: true, cell: w => <div className="min-w-0"><p className="font-medium text-ink [overflow-wrap:anywhere]">{w.machine}, {w.title}</p><p className="text-caption text-ink-muted tabular">{[`#${w.number}`, w.type, w.source].filter(Boolean).join(', ')}</p></div> },
+    { id: 'status', header: 'Status', cell: w => <span className="flex flex-wrap gap-1"><StatusBadges w={w} /></span> },
+    { id: 'priority', header: 'Priority', hideBelow: 'md', cell: w => <PriorityBadge p={w.priority} /> },
+    { id: 'who', header: 'Assigned', hideBelow: 'md', cell: w => w.assignees.join(', ') || <span className="text-ink-muted">Unassigned</span> },
+    { id: 'due', header: 'Due', hideBelow: 'md', cell: w => <span className={isOverdue(w) ? 'font-semibold text-danger tabular' : 'tabular'}>{fmt(w.due)}</span> },
+    { id: 'progress', header: 'Progress', cell: w => <div className="min-w-32"><Progress value={progressOf(w)} label={`${w.machine} progress`} /></div> },
   ];
-  let n = 0;
 
   return (
-    <PageFrame title="Work orders" crumbs={[{ label: 'Work orders' }]} action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>New work order</Button>}>
-      <div className="flex flex-col gap-3">
-        <Toolbar
-          trailing={<><Segmented label="Layout" value={mode} onValueChange={setMode} options={MODES} className="hidden sm:inline-flex" /><MoreMenu label="" items={[{ label: 'Download', icon: 'upload', onSelect: () => undefined }, { label: 'Save this view', onSelect: () => undefined }]} /></>}
-          moreFilters={<FilterField label="Status"><Select aria-label="Status" value={status} onValueChange={setStatus} options={[{ value: 'all', label: 'Any status' }, ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))]} /></FilterField>}
-          activeCount={status === 'all' ? 0 : 1} filtered={status !== 'all' || q !== ''} onClear={() => { setStatus('all'); setQ(''); }}
-        >
-          <SearchField value={q} onValueChange={setQ} label="Search work orders" placeholder="Search machine, number or person" wrapperClassName="w-full sm:w-80" />
-        </Toolbar>
-        <Segmented label="View" value={view} onValueChange={setView} options={VIEWS} className="self-start" />
-      </div>
+    <PageFrame crumb="Work orders" title="Work orders" description="Raise a job, assign it, follow it to sign-off." action={<Button variant="primary" icon="plus" onClick={() => setCreating(true)}>New work order</Button>}>
+      <MetricGrid compact>
+        <MetricTile compact label="Work orders" value={counts.all} selected={filter === 'all'} onClick={clear} />
+        <MetricTile compact label="Pending" tone={counts.pending ? 'warning' : 'default'} value={counts.pending} selected={filter === 'pending'} onClick={() => toggle('pending')} />
+        <MetricTile compact label="In progress" value={counts['in-progress']} selected={filter === 'in-progress'} onClick={() => toggle('in-progress')} />
+        <MetricTile compact label="Awaiting sign-off" value={counts['awaiting-signoff']} selected={filter === 'awaiting-signoff'} onClick={() => toggle('awaiting-signoff')} />
+        <MetricTile compact label="Overdue" tone={counts.overdue ? 'danger' : 'default'} value={counts.overdue} selected={filter === 'overdue'} onClick={() => toggle('overdue')} />
+      </MetricGrid>
+
+      <Toolbar filtered={filtered} onClear={clear} trailing={<><Select aria-label="Order" className="w-36" value={sort} onValueChange={setSort} options={SORTS} /><ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} /></>}>
+        <SearchField value={q} onValueChange={setQ} placeholder="Search machine, person or WO number" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
+      </Toolbar>
 
       {rows.length === 0 ? (
-        <EmptyState icon="search" title="No work orders match" description={filtered ? 'Change the view or clear the filters.' : 'Raise the first one with New work order.'} action={filtered ? <Button onClick={clear}>Clear filters</Button> : undefined} />
-      ) : mode === 'table' ? (
-        <DataTable caption="Work orders" rows={rows} columns={COLUMNS} getRowId={w => String(w.id)} onRowActivate={w => setOpen(w.id)} density="comfortable" />
+        <EmptyState icon="search" title="No work orders match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
       ) : (
-        <div className="flex flex-col gap-8">
-          {GROUPS.map(g => {
-            const list = rows.filter(w => groupOf(w) === g);
-            if (list.length === 0) return null;
-            const collapsed = g === 'Done' && !showDone && view === 'all' && !q;
-            return (
-              <Section key={g} title={g} count={list.length} action={g === 'Done' ? <Button variant="ghost" size="sm" onClick={() => setShowDone(v => !v)}>{collapsed ? 'Show' : 'Hide'}</Button> : undefined}>
-                {!collapsed && (
-                  <ul aria-label={`${g} work orders`} className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {list.map(w => (
-                      <li key={w.id}><Reveal index={n++}>
-                        <InfoCard priority={w.priority} eyebrow={<WorkStatus status={w.status} overdue={g === 'Overdue'} />} aside={w.number} title={w.machine} subtitle={w.title} openLabel={`Open work order ${w.number}`}
-                          onOpen={() => (typeof window !== 'undefined' && window.matchMedia('(min-width: 821px)').matches ? setOpen(w.id) : router.push(`/maintenance-preview/work-orders/${w.id}`))}
-                          facts={<>{w.assignees.length ? <Person name={w.assignees.join(', ')} size="sm" /> : <span className="font-sans text-body-sm text-ink-muted">Unassigned</span>}<span className={cn('font-sans text-body-sm', g === 'Overdue' ? 'font-semibold text-danger' : 'text-ink-muted')}>{g === 'Done' ? fmt(w.due) : rel(w.due)}</span></>}
-                          meter={w.status !== 'completed' ? <Meter value={progressOf(w)} label={`${w.machine} progress`} /> : undefined} />
-                      </Reveal></li>
-                    ))}
-                  </ul>
-                )}
-              </Section>
-            );
-          })}
-        </div>
+        <>
+          <p className="font-sans text-caption text-ink-muted">{rows.length} {rows.length === 1 ? 'work order' : 'work orders'}{rows.length !== orders.length ? ` of ${orders.length}` : ''}</p>
+          {view === 'cards' ? (
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Work orders">
+              {rows.map(w => (
+                <li key={w.id} className="relative">
+                  <RecordCard eyebrow={`#${w.number}`} title={w.machine} subtitle={w.title} openLabel={`Open work order ${w.number}, ${w.machine}`} onOpen={() => openRecord(w)} status={<StatusBadges w={w} />}
+                    facts={[{ label: 'Assigned', value: w.assignees.join(', ') || 'Unassigned' }, { label: 'Priority', value: <PriorityBadge p={w.priority} /> }, { label: 'Due', value: <span className={isOverdue(w) ? 'font-semibold text-danger' : ''}>{fmt(w.due)}</span> }, { label: 'Type', value: w.type }]}
+                    meta={<div className="w-full min-w-40"><Progress value={progressOf(w)} label={`${w.machine} progress`} /></div>} />
+                </li>
+              ))}
+            </ul>
+          ) : <DataTable caption="Work orders" rows={rows} columns={COLUMNS} getRowId={w => String(w.id)} onRowActivate={openRecord} />}
+        </>
       )}
 
-      <Dialog open={!!current} onOpenChange={o => { if (!o) setOpen(null); }} size="xl" title={current ? current.machine : ''} description={current ? `${current.title} · ${current.number}` : undefined} footer={<Button onClick={() => setOpen(null)}>Close</Button>}>
+      <Dialog open={!!current} onOpenChange={o => { if (!o) setOpen(null); }} size="xl" title={current ? `Work order ${current.number}` : 'Work order'} description={current ? `${current.machine}, ${current.title}` : undefined} footer={<Button onClick={() => setOpen(null)}>Close</Button>}>
         {current && <WorkOrderRecord order={current} compact />}
       </Dialog>
       <NewWorkOrderDialog open={creating} onOpenChange={setCreating} />

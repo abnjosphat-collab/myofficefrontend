@@ -57,8 +57,8 @@ await shot(page, '07-after-raise-1440');
 
 await page.goto('http://localhost:3000/maintenance-preview/requests', { waitUntil: 'networkidle' }).catch(() => {}); await page.waitForTimeout(500);
 await shot(page, '08-requests-1440');
-ok(await page.getByRole('heading', { name: 'Pump A' }).first().isVisible(), 'the first waiting request is selected and shown in the panel');
 await page.getByRole('button', { name: 'Approve', exact: true }).first().click(); await page.waitForTimeout(500);
+ok(await page.getByRole('dialog').getByText('Your signature').isVisible().catch(() => false), 'approving asks for the approver\'s signature');
 await shot(page, '09-approve-1440');
 await page.keyboard.press('Escape');
 
@@ -69,7 +69,7 @@ await page.getByRole('button', { name: 'New schedule' }).click(); await page.wai
 await page.goto('http://localhost:3000/maintenance-preview/planner', { waitUntil: 'networkidle' }).catch(() => {}); await page.waitForTimeout(500);
 await shot(page, '12-planner-1440');
 // drag a job onto a person on leave (refused, with the reason), then onto a free day (placed)
-const tray = page.getByRole('region', { name: 'Unassigned jobs' }).getByRole('listitem').first();
+const tray = page.locator('[draggable=true]').first();
 await tray.dragTo(page.locator('tr', { hasText: 'T. Dube' }).locator('td').nth(2)); await page.waitForTimeout(400);
 ok(await page.getByText(/T\. Dube is on leave/).first().isVisible().catch(() => false), 'dropping a job on a day of leave is refused with the reason');
 await shot(page, '12b-planner-refused-1440');
@@ -77,15 +77,6 @@ await tray.dragTo(page.locator('tr', { hasText: 'S. Ncube' }).locator('td').nth(
 ok(await page.locator('tr', { hasText: 'S. Ncube' }).getByText('Pump A').isVisible().catch(() => false), 'dropping a job on a free day places it');
 await shot(page, '12c-planner-placed-1440');
 await ctx.close();
-{ // reduced motion: nothing animates
-  const rm = await fixtureContext(browser, api, { width: 1440, height: 900 }, { reducedMotion: 'reduce' });
-  const rp = await rm.newPage();
-  await rp.goto('http://localhost:3000/maintenance-preview', { waitUntil: 'networkidle' }).catch(() => {}); await rp.waitForSelector('main h1').catch(() => {});
-  const names = await rp.evaluate(() => [...document.querySelectorAll('.mp-rise')].map(e => getComputedStyle(e).animationName));
-  ok(names.length > 0 && names.every(n => n === 'none'), 'with reduced motion the entrance animations do not run', JSON.stringify(names.slice(0, 3)));
-  await rm.close();
-}
-
 for (const [path, name] of [['/maintenance-preview', '13-overview-390'], ['/maintenance-preview/work-orders', '14-work-orders-390'], ['/maintenance-preview/work-orders/231', '15-record-390'], ['/maintenance-preview/requests', '16-requests-390'], ['/maintenance-preview/planner', '17-planner-390']]) {
   ({ ctx, page } = await open(path, 390, 844));
   await shot(page, name);

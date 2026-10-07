@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Field, Icon, Input, cn } from '@/components/ui-system';
+import { Field, Icon, Input, cn, floatingSurface, optionRow } from '@/components/ui-system';
 
 export interface RegisterItem { key: string; label: string; meta?: string; note?: string; blockedReason?: string }
 
@@ -50,11 +50,11 @@ export function RegisterField({ label, register, items, value, onChange, placeho
           onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)} onKeyDown={onKeyDown}
         />
         {open && rows.length > 0 && (
-          <ul id={`${id}-list`} role="listbox" aria-label={`${label} matches`} className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-control border border-line bg-surface py-1 shadow-md">
+          <ul id={`${id}-list`} role="listbox" aria-label={`${label} matches`} className={cn(floatingSurface, 'absolute z-70 mt-1 max-h-64 w-full overflow-auto p-1')}>
             {rows.map((row, i) => (
               <li key={row.key} role="option" aria-selected={i === active} aria-disabled={!!row.blockedReason}
                 onMouseDown={e => { e.preventDefault(); pick(row); }} onMouseEnter={() => setActive(i)}
-                className={cn('flex cursor-pointer items-baseline justify-between gap-3 px-3 py-1.5 font-sans text-body-sm', i === active && !row.blockedReason && 'bg-soft', row.blockedReason && 'cursor-not-allowed text-ink-muted')}>
+                data-active={i === active && !row.blockedReason ? '' : undefined} className={cn(optionRow, 'flex items-baseline justify-between gap-3', row.blockedReason && 'cursor-not-allowed text-ink-muted')}>
                 <span className="min-w-0"><span className={cn('text-ink', row.blockedReason && 'text-ink-muted')}>{row.label}</span>{row.meta && <span className="ml-2 text-caption text-ink-muted">{row.meta}</span>}</span>
                 {(row.blockedReason || row.note) && <span className={cn('shrink-0 text-caption', row.blockedReason ? 'text-ink-muted' : 'text-warning')}>{row.blockedReason ?? row.note}</span>}
               </li>
