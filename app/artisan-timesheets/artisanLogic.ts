@@ -1,26 +1,27 @@
 // app/artisan-timesheets/artisanLogic.ts — the rules behind the artisan timesheet page that need no screen: who counts as an artisan,
 // turning a saved record into the draft being edited and back into the payload, starting a month (a saved one, or a blank one filled
 // from approved leave, overtime and standby), whether the draft has unsaved changes, and what stops a save. Pure, so each is tested.
-import { isArtisanClass1Designation } from '@/lib/employeeCatalog';
 import type { ShiftAssignment } from '@/app/shifts/types';
 import type { ApprovedLeaveRecord, ApprovedOvertimeRecord } from '@/app/timesheets/types';
 import { autoPopulateMonthRows } from './autoPopulate';
+import { dayStatusLabel, isLeaveDayStatus } from './dayStatus';
+import { LEAVE_NORMAL_HRS } from './hourAlloc';
+import { dayPart, sameEmployee } from './shiftDay';
 import { mergeMonthRows, monthName, parseNumericField } from './calcTotals';
-import { HOUR_FIELDS } from './fillHours';
 import type { ArtisanEmployeeOption, ArtisanTimesheetDraft, ArtisanTimesheetRecord } from './types';
 
-export interface Staff { id: number; employee_id: string; name: string; id_number: string; designation: string; active: boolean }
+export interface Staff { id: number; employee_id: string; name: string; id_number: string; designation: string; employment_type: string; active: boolean }
 /** Reads one personnel row defensively; a row with no usable name or number is kept (so it can still be listed) but flagged by an empty id. */
 export function staffFrom(raw: unknown): Staff {
   const e = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
   const text = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String(v));
   return {
-    id: Number(e.id) || 0, employee_id: text(e.employee_id).trim(), name: `${text(e.first_name)} ${text(e.last_name)}`.trim() || 'Employee', id_number: text(e.id_number), designation: text(e.designation),
+    id: Number(e.id) || 0, employee_id: text(e.employee_id).trim(), name: `${text(e.first_name)} ${text(e.last_name)}`.trim() || 'Employee', id_number: text(e.id_number), designation: text(e.designation), employment_type: text(e.employment_type).trim().toUpperCase(),
     active: e.archived !== true && e.is_active !== false,
   };
 }
-/** Active class 1 artisans and winder technicians, by name. */
-export const artisansOf = (staff: Staff[]): ArtisanEmployeeOption[] => staff.filter(s => s.active && isArtisanClass1Designation(s.designation)).map(s => ({ id: s.id, employee_id: s.employee_id, name: s.name, id_number: s.id_number, designation: s.designation })).sort((a, b) => a.name.localeCompare(b.name));
+/** Active salaried employees are the artisans, by name. */
+export const artisansOf = (staff: Staff[]): ArtisanEmployeeOption[] => staff.filter(s => s.active && s.employment_type === 'SALARIED').map(s => ({ id: s.id, employee_id: s.employee_id, name: s.name, id_number: s.id_number, designation: s.designation })).sort((a, b) => a.name.localeCompare(b.name));
 export const artisanKey = (a: Pick<ArtisanEmployeeOption, 'employee_id' | 'id'>): string => a.employee_id || String(a.id);
 
 export function recordToDraft(record: ArtisanTimesheetRecord): ArtisanTimesheetDraft {
@@ -44,10 +45,10 @@ export function draftToPayload(d: ArtisanTimesheetDraft) {
 }
 
 export interface Sources { leaves: ApprovedLeaveRecord[]; overtime: ApprovedOvertimeRecord[]; standbyAssignments: ShiftAssignment[] }
-/** The month to edit: the saved timesheet if there is one, otherwise a blank month filled from approved leave, overtime, standby and holidays. */
+/** The month to edit: the saved timesheet if there is one, otherwise a blank month filled from leave, overtime, standby and holidays. */
 export function openMonth(emp: ArtisanEmployeeOption, year: number, month: number, saved: ArtisanTimesheetRecord[], sources: Sources): { draft: ArtisanTimesheetDraft; recordId: number | null } {
   const key = artisanKey(emp);
-  const existing = saved.find(s => s.employee_id === key && s.year === year && s.month === month);
+  const existing = saved.find(s => sameEmployee(s.employee_id, key) && s.year === year && s.month === month);
   if (existing) return { draft: recordToDraft(existing), recordId: existing.id };
   return {
     recordId: null,
@@ -64,15 +65,39 @@ export const refreshedRows = (d: ArtisanTimesheetDraft, sources: Sources) => aut
 export const isDirty = (draft: ArtisanTimesheetDraft | null, baseline: string): boolean => !!draft && JSON.stringify(draft) !== baseline;
 export const snapshot = (draft: ArtisanTimesheetDraft | null): string => (draft ? JSON.stringify(draft) : '');
 
-/** What stops a save: a daily figure that cannot be right (negative, or more than 24 hours), a rate that is not a number. */
-export function problems(d: ArtisanTimesheetDraft): string[] {
+const HOUR_FIELDS = ['normal_hrs', 'ot_15', 'ot_20', 'sb_15', 'sb_20'] as const;
+
+/** What stops a save: a daily figure that cannot be right (negative, or more than 24 hours), and any work
+ *  recorded on a leave day — by day status, or by approved leave covering the date even when the row was never
+ *  marked (pass the reference sources for that check). Rates are kept from the saved record and no longer edited, so they cannot fail validation. */
+export function problems(d: ArtisanTimesheetDraft, sources?: Sources): string[] {
   const out: string[] = [];
   if (!d.employee_id || !d.employee_name) out.push('The employee details are missing.');
   d.daily_rows.forEach(r => {
     HOUR_FIELDS.forEach(f => { const v = r[f]; if (!Number.isFinite(v) || v < 0 || v > 24) out.push(`${r.date}: ${v} is not a possible number of hours for one day.`); });
   });
-  if (d.shift_rate.trim() && parseNumericField(d.shift_rate) === null) out.push('The shift rate is not a number.');
-  if (d.hourly_rate.trim() && parseNumericField(d.hourly_rate) === null) out.push('The hourly rate is not a number.');
+  const onApprovedLeave = (date: string) =>
+    sources?.leaves.some(l => l.status === 'approved' && sameEmployee(l.employee_id, d.employee_id) && date >= dayPart(l.start_date) && date <= dayPart(l.end_date)) ?? false;
+  d.daily_rows.forEach(r => {
+    const statusLeave = isLeaveDayStatus(r.day_status);
+    if (!statusLeave && !onApprovedLeave(r.date)) return;
+    const label = statusLeave ? dayStatusLabel(r.day_status) : 'approved leave';
+    const worked: string[] = [];
+    if (r.ot_15) worked.push(`${r.ot_15}h overtime at 1.5×`);
+    if (r.ot_20) worked.push(`${r.ot_20}h overtime at 2.0×`);
+    if (r.sb_15) worked.push(`${r.sb_15}h standby at 1.5×`);
+    if (r.sb_20) worked.push(`${r.sb_20}h standby at 2.0×`);
+    if (r.night_shift) worked.push(`${r.night_shift}h night shift`);
+    if (worked.length) out.push(`${r.date} is ${label} but has ${worked.join(', ')} recorded — nobody works on a leave day.`);
+    if (r.normal_hrs !== LEAVE_NORMAL_HRS) out.push(`${r.date} is ${label} but credits ${r.normal_hrs} normal hours instead of 8 — use Refresh from the system.`);
+    if (r.on_standby) out.push(`${r.date} is ${label} but is marked on standby — nobody works on a leave day.`);
+    if (r.sign_in_time || r.sign_out_time || r.sign_in_signature || r.sign_out_signature) out.push(`${r.date} is ${label} but has a sign-in/out record — nobody works on a leave day.`);
+  });
   return out;
 }
 export const periodLabel = (year: number, month: number): string => `${monthName(month)} ${year}`;
+/** The month before the reference date — timesheets are compiled for the month just ended. */
+export function previousMonth(ref: Date = new Date()): { year: number; month: number } {
+  const month = ref.getMonth() + 1;
+  return month === 1 ? { year: ref.getFullYear() - 1, month: 12 } : { year: ref.getFullYear(), month: month - 1 };
+}

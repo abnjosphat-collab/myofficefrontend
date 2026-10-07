@@ -1,6 +1,7 @@
 // app/artisan-timesheets/useArtisanTimesheetsData.ts — the artisan timesheet page's data layer: the personnel list (artisans and the
-// people who can sign are both read from it), the saved timesheets, the approved leave, overtime and standby the month is filled
-// from, and the writes. Every read reports its own failure: a source that could not be loaded is named, never treated as "no leave".
+// people who can sign are both read from it), the saved timesheets, the leave, overtime and standby the month is filled from, and
+// the writes. Leave and overtime arrive unfiltered — approved and paid count, pending shows, rejected stays hidden. Every read
+// reports its own failure: a source that could not be loaded is named, never treated as "no leave".
 'use client';
 
 import { api } from '@/lib/apiClient';
@@ -30,12 +31,12 @@ export const fetchTimesheet = (id: number) => retryTransient(() => api.get<Artis
 export const fetchMonth = (employeeId: string, year: number, month: number) => retryTransient(() => api.get<ArtisanTimesheetRecord[]>(`/api/artisan-timesheets?employee_id=${encodeURIComponent(employeeId)}&year=${year}&month=${month}`));
 
 export interface Reference { sources: Sources; settled: boolean; failed: string[]; refetch: () => void }
-/** The approved leave, overtime and standby a blank month is filled from. `settled` is true once each has answered, successfully or not. */
+/** The leave, overtime and standby a blank month is filled from. `settled` is true once each has answered, successfully or not. */
 export function useReference(): Reference {
-  const leaves = useApiList<ApprovedLeaveRecord>('/api/leaves?status=approved');
-  const overtime = useApiList<ApprovedOvertimeRecord>('/api/overtime?status=approved');
+  const leaves = useApiList<ApprovedLeaveRecord>('/api/leaves');
+  const overtime = useApiList<ApprovedOvertimeRecord>('/api/overtime');
   const standby = useApiList<ShiftAssignment>('/api/standby');
-  const all = [['approved leave', leaves], ['approved overtime', overtime], ['standby', standby]] as const;
+  const all = [['leave', leaves], ['overtime', overtime], ['standby', standby]] as const;
   return {
     sources: { leaves: leaves.items, overtime: overtime.items, standbyAssignments: standby.items },
     settled: all.every(([, r]) => r.loaded || !!r.error),

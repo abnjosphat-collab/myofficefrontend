@@ -78,6 +78,8 @@ export interface DataRegionProps {
   /** The records. Rendered for ready / refreshing / stale-error. */
   children: ReactNode;
   skeletonRows?: number;
+  /** Custom loading content (a themed loader). Defaults to the skeleton rows. */
+  loadingContent?: ReactNode;
   className?: string;
 }
 
@@ -86,16 +88,16 @@ export interface DataRegionProps {
  * retrying, empty, unauthorized and failure. Records already on screen stay
  * visible through refreshes and failed refreshes. A failure is never an empty list.
  */
-export function DataRegion({ status, subject, error, onRetry, empty, children, skeletonRows = 5, className }: DataRegionProps) {
+export function DataRegion({ status, subject, error, onRetry, empty, children, skeletonRows = 5, loadingContent, className }: DataRegionProps) {
   const cap = subject.charAt(0).toUpperCase() + subject.slice(1);
   const retry = onRetry ? <Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button> : undefined;
 
-  if (status === 'loading') return <div className={className}><SkeletonRows rows={skeletonRows} label={`Loading ${subject}`} /></div>;
+  if (status === 'loading') return <div className={className}>{loadingContent ?? <SkeletonRows rows={skeletonRows} label={`Loading ${subject}`} />}</div>;
   if (status === 'retrying') {
     return (
       <div className={cn('flex flex-col gap-3', className)}>
         <StatusLine tone="info"><strong className="font-medium text-ink">Still loading {subject}.</strong> The service is slow to respond. Retrying automatically.{error ? ` Last answer: ${error}` : ''}</StatusLine>
-        <SkeletonRows rows={Math.min(skeletonRows, 3)} label={`Loading ${subject}`} />
+        {loadingContent ?? <SkeletonRows rows={Math.min(skeletonRows, 3)} label={`Loading ${subject}`} />}
       </div>
     );
   }

@@ -36,14 +36,13 @@ describe('calcArtisanTimesheetTotals', () => {
     const rows = buildMonthDayRows(2024, 1);
     rows[0].normal_hrs = 8;
     rows[0].ot_15 = 2;
-    rows[1].night_shift = 10;
+    rows[1].ot_20 = 10;
     expect(calcArtisanTimesheetTotals(rows)).toEqual({
       normal_hrs: 8,
       ot_15: 2,
-      ot_20: 0,
+      ot_20: 10,
       sb_15: 0,
       sb_20: 0,
-      night_shift: 10,
     });
   });
 });

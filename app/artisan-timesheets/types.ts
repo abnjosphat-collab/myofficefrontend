@@ -8,11 +8,15 @@ export interface ArtisanTimesheetDayRow {
   normal_hrs: number;
   ot_15: number;
   ot_20: number;
+  /** Legacy: standby shows as days on standby only and the allowance is worked out by the Pay office. Never written anymore. */
   sb_15: number;
   sb_20: number;
-  night_shift: number;
+  /** Legacy: the Night Shift column was removed; old saves may still carry it. Never written anymore. */
+  night_shift?: number;
   /** Person is on standby roster this day (from Shift Roster module). */
   on_standby: boolean;
+  /** The artisan toggled standby by hand — refresh-from-system must not overwrite it. */
+  _standbyManual?: boolean;
   sign_in_time: string;
   /** PNG data URL */
   sign_in_signature: string;
@@ -28,9 +32,9 @@ export interface ArtisanTimesheetTotals {
   normal_hrs: number;
   ot_15: number;
   ot_20: number;
+  /** Legacy: kept so old saves still total; the sheet no longer shows standby hours. */
   sb_15: number;
   sb_20: number;
-  night_shift: number;
 }
 
 export interface ArtisanTimesheetRecord {

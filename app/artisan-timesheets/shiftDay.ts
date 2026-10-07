@@ -38,20 +38,32 @@ export function shiftDateForClock(calendarDate: string, clockTime: string): stri
   return addCalendarDays(calendarDate, -1);
 }
 
-/** Shift date for an overtime record — uses start_time when present. */
-export function overtimeShiftDate(ot: ApprovedOvertimeRecord): string | null {
-  if (!ot.date) return null;
-  if (ot.start_time) return shiftDateForClock(ot.date, ot.start_time) ?? ot.date;
-  return ot.date;
+/** The calendar-day part of a date value, tolerant of datetime suffixes ('2026-09-02T00:00:00' → '2026-09-02'). */
+export function dayPart(value: string | undefined | null): string {
+  return (value ?? '').slice(0, 10);
 }
 
-export function groupOvertimeByShift(
-  records: ApprovedOvertimeRecord[],
-  employeeMineNo: string,
-): Map<string, ApprovedOvertimeRecord[]> {
+/** Employee numbers match loosely — a code typed with a stray space or different case is still the same person. */
+export function sameEmployee(a: string | undefined | null, b: string | undefined | null): boolean {
+  return (a ?? '').trim().toUpperCase() === (b ?? '').trim().toUpperCase();
+}
+
+/** Overtime that counts toward the timesheet: approved, or approved-and-paid (payroll ran; the hours were still worked). */
+export function isCreditedOvertimeStatus(status: string): boolean {
+  return status === 'approved' || status === 'paid';
+}
+
+/** Shift date for an overtime record — uses start_time when present. */
+export function overtimeShiftDate(ot: ApprovedOvertimeRecord): string | null {
+  const date = dayPart(ot.date);
+  if (!date) return null;
+  if (ot.start_time) return shiftDateForClock(date, ot.start_time) ?? date;
+  return date;
+}
+
+function groupByShift(records: ApprovedOvertimeRecord[]): Map<string, ApprovedOvertimeRecord[]> {
   const map = new Map<string, ApprovedOvertimeRecord[]>();
   for (const ot of records) {
-    if (ot.status !== 'approved' || ot.employee_id !== employeeMineNo) continue;
     const shift = overtimeShiftDate(ot);
     if (!shift) continue;
     const list = map.get(shift) ?? [];
@@ -61,35 +73,48 @@ export function groupOvertimeByShift(
   return map;
 }
 
+export function groupOvertimeByShift(
+  records: ApprovedOvertimeRecord[],
+  employeeMineNo: string,
+): Map<string, ApprovedOvertimeRecord[]> {
+  return groupByShift(records.filter(ot => isCreditedOvertimeStatus(ot.status) && sameEmployee(ot.employee_id, employeeMineNo)));
+}
+
+/** Overtime awaiting approval, by shift day — shown on the timesheet, never counted in its totals. */
+export function groupPendingOvertimeByShift(
+  records: ApprovedOvertimeRecord[],
+  employeeMineNo: string,
+): Map<string, ApprovedOvertimeRecord[]> {
+  return groupByShift(records.filter(ot => ot.status === 'pending' && sameEmployee(ot.employee_id, employeeMineNo)));
+}
+
 export interface ShiftSignTimes {
   signIn: string;
   signOut: string;
 }
 
-/** Earliest OT start and latest OT end on this shift (for sign-in / sign-out columns). */
-export function signTimesFromOvertime(entries: ApprovedOvertimeRecord[]): ShiftSignTimes | null {
-  let earliestStart: number | null = null;
-  let latestEnd: number | null = null;
-  let signIn = '';
-  let signOut = '';
+/** First OT start and last OT end on this shift (for sign-in / sign-out columns), compared on the shift's own
+ *  timeline: a record dated the next morning (rolled into this shift) sits past the 24h mark, so a 00:00 start never
+ *  beats the evening's 17:00 and a 01:23 end never loses to 23:59. */
+export function signTimesFromOvertime(entries: ApprovedOvertimeRecord[], shiftDate: string): ShiftSignTimes | null {
+  const shift = dayPart(shiftDate);
+  let bestIn: { at: number; text: string } | null = null;
+  let bestOut: { at: number; text: string } | null = null;
 
   for (const ot of entries) {
     if (!ot.start_time || !ot.end_time) continue;
     const start = parseClockTime(ot.start_time);
-    let end = parseClockTime(ot.end_time);
+    const end = parseClockTime(ot.end_time);
     if (start == null || end == null) continue;
-    if (end <= start) end += 24 * 60;
+    const dayOffset = ot.date && dayPart(ot.date) > shift ? 24 * 60 : 0;
+    const startAt = dayOffset + start;
+    let endAt = dayOffset + end;
+    if (endAt <= startAt) endAt += 24 * 60;
 
-    if (earliestStart == null || start < earliestStart) {
-      earliestStart = start;
-      signIn = ot.start_time.trim();
-    }
-    if (latestEnd == null || end > latestEnd) {
-      latestEnd = end;
-      signOut = ot.end_time.trim();
-    }
+    if (!bestIn || startAt < bestIn.at) bestIn = { at: startAt, text: ot.start_time.trim() };
+    if (!bestOut || endAt > bestOut.at) bestOut = { at: endAt, text: ot.end_time.trim() };
   }
 
-  if (!signIn || !signOut) return null;
-  return { signIn, signOut };
+  if (!bestIn || !bestOut) return null;
+  return { signIn: bestIn.text, signOut: bestOut.text };
 }

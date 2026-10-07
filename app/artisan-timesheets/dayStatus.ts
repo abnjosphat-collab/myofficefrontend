@@ -36,11 +36,21 @@ export const LEAVE_TYPE_TO_DAY_STATUS: Record<string, DayStatusKey> = {
   lieu: 'lieu',
 };
 
+const LEAVE_DAY_STATUSES: ReadonlySet<DayStatusKey> = new Set([
+  'leave', 'sick', 'special_leave', 'maternity', 'study', 'lieu',
+]);
+
+/** Leave-type day statuses are module-derived (Leaves module owns them); off,
+ *  absent and training are attendance facts the system must not rewrite. */
+export function isLeaveDayStatus(status: DayStatusKey): boolean {
+  return LEAVE_DAY_STATUSES.has(status);
+}
+
 export function dayStatusLabel(status: DayStatusKey): string {
   return DAY_STATUS_OPTIONS.find(o => o.value === status)?.label ?? 'On Duty';
 }
 
-/** Apply status and the standard normal-hours credit (10h on duty, 8h leave, 0 off/absent). */
+/** Apply status and the standard normal-hours credit (8h leave, 0 otherwise — artisans are on basic pay). */
 export function applyDayStatus(row: ArtisanTimesheetDayRow, status: DayStatusKey): ArtisanTimesheetDayRow {
   return {
     ...row,
