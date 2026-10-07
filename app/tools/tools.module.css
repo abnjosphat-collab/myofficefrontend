@@ -425,6 +425,7 @@ button.homeStat:hover{background:color-mix(in srgb,var(--focus) 6%,var(--paper))
 .eligAccordion[data-open=true]{border-color:var(--line-strong)}
 .eligSummary{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 14px;border:0;background:transparent;color:var(--ink);text-align:left;cursor:pointer}
 .eligSummary:hover{background:var(--surface-muted)}
+.eligAccordion[data-picking]{display:grid;grid-template-columns:44px minmax(0,1fr)}.eligAccordion[data-picking]>.eligBody{grid-column:1/-1}.eligPick{display:flex;align-items:center;justify-content:center}.eligPick input{width:17px;height:17px;accent-color:var(--brand)}.eligAccordion:has(.eligPick input:checked){background:var(--brand-soft)}
 .eligSummary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 .eligSummary>svg:last-child{flex:0 0 auto;color:var(--muted-ink);transition:transform .18s ease}
 .eligSummary[aria-expanded=true]>svg:last-child{transform:rotate(180deg)}

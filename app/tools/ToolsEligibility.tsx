@@ -25,8 +25,9 @@ function RemoveButton({ label, onConfirm, disabled, labelText = 'Remove', confir
     : <button type="button" className={s.eligLink} aria-label={label} disabled={disabled} onClick={() => setSure(true)}>{labelText}</button>;
 }
 
-function Accordion({ open, onToggle, icon, title, subtitle, count, noun, children }: { open: boolean; onToggle: () => void; icon: 'user' | 'box'; title: string; subtitle: string; count: number | null; noun: string; children: React.ReactNode }) {
-  return <article className={s.eligAccordion} data-open={open}>
+function Accordion({ open, onToggle, icon, title, subtitle, count, noun, children, pick }: { open: boolean; onToggle: () => void; icon: 'user' | 'box'; title: string; subtitle: string; count: number | null; noun: string; children: React.ReactNode; pick?: React.ReactNode }) {
+  return <article className={s.eligAccordion} data-open={open} data-picking={pick ? true : undefined}>
+    {pick}
     <button type="button" className={s.eligSummary} aria-expanded={open} onClick={onToggle}>
       <span className={s.eligAvatar}><Icon name={icon} size={19} /></span>
       <span className={s.eligSummaryText}><strong>{title}</strong><small>{subtitle}</small></span>
@@ -41,9 +42,12 @@ function ListFilter({ value, onChange, label }: { value: string; onChange: (valu
   return <label className={s.eligFilter}><Icon name="search" size={15} /><input type="search" aria-label={label} value={value} onChange={event => onChange(event.target.value)} placeholder={label} /></label>;
 }
 
-export function EligibilityByPerson({ employees, tools, eligibility, competencies, ready, canManage, authoriser, onGrant, onOpenApprovals, onIssue, onSetActive }: {
+/** Ticking people to act on together: `blocked` says why someone cannot be ticked (or nothing if they can). */
+export type PersonSelection = { picked: string[]; onToggle: (employee: Employee, on: boolean) => void; blocked: (employee: Employee) => string | undefined };
+
+export function EligibilityByPerson({ employees, tools, eligibility, competencies, ready, canManage, authoriser, onGrant, onOpenApprovals, onIssue, onSetActive, selection }: {
   employees: Employee[]; tools: Tool[]; eligibility: Eligibility; competencies: CompetencyRecord[]; ready: boolean; canManage: boolean; authoriser: string;
-  onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void; onSetActive: (employee: Employee, active: boolean) => Promise<void>;
+  onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void; onSetActive: (employee: Employee, active: boolean) => Promise<void>; selection?: PersonSelection;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = useMemo(() => groupEmployeesByDepartment(employees), [employees]);
@@ -52,7 +56,9 @@ export function EligibilityByPerson({ employees, tools, eligibility, competencie
       <header className={s.eligGroupHeading}><h2>{group.department}</h2><span>{group.employees.length} {group.employees.length === 1 ? 'person' : 'people'}</span></header>
       {group.employees.map(employee => {
         const eligible = (employee.backendId && eligibility.forEmployee.get(employee.backendId)) || [];
-        return <Accordion key={employee.id} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
+        const reason = selection?.blocked(employee);
+        const pick = selection && <span className={s.eligPick}><input type="checkbox" aria-label={`Select ${employee.name}`} title={reason} disabled={!!reason} checked={selection.picked.includes(employee.id)} onChange={event => selection.onToggle(employee, event.target.checked)} /></span>;
+        return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
           <PersonBody ready={ready} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
         </Accordion>;
       })}

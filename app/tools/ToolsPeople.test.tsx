@@ -130,6 +130,28 @@ describe('ToolsPeople', () => {
     expect(onSetActive).toHaveBeenCalledWith(expect.objectContaining({ id: 'employee-1' }), false);
   });
 
+  it('ticks several people, asks once more, then deactivates only those ticked; inactive people and anyone holding equipment cannot be ticked', async () => {
+    const user = userEvent.setup();
+    const onDeactivateMany = vi.fn(async () => {});
+    const more: Employee[] = [...employees, { id: 'employee-3', backendId: 'employee-3', employeeNumber: 'E-3', name: 'Sam Holder', department: 'Engineering', active: true }, { id: 'employee-4', backendId: 'employee-4', employeeNumber: 'E-4', name: 'Gone Away', department: 'Engineering', active: false }];
+    const withHolder = [{ ...tools[0], holder: 'Sam Holder · E-3' } as Tool, tools[1]];
+    render(<ToolsPeople {...props} employees={more} tools={withHolder} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} onDeactivateMany={onDeactivateMany} />);
+    await user.click(screen.getByRole('button', { name: /Select to deactivate/ }));
+    expect(screen.getByRole('checkbox', { name: 'Select Sam Holder' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Deactivate' })).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'Select Mina Dube' }));
+    await user.click(screen.getByRole('button', { name: 'Deactivate 1' }));
+    expect(onDeactivateMany).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Yes, deactivate' }));
+    expect(onDeactivateMany).toHaveBeenCalledWith([expect.objectContaining({ id: 'employee-2' })]);
+    expect(screen.queryByRole('checkbox', { name: 'Select Mina Dube' })).not.toBeInTheDocument();
+  });
+
+  it('offers no bulk deactivation to people who cannot manage', () => {
+    render(<ToolsPeople {...props} canManage={false} employees={employees} tools={tools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} onDeactivateMany={async () => {}} />);
+    expect(screen.queryByRole('button', { name: /Select to deactivate/ })).not.toBeInTheDocument();
+  });
+
   it('lists the people eligible for a tool one per row with job title and number, filterable when long, instead of one comma-separated line', async () => {
     const user = userEvent.setup();
     const many = Array.from({ length: 12 }, (_, i) => ({ id: `e${i}`, employeeNumber: `C${100 + i}`, name: `Person ${String.fromCharCode(65 + i)}`, jobTitle: i % 2 ? 'Fitter Class 1' : 'Electrician Class 2' }));
