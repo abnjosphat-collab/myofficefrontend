@@ -22,7 +22,7 @@ export {
 export type { Appearance, AppearanceFont } from './appearance/appearance';
 
 // Primitives
-export { Button, IconButton, Spinner, buttonVariants } from './primitives/Button';
+export { Button, IconButton, Spinner, buttonVariants, iconButtonVariants } from './primitives/Button';
 export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './primitives/Button';
 export { StatusBadge, Tag, CountBadge } from './primitives/Badge';
 export type { Tone } from './primitives/Badge';

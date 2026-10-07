@@ -17,13 +17,13 @@ import {
   Question, Rows, ShieldCheck, ShoppingCart, SidebarSimple, SignIn, SignOut, SlidersHorizontal,
   Sparkle, SquaresFour, Star, Table, Target, TextAa, Toolbox, Trash,
   TreeStructure, TrendUp, UploadSimple, User, UserCheck, UserGear, Users, Warning,
-  WarningOctagon, Wrench, X, XCircle,
+  WarningOctagon, Whatsapp, Wrench, X, XCircle,
 } from './glyphs';
 
 export const ICON_MEANINGS = [
   'employees', 'artisans', 'nec-staff', 'salaried-staff', 'permanent-staff',
   'grid-view', 'list-view', 'table-view', 'sheet-view',
-  'search', 'filter', 'sort', 'edit', 'mail', 'phone', 'archive', 'analytics',
+  'search', 'filter', 'sort', 'edit', 'mail', 'phone', 'whatsapp', 'archive', 'analytics',
   'refresh', 'download', 'plus', 'close', 'warning', 'success', 'danger',
   'clock', 'calendar', 'check', 'pending', 'active', 'inactive',
   'equipment', 'maintenance', 'breakdown', 'availability',
@@ -153,6 +153,7 @@ export const ICON_BY_MEANING: Record<IconMeaning, ElementType> = {
   edit: PencilSimple,
   mail: EnvelopeSimple,
   phone: Phone,
+  whatsapp: Whatsapp,
   archive: Archive,
   analytics: ChartLineUp,
   refresh: ArrowClockwise,

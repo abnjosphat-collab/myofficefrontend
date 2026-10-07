@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**56 routes.** Migrated: 47. Legacy page body on the new shell: 0. Redirects: 5. Own chrome: 4. Browser verified: 52.
+**57 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 4. Browser verified: 51.
 
 | Column | Meaning |
 |---|---|
@@ -18,7 +18,7 @@
 | `/` | Migrated | Yes | No | Yes, 2026-10-03 | Home: real stats, favourites, quick actions, search, bulk pinning, tips. |
 | `/admin` | Migrated | Yes | No | Yes, 2026-10-03 | User directory table with role tiles as filters, a Manage dialog (role, deactivate with confirmation, reactivate, reset password with confirmation, failures shown inside the dialog), invite dialog with the backend's error shown and input kept, role guide. Permission rules preserved: a super admin manages anyone, an admin cannot manage a super admin or themselves, and an admin is not offered the Super Admin role (or Admin, when inviting). The page only fetches users once the caller is confirmed an admin; signed-out visitors see 'Sign in required' instead of a spinner. The backend enforces the same rules; this was not run against it. |
 | `/admin/lists` | Migrated | Yes | No | Yes, 2026-10-03 | Shared pick-or-type lists: add, rename, delete with confirmation. |
-| `/artisan-timesheets` | Migrated | Yes | 7 | Yes, 2026-10-04 | Dense grid kept (frozen panes, copy-down) on the shared system's controls. Signature capture still uses the shared SignaturePad. |
+| `/artisan-timesheets` | Migrated | Yes | 11 | Yes, 2026-10-04 | Dense grid kept (frozen panes, copy-down) on the shared system's controls. Signature capture still uses the shared SignaturePad. |
 | `/auth/callback` | Own chrome | No | No | Not checked | auth redirect handler |
 | `/auth/set-password` | Own chrome | No | No | Not checked | password setup |
 | `/av` | Redirect | No | No | Yes, 2026-10-04 | Retired duplicate of Availabilities (owner decision 4 Oct 2026); the old page was replaced by a redirect. |
@@ -59,12 +59,13 @@
 | `/services` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register pattern with a staged approval detail. Each approval stage now saves on its own with an explicit button (it was a debounced auto-save that could lose the last change). The backend list is now paged (uncommitted, not deployed). |
 | `/sheq` | Migrated | Yes | 2 | Yes, 2026-10-03 | Collapsible sections became tabs (Overview, Weekly targets, Modules, Analytics, Analysis, Notes); tiles link to their modules. Two data corrections: (1) near-miss records have no status or severity, so the old Resolved/Open donut and 'NM resolution' bar, which fell back to invented 70/30 figures, are gone and only the section split is shown; (2) the safety score now averages only the measures that have records and shows 'No score' for an empty period, where it used to show 100 'Good standing' (near miss always contributed a fixed 100). Weekly targets and notes stay in this browser's local storage and are labelled as device-only. A chart legend made the module bar chart draw no bars, so it was removed. |
 | `/sheq_inspection` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, section/status filters, detail dialog with findings, photos and sign-off, add/edit/delete. The form is one scrolling dialog (tabs dropped); per-finding errors; completed date disabled until a finding is closed. Photo upload still uses the legacy PhotoUpload component as an interim bridge (uploading was not exercised: it needs a live storage endpoint). Finding-status tiles are informational, not filters, because they count findings while the list shows inspections. |
-| `/shifts` | Migrated | Yes | 3 | Yes, 2026-10-04 | Planning grid pattern. The 4-week schedule is a real table with a sticky first column and cells that state their meaning in words. |
+| `/shifts` | Migrated | Yes | 4 | Yes, 2026-10-04 | Planning grid pattern. The 4-week schedule is a real table with a sticky first column and cells that state their meaning in words. |
 | `/sop-library` | Migrated | Yes | No | Yes, 2026-10-03 | Cards, viewer drawer with revision history, create/edit dialog, archive. |
 | `/spares` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register pattern with a requisition drawer. Cards are flat (the old page grouped only the current page by category). |
 | `/spares/import` | Migrated | Yes | 1 | Yes, 2026-10-04 | Workflow page in three steps. The payload now carries only what the file says (see the handoff: the old payload reset stock on hand on update). |
-| `/standby` | Redirect | No | No | Yes, 2026-10-03 | Pre-existing redirect. |
+| `/standby` | Migrated | Yes | 2 | unverified (2026-10-07) | Standby module: weekly board over standby_rotations with crew and call/WhatsApp actions, rotation sequence, and duty officials from duty_roster. |
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
+| `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 14 | Yes, 2026-10-04 | Presentation moved to the shared system; payroll rules (calcTotals), merging, fill and write rules, the hooks and the exports are unchanged and keep their own tests. The user's in-progress edits to those files were left as they were. |
 | `/tools` | Own chrome | No | 22 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |

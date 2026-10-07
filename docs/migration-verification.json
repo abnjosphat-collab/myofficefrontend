@@ -122,10 +122,16 @@
       "note": "Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role)."
     },
     "/standby": {
-      "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Browser navigation to the route ends at /shifts (URL asserted).",
-      "note": "Pre-existing redirect."
+      "status": "unverified",
+      "date": "2026-10-07",
+      "scope": "Route spec (week board with rotation and contact actions, rotations and duty tabs, create/empty/failed states) plus unit tests for the rotation math and board; no fixture browser run yet.",
+      "note": "Standby module: weekly board over standby_rotations with crew and call/WhatsApp actions, rotation sequence, and duty officials from duty_roster."
+    },
+    "/test-homepage": {
+      "status": "unverified",
+      "date": "2026-10-07",
+      "scope": "Temporary design concept; route spec only renders the sections, no fixture browser run.",
+      "note": "TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it."
     },
     "/near_miss": {
       "status": "verified",
