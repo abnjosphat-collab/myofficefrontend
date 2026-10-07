@@ -1,59 +1,139 @@
-// app/maintenance-preview/planner/page.tsx — people against days. Leave is a quiet grey band; a job cannot be dropped there.
+// app/maintenance-preview/planner/page.tsx — people against days. Today is marked, leave is a hatched band that refuses a drop and says why,
+// and the unassigned jobs sit on a shelf below. Dragging is never the only way: every job also has an Assign button.
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, cn } from '@/components/ui-system';
-import { PEOPLE, dayOffset, fmt, type WorkOrder } from '../fixtures';
+import { Button, Field, FormDialog, IconButton, Input, Segmented, cn } from '@/components/ui-system';
+import { Avatar, Meter, Reveal, StatusDot } from '../cards';
+import { PEOPLE, dayOffset, fmt, type Person, type WorkOrder } from '../fixtures';
 import { PageFrame } from '../PageFrame';
+import { RegisterField, personItems } from '../RegisterField';
 import { usePreview } from '../store';
 
-const days = Array.from({ length: 7 }, (_, i) => dayOffset(i));
-const weekday = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
+const iso = (offset: number) => dayOffset(offset);
+const weekday = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' });
+const dayNum = (d: string) => new Date(`${d}T00:00:00`).getDate();
+const accent = (p: WorkOrder['priority']) => (p === 'urgent' ? 'before:bg-danger' : p === 'high' ? 'before:bg-warning' : 'before:bg-transparent');
+const leaveOn = (p: Person, d: string) => (p.leave && d >= p.leave.from && d <= p.leave.to ? p.leave : null);
 
 export default function PlannerPage() {
   const { orders, update } = usePreview();
+  const [weekOffset, setWeekOffset] = useState(0);
   const [dragging, setDragging] = useState<number | null>(null);
+  const [shake, setShake] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
+  const [assigning, setAssigning] = useState<WorkOrder | null>(null);
+  const [who, setWho] = useState(''); const [when, setWhen] = useState(iso(0));
+  const [dayView, setDayView] = useState(iso(0));
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => iso(weekOffset * 7 + i)), [weekOffset]);
+  const today = iso(0);
   const loose = orders.filter(o => o.status !== 'completed' && o.assignees.length === 0);
-  const onLeave = (name: string, day: string) => { const l = PEOPLE.find(p => p.name === name)?.leave; return !!l && day >= l.from && day <= l.to; };
-  const drop = (name: string, day: string) => {
-    const o = orders.find(x => x.id === dragging); setDragging(null);
-    if (!o) return;
-    if (onLeave(name, day)) { const l = PEOPLE.find(p => p.name === name)!.leave!; toast.error(`${name} is on leave (${l.reason}, ${fmt(l.from)} to ${fmt(l.to)}).`); return; }
-    update(o.id, { assignees: [name], due: day }); setPublished(false);
+  const jobsOf = (p: Person, d?: string) => orders.filter(o => o.assignees.includes(p.name) && o.status !== 'completed' && (d ? o.due === d : days.includes(o.due)));
+
+  const place = (job: WorkOrder, person: Person, day: string) => {
+    const l = leaveOn(person, day);
+    if (l) {
+      const key = `${person.id}-${day}`; setShake(key); setTimeout(() => setShake(null), 220);
+      toast.error(`${person.name} is on leave (${l.reason}, ${fmt(l.from)} to ${fmt(l.to)}), so ${job.machine} cannot go on ${fmt(day)}.`);
+      return false;
+    }
+    update(job.id, { assignees: [person.name], due: day }); setPublished(false);
+    toast.success(`${job.machine} to ${person.name}, ${fmt(day)}.`);
+    return true;
   };
+  const onDrop = (person: Person, day: string) => { const j = orders.find(o => o.id === dragging); setDragging(null); if (j) place(j, person, day); };
+  const submitAssign = async () => {
+    const person = PEOPLE.find(p => p.name.toLowerCase() === who.trim().toLowerCase());
+    if (!assigning) return;
+    if (!person) throw new Error('Choose someone from the employee register.');
+    if (!place(assigning, person, when)) throw new Error('That day is not possible. Choose another.');
+    setWho('');
+  };
+
+  const Chip = ({ job }: { job: WorkOrder }) => (
+    <span className={cn('relative mb-1 block truncate rounded-control bg-surface py-1 pl-2.5 pr-2 font-sans text-caption text-ink shadow-xs before:absolute before:inset-y-1 before:left-1 before:w-[3px] before:rounded-full', accent(job.priority))} title={`${job.machine}, ${job.title}`}>{job.machine}</span>
+  );
+
   return (
     <PageFrame title="Planner" crumbs={[{ label: 'Planner' }]} action={<Button variant="primary" onClick={() => { setPublished(true); toast.success('Week published (preview only).'); }}>{published ? 'Published' : 'Publish week'}</Button>}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[44rem] border-collapse font-sans text-body-sm">
-          <caption className="sr-only">People against days. Drop a job on a person and day to assign it.</caption>
-          <thead><tr><th className="w-32 py-2 text-left text-caption font-medium text-ink-muted">Person</th>{days.map(d => <th key={d} className="py-2 text-left text-caption font-medium text-ink-muted">{weekday(d)} <span className="tabular">{fmt(d)}</span></th>)}</tr></thead>
+      <div className="flex flex-wrap items-center gap-2">
+        <IconButton icon="chevron-left" label="Previous week" onClick={() => setWeekOffset(w => w - 1)} />
+        <p className="min-w-40 text-center font-display text-title tabular text-ink">{fmt(days[0])} to {fmt(days[6])}</p>
+        <IconButton icon="chevron-right" label="Next week" onClick={() => setWeekOffset(w => w + 1)} />
+        {weekOffset !== 0 && <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>Today</Button>}
+      </div>
+
+      {/* Week grid, from lg up */}
+      <div className="mp-card hidden overflow-x-auto rounded-panel border border-line-subtle bg-surface lg:block">
+        <table className="w-full min-w-[56rem] table-fixed border-collapse font-sans">
+          <caption className="sr-only">People against days. Drop a job on a person and a day to assign it.</caption>
+          <colgroup><col className="w-48" />{days.map(d => <col key={d} />)}</colgroup>
+          <thead>
+            <tr>
+              <th scope="col" className="px-4 py-3 text-left text-caption font-medium text-ink-muted">Person</th>
+              {days.map(d => <th key={d} scope="col" className="px-1 py-3 text-center"><span className="block text-caption font-medium text-ink-muted">{weekday(d)}</span><span className={cn('mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full font-display text-body tabular', d === today ? 'bg-action text-action-ink' : 'text-ink')}>{dayNum(d)}</span></th>)}
+            </tr>
+          </thead>
           <tbody>
-            {PEOPLE.map(p => (
-              <tr key={p.id} className="border-t border-line-subtle align-top">
-                <th scope="row" className="py-2 pr-3 text-left font-medium text-ink">{p.name}<span className="block text-caption font-normal text-ink-muted">{p.trade}</span></th>
-                {days.map(d => {
-                  const leave = onLeave(p.name, d);
-                  const jobs = orders.filter(o => o.assignees.includes(p.name) && o.due === d && o.status !== 'completed');
-                  return (
-                    <td key={d} onDragOver={e => e.preventDefault()} onDrop={() => drop(p.name, d)} className={cn('h-14 min-w-24 px-1 py-1', leave && 'bg-surface-muted')}>
-                      {leave ? <span className="text-caption text-ink-muted">Leave</span> : jobs.map(j => <span key={j.id} className="mb-1 block truncate rounded-xs bg-soft px-1.5 py-1 text-caption text-ink">{j.machine}</span>)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {PEOPLE.map((p, r) => {
+              const load = jobsOf(p).length;
+              return (
+                <tr key={p.id} className="mp-rise border-t border-line-subtle align-top" style={{ ['--mp-i' as string]: r }}>
+                  <th scope="row" className="px-4 py-3 text-left font-normal">
+                    <span className="flex items-center gap-2.5"><Avatar name={p.name} /><span className="min-w-0"><span className="block truncate text-body-sm font-medium text-ink">{p.name}</span><span className="block truncate text-caption text-ink-muted">{p.trade}</span></span></span>
+                    <span className="mt-2 block"><Meter value={load * 20} label={`${p.name} load this week`} /></span>
+                    <span className="mt-1 block text-caption text-ink-muted tabular">{load} job{load === 1 ? '' : 's'} this week</span>
+                  </th>
+                  {days.map(d => {
+                    const l = leaveOn(p, d);
+                    const refused = dragging !== null && !!l;
+                    return (
+                      <td key={d} onDragOver={e => e.preventDefault()} onDrop={() => onDrop(p, d)}
+                        className={cn('h-24 border-l border-line-subtle p-1 transition-colors duration-[var(--mo-duration-fast)]', l && 'mp-hatch', dragging !== null && !l && 'bg-action-soft/60', refused && 'outline outline-1 -outline-offset-2 outline-danger', shake === `${p.id}-${d}` && 'mp-shake', d === today && !l && 'bg-surface-subtle')}>
+                        {l ? <span className="block text-caption text-ink-muted"><span className="font-medium">Leave</span><span className="block truncate">{l.reason}</span></span> : jobsOf(p, d).map(j => <Chip key={j.id} job={j} />)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      <section aria-labelledby="loose" className="border-t border-line-subtle pt-4">
-        <h2 id="loose" className="mb-2 font-sans text-label font-semibold text-ink">Unassigned ({loose.length})</h2>
+
+      {/* Day list, below lg: the same people and the same refusals, one day at a time */}
+      <div className="flex flex-col gap-3 lg:hidden">
+        <div className="-mx-1 overflow-x-auto px-1"><Segmented label="Day" value={days.includes(dayView) ? dayView : days[0]} onValueChange={setDayView} options={days.map(d => ({ value: d, label: `${weekday(d)} ${dayNum(d)}` }))} className="flex-nowrap" /></div>
+        <ul className="flex flex-col gap-3">
+          {PEOPLE.map((p, i) => {
+            const d = days.includes(dayView) ? dayView : days[0]; const l = leaveOn(p, d); const jobs = jobsOf(p, d);
+            return <li key={p.id}><Reveal index={i}><div className={cn('mp-card flex items-center gap-3 rounded-card border border-line-subtle p-3', l ? 'mp-hatch' : 'bg-surface')}><Avatar name={p.name} /><div className="min-w-0 flex-1"><p className="font-sans text-body-sm font-medium text-ink">{p.name}<span className="ml-2 text-caption font-normal text-ink-muted">{p.trade}</span></p><p className="font-sans text-caption text-ink-muted">{l ? `On leave: ${l.reason}, ${fmt(l.from)} to ${fmt(l.to)}` : jobs.length ? jobs.map(j => j.machine).join(', ') : 'Free'}</p></div></div></Reveal></li>;
+          })}
+        </ul>
+      </div>
+
+      <section aria-label="Unassigned jobs" className="rounded-panel border border-line-subtle bg-surface-subtle p-4">
+        <div className="mb-3 flex items-baseline justify-between"><h2 className="font-display text-section text-ink">Unassigned<span className="ml-2 font-sans text-body-sm font-normal text-ink-muted tabular">{loose.length}</span></h2><span className="hidden font-sans text-caption text-ink-muted lg:inline">Drag a job onto a person and day, or press Assign.</span></div>
         {loose.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Everything open has someone.</p> : (
-          <ul className="flex flex-wrap gap-2">{loose.map((o: WorkOrder) => <li key={o.id} draggable onDragStart={() => setDragging(o.id)} className="cursor-grab rounded-control border border-line px-2.5 py-1.5 font-sans text-body-sm text-ink active:cursor-grabbing">{o.machine}, {o.title}</li>)}</ul>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {loose.map(o => (
+              <li key={o.id} draggable onDragStart={() => setDragging(o.id)} onDragEnd={() => setDragging(null)} className={cn('mp-card relative flex cursor-grab items-center justify-between gap-3 rounded-card border border-line-subtle bg-surface p-3 before:absolute before:inset-y-2.5 before:left-0 before:w-[3px] before:rounded-full active:cursor-grabbing', accent(o.priority), dragging === o.id && 'opacity-60')}>
+                <div className="min-w-0"><p className="truncate font-display text-title text-ink">{o.machine}</p><p className="truncate font-sans text-body-sm text-ink-muted">{o.title}</p></div>
+                <Button size="sm" onClick={() => { setAssigning(o); setWhen(o.due); }}>Assign</Button>
+              </li>
+            ))}
+          </ul>
         )}
-        <p className="mt-2 font-sans text-caption text-ink-muted">Drag a job onto a person and day. Days on leave cannot take a job.</p>
       </section>
+
+      <FormDialog open={!!assigning} onOpenChange={o => { if (!o) setAssigning(null); }} size="sm" title="Assign job" description={assigning ? `${assigning.machine}, ${assigning.title}` : undefined} submitLabel="Assign" onSubmit={submitAssign}>
+        <div className="flex flex-col gap-4">
+          <RegisterField label="Assign to" register="employees" required items={personItems(PEOPLE, fmt)} value={who} onChange={setWho} placeholder="Type to search people" hint="People on leave are shown but cannot be chosen." />
+          <Field label="Day"><Input type="date" value={when} onChange={e => setWhen(e.target.value)} /></Field>
+        </div>
+      </FormDialog>
+      <StatusDot tone="neutral">Preview: the load bar counts jobs against five a week.</StatusDot>
     </PageFrame>
   );
 }

@@ -12,7 +12,7 @@ export interface WorkOrder {
   id: number; number: string; machine: string; title: string; type: 'Breakdown' | 'Preventive' | 'Corrective'; status: Status; priority: Priority;
   assignees: string[]; due: string; section: string; raised: string; raisedBy: string; source?: string; tools: string[]; description: string;
 }
-export interface Request { id: number; number: string; machine: string; title: string; by: string; when: string; priority: Priority; status: 'waiting' | 'approved' | 'rejected'; workOrder?: string; reason?: string }
+export interface Request { id: number; number: string; machine: string; title: string; by: string; when: string; priority: Priority; status: 'waiting' | 'approved' | 'rejected'; workOrder?: string; reason?: string; details?: string }
 export interface Schedule { id: number; name: string; machines: string[]; rule: string; next: string; active: boolean; dates: string[] }
 
 const day = (offset: number) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
@@ -49,8 +49,8 @@ export const INITIAL_ORDERS: WorkOrder[] = [
   { id: 219, number: 'WO-00219', machine: 'Compressor 1', title: 'Oil and filter service', type: 'Preventive', status: 'completed', priority: 'medium', assignees: ['A. Moyo'], due: day(-6), section: 'Plant 2', raised: day(-14), raisedBy: 'Planner', source: 'Compressor service', tools: [], description: 'Routine service done.' },
 ];
 export const INITIAL_REQUESTS: Request[] = [
-  { id: 18, number: 'REQ-00018', machine: 'Pump A', title: 'Gland leaking', by: 'T. Dube', when: 'Today', priority: 'high', status: 'waiting' },
-  { id: 17, number: 'REQ-00017', machine: 'Fan 2', title: 'Vibration on start-up', by: 'S. Ncube', when: 'Yesterday', priority: 'medium', status: 'waiting' },
+  { id: 18, number: 'REQ-00018', machine: 'Pump A', title: 'Gland leaking', by: 'T. Dube', when: 'Today, 07:42', priority: 'high', status: 'waiting', details: 'Gland has been weeping since the night shift and is now dripping onto the base plate. Packing looks worn.' },
+  { id: 17, number: 'REQ-00017', machine: 'Fan 2', title: 'Vibration on start-up', by: 'S. Ncube', when: 'Yesterday, 14:10', priority: 'medium', status: 'waiting', details: 'Noticeable vibration for the first minute after start-up, settles after that. Worse on cold mornings.' },
   { id: 16, number: 'REQ-00016', machine: 'Compressor 2', title: 'Noise at drive end', by: 'T. Dube', when: '3 days ago', priority: 'high', status: 'approved', workOrder: 'WO-00231' },
   { id: 15, number: 'REQ-00015', machine: 'Conveyor 3', title: 'Belt tracking off', by: 'L. Banda', when: '5 days ago', priority: 'low', status: 'rejected', reason: 'Already covered by WO-00226' },
 ];
@@ -66,3 +66,11 @@ export const PRIORITY_LABEL: Record<Priority, string> = { low: 'Low', medium: 'M
 
 export const isOverdue = (w: WorkOrder) => w.status !== 'completed' && w.due < day(0);
 export const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+export const progressOf = (w: WorkOrder) => ({ pending: 0, 'in-progress': 55, 'awaiting-signoff': 95, completed: 100, 'on-hold': 30 }[w.status]);
+/** "Today", "Tomorrow", "in 5 days", "3 days ago": the form people say out loud. */
+export const rel = (iso: string) => {
+  const d = Math.round((new Date(`${iso}T00:00:00`).getTime() - new Date(`${day(0)}T00:00:00`).getTime()) / 86_400_000);
+  return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1 ? 'Yesterday' : d > 0 ? `in ${d} days` : `${-d} days ago`;
+};
+export const fmtLong = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });

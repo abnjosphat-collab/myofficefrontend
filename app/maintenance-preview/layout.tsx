@@ -4,6 +4,7 @@
 import type { ReactNode } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { PreviewProvider } from './store';
+import './preview.css';
 
 export default function PreviewLayout({ children }: { children: ReactNode }) {
   return <AppShell migrated><PreviewProvider>{children}</PreviewProvider></AppShell>;

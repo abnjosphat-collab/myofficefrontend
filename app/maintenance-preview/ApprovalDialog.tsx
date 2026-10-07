@@ -9,7 +9,7 @@ import { PEOPLE, dayOffset, fmt, type Request } from './fixtures';
 import { RegisterField, personItems } from './RegisterField';
 import { usePreview } from './store';
 
-export function ApprovalDialog({ request, onClose }: { request: Request | null; onClose: () => void }) {
+export function ApprovalDialog({ request, onClose, onDecided }: { request: Request | null; onClose: () => void; onDecided?: (id: number) => void }) {
   const { approve } = usePreview();
   const [who, setWho] = useState('');
   const [due, setDue] = useState(dayOffset(3));
@@ -21,6 +21,7 @@ export function ApprovalDialog({ request, onClose }: { request: Request | null; 
     const wo = request ? approve(request.id, { assignee: who.trim(), due }) : null;
     if (!wo) throw new Error('This request has already been decided.');
     toast.success(`${wo.number} raised from ${request?.number}.`);
+    if (request) onDecided?.(request.id);
     setWho(''); setSignature('');
   };
   return (
