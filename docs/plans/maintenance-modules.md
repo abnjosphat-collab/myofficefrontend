@@ -1,6 +1,6 @@
 # Maintenance as its own category: modules, registers, clean UI (plan v2)
 
-**Status:** requirements, plan, model and wireframes for owner review. Nothing in this document is built. It revises [the v1 plan](./maintenance-workflow.md) after the owner's 7 Oct 2026 direction, and the v1 plan stays authoritative for everything this document does not change (rules R1 to R38, tables in M.2, state diagrams in M.4, the leave rule in M.5).
+**Status:** requirements, plan, model and wireframes for owner review (look revised 8 Oct 2026: section 6 is now card-based). Nothing in this document is built. It revises [the v1 plan](./maintenance-workflow.md) after the owner's 7 Oct 2026 direction, and the v1 plan stays authoritative for everything this document does not change (rules R1 to R38, tables in M.2, state diagrams in M.4, the leave rule in M.5).
 **Audience:** the owner, for approval of the wireframes; then the developers and agents who build each slice.
 
 ## 0. What the owner asked for, and what changes
@@ -26,7 +26,7 @@
 | R41 | Modules are related by **links, not copies**: a work order shows its request and schedule as links; a request shows its work order; a schedule lists the work orders it raised; the planner opens the record. | Every cross-reference in the model (M.1) is a working link both ways. |
 | R42 | Every free-typing field that names a thing in an existing register becomes a **register picker**: type to search, arrow keys, **Tab fills the highlighted match**, free text still accepted, and the field shows whether the value matched the register. Registers: employees (people, section, supervisor), equipment (machines), tools (Tools & Equipment register), spares (parts), lookup lists (sections, departments, failure modes). | No form in the maintenance modules has a plain text box for a machine, a person, a section, a tool or a part. A test per picker. |
 | R43 | A work order lists the **tools** needed, picked from the Tools register, each showing whether it is available now, who holds it, and whether its inspection is overdue. These are **warnings, not blocks**; issuing and returning stay in `/tools`. | Pick a tool: its status shows. A tool that is issued out or overdue for inspection shows a plain-words warning and can still be added. Maintenance never writes to the Tools register. |
-| R44 | **One primary action per screen**, one search per list, filters collapsed until needed, no statistic tile that is not also a filter. | Checked against the clean rules in section 6.1 in review of each screen. |
+| R44 | **One primary action per screen**, one search per list, filters collapsed until needed, no statistic tile that is not also a filter. | Checked against the design language in section 6.1 in review of each screen. |
 | R45 | Old addresses keep working. `/maintenance` stays valid. | `/maintenance` lands on the Overview **[D]**; the old Work orders content is at `/maintenance/work-orders`; the home page "New work order" shortcut opens the New work order dialog. |
 | R46 | A module is shown to a person only if their role may use it (viewers see lists and records, not create buttons; the Planner and approvals need `manager`). | Role test per module; a viewer sees no dead buttons. |
 | R47 | The phone experience is first-class: lists become cards, forms become full-height sheets, the record is a full page. | Route specs at 390 px for every module. |
@@ -89,25 +89,238 @@ Unique on (`work_order_id`, `tool_register_number`) where the number is not null
 | `GET/PUT /api/maintenance/work-orders/{id}/tools` | read: any; write: `user`+ | the tools on a work order; `PUT` replaces the list, audited in `maintenance_events` |
 | `GET /api/maintenance/overview` | any signed-in | counts and the "needs me" lists for the Overview (slice 12): overdue, awaiting sign-off, requests waiting, my jobs; reuses the work order and request tables, no new data |
 
-Frontend shared pieces (all in `app/maintenance/`, built on `components/ui-system`, no second design system): `RegisterField` (one picker for every register, built on `PredictiveInput`/`SuggestField`), `useRegisters` (employees, equipment, tools, spares, lists, one cached read each), `MaintenanceNav` (sub-navigation used on small screens, see 6.3), `RecordHeader`.
+Frontend shared pieces (all in `app/maintenance/`, built on `components/ui-system`, no second design system): `RegisterField` (one picker for every register, built on `PredictiveInput`/`SuggestField`), `useRegisters` (employees, equipment, tools, spares, lists, one cached read each), `MaintenanceNav` (sub-navigation used on small screens, see 6.13), `InfoCard`, `StatCard`, `Avatar`, `StatusDot`, `Reveal` (6.5).
 
-## 6. The look: what "as clean as the top bar" means in practice
+## 6. The look: calm, card-based, and exact about what it uses (revised 8 Oct 2026 after the owner called Requests, Planner and Overview "terrible")
 
-### 6.1 The rules (each is checkable in review)
+The first wireframes (rows and tables of text) were too plain. This revision keeps the structure (one category, five modules, registers everywhere) and changes how information is presented: **each fact lives on a card that answers one question**, hierarchy comes from size, weight and space instead of borders, and motion explains what changed.
 
-Distilled from what makes the top bar quiet: one row, neutral surface, one search, icon buttons with no labels clutter, status shown only where it matters.
+### 6.1 Design language
 
-1. **One primary button per screen**, top right. Everything else is a text button or inside a **More** menu.
-2. **No statistic tiles** on list pages. The count and the filters are one quiet line of text above the table ("96 open, 14 overdue") whose words are the filters. Figures live on the Overview.
-3. **Table first** on desktop, cards on phone. No card grids on desktop lists.
-4. **Hairlines, not boxes.** Rows are separated by a 1 px line; no nested bordered panels; whitespace groups things.
-5. **Badges only for status and priority**, and a row shows at most two. Type, section and source are plain muted text.
-6. **One search field**; machine, person, section, status and date filters sit behind a single **Filters** button until used. Active filters show as removable chips.
-7. **A record shows five facts, then tabs.** Machine, status, assignee, due, and the next action. Everything else is under tabs.
-8. **Forms are pop-ups** (as the owner already likes in New work order), short, one column, three required fields at most for the quick forms.
-9. **Type and colour exactly as the existing system** (v1 W.0): no new colour, no new size.
+Drawn from Apple's Human Interface Guidelines (clarity, deference, depth, direct manipulation, feedback) and from ordinary software engineering practice (one responsibility per component, one source of truth, no duplicated styling, tested states). Each principle below says what it means on these screens and how a reviewer can check it.
 
-### 6.2 Sidebar
+| Principle | On these screens | Check |
+|---|---|---|
+| **Clarity** | One focal point per screen. A card carries one title, at most three facts and one action. Three type sizes per card, never more. | Squint test: the eye lands on the title or the primary action first. |
+| **Deference** | The content is the interface. No borders where space or a soft shadow does the job; no icons that only decorate; no statistic that is not also a link or a decision. | Remove any element: if nothing is lost, it should not be there. |
+| **Depth** | Three layers only: canvas, card (`--mo-shadow-card`), floating (popover, dialog). Hover deepens the shadow (`--mo-shadow-card-hover`); nothing lifts, tilts or glows (the system's rule: cards are stationary). | One shadow token per layer; no new shadows. |
+| **Direct manipulation** | Act on the thing itself: approve on the request, drag a job onto a person and day, tap a card to open it. | Every common task is one gesture on the object, not a trip to a toolbar. |
+| **Feedback and continuity** | Motion says what happened (an approved request leaves its list; a job lands in its cell; a refused drop shakes once and says why). Never decorative. | Each animation has a sentence explaining what it communicates. |
+| **Consistency** | One card anatomy, one avatar, one status dot, one date format everywhere. | The same fact looks the same in every module. |
+| **Accessibility first** | 4.5:1 text contrast (system pairs already pass), 44 px targets on touch, full keyboard path, text size 85 to 130 per cent survives, status always has a word, motion honours reduced-motion. | Route specs plus a keyboard-only pass per screen. |
+| **Single responsibility (engineering)** | `InfoCard`, `StatCard`, `Avatar`, `StatusDot` and `Reveal` are small shared pieces; modules compose them. No module restyles a card. | One definition of each card; modules pass data, not classes. |
+| **Honest states (engineering)** | Every card region has loading (skeleton), failure (message and Try again) and empty (the one action that fills it). No demo data outside the preview. | Same data-state rules as v1 W.10. |
+
+### 6.2 Type: the pairing, and why it is not changed
+
+The design system already pairs **Plus Jakarta Sans** (display: titles, record names, large numerals) with **Inter** (text: everything read in volume), both with tabular figures. That is the pairing this redesign uses, tuned rather than replaced: a geometric humanist display face gives cards a warm, confident title; a neutral screen-tuned text face keeps dense lines legible. A third family would break the owner's standing rule (one design system, no second typography set), so none is added. If the owner wants a different pairing, it changes in `tokens.css` for the whole product, not per module.
+
+| Role on a card | Token | Face and weight | Why |
+|---|---|---|---|
+| Card title (machine and job) | `text-title` | Plus Jakarta Sans, medium | the "which job" answer, readable from arm's length |
+| Large figure (a count, a date) | `text-metric` | Plus Jakarta Sans, medium, tabular | numerals of equal width; the only large type on a screen |
+| Page title | `text-page` | Plus Jakarta Sans, medium, tight tracking | orientation |
+| Body and facts | `text-body`, `text-body-sm` | Inter, regular | volume reading |
+| Eyebrow (status word, id) | `text-caption` | Inter, medium, muted | quiet, scanned not read |
+| Section heading | `text-label` | Inter, semibold | structure without competing with titles |
+
+### 6.3 Colour, depth and shape (all existing tokens)
+
+Canvas `--mo-canvas`; cards `--mo-surface` with `--mo-shadow-card` and `--mo-radius-card` (12 px); popovers and dialogs `--mo-shadow-popover` and `--mo-shadow-dialog`. Colour carries meaning only: the charcoal-green action colour for the one primary action and selection; status tones (warning, info, success, danger, neutral) for status, always beside a word; priority is a word and a thin 3 px accent on the card's leading edge, never colour alone. No gradients, no new hex values.
+
+### 6.4 Motion (every item uses the existing duration and easing tokens, so `prefers-reduced-motion` turns all of it off)
+
+| Motion | Duration | Says |
+|---|---|---|
+| Content rises 8 px and fades in on arrival; cards stagger 30 ms apart, at most eight | 260 ms, emphasized ease | "this is the new page", and the order to read in |
+| Card shadow deepens on hover and focus-within | 180 ms | "this is interactive" |
+| Progress and load bars fill to their value | 260 ms | "this is how far along" |
+| A decided request collapses out of the waiting list and its neighbours slide up | 260 ms | "that one is done" |
+| A dragged job dims; valid cells show a ring; a day on leave shows a hatched band and, on refusal, shakes once with the reason | 120 to 180 ms | "you can drop here" and "you cannot, and why" |
+| Dialogs and menus | existing | unchanged |
+
+No bounce, no parallax, no looping animation, no animated numbers (a figure that counts up is a figure that is briefly wrong).
+
+### 6.5 The shared pieces
+
+```
+InfoCard                                   StatCard                         Avatar          StatusDot
+┌────────────────────────────────┐         ┌──────────────────────┐         (AM)            ● In progress
+│ ● In progress          WO-00231│ eyebrow │ 14                    │ metric  initials on     dot + word, tone from
+│ Compressor 2                   │ title   │ Overdue               │ label   a quiet well    the status map
+│ Drive end bearing              │ sub     │ Oldest is 9 days      │ context
+│                                │         └──────────────────────┘
+│ (AM) A. Moyo        Due 9 Oct  │ facts
+│ ▓▓▓▓▓▓▓░░░░░░  60%             │ optional progress
+└────────────────────────────────┘
+ leading 3 px accent for High and Urgent only
+```
+
+Rules: a card is one control (the title is the button, as `RecordCard` already does), nested actions are siblings; secondary actions appear on hover or focus on desktop and are always visible on touch; the card never exceeds three facts.
+
+### 6.6 Page frame shared by every module
+
+```
+ Maintenance  ›  Work orders
+ Work orders                                                         ( + New work order )
+```
+
+`text-page` title, one muted breadcrumb, one primary button. The example-data notice in the preview is a single caption line under the title and does not exist in the product.
+
+### 6.7 Overview (`/maintenance`): "what needs me today"
+
+```
+ Maintenance › Overview
+ Overview                                                            ( + New work order )
+
+ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+ │ 14            │ │ 9             │ │ 7             │ │ 3             │
+ │ Overdue       │ │ Awaiting      │ │ Requests      │ │ Unassigned    │   StatCards: each is a link
+ │ Oldest 9 days │ │ sign-off      │ │ waiting       │ │ Oldest 4 days │   into the filtered list
+ └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
+
+ Your day                                     See all     Waiting for you                  See all
+ ┌────────────────────────────────────┐                   ┌────────────────────────────────────┐
+ │ ● In progress             WO-00231 │                   │ High               REQ-00018       │
+ │ Compressor 2                       │                   │ Pump A                             │
+ │ Drive end bearing                  │                   │ Gland leaking                      │
+ │ (AM) A. Moyo          Due today    │                   │ (TD) T. Dube · Today               │
+ │ ▓▓▓▓▓▓▓░░░░░  60%                  │                   │ [ Approve ]  [ Reject ]            │
+ └────────────────────────────────────┘                   └────────────────────────────────────┘
+ ┌────────────────────────────────────┐                   ┌────────────────────────────────────┐
+ │ ... up to three cards ...          │                   │ ... up to three cards ...          │
+
+ Last 30 days
+ ┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+ │ Completed on time       │ │ Breakdowns              │ │ Mean time to repair     │
+ │ 82%  ▓▓▓▓▓▓▓▓░░         │ │ 6   9 in the 30 before  │ │ 4.2 h   5.1 h before    │
+ └─────────────────────────┘ └─────────────────────────┘ └─────────────────────────┘
+```
+
+Focal point: the four StatCards, left to right in order of urgency. Targets show "not set" until supplied. A requester sees "My requests" in place of "Waiting for you"; a viewer sees no action buttons.
+
+### 6.8 Work orders (`/maintenance/work-orders`)
+
+```
+ Maintenance › Work orders
+ Work orders                                                         ( + New work order )
+
+ [ 🔍 Search machine, number or person ]   ( All | Mine | Overdue | Unassigned )     [ Cards | Table ]  ⋯
+
+ Overdue  2
+ ┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
+ │ ● Pending      WO-229 │ │ ● Awaiting     WO-228 │ │ ...                   │
+ │ Pump A                │ │   sign-off            │ │                       │
+ │ Discharge valve       │ │ Crusher 1             │ │                       │
+ │ Unassigned   4 Oct    │ │ Liner inspection      │ │                       │
+ └───────────────────────┘ └───────────────────────┘ └───────────────────────┘
+
+ This week  3
+ ┌───────────────────────┐ ┌───────────────────────┐ ┌───────────────────────┐
+ ...
+ Later  1        Done  1  (collapsed; opens on click)
+```
+
+Groups by urgency, not by status, because "what is late" is the first question. Cards are the default; **Table** (the earlier columns view) stays one click away for scanning many rows and is the default above 200 rows **[D]**. Opening a card shows the record as a large pop-up, with the shareable page behind "Open as a page". Selecting several rows is a Table feature.
+
+### 6.9 Work order record (pop-up, page and phone)
+
+```
+ ┌──────────────────────────────────────────────────────────────────────────┐
+ │ Compressor 2                                                         ✕   │  display title
+ │ Drive end bearing · WO-00231                                              │
+ │                                                                           │
+ │ ● In progress   High   Breakdown                  ( Complete )   ⋯        │  status, one primary action
+ │                                                                           │
+ │ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                       │
+ │ │ Assigned │ │ Due      │ │ Section  │ │ Raised   │   four fact cards     │
+ │ │ (AM) A.M │ │ 9 Oct    │ │ Plant 2  │ │ 6 Oct    │                       │
+ │ └──────────┘ └──────────┘ └──────────┘ └──────────┘                       │
+ │ From request REQ-00018                                                    │
+ │                                                                           │
+ │ Details   Assignments   Tools and parts   Comments   History              │
+ │ ─────────                                                                 │
+ │ Machine        Compressor 2                                               │
+ │ Description    Bearing noise and heat ...                                 │
+ └──────────────────────────────────────────────────────────────────────────┘
+```
+
+On a phone the same content is a page; the four fact cards become a 2 by 2 grid and the primary action sticks to the bottom.
+
+### 6.10 Requests (`/maintenance/requests`): an inbox, as in Mail
+
+```
+ Maintenance › Requests
+ Requests                                                            ( + New request )
+
+ ( Waiting 2 | Decided | All )                 ┌─────────────────────────────────────────────┐
+ ┌──────────────────────────────┐              │ High                                        │
+ │ ▌High              REQ-00018 │ selected     │ Pump A                                      │ display
+ │ Pump A                       │              │ Gland leaking                               │
+ │ Gland leaking                │              │                                             │
+ │ (TD) T. Dube · Today         │              │ Requested by   (TD) T. Dube, today 07:42    │
+ ├──────────────────────────────┤              │ Machine        Pump A · EQ-021 · Plant 2    │
+ │ Medium             REQ-00017 │              │ Details        Gland weeping since the      │
+ │ Fan 2                        │              │                night shift ...              │
+ │ Vibration on start-up        │              │                                             │
+ │ (SN) S. Ncube · Yesterday    │              │ Progress                                    │
+ └──────────────────────────────┘              │ ○ Requested   ○ Approved   ○ Work order     │
+                                               │                                             │
+                                               │ ( Approve )  ( Reject )                     │
+                                               └─────────────────────────────────────────────┘
+```
+
+Master and detail: the list on the left is the queue, the panel on the right is the decision. Approve opens the small signature pop-up (assignee and due date from the registers). On approval the card leaves the Waiting list (it collapses out) and the panel shows the new work order as a link. On a phone the list is the page and a request opens as a sheet.
+
+### 6.11 Schedules (`/maintenance/schedules`)
+
+```
+ Maintenance › Schedules
+ Schedules                                                           ( + New schedule )
+
+ ┌─────────────────────────────┐ ┌─────────────────────────────┐ ┌─────────────────────────────┐
+ │ ● Active                    │ │ ● Active                    │ │ ○ Paused                    │
+ │ Weekly pumps                │ │ Monthly crusher             │ │ Compressor service          │
+ │ [Pump A]                    │ │ [Crusher 1]                 │ │ [Compressor 1][Compressor 2]│
+ │ Every Monday                │ │ The 22nd of each month      │ │ Every 3 months              │
+ │                             │ │                             │ │                             │
+ │ Next                        │ │ Next                        │ │ Next                        │
+ │ Mon 12 Oct   in 5 days      │ │ Thu 22 Oct   in 15 days     │ │ Mon 16 Nov   in 40 days     │ display date
+ │ ●────●────●                 │ │ ●────────●────────●         │ │ ○ ─ ─ ○ ─ ─ ○               │ next three dates
+ │ Raises 1 work order    ⋯    │ │ Raises 1 work order    ⋯    │ │ Raises 2 work orders   ⋯    │
+ └─────────────────────────────┘ └─────────────────────────────┘ └─────────────────────────────┘
+```
+
+The date is the focal point (it is the answer to "when"), shown large in the display face with its relative form beside it. The three dots are the next three dates on a proportional line. The New schedule pop-up shows the same line and dates live before saving (v1 R22). Paused cards are quiet (muted), not hidden.
+
+### 6.12 Planner (`/maintenance/planner`, `manager`)
+
+```
+ Maintenance › Planner
+ Planner                                                  ‹  Week of 8 Oct  ›  ( Today )  ( Publish week )
+
+ ┌───────────────┬───────────┬───────────┬───────────┬───────────┬───────────┬───────────┬───────────┐
+ │               │ Wed       │ Thu       │ Fri       │ Sat       │ Sun       │ Mon       │ Tue       │
+ │               │ (8)       │ 9         │ 10        │ 11        │ 12        │ 13        │ 14        │ today = filled date
+ ├───────────────┼───────────┼───────────┼───────────┼───────────┼───────────┼───────────┼───────────┤
+ │ (AM) A. Moyo  │           │ ▌Comp. 2  │           │           │           │           │           │ job chips: leading accent
+ │ Fitter  ▓▓░   │           │           │           │           │           │           │           │ for High and Urgent;
+ ├───────────────┼───────────┼───────────┼───────────┼───────────┼───────────┼───────────┼───────────┤ load bar under the name
+ │ (TD) T. Dube  │           │ ╱╱╱╱╱╱╱╱╱ │ ╱╱ Leave ╱│ ╱╱╱╱╱╱╱╱╱ │ ╱╱╱╱╱╱╱╱╱ │           │           │ hatched band, word Leave,
+ │ Electrician   │           │ Annual    │           │           │           │           │           │ reason on hover and in text
+ └───────────────┴───────────┴───────────┴───────────┴───────────┴───────────┴───────────┴───────────┘
+
+ ┌─ Unassigned  3 ────────────────────────────────────────────────────────────────────────────────┐
+ │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐        drag a card onto a person and day   │
+ │  │ Pump A         │ │ Fan 2          │ │ ...            │                                           │
+ │  │ Discharge valve│ │ Vibration check│ │                │                                           │
+ │  └────────────────┘ └────────────────┘ └────────────────┘                                           │
+ └─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+The unassigned tray is docked at the bottom like a shelf; dragging a card highlights every valid cell and marks leave days as refused. Keyboard: pick a job, choose a person and a day from the same pickers as everywhere (so the planner is usable without dragging, and on a phone, where it becomes a day-by-day list with the same pickers). The load bar is jobs against a working day, a hint, not a rule.
+
+### 6.13 Sidebar
 
 ```
  MyOffice                                  (existing shell)
@@ -133,124 +346,7 @@ Distilled from what makes the top bar quiet: one row, neutral surface, one searc
 
 The group uses the existing `NavGroup`/`NavItem`; the only code change is the data in `modules.ts` plus routes. On a phone the sidebar is the existing drawer, and the page shows a one-line module switcher (`Segmented`: Overview, Work orders, Requests, Schedules, Planner) under the title.
 
-### 6.3 Page frame shared by every module
-
-```
- Maintenance / Work orders
- Work orders                                                         [ + New work order ]
- ───────────────────────────────────────────────────────────────────────────────────────
-```
-
-Title in `text-page`, one muted breadcrumb, one primary button. Nothing else in the header. The old heading description line is dropped (it said what the title already says).
-
-### 6.4 Overview (`/maintenance`)
-
-```
- Maintenance / Overview
- Overview                                                            [ + New work order ]
- ───────────────────────────────────────────────────────────────────────────────────────
- Needs attention
-   14 overdue work orders  ·  9 awaiting sign-off  ·  7 requests waiting  ·  3 unassigned
-   (each phrase is a link into the filtered list)
-
- Mine today                                                     Waiting for you
- ┌──────────────────────────────────────────┐   ┌───────────────────────────────────────┐
- │ Compressor 2, drive end bearing   Today  │   │ REQ-00018  Pump A leaking     Approve │
- │ Pump A, discharge valve           Overdue│   │ REQ-00017  Fan 2 vibration    Approve │
- │ ...                                      │   │ ...                                   │
- └──────────────────────────────────────────┘   └───────────────────────────────────────┘
-
- Last 30 days     Completed on time 82%  ·  Breakdowns 6  ·  Mean time to repair 4.2 h   (small text, one line)
-```
-
-Two plain lists and two lines of text. Targets show "not set" until the owner gives them (v1 Q10). Role view: a requester sees "My requests"; a viewer sees the lists without actions.
-
-### 6.5 Work orders (`/maintenance/work-orders`)
-
-```
- Maintenance / Work orders
- Work orders                                                         [ + New work order ]
- ───────────────────────────────────────────────────────────────────────────────────────
- [ Search machine, number or person            ]  [ Filters ]  Mine · Overdue · Unassigned      [ ≡ ]  [ ⋯ ]
- 96 open · 14 overdue · 9 awaiting sign-off                                  Sorted by due date
- ───────────────────────────────────────────────────────────────────────────────────────
-   Machine                          Status            Assigned       Due
- ───────────────────────────────────────────────────────────────────────────────────────
-   Compressor 2, drive end bearing  In progress       A. Moyo        12 Oct
-   WO-00231 · Breakdown · Plant 2
- ───────────────────────────────────────────────────────────────────────────────────────
-   Pump A, discharge valve          Pending  Overdue  Unassigned     3 Oct
-   WO-00229 · Weekly pumps schedule
- ───────────────────────────────────────────────────────────────────────────────────────
-   1 to 25 of 96                                                          ‹  1  2  3  ›
-```
-
-- `Mine · Overdue · Unassigned` are the preset views as plain links; the active one is underlined, not boxed.
-- `[ ≡ ]` switches table and cards; `[ ⋯ ]` holds Download, Refresh, Bulk select, Saved views.
-- The status column shows the status badge, plus **Overdue** only when true. Priority appears as a small marker beside the machine only for High and Urgent.
-- Selecting rows reveals a bulk bar that replaces the count line; nothing is shown until a row is selected.
-- Phone: the same list as cards, one tap opens the full-page record, a floating **+** raises a work order.
-
-### 6.6 Work order record (`/maintenance/work-orders/[id]`)
-
-```
- Maintenance / Work orders / WO-00231
- Compressor 2, drive end bearing                         [ Complete ]   [ ⋯ ]
- In progress · High · Breakdown                                           (muted, one line)
- ───────────────────────────────────────────────────────────────────────────────────────
- Assigned  A. Moyo, T. Dube       Due  12 Oct       Section  Plant 2       Raised  6 Oct by T. Dube
- From request REQ-00018  ·  Machine record  ·  Breakdown BD-00112          (links)
- ───────────────────────────────────────────────────────────────────────────────────────
- Details   Feedback   Assignments   Tools & parts   Comments   History
- ───────────────────────────────────────────────────────────────────────────────────────
- (tab content: one column of label/value rows; no boxes)
-```
-
-The status action is the one primary button and is the next legal step (Start, Complete, Sign off). On desktop the record may also open as the large pop-up from a list (the owner's earlier preference) with the same content; the full page is the shareable address and the phone view **[D]**.
-
-### 6.7 Requests (`/maintenance/requests`)
-
-```
- Maintenance / Requests
- Requests                                                              [ + New request ]
- ───────────────────────────────────────────────────────────────────────────────────────
- Waiting for approval (7) · My requests · All                    [ Search ]
- ───────────────────────────────────────────────────────────────────────────────────────
-   Pump A, gland leaking      REQ-00018   T. Dube    Today      High        [ Approve ] [ Reject ]
-   Fan 2 vibration            REQ-00017   S. Ncube   Yesterday  Medium      [ Approve ] [ Reject ]
-```
-
-Approve opens a small pop-up: summary, assignee and due date (pre-filled, from the registers), the approver's signature, one **Approve and raise work order** button. Reject asks only for a reason. A requester sees their own requests with a plain status line and, once approved, a link to the work order.
-
-### 6.8 Schedules (`/maintenance/schedules`)
-
-```
- Maintenance / Schedules
- Schedules                                                            [ + New schedule ]
- ───────────────────────────────────────────────────────────────────────────────────────
-   Weekly pump inspection       Pump A, Pump B       Mondays       Next 12 Oct       Active
-   Monthly conveyor audit       Conveyor 3           22nd          Next 22 Oct       Paused
-```
-
-The New schedule pop-up has three short parts (what, which machines, how often) and a live line **"Next dates: 12 Oct, 19 Oct, 26 Oct"** before saving (v1 R22).
-
-### 6.9 Planner (`/maintenance/planner`, `manager`)
-
-```
- Maintenance / Planner
- Planner                                                        [ Publish week ]
- ───────────────────────────────────────────────────────────────────────────────────────
- ‹  Week of 12 Oct  ›      Mon     Tue     Wed     Thu     Fri     Sat     Sun
- A. Moyo                  [job]   [job]   ....    ....    [job]
- T. Dube                  [job]   LEAVE   LEAVE   LEAVE   ....
- S. Ncube                 ....    ....    [job]   ....    ....
- ───────────────────────────────────────────────────────────────────────────────────────
- Unassigned (3)   Overdue (14)          drag a job onto a person and day
-```
-
-Leave days are a quiet grey band with the word LEAVE; a job cannot be dropped there (refused with the reason, as on the server).
-
-### 6.10 The picker used everywhere (`RegisterField`)
+### 6.14 The picker used everywhere (`RegisterField`)
 
 ```
  Machine
@@ -273,7 +369,7 @@ Leave days are a quiet grey band with the word LEAVE; a job cannot be dropped th
 
 A picker shows a small tick when the value matched the register and "typed, not in register" when it did not, so free text is visible and never silent.
 
-### 6.11 Data states in every module
+### 6.15 Data states in every module
 
 Loading shows a skeleton; a slow or waking service keeps loading and retries (existing `transientRetry`); a real failure shows a plain message with **Try again** and keeps any rows already shown; empty is shown only after a successful empty answer, with the one action that fills it. Same as v1 W.10.
 
@@ -282,17 +378,17 @@ Loading shows a skeleton; a slow or waking service keeps loading and retries (ex
 | # | Slice | What the owner sees | Migration |
 |---|---|---|---|
 | 1 | Audit, row version, comments | History and Comments tabs; edit-conflict notice. **Built; waiting for the owner to apply its migration.** | `maintenance_audit` (written) |
-| 2 | **Maintenance category and module routes** | New sidebar group with Overview (a placeholder list of links), Work orders, Requests, Schedules, Planner showing only what exists; the current page moved to `/maintenance/work-orders` with `/maintenance` pointing to it until the Overview exists; Breakdowns, Condition Monitoring, Reliability move group; clean page frame (6.3) | none |
+| 2 | **Maintenance category and module routes** | New sidebar group with Overview (a placeholder list of links), Work orders, Requests, Schedules, Planner showing only what exists; the current page moved to `/maintenance/work-orders` with `/maintenance` pointing to it until the Overview exists; Breakdowns, Condition Monitoring, Reliability move group; page frame (6.6) | none |
 | 3 | **Registers: pickers, leave, tools** | `RegisterField` on the work order form; people on leave greyed and refused; tools picked from the Tools register with warnings; the tools bridge endpoint | `maintenance_registers` (leave index, `work_order_tools`) |
 | 4 | Lifecycle, sign-off, permits | next-step button, signatures, permit gate, "Awaiting sign-off" | `maintenance_lifecycle` |
 | 5 | On-the-fly and breakdown work orders | 4-field quick raise, breakdown preset | none |
-| 6 | **Work orders list and record page, clean** | the 6.5 and 6.6 screens, saved views, phone cards | none |
-| 7 | Requests and approval | Requests module (6.7) | `maintenance_requests` |
+| 6 | **Work orders list and record page, clean** | the 6.8 and 6.9 screens, saved views, phone cards | none |
+| 7 | Requests and approval | Requests module (6.10) | `maintenance_requests` |
 | 8 | Assignments | several people per job, conflict notice when leave is approved later | `maintenance_assignments` |
-| 9 | Schedules | Schedules module (6.8), projection preview | `maintenance_schedules_v2` |
-| 10 | Planner | 6.9 | none |
+| 9 | Schedules | Schedules module (6.11), projection preview | `maintenance_schedules_v2` |
+| 10 | Planner | 6.12 | none |
 | 11 | Parts on work orders | issue through the existing stock path, once per token | `maintenance_parts` |
-| 12 | Overview | 6.4 | none |
+| 12 | Overview | 6.7 | none |
 | 13 | Task library (only if asked) | | its own |
 
 Why slice 2 before the rest: it is a pure navigation and routing change with no data change, it makes the new structure visible immediately, and every later slice then lands in its final home instead of being moved afterwards.
@@ -304,7 +400,7 @@ Why slice 2 before the rest: it is a pure navigation and routing change with no 
 - **Navigation (slice 2):** unit test on `modules.ts` (no duplicate hrefs; every module's role filter intact; Maintenance group present and ordered); route spec per module at 1440 and 390 px; the active-item logic must highlight exactly one entry (today `isActive` matches by prefix, so `/maintenance` would light up on every sub-route; the fix is an `exact` flag on the Overview entry, with a test).
 - **Pickers (slice 3):** unit tests for Tab-fill, free text, matched/unmatched marker, greyed leave with dates, tool warnings; a server test that a person on leave is refused even when typed.
 - **Tools bridge (slice 3):** backend test with the fake client: archived tools excluded, issued and overdue state derived as `tools_workspace` does, a failed read is a 5xx not an empty list, write methods do not exist on the route.
-- **Clean rules (every UI slice):** a screenshot at 1440 and 390 px reviewed against 6.1 before the PR is raised; the review notes the rules the screen meets and any it relaxes, with why.
+- **Design language (every UI slice):** a screenshot at 1440 and 390 px reviewed against 6.1 to 6.4 before the PR is raised; the review notes the principles the screen meets and any it relaxes, with why. Reduced-motion is tested by emulating the preference and checking no animation runs.
 
 ## 9. Decisions taken by the author [D], for the owner to confirm or change at wireframe review
 
@@ -315,7 +411,10 @@ Why slice 2 before the rest: it is a pure navigation and routing change with no 
 5. Desktop list default is a table; phone default is cards; the record is a large pop-up from the list and a full page at its own address and on phones.
 6. The Task library is reserved but not built or shown until the owner asks.
 7. KPI targets show "not set" until the owner supplies them.
-8. Statistic tiles leave the list pages; the Overview carries the figures as plain text and two short lists.
+8. Statistic tiles leave the list pages; the Overview carries the figures as four linked StatCards and a short last-30-days row.
+9. **Look (8 Oct 2026 revision):** information is shown on cards (one anatomy, 6.5); Requests is an inbox with a detail panel; Schedules show the next date large with the next three dates on a line; the Planner has a docked unassigned tray, hatched leave bands and a load hint; Work orders group by urgency with Table one click away.
+10. **Type is unchanged:** Plus Jakarta Sans for display and Inter for text, from the design system. No third family is added (the owner's one-design-system rule); a different pairing is a product-wide token change.
+11. **Depth is shadow only** (existing tokens), and motion is limited to the six items in 6.4, all token-driven and off under reduced-motion. This relaxes nothing in the design system README except that cards deepen their shadow on hover, which the shadow token already exists for.
 
 ## 10. Open items that still need the owner (unchanged from before unless noted)
 
