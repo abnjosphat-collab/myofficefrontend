@@ -48,6 +48,23 @@ export function saveToHistory(key: string, value: string) {
   localStorage.setItem(`prd_hist_${key}`, JSON.stringify(updated));
 }
 
+/**
+ * One register-backed suggestion. A `disabled` option stays listed (greyed, with its `note`) but is never proposed as
+ * ghost text and cannot be accepted by Tab, Enter or click, so the reason it is unavailable is always visible.
+ */
+export interface PredictiveOption {
+  /** Stable identity returned to `onPick` (for example a register row id). */
+  value: string;
+  /** Text placed in the field when picked. Defaults to `value`. */
+  label?: string;
+  description?: string;
+  disabled?: boolean;
+  /** Why the option is disabled, shown under it. */
+  note?: string;
+}
+
+interface Entry { key: string; label: string; description?: string; disabled?: boolean; note?: string; option?: PredictiveOption }
+
 export interface PredictiveInputProps {
   /** Stable key used for localStorage persistence (e.g. "breakdown_location") */
   historyKey: string;
@@ -74,6 +91,15 @@ export interface PredictiveInputProps {
   hints?: string[];
   /** Additional Tailwind classes on the input/textarea itself */
   inputClassName?: string;
+  /**
+   * A register-backed list (machines, people, sections, parts). When given, matches come from it first, prefix matches
+   * before contains matches, and the exact match stays listed so it can be picked. Without it nothing changes.
+   */
+  options?: PredictiveOption[];
+  /** Mix this user's typing history into the suggestions (default true). Register fields pass false so history cannot outrank the register. */
+  useHistory?: boolean;
+  /** Called when an option is accepted (Tab on ghost text, Enter, or click), so the caller learns its `value`. */
+  onPick?: (option: PredictiveOption) => void;
 }
 
 export function PredictiveInput({
@@ -92,9 +118,13 @@ export function PredictiveInput({
   rows = 3,
   hints = [],
   inputClassName = '',
+  options,
+  useHistory = true,
+  onPick,
 }: PredictiveInputProps) {
   const [history,   setHistory]   = useState<HistoryEntry[]>([]);
   const [ghost,     setGhost]     = useState('');        // inline ghost text
+  const [ghostEntry, setGhostEntry] = useState<Entry | null>(null);
   const [open,      setOpen]      = useState(false);    // dropdown open
   const [highlight, setHighlight] = useState(0);
   const wrapRef  = useRef<HTMLDivElement>(null);
@@ -134,19 +164,31 @@ export function PredictiveInput({
   // Derive suggestions and ghost text. `history` is already frequency-then-
   // recency ranked; hints are seeded defaults, so they go after real history
   // (a value the user's actually typed should always outrank a static hint).
-  const suggestions = useCallback(() => {
-    const ranked = [...history.map(e => e.value), ...hints].filter((v, i, a) => a.indexOf(v) === i);
-    if (!value.trim()) return ranked.slice(0, 8);
+  const suggestions = useCallback((): Entry[] => {
     const q = value.toLowerCase();
-    return ranked.filter(s => s.toLowerCase().includes(q) && s.toLowerCase() !== q).slice(0, 8);
-  }, [value, history, hints]);
+    if (options) {
+      const fromOptions: Entry[] = options.map(o => ({ key: `o:${o.value}`, label: o.label ?? o.value, description: o.description, disabled: o.disabled, note: o.note, option: o }));
+      const fromHistory: Entry[] = useHistory ? history.map(e => ({ key: `h:${e.value}`, label: e.value })).filter(h => !fromOptions.some(o => o.label.toLowerCase() === h.label.toLowerCase())) : [];
+      const all = [...fromOptions, ...fromHistory];
+      if (!q.trim()) return all.slice(0, 8);
+      const prefix = all.filter(e => e.label.toLowerCase().startsWith(q));
+      const contains = all.filter(e => !e.label.toLowerCase().startsWith(q) && e.label.toLowerCase().includes(q));
+      return [...prefix, ...contains].slice(0, 8);
+    }
+    const ranked = [...history.map(e => e.value), ...hints].filter((v, i, a) => a.indexOf(v) === i);
+    const strings = !value.trim() ? ranked.slice(0, 8) : ranked.filter(x => x.toLowerCase().includes(q) && x.toLowerCase() !== q).slice(0, 8);
+    return strings.map(x => ({ key: x, label: x }));
+  }, [value, history, hints, options, useHistory]);
 
   // Update ghost text
   useEffect(() => {
     const q = value;
-    if (!q.trim()) { setGhost(''); return; }
-    const match = suggestions().find(s => s.toLowerCase().startsWith(q.toLowerCase()));
-    setGhost(match ? match.slice(q.length) : '');
+    if (!q.trim()) { setGhost(''); setGhostEntry(null); return; }
+    const match = suggestions().find(e => !e.disabled && e.label.toLowerCase().startsWith(q.toLowerCase()));
+    setGhost(match ? match.label.slice(q.length) : '');
+    // `hints` defaults to a new array every render, so this effect runs every render: keep the same entry object when nothing changed, or it loops.
+    const next = match && match.label.length > q.length ? match : null;
+    setGhostEntry(prev => (prev?.key === next?.key ? prev : next));
   }, [value, suggestions]);
 
   // Outside click closes dropdown
@@ -169,16 +211,20 @@ export function PredictiveInput({
 
   function acceptGhost() {
     if (!ghost) return false;
-    const accepted = value + ghost;
-    onChange(accepted);
+    // A register entry is taken exactly as the register spells it; a history suggestion keeps what was typed.
+    if (ghostEntry?.option) { onChange(ghostEntry.label); onPick?.(ghostEntry.option); }
+    else onChange(value + ghost);
     setGhost('');
+    setGhostEntry(null);
     return true;
   }
 
   function commit(v: string) {
     if (!v.trim()) return;
-    saveToHistory(historyKey, v.trim());
-    setHistory(loadHistory(historyKey));
+    if (useHistory) {
+      saveToHistory(historyKey, v.trim());
+      setHistory(loadHistory(historyKey));
+    }
     onCommit?.(v.trim());
   }
 
@@ -199,8 +245,10 @@ export function PredictiveInput({
     if (e.key === 'Enter' && !multiline && list[highlight]) {
       e.preventDefault();
       const chosen = list[highlight];
-      onChange(chosen);
-      commit(chosen);
+      if (chosen.disabled) return; // listed with its reason, but cannot be picked
+      onChange(chosen.label);
+      if (chosen.option) onPick?.(chosen.option);
+      commit(chosen.label);
       setOpen(false);
     }
     // Reached only when `open` is already true (the `!open` branch above returns
@@ -330,26 +378,39 @@ export function PredictiveInput({
           className={cn(floatingSurface, 'pointer-events-auto')}
         >
           <div className="max-h-44 overflow-y-auto p-1">
-            {list.map((s, i) => {
+            {list.map((entry, i) => {
               // Highlight matching portion
-              const qi = s.toLowerCase().indexOf(value.toLowerCase());
-              const before = qi >= 0 ? s.slice(0, qi) : s;
-              const match  = qi >= 0 ? s.slice(qi, qi + value.length) : '';
-              const after  = qi >= 0 ? s.slice(qi + value.length) : '';
+              const text = entry.label;
+              const qi = text.toLowerCase().indexOf(value.toLowerCase());
+              const before = qi >= 0 ? text.slice(0, qi) : text;
+              const match  = qi >= 0 ? text.slice(qi, qi + value.length) : '';
+              const after  = qi >= 0 ? text.slice(qi + value.length) : '';
               return (
                 <button
-                  key={s}
+                  key={entry.key}
                   id={optionId(i)}
                   role="option"
                   aria-selected={i === highlight}
+                  aria-disabled={entry.disabled || undefined}
                   type="button"
-                  onMouseDown={e => { e.preventDefault(); onChange(s); commit(s); setOpen(false); }}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    if (entry.disabled) return;
+                    onChange(entry.label);
+                    if (entry.option) onPick?.(entry.option);
+                    commit(entry.label);
+                    setOpen(false);
+                  }}
                   onMouseEnter={() => setHighlight(i)}
-                  className={cn('focus-ring flex min-h-9 w-full items-center rounded-control px-2.5 py-1.5 text-left font-sans text-body text-ink', i === highlight && 'bg-surface-muted')}
+                  className={cn('focus-ring flex min-h-9 w-full flex-col items-start justify-center rounded-control px-2.5 py-1.5 text-left font-sans text-body', entry.disabled ? 'cursor-not-allowed text-ink-muted' : 'text-ink', i === highlight && 'bg-surface-muted')}
                 >
-                  {before}
-                  <span className="font-semibold text-action">{match}</span>
-                  {after}
+                  <span>
+                    {before}
+                    <span className={entry.disabled ? 'font-semibold' : 'font-semibold text-action'}>{match}</span>
+                    {after}
+                  </span>
+                  {entry.description && <span className="text-caption text-ink-muted">{entry.description}</span>}
+                  {entry.disabled && entry.note && <span className="text-caption font-medium text-warning">{entry.note}</span>}
                 </button>
               );
             })}
