@@ -3,6 +3,7 @@
 'use client';
 
 import { Button, Dialog, Progress, StatusBadge } from '@/components/ui-system';
+import { ContactButtons } from '@/components/shared/ContactButtons';
 import { fmtDate } from '@/components/shared/utils';
 import { cycleProgress, daysUntilNextOn, todayStatus } from './calcShifts';
 import { DAY_STATUS, TIMING_PRESETS, eventOf, patternOf } from './shiftMeta';
@@ -41,7 +42,7 @@ export function ShiftDetail({ assignment: a, onClose, onEdit, onDelete }: { assi
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2"><StatusBadge tone={DAY_STATUS[status].tone}>{DAY_STATUS[status].label} today</StatusBadge><StatusBadge tone={pattern.tone}>{pattern.label}</StatusBadge>{!a.is_active && <StatusBadge tone="neutral">Inactive</StatusBadge>}</div>
           <Section id="sd-emp" title="Employee">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3"><Fact label="Employee ID">{a.employee_id}</Fact><Fact label="Designation">{a.designation}</Fact><Fact label="Department">{a.department}</Fact><Fact label="Section">{a.section}</Fact><Fact label="Phone">{a.phone}</Fact></dl>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3"><Fact label="Employee ID">{a.employee_id}</Fact><Fact label="Designation">{a.designation}</Fact><Fact label="Department">{a.department}</Fact><Fact label="Section">{a.section}</Fact><Fact label="Phone">{a.phone && <span className="inline-flex items-center gap-2">{a.phone}<ContactButtons phone={a.phone} name={a.employee_name} /></span>}</Fact></dl>
           </Section>
           <Section id="sd-pat" title="Shift pattern">
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
