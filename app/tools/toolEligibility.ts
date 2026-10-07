@@ -36,7 +36,7 @@ export function isCurrentCompetency(record?: CompetencyRecord, now = Date.now())
 export type Eligibility = {
   /** Equipment each employee is currently trained, qualified and authorised for, keyed by the employee's backend id. */
   forEmployee: Map<string, Tool[]>;
-  /** Employees currently eligible for each tool, keyed by the tool's backend id. */
+  /** Active employees currently eligible for each tool, keyed by the tool's backend id (someone who has been deactivated is not offered). */
   forTool: Map<string, Employee[]>;
 };
 
@@ -57,7 +57,7 @@ export function buildEligibility(employees: Employee[], tools: Tool[], competenc
         || records.find(item => !item.tool_id && item.category?.toLowerCase() === tool.category.toLowerCase());
       if (!isCurrentCompetency(record, now)) continue;
       eligible.push(tool);
-      forTool.get(tool.backendId)?.push(employee);
+      if (employee.active) forTool.get(tool.backendId)?.push(employee);
     }
     forEmployee.set(employee.backendId, eligible);
   }

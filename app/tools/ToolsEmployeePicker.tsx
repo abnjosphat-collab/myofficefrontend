@@ -4,13 +4,12 @@
 // until you type, and with a few dozen people it scrolls.
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import s from './tools.module.css';
 
 export type PickerChoice = { label: string; detail?: string };
 
-const initials = (label: string) => label.split(' · ')[0].split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('');
 
 export function EmployeePicker({ label, choices, value, onChange, onSelect, hint, emptyMessage }: {
   label: string; choices: PickerChoice[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; hint?: string; emptyMessage: string;
@@ -23,6 +22,8 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
   const query = selected ? '' : value.trim().toLowerCase();
   const matches = choices.filter(choice => `${choice.label} ${choice.detail || ''}`.toLowerCase().includes(query));
   const current = Math.min(active, Math.max(0, matches.length - 1));
+  // When someone is already chosen (for example by the Issue button beside their name), bring their row into view.
+  useEffect(() => { if (!selected) return; const index = choices.findIndex(choice => choice.label === value); document.getElementById(`${id}-option-${index}`)?.scrollIntoView?.({ block: 'nearest' }); }, [selected, value, choices, id]);
   const choose = (choice: PickerChoice) => { onChange(choice.label); onSelect?.(choice.label); setActive(0); };
   return <div className={`${s.field} ${s.pickerField}`}>
     <div className={s.fieldHeading}><label htmlFor={id}>{label}</label>{choices.length > 0 && <span className={s.pickerCount}>{choices.length} eligible</span>}</div>
@@ -42,7 +43,7 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
     <ul id={listId} role="listbox" aria-label={`${label} suggestions`} className={s.pickerList}>
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-to-interactive-role */}
       {matches.map((choice, index) => <li key={choice.label} id={`${id}-option-${index}`} role="option" aria-selected={choice.label === value} data-active={index === current} className={s.pickerOption} onMouseDown={event => event.preventDefault()} onClick={() => choose(choice)}>
-        <span className={s.pickerAvatar} aria-hidden="true">{initials(choice.label)}</span>
+        <span className={s.pickerAvatar} aria-hidden="true"><Icon name="user" size={17} /></span>
         <span className={s.pickerText}><strong>{choice.label.split(' · ')[0]}</strong><small>{[choice.label.split(' · ')[1], choice.detail].filter(Boolean).join(' · ')}</small></span>
         {choice.label === value && <Icon name="check" size={16} />}
       </li>)}

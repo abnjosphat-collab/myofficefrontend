@@ -18,11 +18,11 @@ const toolLabel = (tool: Tool) => `${tool.id} · ${tool.name}`;
 const personLabel = (employee: Employee) => `${employee.name} · ${employee.employeeNumber}`;
 
 /** A remove button that asks once more before it takes eligibility away. */
-function RemoveButton({ label, onConfirm, disabled }: { label: string; onConfirm: () => void; disabled?: boolean }) {
+function RemoveButton({ label, onConfirm, disabled, labelText = 'Remove', confirmText = 'Yes, remove' }: { label: string; onConfirm: () => void; disabled?: boolean; labelText?: string; confirmText?: string }) {
   const [sure, setSure] = useState(false);
   return sure
-    ? <span className={s.eligConfirm}><button type="button" className={s.eligDanger} disabled={disabled} onClick={() => { setSure(false); onConfirm(); }}>Yes, remove</button><button type="button" className={s.eligLink} onClick={() => setSure(false)}>Keep</button></span>
-    : <button type="button" className={s.eligLink} aria-label={label} disabled={disabled} onClick={() => setSure(true)}>Remove</button>;
+    ? <span className={s.eligConfirm}><button type="button" className={s.eligDanger} disabled={disabled} onClick={() => { setSure(false); onConfirm(); }}>{confirmText}</button><button type="button" className={s.eligLink} onClick={() => setSure(false)}>Keep</button></span>
+    : <button type="button" className={s.eligLink} aria-label={label} disabled={disabled} onClick={() => setSure(true)}>{labelText}</button>;
 }
 
 function Accordion({ open, onToggle, icon, title, subtitle, count, noun, children }: { open: boolean; onToggle: () => void; icon: 'user' | 'box'; title: string; subtitle: string; count: number | null; noun: string; children: React.ReactNode }) {
@@ -41,9 +41,9 @@ function ListFilter({ value, onChange, label }: { value: string; onChange: (valu
   return <label className={s.eligFilter}><Icon name="search" size={15} /><input type="search" aria-label={label} value={value} onChange={event => onChange(event.target.value)} placeholder={label} /></label>;
 }
 
-export function EligibilityByPerson({ employees, tools, eligibility, competencies, ready, canManage, authoriser, onGrant, onOpenApprovals, onIssue }: {
+export function EligibilityByPerson({ employees, tools, eligibility, competencies, ready, canManage, authoriser, onGrant, onOpenApprovals, onIssue, onSetActive }: {
   employees: Employee[]; tools: Tool[]; eligibility: Eligibility; competencies: CompetencyRecord[]; ready: boolean; canManage: boolean; authoriser: string;
-  onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void;
+  onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void; onSetActive: (employee: Employee, active: boolean) => Promise<void>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const groups = useMemo(() => groupEmployeesByDepartment(employees), [employees]);
@@ -53,15 +53,15 @@ export function EligibilityByPerson({ employees, tools, eligibility, competencie
       {group.employees.map(employee => {
         const eligible = (employee.backendId && eligibility.forEmployee.get(employee.backendId)) || [];
         return <Accordion key={employee.id} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
-          <PersonBody ready={ready} employee={employee} tools={tools} eligible={eligible} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
+          <PersonBody ready={ready} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
         </Accordion>;
       })}
     </section>)}
   </div>;
 }
 
-function PersonBody({ ready, employee, tools, eligible, competencies, canManage, authoriser, onGrant, onOpenApprovals, onIssue }: {
-  ready: boolean; employee: Employee; tools: Tool[]; eligible: Tool[]; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string;
+function PersonBody({ ready, onSetActive, employee, tools, eligible, competencies, canManage, authoriser, onGrant, onOpenApprovals, onIssue }: {
+  ready: boolean; onSetActive: (employee: Employee, active: boolean) => Promise<void>; employee: Employee; tools: Tool[]; eligible: Tool[]; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string;
   onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void;
 }) {
   const [filter, setFilter] = useState('');
@@ -87,6 +87,7 @@ function PersonBody({ ready, employee, tools, eligible, competencies, canManage,
     </>}
     {canManage && <SuggestField label="Add equipment" required={false} options={addable.map(toolLabel)} value={adding} onChange={setAdding} onSelect={label => { const tool = addable.find(item => toolLabel(item) === label); setAdding(''); if (tool) void change(tool, true); }} emptyMessage="No more equipment to add." hint={authoriser ? `Recorded as trained, qualified and authorised by ${authoriser}.` : 'Recorded as trained, qualified and authorised.'} />}
     <div className={s.eligActions}>
+      {canManage&&(employee.active?<RemoveButton label={`Deactivate ${employee.name}`} labelText="Deactivate" confirmText="Yes, deactivate" onConfirm={()=>void onSetActive(employee,false)}/>:<button type="button" className={s.secondary} onClick={()=>void onSetActive(employee,true)}>Reactivate</button>)}
       <button type="button" className={s.secondary} onClick={() => onOpenApprovals(employee)}>Detailed approvals</button>
       <button type="button" className={s.primary} disabled={!employee.active || eligible.length === 0} title={!employee.active ? 'This employee is inactive.' : eligible.length === 0 ? 'Add equipment first.' : undefined} onClick={() => onIssue(employee)}>Issue tool</button>
     </div>
@@ -147,4 +148,26 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
     </>}
     {canManage && <SuggestField label="Add a person" required={false} options={addable.map(personLabel)} value={adding} onChange={setAdding} onSelect={label => { const person = addable.find(item => personLabel(item) === label); setAdding(''); if (person) void change(person, true); }} emptyMessage="Nobody else to add." hint={authoriser ? `Recorded as trained, qualified and authorised by ${authoriser}.` : 'Recorded as trained, qualified and authorised.'} />}
   </>;
+}
+
+type EligiblePerson = { id: string; employeeNumber: string; name: string; department?: string; jobTitle?: string };
+
+/** Everyone who may be issued this equipment, as a readable list in the tool's details. With `onIssue`, each row can start the issue straight away. */
+export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void }) {
+  const [filter, setFilter] = useState('');
+  if (people === undefined) return null;
+  const sorted = [...people].sort((a, b) => a.name.localeCompare(b.name));
+  const shown = sorted.filter(person => `${person.name} ${person.employeeNumber} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
+  return <section className={s.eligPanel} aria-label="Eligible employees">
+    <div className={s.eligPanelHeading}><h3>Eligible employees</h3><span className={s.eligCount} data-empty={sorted.length === 0}>{sorted.length} {sorted.length === 1 ? 'person' : 'people'}</span></div>
+    {sorted.length === 0
+      ? <p className={s.eligEmpty}>Nobody is eligible yet, so this equipment cannot be issued. Add people under Employees.</p>
+      : <>
+        {sorted.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter eligible employees" />}
+        <ul className={s.eligGrid} aria-label="Eligible employees list">
+          {shown.map(person => <li key={person.id}><span className={s.pickerAvatar} aria-hidden="true"><Icon name="user" size={17} /></span><span className={s.pickerText}><strong>{person.name}</strong><small>{[person.jobTitle, person.employeeNumber].filter(Boolean).join(' · ')}</small></span>{onIssue && <button type="button" className={s.eligIssue} aria-label={`Issue this tool to ${person.name}`} onClick={() => onIssue(person)}>Issue</button>}</li>)}
+          {shown.length === 0 && <li className={s.eligEmpty}>Nobody matches “{filter.trim()}”.</li>}
+        </ul>
+      </>}
+  </section>;
 }

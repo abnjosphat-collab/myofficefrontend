@@ -531,3 +531,38 @@ button.homeStat:hover{background:color-mix(in srgb,var(--focus) 6%,var(--paper))
   .acctSummary{width:100%}
 }
 .pickerField{grid-column:1/-1}
+
+/* Tool details: the people eligible for this equipment, as a list instead of one comma-separated line. */
+.eligPanel{display:grid;gap:10px;padding:14px;margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.eligPanelHeading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.eligPanelHeading h3{margin:0;font-size:calc(13px * var(--font-scale));font-weight:600}
+.eligGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 12px;margin:0;padding:0;list-style:none;max-height:min(320px,42dvh);overflow:auto}
+.eligGrid li{display:flex;align-items:center;gap:10px;min-height:46px;padding:5px 6px;border-radius:8px}
+.eligGrid li:hover{background:var(--surface-muted)}
+.eligGrid li>span:last-child{min-width:0}
+.eligGrid strong,.eligGrid small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eligGrid strong{font-size:calc(11.5px * var(--font-scale));font-weight:600}
+.eligGrid small{margin-top:2px;color:var(--muted-ink);font-size:max(11px,calc(9px * var(--font-scale)))}
+.eligIssue{margin-left:auto;flex:0 0 auto;min-height:32px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper);color:var(--ink);font-size:max(11px,calc(10px * var(--font-scale)));font-weight:600;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.eligIssue:hover{border-color:var(--brand);background:var(--brand-soft);color:var(--brand)}
+.eligIssue:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+/* Compliance: inspections, incidents and approval cover as tables on the Account access grid. */
+.cmpPanel{display:grid;gap:14px}
+.cmpToolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.cmpToolbar .eligFilter{flex:0 1 300px;min-width:min(240px,100%)}
+.cmpChips{display:flex;flex-wrap:wrap;gap:5px}
+.cmpChip{display:inline-flex;align-items:center;min-height:26px;padding:0 11px;border-radius:999px;font-size:max(11px,calc(10px * var(--font-scale)));font-weight:600;white-space:nowrap}
+.cmpChip[data-tone=ok]{background:color-mix(in srgb,var(--success) 10%,var(--paper));color:var(--success)}
+.cmpChip[data-tone=due]{background:color-mix(in srgb,var(--danger) 10%,var(--paper));color:var(--danger)}
+.cmpChip[data-tone=warn]{background:color-mix(in srgb,var(--amber) 13%,var(--paper));color:var(--amber)}
+.cmpText{margin:0;font-size:calc(12px * var(--font-scale));line-height:1.45}
+.cmpMuted{display:block;margin-top:3px;color:var(--muted-ink);font-size:max(11px,calc(10px * var(--font-scale)))}
+.cmpBlock{display:grid;gap:10px}
+.cmpBlock h3{display:flex;align-items:center;gap:8px;margin:0;font-size:calc(14px * var(--font-scale));font-weight:600}
+.acct .complianceForms{margin-top:2px}
+
+/* Row actions in the Compliance tables fit their label and sit at the right edge, instead of filling the column. */
+.acctActionsCompact{align-items:flex-end}
+.acctActionsCompact>button{flex:0 0 auto;width:auto;min-height:34px;padding:0 14px;font-size:max(11px,calc(10.5px * var(--font-scale)));white-space:nowrap}
+@container (max-width:1099px){.acctActionsCompact{align-items:flex-start}.acctActionsCompact>button{flex:0 0 auto}}

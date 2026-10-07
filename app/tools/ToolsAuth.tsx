@@ -11,7 +11,6 @@ import s from './tools.module.css';
 const APPROVAL_ROLES:Array<{value:ApprovalRole;label:string}>=[{value:'hos',label:'HOS'},{value:'hod',label:'HOD'},{value:'security',label:'Security'},{value:'finance',label:'Finance'},{value:'general_manager',label:'General manager'}];
 
 const ROLE_OPTIONS=[{value:'viewer',label:'Viewer · reads their department'},{value:'issuer',label:'Issuer · records movements'},{value:'admin',label:'Admin · manages the system'}];
-const initialsOf=(name:string)=>name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]?.toUpperCase()).join('')||'?';
 const sameRoles=(left:ApprovalRole[],right:ApprovalRole[])=>left.length===right.length&&left.every(role=>right.includes(role));
 
 /** One account: who it is, what it may do, which department it sees and which gate-pass steps it may sign. Apply is live only once something differs. */
@@ -22,7 +21,7 @@ function AccountAccessRow({account,departments,onUpdate}:{account:WorkspaceAccou
   const changed=role!==account.role||(role!=='admin'&&department!==savedDepartment)||!sameRoles(approvalRoles,account.approvalRoles||[]);
   async function apply(){setSaving(true);try{await onUpdate(account.id,role,role==='admin'?undefined:department,approvalRoles);}finally{setSaving(false);}}
   return <div className={s.acctRow} role="row" data-changed={changed}>
-    <div className={s.acctPerson} role="cell"><span className={s.acctAvatar} aria-hidden="true">{initialsOf(account.name)}</span><span><strong>{account.name}</strong><small>{account.username}</small></span></div>
+    <div className={s.acctPerson} role="cell"><span className={s.acctAvatar} aria-hidden="true"><Icon name="user" size={20}/></span><span><strong>{account.name}</strong><small>{account.username}</small></span></div>
     <div className={s.acctCell} role="cell" data-label="Access"><AnimatedSelect ariaLabel={`Role for ${account.name}`} value={role} onChange={value=>setRole(value as AccountRole)} options={ROLE_OPTIONS}/></div>
     <div className={s.acctCell} role="cell" data-label="Department">{role==='admin'?<span className={s.acctAll}>All departments</span>:<AnimatedSelect ariaLabel={`Department for ${account.name}`} value={department} onChange={setDepartment} options={departments.map(value=>({value,label:value}))}/>}</div>
     <div className={s.acctCell} role="cell" data-label="Gate-pass signing"><div className={s.approvalRolePicker} role="group" aria-label={`Gate-pass signing roles for ${account.name}`}>{APPROVAL_ROLES.map(item=><label key={item.value} data-on={approvalRoles.includes(item.value)}><input type="checkbox" aria-label={`${item.label} approval role for ${account.name}`} checked={approvalRoles.includes(item.value)} onChange={event=>setApprovalRoles(current=>event.target.checked?[...current,item.value]:current.filter(value=>value!==item.value))}/><span>{item.label}</span></label>)}</div></div>

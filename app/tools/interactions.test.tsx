@@ -157,12 +157,11 @@ describe('Tools interaction controls', () => {
     expect(screen.getByText(/check is overdue\. Complete it, or tick "Go ahead anyway"/)).toBeVisible();
     await user.click(screen.getByRole('checkbox',{name:/Go ahead anyway/}));
     const reason=screen.getByRole('textbox',{name:'Reason for going ahead'});
-    await user.type(reason,'ok');
+    fireEvent.change(reason,{target:{value:'ok'}});
     await user.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText(/Give a short reason/)).toBeVisible();
-    await user.clear(reason);
-    await user.type(reason,'Breakdown repair, inspection booked');
+    fireEvent.change(reason,{target:{value:'Breakdown repair, inspection booked'}});
     await user.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave.mock.calls[0][0]).toMatchObject({overrideDueChecks:true,overrideReason:'Breakdown repair, inspection booked'});
   });
