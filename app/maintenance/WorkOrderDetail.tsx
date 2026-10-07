@@ -1,5 +1,5 @@
-// app/maintenance/WorkOrderDetail.tsx — one work order in full, in the three steps it passes through: the request (read only), the
-// artisan's report, and the foreman's sign-off. A save in either step replaces the work order everywhere, and both forms restart
+// app/maintenance/WorkOrderDetail.tsx — one work order in full, in the three steps it passes through (the request, read only; the
+// artisan's report; the foreman's sign-off), with the comments on it and its history. A save in either step replaces the work order everywhere, and both forms restart
 // from what the server now holds.
 'use client';
 
@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanReportForm } from './ArtisanReportForm';
+import { AuditTab } from './AuditTab';
+import { CommentsTab } from './CommentsTab';
 import { ForemanSignoff } from './ForemanSignoff';
 import { isOverdue } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
@@ -45,6 +47,8 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
               <TabsTrigger value="request" icon="documents">Work request</TabsTrigger>
               <TabsTrigger value="artisan" icon="wrench">Artisan report</TabsTrigger>
               <TabsTrigger value="foreman" icon="success">Foreman sign-off</TabsTrigger>
+              <TabsTrigger value="comments" icon="chat">Comments</TabsTrigger>
+              <TabsTrigger value="audit" icon="history">History</TabsTrigger>
             </TabsList>
             <TabsContent value="request" className="mt-4">
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -63,6 +67,8 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
             {/* The forms start from the saved work order, so they restart after every save. */}
             <TabsContent value="artisan" className="mt-4"><ArtisanReportForm key={`${w.id}-${w.updated_at}`} order={w} onSaved={onSaved} /></TabsContent>
             <TabsContent value="foreman" className="mt-4"><ForemanSignoff key={`${w.id}-${w.updated_at}`} order={w} onSaved={onSaved} /></TabsContent>
+            <TabsContent value="comments" className="mt-4"><CommentsTab key={w.id} orderId={String(w.id)} active={tab === 'comments'} /></TabsContent>
+            <TabsContent value="audit" className="mt-4"><AuditTab key={`${w.id}-${w.updated_at}`} orderId={String(w.id)} active={tab === 'audit'} /></TabsContent>
           </Tabs>
         </div>
       )}

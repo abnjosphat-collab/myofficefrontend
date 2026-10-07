@@ -10,7 +10,7 @@ const wo = (id, over = {}) => ({
 });
 const ORDERS = [
   wo(1, { priority: 'high', due_date: local(-2), classification: 'planned_maintenance' }),
-  wo(2, { equipment_info: 'Crusher 1', status: 'in-progress', progress: 40, classification: 'breakdown', failure_mode: 'Bearing failure', discipline: 'Mechanical', trade: 'Fitter', time_raised: '07:30', total_time_worked: '2h 30m', spares_used: [{ id: 's1', name: 'Bearing 6204', quantity: 2, unit_cost: 10 }] }),
+  wo(2, { version: 4, equipment_info: 'Crusher 1', status: 'in-progress', progress: 40, classification: 'breakdown', failure_mode: 'Bearing failure', discipline: 'Mechanical', trade: 'Fitter', time_raised: '07:30', total_time_worked: '2h 30m', spares_used: [{ id: 's1', name: 'Bearing 6204', quantity: 2, unit_cost: 10 }] }),
   wo(3, { equipment_info: 'Fan 2', status: 'completed', priority: 'low', progress: 100 }),
   // A legacy record with an unknown status and priority and almost nothing else must render rather than crash.
   { id: 4, work_order_number: 'WO-00004', equipment_info: 'Legacy rig', status: 'weird', priority: 'weird' },
@@ -19,8 +19,13 @@ const SCHEDULES = [
   { id: 1, name: 'Weekly compressor check', equipment_info: 'Compressor 1, Compressor 2', to_department: 'Engineering', allocated_to: 'Alex', authorising_foreman: 'Lee', estimated_hours: '2', job_request_details: 'Check oil and belts', job_instructions: '', priority: 'medium', recurrence_type: 'weekly', recurrence_dow: 1, recurrence_dom: 1, recurrence_months: [], specific_dates: [], advance_days: 1, active: true, next_due_date: local(3) },
   { id: 2, name: 'Monthly conveyor audit', equipment_info: 'Conveyor 3', to_department: 'Plant', allocated_to: '', authorising_foreman: '', estimated_hours: '3', job_request_details: 'Audit rollers', job_instructions: '', priority: 'low', recurrence_type: 'monthly', recurrence_dow: 1, recurrence_dom: 22, recurrence_months: [], specific_dates: [], advance_days: 0, active: false, next_due_date: local(20) },
 ];
-let failSave = false; let failPause = false; let refuseMachine = null;
-const patchOf = id => request => (failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...ORDERS.find(o => o.id === id), ...request.postDataJSON(), id, updated_at: new Date().toISOString() });
+let failSave = false; let failPause = false; let refuseMachine = null; let conflictNext = false;
+const EVENTS = [
+  { id: 2, entity: 'work_order', entity_id: 2, entity_number: 'WO-00002', action: 'updated', from_status: 'pending', to_status: 'in-progress', changes: { status: ['pending', 'in-progress'], allocated_to: ['', 'Alex'] }, note: null, actor_name: 'lee@mine.example', created_at: `${local(-1)}T09:00:00Z` },
+  { id: 1, entity: 'work_order', entity_id: 2, entity_number: 'WO-00002', action: 'created', from_status: null, to_status: 'pending', changes: {}, note: null, actor_name: 'sam@mine.example', created_at: `${local(-5)}T08:00:00Z` },
+];
+const COMMENTS = [{ id: 1, work_order_id: 2, body: 'Bearing ordered, due Thursday', author_name: 'lee@mine.example', created_at: `${local(-1)}T10:00:00Z` }];
+const patchOf = id => request => (conflictNext ? (conflictNext = false, { __status: 409, body: { detail: { code: 'version_conflict', message: 'This work order was changed by someone else since you opened it.', current: { ...ORDERS.find(o => o.id === id), status: 'on-hold', version: 5, updated_at: new Date().toISOString() } } } }) : failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...ORDERS.find(o => o.id === id), ...request.postDataJSON(), id, updated_at: new Date().toISOString() });
 
 const spec = {
   route: '/maintenance',
@@ -32,6 +37,9 @@ const spec = {
     'PATCH /api/maintenance/work-orders/1': patchOf(1), 'PATCH /api/maintenance/work-orders/2': patchOf(2),
     'DELETE /api/maintenance/work-orders/4': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
     'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {},
+    '/api/maintenance/work-orders/2/events': () => EVENTS,
+    'GET /api/maintenance/work-orders/2/comments': () => COMMENTS,
+    'POST /api/maintenance/work-orders/2/comments': request => ({ id: 2, work_order_id: 2, author_name: 'me@mine.example', created_at: new Date().toISOString(), ...request.postDataJSON() }),
     '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
     'PATCH /api/schedules/1': () => (failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),
     '/api/equipment': [{ id: 1, name: 'Pump A', equipment_id: 'EQ-1', department: 'Mining', location: 'Pit', status: 'operational' }, { id: 2, name: 'Crusher 1', equipment_id: 'EQ-2', department: 'Plant', status: 'operational' }],
@@ -93,6 +101,30 @@ const spec = {
     const put = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
     check(Array.isArray(put?.body.spares_used) && put.body.spares_used.length === 0, 'saving with every spare removed sends an empty list, so they really go', JSON.stringify(put?.body?.spares_used));
     check(put?.body.classification === null && put.body.failure_mode === null && put.body.total_time_worked === '', 'a cleared classification is sent as null (and drops the failure mode that only applies to breakdowns)', JSON.stringify(put?.body).slice(0, 160));
+
+    // the history and the comments, and a save that loses the race keeps what was typed
+    await d.getByRole('tab', { name: 'History' }).click();
+    await d.getByText('lee@mine.example', { exact: false }).first().waitFor({ timeout: 5000 }).catch(() => {});
+    check(await d.getByText(/Pending → In progress/).isVisible() && await d.getByText(/^Raised/).first().isVisible(), 'the history shows who changed what');
+    await page.waitForTimeout(300); await shot(page, 'history@1440');
+    await d.getByRole('tab', { name: 'Comments' }).click();
+    await d.getByText('Bearing ordered, due Thursday').waitFor({ timeout: 5000 }).catch(() => {});
+    check(await d.getByText('Bearing ordered, due Thursday').isVisible(), 'the comments list shows existing comments');
+    await d.getByLabel('Add a comment').fill('Fitted and tested');
+    await d.getByRole('button', { name: 'Add comment' }).click();
+    await page.waitForTimeout(500);
+    check(calls.some(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/2/comments' && c.body?.body === 'Fitted and tested'), 'a comment is posted');
+    await page.waitForTimeout(300); await shot(page, 'comments@1440');
+    await d.getByRole('tab', { name: 'Artisan report' }).click();
+    conflictNext = true;
+    await d.getByRole('button', { name: 'Save artisan report' }).click();
+    await d.getByText('Someone else saved this work order first').waitFor({ timeout: 5000 }).catch(() => {});
+    check(await d.getByText('Someone else saved this work order first').isVisible(), 'a save that lost the race says so and keeps the form');
+    await page.waitForTimeout(300); await shot(page, 'conflict@1440');
+    await d.getByRole('button', { name: 'Keep mine and save' }).click();
+    await page.waitForTimeout(600);
+    const kept = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
+    check(kept?.body.version === 5, 'keeping mine saves again against their version', String(kept?.body?.version));
 
     // foreman sign-off starts from the order as saved, so it cannot write back an older status
     await d.getByRole('button', { name: 'Close', exact: true }).click();

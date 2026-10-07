@@ -10,7 +10,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { SparesEditor, type SpareLine } from '@/components/shared/SparesEditor';
 import { todayLocal } from '@/lib/dates';
-import { updateWorkOrder } from './api';
+import { conflictOf, updateWorkOrder } from './api';
+import { ConflictNotice } from './ConflictNotice';
 import { artisanBody, durationText, type ArtisanReport } from './helpers';
 import { CLASSIFICATIONS, DISCIPLINES, FAILURE_MODES, MECHANICAL_TRADES, REPORT_STATUSES, statusMeta } from './meta';
 import { PhraseField } from './PhraseField';
@@ -40,20 +41,23 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
   const [spares, setSpares] = useState<SpareItem[]>(order.spares_used || []);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<WorkOrder | null>(null);
   const set = (patch: Partial<ArtisanReport>) => setR(prev => ({ ...prev, ...patch }));
   const noOvertime = !r.overtime_start_time && !r.overtime_end_time;
   const noDelay = !r.delay_from_time && !r.delay_to_time;
 
-  const save = async () => {
-    setPending(true); setError(null);
+  const save = async (version = order.version) => {
+    setPending(true); setError(null); setConflict(null);
     try {
-      const updated = await updateWorkOrder(order.id, artisanBody(r, spares));
+      const updated = await updateWorkOrder(order.id, artisanBody(r, spares), version);
       try { if (r.artisan_name) localStorage.setItem(SAVED_NAME, r.artisan_name); } catch { /* a convenience */ }
       if (r.work_done_details.trim()) rememberChoice('maint_work_done', r.work_done_details);
       toast.success('Artisan report saved.');
       onSaved(updated);
-    } catch (e) { setError(e instanceof Error ? e.message : 'The report was not saved.'); }
-    finally { setPending(false); }
+    } catch (e) {
+      const theirs = conflictOf(e);
+      if (theirs) setConflict(theirs); else setError(e instanceof Error ? e.message : 'The report was not saved.');
+    } finally { setPending(false); }
   };
 
   return (
@@ -124,8 +128,9 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
         </div>
       </section>
 
+      {conflict && <ConflictNotice current={conflict} pending={pending} onKeepMine={() => void save(conflict.version)} onUseTheirs={() => onSaved(conflict)} />}
       {error && <Notice tone="danger" title="The report was not saved">{error}</Notice>}
-      <div className="sticky bottom-0 z-10 flex justify-end border-t border-line-subtle bg-surface py-3"><Button variant="primary" icon="check" pending={pending} onClick={save}>Save artisan report</Button></div>
+      <div className="sticky bottom-0 z-10 flex justify-end border-t border-line-subtle bg-surface py-3"><Button variant="primary" icon="check" pending={pending} onClick={() => void save()}>Save artisan report</Button></div>
     </div>
   );
 }

@@ -8,7 +8,8 @@ import { Button, Field, Input, Notice, Select } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { todayLocal } from '@/lib/dates';
-import { updateWorkOrder } from './api';
+import { conflictOf, updateWorkOrder } from './api';
+import { ConflictNotice } from './ConflictNotice';
 import { REPORT_STATUSES, statusMeta } from './meta';
 import { PhraseField } from './PhraseField';
 import { SignOffField } from './SignOffField';
@@ -22,18 +23,21 @@ export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: 
   const [f, setF] = useState(() => ({ status: order.status, progress: order.progress ?? 0, notes: order.notes || '', foreman_name: order.foreman_name || savedName(), foreman_sign: order.foreman_sign || '', foreman_date: order.foreman_date || todayLocal() }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<WorkOrder | null>(null);
   const set = (patch: Partial<typeof f>) => setF(prev => ({ ...prev, ...patch }));
 
-  const save = async () => {
-    setPending(true); setError(null);
+  const save = async (version = order.version) => {
+    setPending(true); setError(null); setConflict(null);
     try {
-      const updated = await updateWorkOrder(order.id, f);
+      const updated = await updateWorkOrder(order.id, f, version);
       try { if (f.foreman_name) localStorage.setItem(SAVED_NAME, f.foreman_name); } catch { /* a convenience */ }
       if (f.notes.trim()) rememberChoice('maint_foreman_notes', f.notes);
       toast.success('Foreman sign-off saved.');
       onSaved(updated);
-    } catch (e) { setError(e instanceof Error ? e.message : 'The sign-off was not saved.'); }
-    finally { setPending(false); }
+    } catch (e) {
+      const theirs = conflictOf(e);
+      if (theirs) setConflict(theirs); else setError(e instanceof Error ? e.message : 'The sign-off was not saved.');
+    } finally { setPending(false); }
   };
 
   return (
@@ -51,8 +55,9 @@ export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: 
           <Field label="Date"><Input type="date" value={f.foreman_date} onChange={e => set({ foreman_date: e.target.value })} /></Field>
         </div>
       </section>
+      {conflict && <ConflictNotice current={conflict} pending={pending} onKeepMine={() => void save(conflict.version)} onUseTheirs={() => onSaved(conflict)} />}
       {error && <Notice tone="danger" title="The sign-off was not saved">{error}</Notice>}
-      <div className="sticky bottom-0 z-10 flex justify-end border-t border-line-subtle bg-surface py-3"><Button variant="primary" icon="check" pending={pending} onClick={save}>Save foreman sign-off</Button></div>
+      <div className="sticky bottom-0 z-10 flex justify-end border-t border-line-subtle bg-surface py-3"><Button variant="primary" icon="check" pending={pending} onClick={() => void save()}>Save foreman sign-off</Button></div>
     </div>
   );
 }

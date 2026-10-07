@@ -44,4 +44,14 @@ export interface WorkOrder {
   notes?: string; due_date?: string; created_at: string; updated_at: string;
   classification?: WOClassification; classification_custom?: string; failure_mode?: string;
   discipline?: Discipline; trade?: Trade; spares_used?: SpareItem[];
+  /** Row version, bumped by the database on every save; sent back so a stale save is refused. Absent until the audit migration is applied. */
+  version?: number;
 }
+
+export interface MaintenanceEvent {
+  id: number; entity: string; entity_id: number; entity_number: string | null; action: string;
+  from_status: string | null; to_status: string | null; changes: Record<string, [unknown, unknown]>;
+  note: string | null; actor_name: string | null; created_at: string;
+}
+
+export interface WorkOrderComment { id: number; work_order_id: number; body: string; author_name: string; created_at: string; }
