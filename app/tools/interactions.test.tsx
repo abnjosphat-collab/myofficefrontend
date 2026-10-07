@@ -141,6 +141,35 @@ describe('Tools interaction controls', () => {
     await user.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave.mock.calls[0][0]).toMatchObject({person:'Mina Dube · C1042',department:'Mining'});
   });
+  it('lets an overdue check be overridden, but only with the box ticked and a reason, which is sent on', async () => {
+    const user=userEvent.setup();
+    const onSave=vi.fn();
+    const employees=[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Mining',active:true}];
+    const due={...SEED_TOOLS[0],inspectionDue:['monthly','quarterly']};
+    render(<MovementForm kind="issue" initialTool={due} tools={[due]} employees={employees} locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+    expect(screen.getByText('monthly, quarterly check overdue')).toBeVisible();
+    await user.type(screen.getByRole('combobox',{name:'Employee'}),'Mina'); await user.keyboard('{Enter}');
+    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[0]}});
+    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
+    await user.click(screen.getByRole('button',{name:'Issue tool'}));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/check is overdue\. Complete it, or tick "Go ahead anyway"/)).toBeVisible();
+    await user.click(screen.getByRole('checkbox',{name:/Go ahead anyway/}));
+    const reason=screen.getByRole('textbox',{name:'Reason for going ahead'});
+    await user.type(reason,'ok');
+    await user.click(screen.getByRole('button',{name:'Issue tool'}));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/Give a short reason/)).toBeVisible();
+    await user.clear(reason);
+    await user.type(reason,'Breakdown repair, inspection booked');
+    await user.click(screen.getByRole('button',{name:'Issue tool'}));
+    expect(onSave.mock.calls[0][0]).toMatchObject({overrideDueChecks:true,overrideReason:'Breakdown repair, inspection booked'});
+  });
+  it('shows no override when nothing is overdue', () => {
+    render(<MovementForm kind="issue" initialTool={{...SEED_TOOLS[0],inspectionDue:[]}} tools={SEED_TOOLS} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
+    expect(screen.queryByRole('checkbox',{name:/Go ahead anyway/})).not.toBeInTheDocument();
+  });
   it('rejects an old return date without discarding form values', () => {
     const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});

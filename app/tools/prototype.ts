@@ -98,7 +98,7 @@ export const primaryToolImage = (tool: Tool) => tool.evidence?.find(file => file
 export const SEED_TOOLS: Tool[] = [];
 export const SEED_ACTIVITY: Activity[] = [];
 export type ActionKind = 'issue' | 'return' | 'transfer' | 'extend';
-export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; assignedEquipment?: string[]; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string; preUseCheckCompleted?:boolean };
+export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; assignedEquipment?: string[]; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string; preUseCheckCompleted?:boolean; overrideDueChecks?:boolean; overrideReason?:string };
 export function applyMovement(tool: Tool, input: Movement): Tool {
   if (tool.archived) throw new Error('Restore this tool before recording a movement.');
   if (input.kind === 'issue' && tool.status !== 'available') throw new Error('This tool is not available to issue.');
