@@ -66,7 +66,7 @@
 | `/standby` | Redirect | No | No | Yes, 2026-10-03 | Pre-existing redirect. |
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/timesheets` | Migrated | Yes | 14 | Yes, 2026-10-04 | Presentation moved to the shared system; payroll rules (calcTotals), merging, fill and write rules, the hooks and the exports are unchanged and keep their own tests. The user's in-progress edits to those files were left as they were. |
-| `/tools` | Own chrome | No | 20 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/tools` | Own chrome | No | 21 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |
