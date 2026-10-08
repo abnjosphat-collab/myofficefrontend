@@ -12,7 +12,7 @@ interface Item { label: string; icon: IconMeaning; href: string; value: string |
 export function Snapshot({ stats, loading }: { stats: DashboardStats; loading: boolean }) {
   const items: Item[] = [
     { label: 'Team members', icon: 'employees', href: '/employees', value: stats.employeeCount === null ? null : String(stats.employeeCount) },
-    { label: 'Active work orders', icon: 'task', href: '/maintenance', value: stats.activeWorkOrders === null ? null : String(stats.activeWorkOrders), hint: 'Pending and in progress' },
+    { label: 'Active work orders', icon: 'task', href: '/maintenance/work-orders', value: stats.activeWorkOrders === null ? null : String(stats.activeWorkOrders), hint: 'Pending and in progress' },
     { label: 'Equipment available', icon: 'equipment', href: '/equipment', value: stats.equipmentAvailablePct === null ? null : `${stats.equipmentAvailablePct}%` },
     { label: 'Open breakdowns', icon: 'breakdown', href: '/breakdowns', value: stats.openBreakdowns === null ? null : String(stats.openBreakdowns), attention: (stats.openBreakdowns ?? 0) > 0 },
   ];

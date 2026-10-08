@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Field, FormDialog, Input, Segmented, Select, Textarea } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { todayLocal } from '@/lib/dates';
-import { createWorkOrder, updateWorkOrder } from './api';
+import { conflictOf, createWorkOrder, updateWorkOrder } from './api';
 import { editOrderBody, machinesOf, newOrderBody, nextWONumber, type RequestForm } from './helpers';
 import { MachinePicker } from './MachinePicker';
 import { CLASSIFICATIONS, PRIORITY } from './meta';
@@ -28,9 +28,10 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
 }) {
   const [form, setForm] = useState<RequestForm>(blank);
   const [touched, setTouched] = useState(false);
+  const [knownVersion, setKnownVersion] = useState<number | undefined>(undefined);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const key = open ? String(order?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(order ? fromOrder(order) : blank()); } }
+  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setKnownVersion(undefined); setForm(order ? fromOrder(order) : blank()); } }
   const editing = !!order;
   const set = (patch: Partial<RequestForm>) => setForm(f => ({ ...f, ...patch }));
   const machines = machinesOf(form.equipment_info);
@@ -41,7 +42,16 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
     setTouched(true);
     if (Object.values(missing).some(Boolean)) return false;
     if (editing && order) {
-      const updated = await updateWorkOrder(order.id, editOrderBody({ ...form, equipment_info: machines[0] }));
+      let updated: WorkOrder;
+      try {
+        updated = await updateWorkOrder(order.id, editOrderBody({ ...form, equipment_info: machines[0] }), knownVersion ?? order.version);
+      } catch (e) {
+        // Someone saved first. Keep what was typed (the dialog stays open); the next Save replaces their change in the same fields.
+        const theirs = conflictOf(e);
+        if (!theirs) throw e;
+        setKnownVersion(theirs.version);
+        throw new Error('Someone else saved this work order first. Your changes are still here. Press Save changes again to replace theirs, or close this window to keep theirs.');
+      }
       onChanged(updated);
       toast.success('Work order updated.');
       return;

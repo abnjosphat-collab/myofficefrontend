@@ -1,7 +1,7 @@
 // frontend/app/maintenance/api.ts — work order + schedule API calls, shared
 // between the maintenance page and its extracted modal components.
-import { api } from '@/lib/apiClient';
-import type { WorkOrder, MaintenanceSchedule } from './types';
+import { api, ApiError } from '@/lib/apiClient';
+import type { WorkOrder, MaintenanceSchedule, WorkOrderComment } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
 // localStorage and return { success: true } on failure, so a work order that
@@ -19,9 +19,23 @@ export async function createWorkOrder(data: Record<string, unknown>): Promise<Wo
   return { ...data, ...result } as WorkOrder;
 }
 
-/** Save changes to one work order and return it as the server now has it. */
-export async function updateWorkOrder(id: string, updates: Record<string, unknown>): Promise<WorkOrder> {
-  return api.patch<WorkOrder>(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: new Date().toISOString() });
+/**
+ * Save changes to one work order and return it as the server now has it. Pass the `version` the editor loaded: if someone saved
+ * in between, the server refuses with a conflict (see `conflictOf`) instead of overwriting their change.
+ */
+export async function updateWorkOrder(id: string, updates: Record<string, unknown>, version?: number): Promise<WorkOrder> {
+  return api.patch<WorkOrder>(`/api/maintenance/work-orders/${id}`, { ...updates, ...(version !== undefined ? { version } : {}), updated_at: new Date().toISOString() });
+}
+
+/** The work order as it is now, when `error` is "someone else saved first"; otherwise null. */
+export function conflictOf(error: unknown): WorkOrder | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const d = error.detail as { code?: string; current?: WorkOrder } | undefined;
+  return d?.code === 'version_conflict' && d.current ? d.current : null;
+}
+
+export async function addWorkOrderComment(id: string, body: string): Promise<WorkOrderComment> {
+  return api.post<WorkOrderComment>(`/api/maintenance/work-orders/${id}/comments`, { body });
 }
 
 export async function deleteWorkOrder(id: string): Promise<void> {

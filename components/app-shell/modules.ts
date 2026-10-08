@@ -27,6 +27,8 @@ export interface Module {
   tags?: string[];
   badge?: string;
   featured?: boolean;
+  /** Active only on this exact address (a landing page whose address is also the prefix of its sibling pages). */
+  exact?: boolean;
   metrics?: { label: string; value: string }[];
 }
 
@@ -82,7 +84,9 @@ export const CATEGORIES: Category[] = [
     id: 'operations', title: 'Operations & Maintenance', description: 'Keep operations running smoothly',
     icon: Wrench,
     modules: [
-      { icon: ClipboardCheck, title: 'Maintenance',  description: 'Work orders & PM schedules',  href: '/maintenance',  tags: ['Work Orders'], badge: '23', featured: true, metrics: [{ label: 'Open', value: '12' }, { label: 'Completed', value: '156' }] },
+      { icon: LayoutDashboard, title: 'Maintenance Overview', description: 'What needs attention across work orders and schedules', href: '/maintenance', exact: true, tags: ['Maintenance', 'Overview'], featured: true },
+      { icon: ClipboardCheck, title: 'Work Orders',  description: 'Raise, assign, do and sign off jobs',  href: '/maintenance/work-orders',  tags: ['Work Orders'], badge: '23', metrics: [{ label: 'Open', value: '12' }, { label: 'Completed', value: '156' }] },
+      { icon: CalendarClock,  title: 'Maintenance Schedules', description: 'Recurring work that raises work orders', href: '/maintenance/schedules', tags: ['PM', 'Schedules'] },
       { icon: AlertTriangle,  title: 'Breakdowns',   description: 'Log equipment breakdowns',    href: '/breakdowns',   tags: ['Failures'], badge: '4', metrics: [{ label: 'Critical', value: '2' }, { label: 'MTTR', value: '4.2h' }] },
       { icon: PackageOpen,    title: 'Spares',       description: 'Spare parts inventory',       href: '/spares',       tags: ['Parts'], badge: '89', metrics: [{ label: 'Available', value: '342' }, { label: 'On Order', value: '56' }] },
       { icon: Fan,            title: 'Compressors',  description: 'Monitor compressor health',  href: '/compressors',  tags: ['Equipment'], badge: '6', metrics: [{ label: 'Running', value: '4' }, { label: 'Efficiency', value: '87%' }] },
@@ -137,7 +141,7 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance', builtin: true, removable: true },
+  { id: 'new-wo',  icon: Plus,     label: 'New Work Order',   href: '/maintenance/work-orders?new=1', builtin: true, removable: true },
   { id: 'upload',  icon: Upload,   label: 'Upload Document',  href: '/documents', builtin: true, removable: true },
   { id: 'add-emp', icon: User,     label: 'Add Employee',     href: '/employees', builtin: true, removable: true },
 ];

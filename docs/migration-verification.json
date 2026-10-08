@@ -99,9 +99,9 @@
     },
     "/maintenance": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail and schedules screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save and emptied spares and a cleared classification, foreman sign-off from the current status), edit with a cleared due date, raising two machines with one refused, schedules (raise now per machine, a refused pause that reverts, validation) and analytics with a filter. No live data, no real signatures.",
-      "note": "Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns."
+      "date": "2026-10-08",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (the 1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states. No live data. Overview (pattern D): four tiles that link, a notice for overdue work, the overdue and due-soon lists, and the analytics tab with a filter.",
+      "note": "Maintenance overview. The old single page (work orders, schedules and analytics in tabs) was split into the Operations & Maintenance modules Overview, Work Orders and Schedules on 8 Oct 2026."
     },
     "/timesheets": {
       "status": "verified",
@@ -318,6 +318,18 @@
       "date": "2026-10-04",
       "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards and requisition screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; stock tiles as filters, search, the category panel, favourites, cards and table, detail, edit (numbers sent as numbers, categories kept), delete with confirmation and a refusal, a refused add that keeps the typing, and the requisition builder (adding a part, an incomplete line flagged, save, load, delete, PDF download). No live data.",
       "note": "Register pattern with a requisition drawer. Cards are flat (the old page grouped only the current page by category)."
+    },
+    "/maintenance/work-orders": {
+      "status": "verified",
+      "date": "2026-10-08",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (the 1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states. No live data. Status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save, foreman sign-off from the current status), History and Comments, an edit that loses a race (keep mine or use theirs), edit with a cleared due date, raising two machines with one refused.",
+      "note": "Register pattern. The Work orders tab of the old /maintenance page, unchanged in behaviour; /maintenance/work-orders?new=1 opens the New work order form."
+    },
+    "/maintenance/schedules": {
+      "status": "verified",
+      "date": "2026-10-08",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (the 1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states. No live data. Raise now creates one work order per machine, a refused pause reverts with the reason, validation of a schedule with no name or dates.",
+      "note": "The Schedules tab of the old /maintenance page, unchanged in behaviour, now its own module."
     }
   }
 }

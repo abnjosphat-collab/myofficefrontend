@@ -157,7 +157,7 @@ function AvailabilityContent() {
               rowActions={e => (
                 <span className="inline-flex gap-1">
                   <Button asChild size="sm"><Link href={`/breakdowns?equipment=${e.id}`} aria-label={`View breakdowns for ${e.name}`}>Breakdowns</Link></Button>
-                  <Button asChild size="sm"><Link href={`/maintenance?equipment=${e.id}`} aria-label={`View maintenance for ${e.name}`}>Maintenance</Link></Button>
+                  <Button asChild size="sm"><Link href="/maintenance/work-orders" aria-label={`View maintenance for ${e.name}`}>Maintenance</Link></Button>
                 </span>
               )} />
           </TabsContent>

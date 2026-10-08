@@ -12,10 +12,13 @@ import { toast } from 'sonner';
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** The backend's structured `detail` when a 409 carries one (for example a version conflict with the current row). */
+  detail?: unknown;
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -54,6 +57,7 @@ async function extractError(res: Response): Promise<string> {
       return d.map((x: { msg?: string; loc?: unknown[] }) => x.msg || JSON.stringify(x)).join('; ');
     }
     if (typeof d === 'string') return d;
+    if (d && typeof d === 'object' && typeof (d as { message?: unknown }).message === 'string') return (d as { message: string }).message;
     if (d) return JSON.stringify(d);
   } catch {
     /* fall through to text */
@@ -83,7 +87,8 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
   const res = await authFetch(resolve(path), { ...buildInit(method, body), signal });
   if (!res.ok) {
     if (res.status === 401) offerSignIn();
-    throw new ApiError(await extractError(res), res.status);
+    const detail = res.status === 409 ? await res.clone().json().then(b => b?.detail).catch(() => undefined) : undefined;
+    throw new ApiError(await extractError(res), res.status, typeof detail === 'object' ? detail : undefined);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
