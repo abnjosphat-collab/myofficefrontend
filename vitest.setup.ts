@@ -16,3 +16,18 @@ vi.mock('framer-motion', async importOriginal => {
 // fires — without this, each render test leaves its DOM tree mounted for the next
 // test, and queries like getByRole start matching leftover elements from prior tests.
 afterEach(cleanup);
+
+// jsdom has no ResizeObserver; cmdk (behind Combobox) and Radix positioning
+// need one at mount. Tests assert structure, not layout, so a no-op suffices.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
+// cmdk scrolls the active option into view on select; jsdom has no layout.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

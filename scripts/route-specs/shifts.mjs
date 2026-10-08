@@ -21,6 +21,8 @@ const spec = {
     'DELETE /api/standby/4': {},
     '/api/leaves': LEAVES,
     '/api/duty-roster': [],
+    '/api/duty-rotations': [],
+    '/api/rotation-covers': [],
     '/api/employees': EMPLOYEES,
   },
   async ready(page, calls, { check, shot }) {

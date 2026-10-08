@@ -99,6 +99,8 @@ const EXTRA = {
   '/standby': [
     { name: 'rotation', open: async p => { await click(p, 'tab', 'Rotations'); await click(p, 'button', 'New rotation'); } },
     { name: 'duty', open: async p => { await click(p, 'tab', 'Duty officials'); await click(p, 'button', 'Name official'); } },
+    { name: 'duty-roster', open: async p => { await click(p, 'tab', 'Duty officials'); await click(p, 'button', 'New duty roster'); } },
+    { name: 'cover', open: async p => { await click(p, 'tab', 'Covers'); await click(p, 'button', 'Name cover'); } },
   ],
   '/quotations': [{ name: 'confirm-new', open: async p => { await p.getByLabel('Client name').fill('Acme'); await click(p, 'button', 'New'); } }],
   '/inventory': [{ name: 'add', open: p => click(p, 'button', 'Add item') }],

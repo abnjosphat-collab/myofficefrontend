@@ -24,7 +24,7 @@ import { DAY_STATUS, SHIFT_PATTERNS, STATUS_KEYS, patternOf } from './shiftMeta'
 import type { ScheduleEvent, ShiftAssignment, ShiftType } from './types';
 import type { DutyEntry } from '@/app/standby/types';
 import { createAssignment, deleteAssignment, updateAssignment, useShiftsData } from './useShiftsData';
-import { createDutyEntry, updateDutyEntry, useDutyRoster } from '@/app/standby/useStandbyData';
+import { createDutyEntry, updateDutyEntry, useCovers, useDutyRoster, useDutyRotations } from '@/app/standby/useStandbyData';
 import { useEmployees } from '@/hooks/useLookups';
 
 const ALL = 'all';
@@ -50,6 +50,8 @@ function ShiftsContent() {
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [eventTarget, setEventTarget] = useState<{ assignment: ShiftAssignment; date: string } | null>(null);
   const duty = useDutyRoster();
+  const dutyRotations = useDutyRotations();
+  const covers = useCovers();
   const employees = useEmployees();
   const [dutyOpen, setDutyOpen] = useState(false);
   const [editingDuty, setEditingDuty] = useState<DutyEntry | null>(null);
@@ -153,7 +155,14 @@ function ShiftsContent() {
         <Select className="w-44" aria-label="Filter by today's status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'Any status today' }, ...STATUS_KEYS.map(s => ({ value: s, label: DAY_STATUS[s].label }))]} />
       </Toolbar>
 
-      <DutyStrip items={duty.items} loaded={duty.loaded} loading={duty.loading} error={duty.error} onRetry={() => duty.refetch()} employees={employees} onNew={() => { setEditingDuty(null); setDutyOpen(true); }} onEdit={e => { setEditingDuty(e); setDutyOpen(true); }} />
+      <DutyStrip
+        items={duty.items} dutyRotations={dutyRotations.items} covers={covers.items}
+        loaded={duty.loaded && dutyRotations.loaded && covers.loaded}
+        loading={duty.loading || dutyRotations.loading || covers.loading}
+        error={duty.error} degraded={!!dutyRotations.error || !!covers.error}
+        onRetry={() => { void duty.refetch(); void dutyRotations.refetch(); void covers.refetch(); }}
+        employees={employees} onNew={() => { setEditingDuty(null); setDutyOpen(true); }} onEdit={e => { setEditingDuty(e); setDutyOpen(true); }}
+      />
 
       <DataRegion
         status={status} subject="shift assignments" error={list.error} onRetry={() => list.refetch()}

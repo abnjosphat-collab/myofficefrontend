@@ -123,9 +123,9 @@
     },
     "/standby": {
       "status": "unverified",
-      "date": "2026-10-07",
-      "scope": "Route spec (week board with rotation and contact actions, rotations and duty tabs, create/empty/failed states) plus unit tests for the rotation math and board; no fixture browser run yet.",
-      "note": "Standby module: weekly board over standby_rotations with crew and call/WhatsApp actions, rotation sequence, and duty officials from duty_roster."
+      "date": "2026-10-08",
+      "scope": "Route spec (week board with sequences-until-restart, covers and leave warnings, month calendar, rotations/duty/covers tabs, create/empty/failed states) plus unit tests for the rotation math, boards and dialogs; no fixture browser run yet.",
+      "note": "Standby module: weekly board and month calendar over standby_rotations and duty_rotations with crew, call/WhatsApp actions, covers holding in place of absent members, leave warnings, and duty overrides from duty_roster."
     },
     "/test-homepage": {
       "status": "unverified",
