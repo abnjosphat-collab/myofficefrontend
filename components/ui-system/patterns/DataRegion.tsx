@@ -5,7 +5,7 @@ import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Button, Spinner } from '../primitives/Button';
-import { SkeletonRows } from '../primitives/Skeleton';
+import { LoadingPulse } from './LoadingPulse';
 import type { DataStatus } from './dataStatus';
 
 export interface EmptyStateProps {
@@ -77,8 +77,11 @@ export interface DataRegionProps {
   empty?: ReactNode;
   /** The records. Rendered for ready / refreshing / stale-error. */
   children: ReactNode;
+  /** Kept so existing callers still compile; the loading state is now the LoadingPulse animation, not placeholder rows. */
   skeletonRows?: number;
-  /** Custom loading content (a themed loader). Defaults to the skeleton rows. */
+  /** Status lines cycled under the loading label. Say only what is really being fetched. */
+  loadingDetail?: string[];
+  /** Custom loading content (a themed loader). Defaults to the shared LoadingPulse animation. */
   loadingContent?: ReactNode;
   className?: string;
 }
@@ -88,16 +91,17 @@ export interface DataRegionProps {
  * retrying, empty, unauthorized and failure. Records already on screen stay
  * visible through refreshes and failed refreshes. A failure is never an empty list.
  */
-export function DataRegion({ status, subject, error, onRetry, empty, children, skeletonRows = 5, loadingContent, className }: DataRegionProps) {
+export function DataRegion({ status, subject, error, onRetry, empty, children, loadingDetail, loadingContent, className }: DataRegionProps) {
   const cap = subject.charAt(0).toUpperCase() + subject.slice(1);
+  const loading = loadingContent ?? <LoadingPulse label={`Loading ${subject}`} detail={loadingDetail} />;
   const retry = onRetry ? <Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button> : undefined;
 
-  if (status === 'loading') return <div className={className}>{loadingContent ?? <SkeletonRows rows={skeletonRows} label={`Loading ${subject}`} />}</div>;
+  if (status === 'loading') return <div className={className}>{loading}</div>;
   if (status === 'retrying') {
     return (
       <div className={cn('flex flex-col gap-3', className)}>
         <StatusLine tone="info"><strong className="font-medium text-ink">Still loading {subject}.</strong> The service is slow to respond. Retrying automatically.{error ? ` Last answer: ${error}` : ''}</StatusLine>
-        {loadingContent ?? <SkeletonRows rows={Math.min(skeletonRows, 3)} label={`Loading ${subject}`} />}
+        {loadingContent ?? <LoadingPulse compact label={`Loading ${subject}`} />}
       </div>
     );
   }

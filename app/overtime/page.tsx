@@ -8,7 +8,8 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useConfirm, useViewPreference,
-  type Column, type SortState, FilterField, MoreMenu
+  type Column, type SortState, FilterField, MoreMenu,
+  LoadingPulse,
 } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -236,13 +237,13 @@ function OvertimeContent() {
         <TabsContent value="insights" className="mt-4">
           {list.loaded
             ? <InsightsView records={matches} employees={employees} picked={employeeIds} onToggle={togglePerson} />
-            : <p className="font-sans text-body-sm text-ink-muted">{list.error ? 'The requests could not be loaded; see the Records tab.' : 'Loading…'}</p>}
+            : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
         </TabsContent>
 
         <TabsContent value="weekly" className="mt-4">
           {list.loaded
             ? <WeeklySummary records={records} employees={employees} />
-            : <p className="font-sans text-body-sm text-ink-muted">{list.error ? 'The requests could not be loaded; see the Records tab.' : 'Loading…'}</p>}
+            : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
         </TabsContent>
       </Tabs>
 

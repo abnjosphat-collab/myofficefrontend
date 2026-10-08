@@ -34,6 +34,7 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
         fontSize: Number.isFinite(source.fontSize) ? Math.min(130, Math.max(85, Math.round(source.fontSize / 5) * 5)) : DEFAULT_OPTIONS.fontSize,
         guidance: source.guidance !== false,
         guide: source.guide !== false,
+        showRemoval: source.showRemoval !== false,
       },
     } as ToolsStoredPreferences;
   } catch {

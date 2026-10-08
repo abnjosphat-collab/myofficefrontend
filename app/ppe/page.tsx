@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  deriveDataStatus, isTransientStatus, useConfirm, MoreMenu
+  deriveDataStatus, isTransientStatus, useConfirm, MoreMenu,
+  LoadingPulse,
 } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
 import { normalizeSection } from '@/lib/sections';
@@ -191,7 +192,7 @@ function PPEContent() {
 
         <TabsContent value="due" className="mt-4 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
-          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}
+          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
         </TabsContent>
 
         <TabsContent value="order" className="mt-4">
@@ -202,7 +203,7 @@ function PPEContent() {
             <OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} />
           </DataRegion>
         </TabsContent>
-        <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={records} employeeCount={holders.length} /> : <p className="font-sans text-body-sm text-ink-muted">{recs.error ? 'The PPE records could not be loaded; see the Employees tab.' : 'Loading…'}</p>}</TabsContent>
+        <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={records} employeeCount={holders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
       </Tabs>
 
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} />

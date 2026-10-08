@@ -60,7 +60,7 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
   </article>;
 }
 
-export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onSaveCompetency, onSetActive, onDeactivateMany }: {
+export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
   employees: Employee[];
   tools: Tool[];
   competencies: CompetencyRecord[];
@@ -75,6 +75,8 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   onSetActive: (employee: Employee, active: boolean) => Promise<void>;
   /** Deactivate several people at once (the same rule as one: nobody holding equipment). */
   onDeactivateMany?: (employees: Employee[]) => Promise<void>;
+  /** False hides the Deactivate buttons (one at a time and in bulk); Reactivate is always available. */
+  allowDeactivate?: boolean;
 }) {
   const [selecting,setSelecting]=useState(false);
   const [picked,setPicked]=useState<string[]>([]);
@@ -94,7 +96,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const blockedReason=(employee:Employee)=>!employee.active?'Already inactive.':tools.some(tool=>tool.holder===employee.name||tool.holder?.startsWith(`${employee.name} ·`))?'Receive their equipment before deactivating them.':undefined;
   const pickable=visible.filter(employee=>!blockedReason(employee));
   const chosen=pickable.filter(employee=>picked.includes(employee.id));
-  const canSelect=canManage&&!!onDeactivateMany&&view==='person'&&pickable.length>0;
+  const canSelect=canManage&&allowDeactivate&&!!onDeactivateMany&&view==='person'&&pickable.length>0;
   const stopSelecting=()=>{setSelecting(false);setPicked([]);setConfirming(false);};
   const deactivateChosen=async()=>{setBusy(true);try{await onDeactivateMany?.(chosen);stopSelecting();}finally{setBusy(false);setConfirming(false);}};
   const bulkBar=canSelect&&(selecting
@@ -127,7 +129,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
     {view==='person'&&bulkBar}
     {view==='person'
       ? (visible.length
-        ? <EligibilityByPerson selection={canSelect&&selecting?{picked,blocked:blockedReason,onToggle:(employee,on)=>setPicked(current=>on?[...current,employee.id]:current.filter(id=>id!==employee.id))}:undefined} employees={visible} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state==='ready'} canManage={canManage&&approvals.state==='ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} onOpenApprovals={employee=>{setSelected(employee);setToolSearch('');}} onIssue={onIssue} onSetActive={onSetActive}/>
+        ? <EligibilityByPerson selection={canSelect&&selecting?{picked,blocked:blockedReason,onToggle:(employee,on)=>setPicked(current=>on?[...current,employee.id]:current.filter(id=>id!==employee.id))}:undefined} employees={visible} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state==='ready'} canManage={canManage&&approvals.state==='ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} onOpenApprovals={employee=>{setSelected(employee);setToolSearch('');}} onIssue={onIssue} onSetActive={onSetActive} allowDeactivate={allowDeactivate}/>
         : <div className={s.empty}><Icon name="search" size={28}/><h2>No matching employees</h2><p>Try a name, employee number, supervisor or department.</p></div>)
       : <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state==='ready'} search={search} canManage={canManage&&approvals.state==='ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency}/>}
     <ToolsDialog open={!!selected} onClose={()=>setSelected(null)} title={selected?.name||'Employee details'} description={selected?`${selected.employeeNumber} · ${selected.department}`:''} wide>

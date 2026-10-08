@@ -3,7 +3,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Spinner } from '@/components/ui-system';
+import { LoadingPulse } from '@/components/ui-system';
 import { AuthForm } from '@/components/app-shell/auth/AuthForm';
 import { AuthCard, AuthPage } from '@/components/app-shell/auth/AuthLayout';
 import { useAuth } from '@/lib/auth-context';
@@ -16,11 +16,7 @@ export function MyOfficeAccessBoundary({ children }: { children: React.ReactNode
   if (isPublicWorkspacePath(pathname)) return <>{children}</>;
 
   if (loading) {
-    return (
-      <div role="status" aria-label="Checking MyOffice access" className="fixed inset-0 grid place-items-center bg-canvas text-action">
-        <Spinner className="size-6" />
-      </div>
-    );
+    return <LoadingPulse screen label="Checking MyOffice access" />;
   }
 
   if (!user) {

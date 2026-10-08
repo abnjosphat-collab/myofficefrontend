@@ -12,10 +12,11 @@ import { Tooltip } from '../overlays/Tooltip';
 type NavIconSource = IconMeaning | ElementType;
 
 /**
- * Navigation glyph: 18 px, regular weight, in a 26 px box (the Tools sidebar geometry). Weight is the shared
- * "navigation" policy, so a legacy icon wrapper cannot change it.
+ * Navigation glyph: 18 px, solid (filled), in a 26 px box (the Tools sidebar geometry). Sidebars use the Phosphor Solid style the
+ * Tools workspace adopted, so every destination reads the same way; the weight comes from the shared "emphasis" policy, so a
+ * legacy icon wrapper cannot change it. Tabs, tiles and the home module browser keep the lighter "navigation" weight.
  */
-function NavGlyph({ icon, weight = 'navigation' }: { icon: NavIconSource; weight?: 'navigation' | 'emphasis' }) {
+function NavGlyph({ icon, weight = 'emphasis' }: { icon: NavIconSource; weight?: 'navigation' | 'emphasis' }) {
   return isIconMeaning(icon) ? <Icon name={icon} size="md" weight={weight} /> : <Glyph as={icon} size="md" weight={weight} />;
 }
 

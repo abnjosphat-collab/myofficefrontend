@@ -8,6 +8,7 @@ import {
   Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows,
   type Column, type IconMeaning, type SortState, type Tone,
+  LoadingPulse,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate as formatDate } from '@/components/shared/utils';
@@ -178,7 +179,7 @@ function AvailabilityContent() {
                       <div><dt className="font-sans text-caption text-ink-muted">Total downtime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.totalBreakdownHours)}</dd></div>
                     </div>
                   </dl>
-                ) : <p className="font-sans text-body-sm text-ink-muted">{stats.error ? 'The summary could not be loaded; see the notice above.' : 'Loading…'}</p>}
+                ) : (stats.error ? <p className="font-sans text-body-sm text-ink-muted">The summary could not be loaded; see the notice above.</p> : <LoadingPulse compact label="Loading summary" />)}
               </Panel>
               <Panel title="By department" description="Average availability of the equipment shown that has a measured figure.">
                 {departments.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">No department data.</p> : (

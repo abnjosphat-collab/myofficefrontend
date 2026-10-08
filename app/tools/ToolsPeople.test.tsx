@@ -147,6 +147,18 @@ describe('ToolsPeople', () => {
     expect(screen.queryByRole('checkbox', { name: 'Select Mina Dube' })).not.toBeInTheDocument();
   });
 
+  it('hides every Deactivate button, one at a time and in bulk, when removal is switched off, but still lets someone be reactivated', async () => {
+    const user = userEvent.setup();
+    const people = [employees[1], { ...employees[0], department: 'Engineering', active: false }];
+    render(<ToolsPeople {...props} allowDeactivate={false} onDeactivateMany={async () => {}} employees={people} tools={tools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} />);
+    expect(screen.queryByRole('button', { name: /Select to deactivate/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
+    expect(screen.queryByRole('button', { name: 'Deactivate Alex Moyo' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show 1 inactive person' }));
+    await user.click(screen.getByRole('button', { name: /Mina Dube/ }));
+    expect(screen.getByRole('button', { name: 'Reactivate' })).toBeVisible();
+  });
+
   it('offers no bulk deactivation to people who cannot manage', () => {
     render(<ToolsPeople {...props} canManage={false} employees={employees} tools={tools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} onDeactivateMany={async () => {}} />);
     expect(screen.queryByRole('button', { name: /Select to deactivate/ })).not.toBeInTheDocument();

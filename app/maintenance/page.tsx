@@ -8,6 +8,7 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
   Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
+  LoadingPulse,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -199,7 +200,7 @@ function MaintenanceContent() {
         <TabsContent value="analytics" className="mt-4">
           {orders.loaded
             ? <AnalyticsView orders={items} />
-            : <p className="font-sans text-body-sm text-ink-muted">{orders.error ? 'The work orders could not be loaded; see the Work orders tab.' : 'Loading…'}</p>}
+            : (orders.error ? <p className="font-sans text-body-sm text-ink-muted">The work orders could not be loaded; see the Work orders tab.</p> : <LoadingPulse compact label="Loading work orders" />)}
         </TabsContent>
       </Tabs>
 

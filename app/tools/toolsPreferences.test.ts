@@ -17,6 +17,11 @@ describe('Tools preferences', () => {
     expect(parseToolsPreferences(JSON.stringify({ ...base, view: 'grid', viewChosen: true }))?.view).toBe('grid');
     expect(parseToolsPreferences(JSON.stringify({ ...base, view: 'list', viewChosen: true }))?.view).toBe('list');
   });
+  it('shows the Archive and Deactivate buttons unless someone switched them off', () => {
+    expect(parseToolsPreferences(JSON.stringify({ options: { order: ['register'], font: 'inter', fontSize: 100 } }))?.options.showRemoval).toBe(true);
+    expect(parseToolsPreferences(JSON.stringify({ options: { order: ['register'], font: 'inter', fontSize: 100, showRemoval: false } }))?.options.showRemoval).toBe(false);
+  });
+
   it('silently migrates stored overview sections to the register', () => {
     const result = parseToolsPreferences(JSON.stringify({ view: 'list', sidebarCollapsed: true, overviewOpen: false, options: { order: ['overview', 'register'], hidden: ['overview'], font: 'inter', fontSize: 100, guidance: true, guide: true } }));
     expect(result).toMatchObject({ view: 'list', sidebarCollapsed: true, options: { order: ['register'], hidden: [] } });

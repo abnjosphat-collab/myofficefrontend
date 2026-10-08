@@ -7,7 +7,8 @@ import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
-  type Column, FilterField
+  type Column, FilterField,
+  LoadingPulse,
 } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -203,7 +204,7 @@ function LeavesContent() {
         </TabsContent>
 
         <TabsContent value="summary" className="mt-4">
-          {!list.loaded ? <p className="font-sans text-body-sm text-ink-muted">{list.error ? 'The requests could not be loaded; see the Requests tab.' : 'Loading…'}</p> : (
+          {!list.loaded ? (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Requests tab.</p> : <LoadingPulse compact label="Loading requests" />) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Panel title="By leave type" description="Select a type to see its requests.">
                 <Distribution rows={byType.map(t => ({ name: typeOf(t.key).shortName, value: t.count }))} empty="No requests yet." />
