@@ -20,7 +20,7 @@ Overdue calculation treats rows with `due_date` and `status != 'completed'`. Any
 | Layer | Path |
 |--------|------|
 | API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates |
-| UI page | `app/maintenance/page.tsx` |
+| UI pages | `app/maintenance/work-orders/page.tsx` (register and record), `app/maintenance/schedules/page.tsx`, `app/maintenance/page.tsx` (overview and analytics); sidebar group Operations & Maintenance in `components/app-shell/modules.ts` |
 | Modals / forms | `components/maintenance/CreateWorkOrderModal.tsx`, `WorkOrderDetailModal.tsx`, `formFields.tsx`, `analytics.tsx` |
 | Related ops | Breakdowns, requisitions, spares, equipment pages may link or reference maintenance context — grep before assuming isolation |
 

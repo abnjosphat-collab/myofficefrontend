@@ -12,7 +12,7 @@ import {
 import { trackModuleUsage, type Category, type Module } from './modules';
 import { ShellBrand } from './ShellBrand';
 
-const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
+const isActive = (pathname: string, href: string, exact = false) => (href === '/' || exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
 
 export function ShellSidebar({
   open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories,
@@ -35,8 +35,8 @@ export function ShellSidebar({
   const [listOpen, setListOpen] = usePersistentState<boolean>('myoffice_nav_open', true, raw => (typeof raw === 'boolean' ? raw : undefined));
 
   const modules = visibleCategories.flatMap(c => c.modules);
-  const current = modules.find(m => isActive(pathname, m.href));
-  const activeCategoryId = visibleCategories.find(c => c.modules.some(m => isActive(pathname, m.href)))?.id;
+  const current = modules.find(m => isActive(pathname, m.href, m.exact));
+  const activeCategoryId = visibleCategories.find(c => c.modules.some(m => isActive(pathname, m.href, m.exact)))?.id;
   const home = pathname === '/';
   const close = () => onOpenChange(false);
   const go = (href: string) => () => { trackModuleUsage(href); close(); };
@@ -63,7 +63,7 @@ export function ShellSidebar({
   const list = !listOpen ? null : rail ? (
     <>
       {!(home && !current) && <NavItem label="Home" icon="home" href="/" active={home} collapsed onNavigate={close} />}
-      {favourites.map(({ module }) => <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} />)}
+      {favourites.map(({ module }) => <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href, module.exact)} collapsed onNavigate={go(module.href)} />)}
       <NavItem label="All modules" icon="app" collapsed onClick={onToggleCollapsed} />
     </>
   ) : (
@@ -84,7 +84,7 @@ export function ShellSidebar({
           label={module.title}
           icon={module.icon}
           href={module.href}
-          active={isActive(pathname, module.href)}
+          active={isActive(pathname, module.href, module.exact)}
           onNavigate={go(module.href)}
           trailing={editing && <IconButton icon="close" label={`Remove ${module.title} from favourites`} size="sm" variant="danger" onClick={() => onToggleFavorite(module.href)} />}
           className={cn(editing && 'pr-10')}
@@ -100,7 +100,7 @@ export function ShellSidebar({
               label={module.title}
               icon={module.icon}
               href={module.href}
-              active={isActive(pathname, module.href)}
+              active={isActive(pathname, module.href, module.exact)}
               onNavigate={go(module.href)}
             />
           ))}
@@ -117,7 +117,7 @@ export function ShellSidebar({
           onOpenChange={next => setExpanded(prev => ({ ...prev, [category.id]: next }))}
         >
           {category.modules.map(module => (
-            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} onNavigate={go(module.href)} />
+            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href, module.exact)} onNavigate={go(module.href)} />
           ))}
         </NavGroup>
       ))}
@@ -139,7 +139,7 @@ export function ShellSidebar({
           {spotlight(true)}
           {!(home && !current) && <NavItem label="Home" icon="home" href="/" active={home} collapsed className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />}
           {favourites.map(({ module }) => (
-            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
+            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href, module.exact)} collapsed onNavigate={go(module.href)} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
           ))}
         </>
       )}
