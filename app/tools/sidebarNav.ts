@@ -1,19 +1,13 @@
 import type { ToolsTab } from './toolSelectors';
 
 export const SIDEBAR_NAV_KEY = 'myoffice.tools.sidebar.v1';
-/** The looks the sidebar icons can take, so they can be compared side by side before one is chosen. */
+/** The looks the sidebar icons can take; the choice is made in Settings. */
 export const ICON_PACKS = [
   { id: 'phosphor-solid', label: 'Phosphor Solid' },
-  { id: 'phosphor-fill', label: 'Phosphor Fill' },
-  { id: 'phosphor-regular', label: 'Phosphor Regular' },
-  { id: 'phosphor-light', label: 'Phosphor Light' },
-  { id: 'phosphor-bold', label: 'Phosphor Bold' },
-  { id: 'phosphor-duotone', label: 'Phosphor Duotone' },
   { id: 'tabler', label: 'Tabler' },
-  { id: 'iconoir', label: 'Iconoir' },
 ] as const;
 export type IconPackId = typeof ICON_PACKS[number]['id'];
-export const DEFAULT_ICON_PACK: IconPackId = 'phosphor-regular';
+export const DEFAULT_ICON_PACK: IconPackId = 'phosphor-solid';
 export const isIconPack = (value: unknown): value is IconPackId => ICON_PACKS.some(pack => pack.id === value);
 
 export type SidebarNavState = { recent: ToolsTab[]; iconsOpen: boolean; iconPack: IconPackId };

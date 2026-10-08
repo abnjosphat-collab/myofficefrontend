@@ -35,14 +35,14 @@ describe('Sidebar navigation', () => {
   });
 
   it('loads valid state and falls back on corrupt storage', () => {
-    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ recent: ['loans'], iconsOpen: false }) }))).toEqual({ recent: ['loans'], iconsOpen: false, iconPack: 'phosphor-regular' });
-    expect(loadSidebarNav(storageWith({}))).toEqual({ recent: [], iconsOpen: true, iconPack: 'phosphor-regular' });
-    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: '{broken' }))).toEqual({ recent: [], iconsOpen: true, iconPack: 'phosphor-regular' });
-    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ recent: ['loans', 42], iconsOpen: 'yes' }) }))).toEqual({ recent: ['loans'], iconsOpen: true, iconPack: 'phosphor-regular' });
+    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ recent: ['loans'], iconsOpen: false }) }))).toEqual({ recent: ['loans'], iconsOpen: false, iconPack: 'phosphor-solid' });
+    expect(loadSidebarNav(storageWith({}))).toEqual({ recent: [], iconsOpen: true, iconPack: 'phosphor-solid' });
+    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: '{broken' }))).toEqual({ recent: [], iconsOpen: true, iconPack: 'phosphor-solid' });
+    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ recent: ['loans', 42], iconsOpen: 'yes' }) }))).toEqual({ recent: ['loans'], iconsOpen: true, iconPack: 'phosphor-solid' });
   });
 
   it('remembers the chosen icon pack and ignores one it does not know', () => {
     expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ iconPack: 'tabler' }) })).iconPack).toBe('tabler');
-    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ iconPack: 'comic-sans' }) })).iconPack).toBe('phosphor-regular');
+    expect(loadSidebarNav(storageWith({ [SIDEBAR_NAV_KEY]: JSON.stringify({ iconPack: 'phosphor-regular' }) })).iconPack).toBe('phosphor-solid');
   });
 });
