@@ -96,15 +96,9 @@ export function DataRegion({ status, subject, error, onRetry, empty, children, l
   const loading = loadingContent ?? <LoadingPulse label={`Loading ${subject}`} detail={loadingDetail} />;
   const retry = onRetry ? <Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button> : undefined;
 
-  if (status === 'loading') return <div className={className}>{loading}</div>;
-  if (status === 'retrying') {
-    return (
-      <div className={cn('flex flex-col gap-3', className)}>
-        <StatusLine tone="info"><strong className="font-medium text-ink">Still loading {subject}.</strong> The service is slow to respond. Retrying automatically.{error ? ` Last answer: ${error}` : ''}</StatusLine>
-        {loadingContent ?? <LoadingPulse compact label={`Loading ${subject}`} />}
-      </div>
-    );
-  }
+  // Retrying looks like loading: the animation says the work is still going, so there is no "slow to respond" or "last answer" notice.
+  // If the retries run out the status becomes error, which says plainly what went wrong and offers Try again.
+  if (status === 'loading' || status === 'retrying') return <div className={className}>{loading}</div>;
   if (status === 'unauthorized') {
     return <EmptyState icon="lock" title={`You do not have access to ${subject}`} description={error ?? 'Ask an administrator to grant access, or sign in with a different account.'} className={className} />;
   }

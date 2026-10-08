@@ -14,10 +14,10 @@ const STRIP_HEIGHT = 'calc(57px + var(--mo-safe-top))';
  * The navigation, laid out as the Tools sidebar.
  *
  * - **Desktop (821 px and up):** a full-height sticky column, 216 px wide or a 68 px icon rail (width eases over
- *   0.22 s). Top row: the `spotlight` (the current destination) and a collapse chevron. Below it a bordered, rounded
+ *   0.22 s). Top row: the `spotlight` header slot (whatever mark the caller owns) and a collapse chevron. Below it a bordered, rounded
  *   panel holds `children` (the destinations) and an optional `footer` toggle.
- * - **Below 821 px:** a sticky horizontal `strip` (the caller supplies a menu button that opens the drawer, the
- *   current destination and shortcut icons). The full navigation opens in an accessible drawer (Radix Dialog: focus
+ * - **Below 821 px:** a sticky horizontal `strip` (the caller supplies a menu button that opens the drawer,
+ *   Home and shortcut icons). The full navigation opens in an accessible drawer (Radix Dialog: focus
  *   trap, Escape, scroll lock, focus return) showing the same `children`.
  *
  * Callers render the same `children` in both modes, so navigation is identical at every width; pass `collapsed`
@@ -28,7 +28,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   onOpenChange: (open: boolean) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  /** The current destination (a `NavSpotlight`). */
+  /** Header slot beside the collapse chevron — brand, `NavSpotlight`, or another mark the caller owns. */
   spotlight: ReactNode;
   /** Mobile strip content. */
   strip: ReactNode;

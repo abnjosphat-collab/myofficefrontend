@@ -25,6 +25,12 @@ describe('LoadingPulse', () => {
     expect(screen.getByRole('status', { name: 'Checking MyOffice access' }).className).toContain('fixed');
   });
 
+  it('shows the animation, and no "slow to respond" or "last answer" notice, while a DataRegion retries', () => {
+    render(<DataRegion status="retrying" subject="overtime requests" error="Failed to fetch"><p>records</p></DataRegion>);
+    expect(screen.getByRole('status', { name: 'Loading overtime requests' })).toBeInTheDocument();
+    expect(screen.queryByText(/slow to respond|Retrying automatically|Last answer|Failed to fetch/)).not.toBeInTheDocument();
+  });
+
   it('is what a DataRegion shows while its records load, and only then', () => {
     const { rerender } = render(<DataRegion status="loading" subject="leave requests"><p>records</p></DataRegion>);
     expect(screen.getByRole('status', { name: 'Loading leave requests' })).toBeInTheDocument();
