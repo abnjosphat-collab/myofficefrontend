@@ -1,7 +1,22 @@
 import type { ToolsTab } from './toolSelectors';
 
 export const SIDEBAR_NAV_KEY = 'myoffice.tools.sidebar.v1';
-export type SidebarNavState = { recent: ToolsTab[]; iconsOpen: boolean };
+/** The looks the sidebar icons can take, so they can be compared side by side before one is chosen. */
+export const ICON_PACKS = [
+  { id: 'phosphor-solid', label: 'Phosphor Solid' },
+  { id: 'phosphor-fill', label: 'Phosphor Fill' },
+  { id: 'phosphor-regular', label: 'Phosphor Regular' },
+  { id: 'phosphor-light', label: 'Phosphor Light' },
+  { id: 'phosphor-bold', label: 'Phosphor Bold' },
+  { id: 'phosphor-duotone', label: 'Phosphor Duotone' },
+  { id: 'tabler', label: 'Tabler' },
+  { id: 'iconoir', label: 'Iconoir' },
+] as const;
+export type IconPackId = typeof ICON_PACKS[number]['id'];
+export const DEFAULT_ICON_PACK: IconPackId = 'phosphor-regular';
+export const isIconPack = (value: unknown): value is IconPackId => ICON_PACKS.some(pack => pack.id === value);
+
+export type SidebarNavState = { recent: ToolsTab[]; iconsOpen: boolean; iconPack: IconPackId };
 
 /** Tabs other than the current one, most-recently-used first (stable for the rest). */
 export function rankTabs<T extends { value: ToolsTab }>(tabs: T[], current: ToolsTab, recent: ToolsTab[]): T[] {
@@ -17,14 +32,15 @@ export function recordTabUse(recent: ToolsTab[], tab: ToolsTab, limit = 12): Too
 export function loadSidebarNav(storage: Pick<Storage, 'getItem'>): SidebarNavState {
   try {
     const raw = storage.getItem(SIDEBAR_NAV_KEY);
-    if (!raw) return { recent: [], iconsOpen: true };
+    if (!raw) return { recent: [], iconsOpen: true, iconPack: DEFAULT_ICON_PACK };
     const value = JSON.parse(raw) as Partial<SidebarNavState>;
     return {
       recent: Array.isArray(value.recent) ? value.recent.filter((tab): tab is ToolsTab => typeof tab === 'string') : [],
       iconsOpen: value.iconsOpen !== false,
+      iconPack: isIconPack(value.iconPack) ? value.iconPack : DEFAULT_ICON_PACK,
     };
   } catch {
-    return { recent: [], iconsOpen: true };
+    return { recent: [], iconsOpen: true, iconPack: DEFAULT_ICON_PACK };
   }
 }
 
