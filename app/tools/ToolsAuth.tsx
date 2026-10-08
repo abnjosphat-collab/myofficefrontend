@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { ToolsIcon as Icon } from './ToolsIcon';
-import { AnimatedText, tileEmergeProps } from './ToolsUI';
+import { AnimatedText } from './ToolsUI';
 import { AnimatedSelect } from './AnimatedSelect';
 import type { ApprovalRole } from './complianceTypes';
 import type { AccountRole, WorkspaceAccount } from './prototype';
@@ -11,16 +10,37 @@ import s from './tools.module.css';
 
 const APPROVAL_ROLES:Array<{value:ApprovalRole;label:string}>=[{value:'hos',label:'HOS'},{value:'hod',label:'HOD'},{value:'security',label:'Security'},{value:'finance',label:'Finance'},{value:'general_manager',label:'General manager'}];
 
-function AccountAccessRow({account,departments,index,onUpdate}:{account:WorkspaceAccount;departments:string[];index:number;onUpdate:(id:string,role:AccountRole,department?:string,approvalRoles?:ApprovalRole[])=>void}) {
-  const reduced=useReducedMotion();
-  const [role,setRole]=useState<AccountRole>(account.role);const [department,setDepartment]=useState(account.department||departments[0]||'Engineering');
-  const [approvalRoles,setApprovalRoles]=useState<ApprovalRole[]>(account.approvalRoles||[]);
-  return <motion.div className={s.accountAccessRow} {...tileEmergeProps(index, reduced)}><div><strong>{account.name}</strong><small>{account.username}</small></div><AnimatedSelect ariaLabel={`Role for ${account.name}`} value={role} onChange={value=>setRole(value as AccountRole)} options={[{value:'viewer',label:'Viewer · department read only'},{value:'issuer',label:'Issuer · record movements'},{value:'admin',label:'Admin · manage system'}]}/>{role!=='admin'&&<AnimatedSelect ariaLabel={`Department for ${account.name}`} value={department} onChange={setDepartment} options={departments.map(value=>({value,label:value}))}/>}<div className={s.approvalRolePicker}>{APPROVAL_ROLES.map(item=><label key={item.value}><input type="checkbox" aria-label={`${item.label} approval role for ${account.name}`} checked={approvalRoles.includes(item.value)} onChange={event=>setApprovalRoles(current=>event.target.checked?[...current,item.value]:current.filter(value=>value!==item.value))}/><span>{item.label}</span></label>)}</div><div className={s.accountAccessActions}><button type="button" className={s.secondary} onClick={()=>onUpdate(account.id,role,role==='admin'?undefined:department,approvalRoles)}>Apply access</button>{account.role==='issuer'&&<button type="button" className={s.textButton} onClick={()=>{setRole('viewer');void onUpdate(account.id,'viewer',department,approvalRoles);}}>Revoke issuing</button>}</div></motion.div>;
+const ROLE_OPTIONS=[{value:'viewer',label:'Viewer · reads their department'},{value:'issuer',label:'Issuer · records movements'},{value:'admin',label:'Admin · manages the system'}];
+const sameRoles=(left:ApprovalRole[],right:ApprovalRole[])=>left.length===right.length&&left.every(role=>right.includes(role));
+
+/** One account: who it is, what it may do, which department it sees and which gate-pass steps it may sign. Apply is live only once something differs. */
+function AccountAccessRow({account,departments,onUpdate}:{account:WorkspaceAccount;departments:string[];onUpdate:(id:string,role:AccountRole,department?:string,approvalRoles?:ApprovalRole[])=>void|Promise<void>}) {
+  const savedDepartment=account.department||departments[0]||'Engineering';
+  const [role,setRole]=useState<AccountRole>(account.role);const [department,setDepartment]=useState(savedDepartment);
+  const [approvalRoles,setApprovalRoles]=useState<ApprovalRole[]>(account.approvalRoles||[]);const [saving,setSaving]=useState(false);
+  const changed=role!==account.role||(role!=='admin'&&department!==savedDepartment)||!sameRoles(approvalRoles,account.approvalRoles||[]);
+  async function apply(){setSaving(true);try{await onUpdate(account.id,role,role==='admin'?undefined:department,approvalRoles);}finally{setSaving(false);}}
+  return <div className={s.acctRow} role="row" data-changed={changed}>
+    <div className={s.acctPerson} role="cell"><span className={s.acctAvatar} aria-hidden="true"><Icon name="user" size={20}/></span><span><strong>{account.name}</strong><small>{account.username}</small></span></div>
+    <div className={s.acctCell} role="cell" data-label="Access"><AnimatedSelect ariaLabel={`Role for ${account.name}`} value={role} onChange={value=>setRole(value as AccountRole)} options={ROLE_OPTIONS}/></div>
+    <div className={s.acctCell} role="cell" data-label="Department">{role==='admin'?<span className={s.acctAll}>All departments</span>:<AnimatedSelect ariaLabel={`Department for ${account.name}`} value={department} onChange={setDepartment} options={departments.map(value=>({value,label:value}))}/>}</div>
+    <div className={s.acctCell} role="cell" data-label="Gate-pass signing"><div className={s.approvalRolePicker} role="group" aria-label={`Gate-pass signing roles for ${account.name}`}>{APPROVAL_ROLES.map(item=><label key={item.value} data-on={approvalRoles.includes(item.value)}><input type="checkbox" aria-label={`${item.label} approval role for ${account.name}`} checked={approvalRoles.includes(item.value)} onChange={event=>setApprovalRoles(current=>event.target.checked?[...current,item.value]:current.filter(value=>value!==item.value))}/><span>{item.label}</span></label>)}</div></div>
+    <div className={s.acctActions} role="cell"><button type="button" className={changed?s.primary:s.secondary} disabled={!changed||saving} onClick={()=>void apply()}>{saving?'Applying…':changed?'Apply changes':'Up to date'}</button>{account.role==='issuer'&&!changed&&<button type="button" className={s.textButton} onClick={()=>{setRole('viewer');void onUpdate(account.id,'viewer',savedDepartment,approvalRoles);}}>Revoke issuing</button>}</div>
+  </div>;
 }
 
 export function ToolsAccountAccess({accounts,departments,onUpdateRole}:{accounts:WorkspaceAccount[];departments:string[];onUpdateRole:(id:string,role:AccountRole,department?:string,approvalRoles?:ApprovalRole[])=>void|Promise<void>}) {
-  const admins=accounts.filter(account=>account.role==='admin').length;const issuers=accounts.filter(account=>account.role==='issuer').length;const viewers=accounts.filter(account=>account.role==='viewer').length;
-  return <section className={`${s.accountAccess} ${s.accountAccessDashboard}`}><div className={s.accountAccessHeader}><div><h2>Account access</h2><p>Grant register access, assign departments, and authorize gate-pass signing roles.</p></div><div className={s.accountAccessSummary}><span><strong><AnimatedText value={accounts.length}>{accounts.length}</AnimatedText></strong>{accounts.length===1?'Account':'Accounts'}</span><span><strong><AnimatedText value={admins}>{admins}</AnimatedText></strong>{admins===1?'Admin':'Admins'}</span><span><strong><AnimatedText value={issuers}>{issuers}</AnimatedText></strong>{issuers===1?'Issuer':'Issuers'}</span><span><strong><AnimatedText value={viewers}>{viewers}</AnimatedText></strong>{viewers===1?'Viewer':'Viewers'}</span></div></div><p className={s.formHint}>Non-admin accounts see only their assigned department. Approval roles do not grant register editing; they only permit the named person to sign that exact gate-pass step after password or PIN verification.</p><div className={s.accountAccessList}>{accounts.map((account,i)=><AccountAccessRow key={account.id} account={account} departments={departments} index={i} onUpdate={onUpdateRole}/>)}</div></section>;
+  const count=(role:AccountRole)=>accounts.filter(account=>account.role===role).length;
+  const summary=[{label:accounts.length===1?'Account':'Accounts',value:accounts.length},{label:count('admin')===1?'Admin':'Admins',value:count('admin')},{label:count('issuer')===1?'Issuer':'Issuers',value:count('issuer')},{label:count('viewer')===1?'Viewer':'Viewers',value:count('viewer')}];
+  return <section className={s.acct} aria-labelledby="acct-title">
+    <header className={s.acctHeader}><div><h2 id="acct-title">Account access</h2><p>Decide who can see and change the register, which department they work in, and who may sign gate passes.</p></div>
+      <dl className={s.acctSummary}>{summary.map(item=><div key={item.label}><dd><AnimatedText value={item.value}>{item.value}</AnimatedText></dd><dt>{item.label}</dt></div>)}</dl></header>
+    <p className={s.acctNote}><Icon name="info" size={16}/><span>People outside the admin group only see their own department. A gate-pass signing role does not allow editing the register: it only lets that person sign that one step, after confirming their password or PIN.</span></p>
+    <div className={s.acctTable} role="table" aria-label="Accounts">
+      <div className={s.acctHead} role="row"><span role="columnheader">Person</span><span role="columnheader">Access</span><span role="columnheader">Department</span><span role="columnheader">Gate-pass signing</span><span role="columnheader"><span className={s.srOnly}>Action</span></span></div>
+      {accounts.map(account=><AccountAccessRow key={account.id} account={account} departments={departments} onUpdate={onUpdateRole}/>)}
+    </div>
+  </section>;
 }
 
 export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogout, onCancel, allowCancel = true }: { accounts: WorkspaceAccount[]; currentAccount: WorkspaceAccount | null; onCreate: (account: WorkspaceAccount) => void | Promise<void>; onLogin: (username: string, password: string) => Promise<true | string>; onLogout: () => void; onCancel: () => void; allowCancel?: boolean }) {

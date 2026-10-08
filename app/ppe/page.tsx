@@ -64,7 +64,13 @@ function PPEContent() {
   };
   const save = async (data: FormState, id?: string) => {
     if (id) { await updatePPERecord(id, data); order.remove(id); } else await createPPERecord(data);
+    const replaced = form?.fulfils ? records.find(r => String(r.id) === form.fulfils && r.status === 'active') : undefined;
     if (form?.fulfils) order.remove(form.fulfils);
+    // Issuing from the order list replaces the item that was due: retire it, or the card keeps showing it as due.
+    if (replaced) {
+      try { await setPPEStatus(replaced.id, 'returned'); }
+      catch (e) { toast.error(`The new item was issued, but the old ${typeName(replaced.ppe_type)} was not marked returned: ${(e as Error).message}`); }
+    }
     order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
     reload();
   };

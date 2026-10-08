@@ -383,6 +383,7 @@ export {
   Wind,
   Wine,
   Wine as WineIcon,
+  WhatsappLogo as Whatsapp,
   FlowArrow as Workflow,
   Wrench,
   X,

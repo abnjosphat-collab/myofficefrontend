@@ -20,6 +20,7 @@ const spec = {
     'PUT /api/standby/3': {},
     'DELETE /api/standby/4': {},
     '/api/leaves': LEAVES,
+    '/api/duty-roster': [],
     '/api/employees': EMPLOYEES,
   },
   async ready(page, calls, { check, shot }) {
@@ -28,6 +29,7 @@ const spec = {
     check(await page.getByText('On duty', { exact: true }).first().isVisible() && await page.getByText('Standby', { exact: true }).first().isVisible(), 'today\'s status is stated in words');
     check(await page.getByText('in 2 days', { exact: true }).first().isVisible(), 'an off-duty person shows the real number of days until their next on day, not a percentage');
     check(await page.getByText('Cycle not set').first().isVisible(), 'a legacy record with no cycle says so instead of "on, off"');
+    check(await page.getByText('No duty official named for this week.').isVisible(), 'an empty duty week says so');
     await shot(page, 'cards@1440');
 
     await page.getByRole('button', { name: /^Standby\s*\d/ }).click();

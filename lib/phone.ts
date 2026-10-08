@@ -55,6 +55,19 @@ export function telHref(raw?: string | null): string {
   return digits ? `tel:+${digits}` : '';
 }
 
+/**
+ * WhatsApp (wa.me) link for the primary number, or '' when it isn't a dialable
+ * international number (E.164: leading +, 10–15 digits). Zimbabwe mobiles always
+ * qualify; short notes like "call office" never do.
+ */
+export function whatsappHref(raw?: string | null): string {
+  const primary = primaryContactPhone(raw).trim();
+  if (!primary.startsWith('+')) return '';
+  const digits = phoneDigits(primary);
+  if (digits.length < 10 || digits.length > 15) return '';
+  return `https://wa.me/${digits}`;
+}
+
 /** Display multiple numbers with a middle dot — each number canonicalized. */
 export function formatPhoneDisplay(raw?: string | null): string {
   if (!raw?.trim()) return '';

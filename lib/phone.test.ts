@@ -3,6 +3,7 @@ import {
   primaryContactPhone,
   splitPhoneNumbers,
   telHref,
+  whatsappHref,
   formatPhoneDisplay,
   formatSinglePhone,
   hasContactPhone,
@@ -50,6 +51,20 @@ describe('telHref', () => {
   });
   it('returns empty when no digits', () => {
     expect(telHref('call office')).toBe('');
+  });
+});
+
+describe('whatsappHref', () => {
+  it('builds a wa.me link from the primary number', () => {
+    expect(whatsappHref('077 123 4567 / 071 234 5678')).toBe('https://wa.me/263771234567');
+    expect(whatsappHref('+263773907726')).toBe('https://wa.me/263773907726');
+    expect(whatsappHref('263779135536')).toBe('https://wa.me/263779135536');
+  });
+  it('returns empty when the number is not dialable internationally', () => {
+    expect(whatsappHref('call office')).toBe('');
+    expect(whatsappHref('12345')).toBe('');
+    expect(whatsappHref()).toBe('');
+    expect(whatsappHref('   ')).toBe('');
   });
 });
 

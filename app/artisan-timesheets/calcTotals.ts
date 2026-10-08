@@ -19,7 +19,6 @@ export function emptyDayRow(dateStr: string): ArtisanTimesheetDayRow {
     ot_20: 0,
     sb_15: 0,
     sb_20: 0,
-    night_shift: 0,
     on_standby: false,
     sign_in_time: '',
     sign_in_signature: '',
@@ -73,9 +72,8 @@ export function calcArtisanTimesheetTotals(rows: ArtisanTimesheetDayRow[]): Arti
       ot_20: acc.ot_20 + (row.ot_20 || 0),
       sb_15: acc.sb_15 + (row.sb_15 || 0),
       sb_20: acc.sb_20 + (row.sb_20 || 0),
-      night_shift: acc.night_shift + (row.night_shift || 0),
     }),
-    { normal_hrs: 0, ot_15: 0, ot_20: 0, sb_15: 0, sb_20: 0, night_shift: 0 },
+    { normal_hrs: 0, ot_15: 0, ot_20: 0, sb_15: 0, sb_20: 0 },
   );
 }
 

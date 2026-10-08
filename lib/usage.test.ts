@@ -6,7 +6,7 @@ import {
   topModules, topSearches, usageByHour, dwellByPath, getFeedback, summarize,
   fmtDuration, hourWeekdayHeat, trackSearch, getSearchHistory, clearSearchHistory,
   clearUsage, usageOverTime, usageByHourSplit, dailyActivity, topUsers, signedInVsAnonymous,
-  byModule, moduleKeyOf,
+  byModule, moduleKeyOf, recentModuleHrefs,
   type UsageEvent, type EnrichedUsageEvent,
 } from '@/lib/usage';
 
@@ -223,5 +223,40 @@ describe('search history (localStorage-backed)', () => {
     trackSearch('gamma', 1);
     clearSearchHistory();
     expect(getSearchHistory()).toHaveLength(0);
+  });
+});
+
+describe('recentModuleHrefs', () => {
+  const open = (href: string, ts: number): UsageEvent => ({ type: 'module_open', ts, href });
+  const view = (path: string, ts: number): UsageEvent => ({ type: 'page_view', ts, path });
+
+  it('returns distinct hrefs newest first', () => {
+    const events = [open('/a', 1), open('/b', 2), open('/a', 3), open('/c', 4)];
+    expect(recentModuleHrefs(events)).toEqual(['/c', '/a', '/b']);
+  });
+
+  it('ignores non-navigation events', () => {
+    const events: UsageEvent[] = [
+      open('/a', 1),
+      view('/b', 2),
+      { type: 'search', ts: 3, query: 'x', results: 0 },
+      { type: 'feedback', ts: 4, page: '/a', rating: 5, text: 'ok' },
+      open('/b', 5),
+    ];
+    expect(recentModuleHrefs(events)).toEqual(['/b', '/a']);
+  });
+
+  it('respects the limit and defaults to five', () => {
+    const events = Array.from({ length: 8 }, (_, i) => open(`/m${i}`, i));
+    expect(recentModuleHrefs(events)).toHaveLength(5);
+    expect(recentModuleHrefs(events)[0]).toBe('/m7');
+    expect(recentModuleHrefs(events, 2)).toEqual(['/m7', '/m6']);
+  });
+
+  it('returns empty for no opens, and skips malformed entries', () => {
+    expect(recentModuleHrefs([])).toEqual([]);
+    expect(recentModuleHrefs([view('/a', 1)])).toEqual([]);
+    const events = [open('/a', 1), { type: 'module_open', ts: 2 } as unknown as UsageEvent, open('/b', 3)];
+    expect(recentModuleHrefs(events)).toEqual(['/b', '/a']);
   });
 });

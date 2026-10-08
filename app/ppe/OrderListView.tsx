@@ -4,7 +4,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, DataTable, DataRegion, EmptyState, Notice, SearchField, Select, StatusBadge, useConfirm, type Column } from '@/components/ui-system';
+import { Button, DataTable, DataRegion, EmptyState, Icon, Notice, SearchField, Select, StatusBadge, useConfirm, type Column } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -24,6 +24,7 @@ export function OrderListView({ entries, onRemove, onClear, onIssue }: { entries
   const [size, setSize] = useState(ALL);
   const [urgency, setUrgency] = useState<OrderListUrgency>('all');
   const [sort, setSort] = useState<OrderListSortKey>('expiry');
+  const [linesOpen, setLinesOpen] = useState(false); // the purchase order lines start closed; open them when a purchase order is being prepared
   const sizes = useMemo(() => [...new Set(entries.map(e => normSize(e.size)))].sort(), [entries]);
   const rows = useMemo(() => sortOrderList(filterOrderList(entries, { type, size, search, urgency }), sort), [entries, type, size, search, urgency, sort]);
   const groups = useMemo(() => groupOrderList(rows), [rows]);
@@ -54,10 +55,15 @@ export function OrderListView({ entries, onRemove, onClear, onIssue }: { entries
 
       <DataRegion status={rows.length ? 'ready' : 'empty'} subject="order list" empty={<EmptyState icon="search" title="Nothing matches" description="Try fewer filters." />}>
         <section aria-labelledby="po-h" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4 shadow-card">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h2 id="po-h" className="font-display text-title font-semibold text-ink">Purchase order lines</h2>
-            <DownloadButton data={groups.map(g => ({ item_name: g.item_name, size: g.size, count: g.count, people: g.people.join(', ') })) as unknown as Record<string, unknown>[]} columns={COLUMNS_EXPORT} filename={exportFilename('PPE_Order_List')} title="PPE Order List" subtitle={`${rows.length} items`} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="po-h" className="font-display text-title font-semibold text-ink">
+              <button type="button" aria-expanded={linesOpen} aria-controls="po-lines" onClick={() => setLinesOpen(o => !o)} className="-m-1 inline-flex items-center gap-2 rounded-control p-1 text-left hover:bg-surface-muted focus-ring">
+                <Icon name={linesOpen ? 'chevron-up' : 'chevron-down'} size="md" />Purchase order lines<span className="font-sans text-body-sm font-normal text-ink-muted">{groups.length} {groups.length === 1 ? 'line' : 'lines'}</span>
+              </button>
+            </h2>
+            {linesOpen && <DownloadButton data={groups.map(g => ({ item_name: g.item_name, size: g.size, count: g.count, people: g.people.join(', ') })) as unknown as Record<string, unknown>[]} columns={COLUMNS_EXPORT} filename={exportFilename('PPE_Order_List')} title="PPE Order List" subtitle={`${rows.length} items`} />}
           </div>
-          <ul className="flex flex-col divide-y divide-line-subtle" aria-label="Purchase order lines">
+          <ul id="po-lines" hidden={!linesOpen} className="flex flex-col divide-y divide-line-subtle" aria-label="Purchase order lines">
             {groups.map(g => <li key={`${g.ppe_type}-${g.size}`} className="flex flex-wrap items-baseline gap-x-3 py-2 font-sans text-body-sm"><span className="font-semibold tabular text-ink">{g.count} ×</span><span className="font-medium text-ink">{typeName(g.ppe_type)}, size {g.size}</span><span className="min-w-0 flex-1 text-ink-muted [overflow-wrap:anywhere]">for {g.people.join(', ')}</span></li>)}
           </ul>
         </section>

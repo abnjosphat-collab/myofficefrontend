@@ -3,6 +3,8 @@ import { DEFAULT_OPTIONS, type WorkspaceOptions } from './ToolsCustomize';
 export const TOOLS_PREFERENCES_KEY = 'myoffice.tools.preferences.v1';
 export type ToolsStoredPreferences = {
   view: 'grid' | 'list';
+  /** True only once someone has picked a layout themselves. The register opens as a list until then, so an old automatic save of the former default does not keep it as a grid. */
+  viewChosen?: boolean;
   sidebarCollapsed: boolean;
 
   options: WorkspaceOptions;
@@ -21,7 +23,8 @@ export function parseToolsPreferences(raw: string | null): ToolsStoredPreference
     const uniqueOrder = [...new Set(order)];
     for (const required of DEFAULT_OPTIONS.order) if (!uniqueOrder.includes(required)) uniqueOrder.push(required);
     return {
-      view: value.view === 'list' ? 'list' : 'grid',
+      view: value.viewChosen === true && value.view === 'grid' ? 'grid' : 'list',
+      viewChosen: value.viewChosen === true,
       sidebarCollapsed: value.sidebarCollapsed === true,
 
       options: {

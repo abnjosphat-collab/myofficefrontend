@@ -7,11 +7,12 @@ import { CATEGORIES, DEPARTMENTS, JOBS, PEOPLE, defaultEquipmentKind, department
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { AnimatedSelect } from './AnimatedSelect';
 import { ToolsDateInput } from './ToolsDateInput';
+import { EmployeePicker } from './ToolsEmployeePicker';
 import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
 import { EvidencePicker, Help, type AddEvidence } from './ToolsUI';
 import s from './tools.module.css';
 
-export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false, emptyMessage = 'No suggestions for this text.' }: { label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean; emptyMessage?: string }) {
+export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false, emptyMessage = 'No suggestions for this text.', maxResults = 8 }: { label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean; emptyMessage?: string; maxResults?: number }) {
   const id = useId();
   const popoverId = `suggest-${id}`;
   const root = useRef<HTMLDivElement>(null);
@@ -22,7 +23,7 @@ export function SuggestField({ label, options, value, onChange, onSelect, requir
   const [active, setActive] = useState(0);
   const [placement, setPlacement] = useState<'down' | 'up'>('down');
   const [floatingStyle, setFloatingStyle] = useState<CSSProperties & Record<string, string | number | undefined>>({});
-  const matches = options.filter(option => option.toLowerCase().includes(value.toLowerCase())).slice(0, 8);
+  const matches = options.filter(option => option.toLowerCase().includes(value.toLowerCase())).slice(0, maxResults);
   const choose = (option: string) => { onChange(option); onSelect?.(option); setOpen(false); setActive(0); };
   const show = () => {
     announceToolsPopover(popoverId);
@@ -125,12 +126,16 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const [gatePass, setGatePass] = useState('');
   const [approvalRef, setApprovalRef] = useState('');
   const [preUseCheckCompleted,setPreUseCheckCompleted]=useState(false);
+  const [overrideDue,setOverrideDue]=useState(false);
+  const [overrideReason,setOverrideReason]=useState('');
   const [department, setDepartment] = useState(initialTool ? departmentOf(initialTool) : initialEmployee?.department||issuerDepartment||'Engineering');
   const [error, setError] = useState('');
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
   const eligibleIds=new Set((tool?.eligibleEmployees||[]).flatMap(employee=>[employee.id,employee.employeeNumber]));
   const departmentEmployees=employees.filter(employee=>employee.active&&(!issuerDepartment||employee.department===issuerDepartment));
-  const employeeOptions = departmentEmployees.filter(employee=>!tool||tool.eligibleEmployees===undefined||eligibleIds.has(employee.backendId||'')||eligibleIds.has(employee.employeeNumber)).map(employee=>`${employee.name} · ${employee.employeeNumber}`);
+  const eligibleEmployees = departmentEmployees.filter(employee=>!tool||tool.eligibleEmployees===undefined||eligibleIds.has(employee.backendId||'')||eligibleIds.has(employee.employeeNumber));
+  const employeeChoices = eligibleEmployees.map(employee=>({label:`${employee.name} · ${employee.employeeNumber}`,detail:[employee.jobTitle,employee.department].filter(Boolean).join(' · ')}));
+  const employeeOptions = employeeChoices.map(choice=>choice.label);
   const employeeEmptyMessage=tool&&departmentEmployees.length
     ? `No employee is currently trained, qualified and authorized for ${tool.name}. Update Compliance before issue.`
     : `No active employee is available${issuerDepartment?` in ${issuerDepartment}`:''}.`;
@@ -139,6 +144,8 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     const employee=employees.find(item=>`${item.name} · ${item.employeeNumber}`===label);
     if (employee?.department) setDepartment(employee.department);
   };
+  const dueChecks=['issue','transfer'].includes(kind)?(tool?.inspectionDue||[]):[];
+  const needsOverride=dueChecks.length>0;
   const needsCalibration = !!tool && ['digital-multimeter', 'clamp-meter', 'torque-wrench', 'test-instrument'].includes(tool.kind);
   const notesRequired = kind === 'extend' || (kind === 'return' && condition !== 'Good');
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -150,18 +157,22 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     if (['issue', 'transfer'].includes(kind) && !job.trim()) return setError('Add the work order or job reference.');
     if (['issue', 'extend'].includes(kind) && !isFuture(due)) return setError('Choose a return time in the future.');
     if (kind === 'extend' && tool.dueISO && Date.parse(due) <= Date.parse(tool.dueISO)) return setError('The new return time must be later than the current deadline.');
+    if (needsOverride&&!overrideDue) return setError(`The ${dueChecks.map(item=>item.replace('_',' ')).join(', ')} check is overdue. Complete it, or tick "Go ahead anyway" and give a reason.`);
+    if (needsOverride&&overrideReason.trim().length<5) return setError('Give a short reason (at least 5 characters) for going ahead with an overdue check.');
     if (kind==='issue'&&tool.preUseCheckRequired===true&&!preUseCheckCompleted) return setError('Confirm that the employee completed the pre-use inspection.');
     if (notesRequired && !notes.trim()) return setError('Add a short note so the next person has the context.');
     if (kind === 'transfer' && (!gatePass.trim() || !approvalRef.trim())) return setError('Record the gate pass and existing approval reference.');
     const displayDue = due ? new Date(due).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-    onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, preUseCheckCompleted });
+    onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, preUseCheckCompleted, overrideDueChecks: needsOverride&&overrideDue, overrideReason: needsOverride&&overrideDue?overrideReason.trim():undefined });
   }
   return <form onSubmit={handleSubmit} className={s.form}>
     <SuggestField label="Tool" options={candidates.map(t => `${t.id} · ${t.name}`)} value={toolLabel} onChange={setToolLabel} hint="Search by tool name or ID. Only tools eligible for this action appear." />
     {tool && <div className={s.formContext}><Icon name={tool.holder ? 'user' : 'department'} /><span>{tool.holder ? <>With <strong>{tool.holder.split(' · ')[0]}</strong></> : departmentOf(tool)}<small>{tool.holder ? `Expected ${tool.due}` : `${tool.location} · ${tool.condition}`}</small></span></div>}
+    {needsOverride&&<div className={`${s.formContext} ${s.formContextWarning}`} role="status"><Icon name="alert"/><span><strong>{dueChecks.map(item=>item.replace('_',' ')).join(', ')} check overdue</strong><small>You can still {kind==='transfer'?'transfer':'issue'} this equipment. Say why, and the reason is kept in its history.</small></span></div>}
+    {needsOverride&&<div className={s.overrideBox}><label className={s.checkRow}><input type="checkbox" checked={overrideDue} onChange={event=>setOverrideDue(event.target.checked)}/><span><strong>Go ahead anyway</strong><small>The overdue check has not been done or the equipment is not yet maintained.</small></span></label>{overrideDue&&<div className={s.field}><label htmlFor="tools-override-reason">Reason for going ahead</label><textarea id="tools-override-reason" aria-label="Reason for going ahead" rows={2} required value={overrideReason} onChange={event=>setOverrideReason(event.target.value)} placeholder="For example: breakdown repair, the inspection is booked for tomorrow."/></div>}</div>}
     {['issue','transfer'].includes(kind)&&tool&&!employeeOptions.length&&<div className={`${s.formContext} ${s.formContextWarning}`} role="status"><Icon name="alert"/><span><strong>No eligible employee for this equipment</strong><small>{departmentEmployees.length} active {issuerDepartment||departmentOf(tool)} {departmentEmployees.length===1?'employee exists':'employees exist'}, but none has current training, qualification and authorization for {tool.name}. Update the Compliance register first.</small></span></div>}
     <div className={s.formColumns}>
-      {['issue', 'transfer'].includes(kind) && <SuggestField label="Employee" options={employeeOptions} value={person} onChange={setPerson} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} hint="Only active employees with current training, qualification and authorization for the selected equipment can be chosen. Their saved details fill automatically." />}
+      {['issue', 'transfer'].includes(kind) && <EmployeePicker label="Employee" choices={employeeChoices} value={person} onChange={setPerson} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} hint="Only active employees with current training, qualification and authorization for the selected equipment are listed. Their saved details fill automatically."/>}
       {kind !== 'extend' && <SuggestField label={kind==='return'?'Return location':'Current work location'} options={locationSuggestions} value={location} onChange={setLocation} hint="Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently."/>}
       {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={JOBS} value={job} onChange={setJob} hint="Select a suggested work order or enter the job reference from the paper record." />}
       {['issue', 'extend'].includes(kind) && <div className={s.field}><div className={s.fieldHeading}><label htmlFor="tools-due">Expected return</label><Help label="Expected return">Choose the local date and time. Clicking anywhere in the field opens the picker.</Help></div><ToolsDateInput aria-label="Expected return" id="tools-due" name="due" type="datetime-local" required /></div>}

@@ -13,6 +13,8 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
 import { AssignDialog } from './AssignDialog';
+import { DutyDialog } from '@/app/standby/DutyDialog';
+import { DutyStrip } from './DutyStrip';
 import { EventDialog } from './EventDialog';
 import { ScheduleGrid } from './ScheduleGrid';
 import { ShiftDetail } from './ShiftDetail';
@@ -20,7 +22,10 @@ import { cycleProgress, d2s, daysUntilNextOn, todayStatus } from './calcShifts';
 import { NO_ROSTER_FILTERS, findLeave, type RosterFilters } from './cellLogic';
 import { DAY_STATUS, SHIFT_PATTERNS, STATUS_KEYS, patternOf } from './shiftMeta';
 import type { ScheduleEvent, ShiftAssignment, ShiftType } from './types';
+import type { DutyEntry } from '@/app/standby/types';
 import { createAssignment, deleteAssignment, updateAssignment, useShiftsData } from './useShiftsData';
+import { createDutyEntry, updateDutyEntry, useDutyRoster } from '@/app/standby/useStandbyData';
+import { useEmployees } from '@/hooks/useLookups';
 
 const ALL = 'all';
 const SORTS = [{ value: 'created_at', label: 'Newest first' }, { value: 'name', label: 'Name A to Z' }, { value: 'shift_type', label: 'Pattern' }, { value: 'cycle_start_date', label: 'Start date' }];
@@ -44,6 +49,10 @@ function ShiftsContent() {
   const [editing, setEditing] = useState<ShiftAssignment | null>(null);
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [eventTarget, setEventTarget] = useState<{ assignment: ShiftAssignment; date: string } | null>(null);
+  const duty = useDutyRoster();
+  const employees = useEmployees();
+  const [dutyOpen, setDutyOpen] = useState(false);
+  const [editingDuty, setEditingDuty] = useState<DutyEntry | null>(null);
   const set = (patch: Partial<RosterFilters>) => setF(p => ({ ...p, ...patch }));
   const viewing = useMemo(() => items.find(i => i.id === viewingId) ?? null, [items, viewingId]);
 
@@ -81,6 +90,12 @@ function ShiftsContent() {
     catch (e) { throw new Error(`The assignment was not saved: ${(e as Error).message}`); }
     await list.refetch();
   };
+  const saveDuty = async (id: number | null, payload: Record<string, unknown>) => {
+    try { if (id === null) await createDutyEntry(payload as Parameters<typeof createDutyEntry>[0]); else await updateDutyEntry(id, payload); }
+    catch (e) { throw new Error(`The duty official was not saved: ${(e as Error).message}`); }
+    toast.success(id === null ? 'Duty official named.' : 'Duty official updated.');
+    await duty.refetch();
+  };
   const saveEvents = async (a: ShiftAssignment, events: ScheduleEvent[]) => {
     try { await updateAssignment(a.id, { day_overrides: events }); }
     catch (e) { throw new Error(`The events were not saved: ${(e as Error).message}`); }
@@ -109,7 +124,7 @@ function ShiftsContent() {
         description="Who is on duty, off duty or on standby, by shift cycle."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded)} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded) || (duty.loading && duty.loaded)} onClick={() => { refresh(); duty.refetch(); }} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('Shifts')} title="Shifts" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button>
           </>
@@ -137,6 +152,8 @@ function ShiftsContent() {
         <Select className="w-48" aria-label="Filter by pattern" value={f.type} onValueChange={v => set({ type: v })} options={[{ value: ALL, label: 'All patterns' }, ...(Object.keys(SHIFT_PATTERNS) as ShiftType[]).map(t => ({ value: t, label: `${SHIFT_PATTERNS[t].label} (${typeCounts[t] ?? 0})` }))]} />
         <Select className="w-44" aria-label="Filter by today's status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'Any status today' }, ...STATUS_KEYS.map(s => ({ value: s, label: DAY_STATUS[s].label }))]} />
       </Toolbar>
+
+      <DutyStrip items={duty.items} loaded={duty.loaded} loading={duty.loading} error={duty.error} onRetry={() => duty.refetch()} employees={employees} onNew={() => { setEditingDuty(null); setDutyOpen(true); }} onEdit={e => { setEditingDuty(e); setDutyOpen(true); }} />
 
       <DataRegion
         status={status} subject="shift assignments" error={list.error} onRetry={() => list.refetch()}
@@ -189,6 +206,7 @@ function ShiftsContent() {
       <ShiftDetail assignment={viewing} onClose={() => setViewingId(null)} onEdit={openForm} onDelete={remove} />
       <AssignDialog open={formOpen} assignment={editing} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} />
       <EventDialog target={eventTarget} onClose={() => setEventTarget(null)} onSave={saveEvents} />
+      <DutyDialog open={dutyOpen} entry={editingDuty} onOpenChange={o => { setDutyOpen(o); if (!o) setEditingDuty(null); }} onSave={saveDuty} />
     </div>
   );
 }

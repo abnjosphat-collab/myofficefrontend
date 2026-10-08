@@ -18,7 +18,9 @@ export interface ModuleActions {
   onToggleSelected: (href: string) => void;
 }
 
-function ModuleTile({ module, row, actions }: { module: Module; row: boolean; actions: ModuleActions }) {
+// Exported for the TestHomepage concept's per-category accordion; the home page
+// itself keeps composing it through ModuleBrowser below. Zero behavior change.
+export function ModuleTile({ module, row, actions }: { module: Module; row: boolean; actions: ModuleActions }) {
   const favorite = actions.favorites.has(module.href);
   const selected = actions.selected.has(module.href);
   const titleClasses = "text-left font-display text-title font-semibold leading-snug text-ink outline-none after:absolute after:inset-0 after:rounded-card after:content-['']";

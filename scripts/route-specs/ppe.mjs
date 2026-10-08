@@ -92,9 +92,27 @@ const spec = {
 
     // order list
     await page.getByRole('tab', { name: /^Order list/ }).click();
-    check(await page.getByRole('heading', { name: 'Purchase order lines' }).isVisible(), 'the order list shows purchase order lines');
+    const poToggle = page.getByRole('button', { name: /Purchase order lines/ });
+    check(await poToggle.isVisible() && await poToggle.getAttribute('aria-expanded') === 'false', 'the purchase order lines start collapsed');
+    check(!(await page.getByRole('list', { name: 'Purchase order lines' }).isVisible()), 'collapsed lines are hidden so they do not get in the way');
+    await poToggle.click();
+    check(await page.getByRole('list', { name: 'Purchase order lines' }).isVisible(), 'opening the section shows the purchase order lines');
     await shot(page, 'order@1440');
     check(await page.getByText('Shared order list').isVisible(), 'the order list says it is shared');
+    // issuing from the order list saves the new item and retires the one that was due, or the card keeps showing it as due
+    const dueId = [...ORDER.keys()][0];
+    const before = calls.length;
+    await page.getByRole('button', { name: 'Issue', exact: true }).first().click();
+    const issue = dialog('Issue PPE');
+    await issue.waitFor({ timeout: 5000 });
+    await issue.getByRole('button', { name: 'Issue PPE' }).click();
+    const unknown = page.getByRole('alertdialog');
+    if (await unknown.waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await unknown.getByRole('button', { name: 'Save anyway' }).click();
+    await page.waitForTimeout(800);
+    const after = calls.slice(before);
+    check(after.some(c => c.method === 'POST' && c.pathname === '/api/ppe'), 'issuing from the order list saves the new record');
+    check(after.some(c => c.method === 'PATCH' && c.pathname === `/api/ppe/${dueId}` && c.body.status === 'returned'), 'the item that was due is marked returned', JSON.stringify(after.map(c => `${c.method} ${c.pathname}`)));
+    await page.getByRole('tab', { name: /^Order list/ }).click();
     await page.getByRole('button', { name: /^Remove/ }).first().click().catch(() => {});
     await page.waitForTimeout(400);
     check(ORDER.size === 0 && calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe-order-list/remove'), 'removing an item removes it from the shared list on the server');

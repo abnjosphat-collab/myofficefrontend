@@ -19,7 +19,7 @@ export const STATUS: Record<Status, string> = { available: 'Ready to use', issue
 export const PEOPLE = ['Alex Morgan · EMP-014', 'Jordan Ellis · EMP-028', 'Sam Taylor · EMP-036', 'Casey Brooks · EMP-041'];
 export const LOCATIONS = ['Main workshop', 'Mechanical bay', 'Electrical bay', 'South workshop'];
 export const JOBS = ['WO-2408 · Conveyor service', 'WO-2412 · Pump inspection', 'WO-2416 · Workshop repairs'];
-export const CATEGORIES = ['Power tools', 'Hand tools', 'Test & measure', 'Welding', 'Lifting equipment', 'IT equipment', 'Surveying', 'Lighting', 'Other equipment'];
+export const CATEGORIES = ['Power tools', 'Hand tools', 'Test & measure', 'Welding', 'Lifting equipment', 'IT equipment', 'Surveying', 'Lighting', 'Electrical equipment', 'Other equipment'];
 export const EQUIPMENT_TYPES: ReadonlyArray<{ value: EquipmentKind; label: string; category: string }> = [
   { value: 'cordless-drill', label: 'Cordless drill / driver', category: 'Power tools' },
   { value: 'rotary-hammer', label: 'Rotary hammer', category: 'Power tools' },
@@ -38,9 +38,31 @@ export const EQUIPMENT_TYPES: ReadonlyArray<{ value: EquipmentKind; label: strin
   { value: 'laptop', label: 'Laptop or computer', category: 'IT equipment' },
   { value: 'survey-equipment', label: 'Survey equipment', category: 'Surveying' },
   { value: 'work-lamp', label: 'Work lamp', category: 'Lighting' },
+  { value: 'other-equipment', label: 'Other electrical equipment', category: 'Electrical equipment' },
   { value: 'tool-kit', label: 'Tool kit', category: 'Other equipment' },
   { value: 'other-equipment', label: 'Other equipment', category: 'Other equipment' },
 ];
+
+// A category the register stores can be blank or spelled differently ("Power", "Hand", "Survey"). The category filter compares exactly,
+// so such a tool would sit under "Other equipment" or under no category at all. This puts every tool under one of the known categories.
+const CATEGORY_ALIASES: Record<string, string> = { power: 'Power tools', 'power tool': 'Power tools', hand: 'Hand tools', 'hand tool': 'Hand tools', survey: 'Surveying', 'test and measure': 'Test & measure', electrical: 'Electrical equipment', lifting: 'Lifting equipment', it: 'IT equipment' };
+const CATEGORY_HINTS: ReadonlyArray<[RegExp, string]> = [
+  [/weld/, 'Welding'], [/torque wrench|socket|spanner/, 'Hand tools'],
+  [/megger|multimeter|voltmeter|clamp meter|laser (distance|level)|gas detector/, 'Test & measure'],
+  [/extension (cable|adapter|lead)|adapter|heat shrink|hot air|cable reel/, 'Electrical equipment'],
+  [/grinder|drill|hammer|impact|wrench|engraver|blower|power float|sander|polisher/, 'Power tools'],
+  [/lamp|torch/, 'Lighting'], [/laptop|computer|printer|scanner|projector/, 'IT equipment'],
+  [/total station|gnss|survey|optical level/, 'Surveying'], [/lifting|chain block|hoist|sling/, 'Lifting equipment'],
+];
+export function categoryOf(name: string, category?: string | null): string {
+  const raw = (category || '').trim();
+  if (raw) {
+    const known = CATEGORIES.find(value => value.toLowerCase() === raw.toLowerCase());
+    return known ?? CATEGORY_ALIASES[raw.toLowerCase()] ?? raw;
+  }
+  const label = name.toLowerCase();
+  return CATEGORY_HINTS.find(([pattern]) => pattern.test(label))?.[1] ?? 'Other equipment';
+}
 export function equipmentTypesForCategory(category: string) { return EQUIPMENT_TYPES.filter(type => type.category === category); }
 export function defaultEquipmentKind(category: string): EquipmentKind { return equipmentTypesForCategory(category)[0]?.value ?? 'other-equipment'; }
 const EQUIPMENT_KINDS = new Set<EquipmentKind>(EQUIPMENT_TYPES.map(type => type.value));
@@ -76,7 +98,7 @@ export const primaryToolImage = (tool: Tool) => tool.evidence?.find(file => file
 export const SEED_TOOLS: Tool[] = [];
 export const SEED_ACTIVITY: Activity[] = [];
 export type ActionKind = 'issue' | 'return' | 'transfer' | 'extend';
-export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; assignedEquipment?: string[]; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string; preUseCheckCompleted?:boolean };
+export type Movement = { kind: ActionKind; toolId: string; person: string; location: string; due: string; job: string; assignedEquipment?: string[]; condition: string; notes: string; dueISO?: string; evidence?: Evidence[]; calibration?: string; approvalRef?: string; gatePass?: string; movementScope?: string; department?: string; preUseCheckCompleted?:boolean; overrideDueChecks?:boolean; overrideReason?:string };
 export function applyMovement(tool: Tool, input: Movement): Tool {
   if (tool.archived) throw new Error('Restore this tool before recording a movement.');
   if (input.kind === 'issue' && tool.status !== 'available') throw new Error('This tool is not available to issue.');

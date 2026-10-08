@@ -93,8 +93,12 @@ const EXTRA = {
     { name: 'import-scans', open: p => click(p, 'button', 'Import scans') },
   ],
   '/artisan-timesheets': [
-    { name: 'signature', open: async p => { await p.getByRole('combobox', { name: 'Artisan' }).click(); await p.getByRole('option').first().click(); await click(p, 'button', 'Open month'); await p.getByRole('region', { name: /Daily timesheet/ }).waitFor(); await click(p, 'button', /^Sign in, .*not signed/); } },
-    { name: 'comment', open: async p => { await p.getByRole('combobox', { name: 'Artisan' }).click(); await p.getByRole('option').first().click(); await click(p, 'button', 'Open month'); await p.getByRole('region', { name: /Daily timesheet/ }).waitFor(); await click(p, 'button', /^Comments for/); } },
+    { name: 'signature', open: async p => { await p.getByRole('combobox', { name: 'Artisan' }).click(); await p.getByRole('option').first().click(); await p.getByRole('tab', { name: 'Day cards' }).waitFor(); await click(p, 'tab', 'Day cards'); await click(p, 'button', /^Sign in, .*not signed/); } },
+    { name: 'comment', open: async p => { await p.getByRole('combobox', { name: 'Artisan' }).click(); await p.getByRole('option').first().click(); await p.getByRole('tab', { name: 'Day cards' }).waitFor(); await click(p, 'tab', 'Day cards'); await click(p, 'button', /^Comments for/); } },
+  ],
+  '/standby': [
+    { name: 'rotation', open: async p => { await click(p, 'tab', 'Rotations'); await click(p, 'button', 'New rotation'); } },
+    { name: 'duty', open: async p => { await click(p, 'tab', 'Duty officials'); await click(p, 'button', 'Name official'); } },
   ],
   '/quotations': [{ name: 'confirm-new', open: async p => { await p.getByLabel('Client name').fill('Acme'); await click(p, 'button', 'New'); } }],
   '/inventory': [{ name: 'add', open: p => click(p, 'button', 'Add item') }],

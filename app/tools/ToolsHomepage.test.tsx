@@ -25,8 +25,36 @@ describe('ToolsHomepage', () => {
     expect(onNavigate).toHaveBeenCalledWith('register', 'all');
     await user.click(screen.getByRole('button', { name: /Angle grinder overdue/ }));
     expect(onNavigate).toHaveBeenCalledWith('loans', 'all');
+    await user.click(screen.getByRole('button', { name: /Recent movements/ }));
     await user.click(screen.getByRole('button', { name: /Torque wrench/ }));
     expect(onNavigate).toHaveBeenCalledWith('activity', 'all');
+  });
+
+  it('keeps recent movements closed until asked, shows how many there are, and remembers the choice', async () => {
+    window.localStorage.removeItem('myoffice.tools.movementsOpen');
+    const user = userEvent.setup();
+    const props = { stats, attention, movements, historyFailed: false, attentionFailed: false, sections, scopeLabel, onNavigate: vi.fn(), onRetry: vi.fn() };
+    const { unmount } = render(<ToolsHomepage {...props} />);
+    const toggle = screen.getByRole('button', { name: /Recent movements/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('1');
+    expect(screen.queryByText('Torque wrench · return')).not.toBeInTheDocument();
+    await user.click(toggle);
+    expect(screen.getByText('Torque wrench · return')).toBeVisible();
+    unmount();
+    render(<ToolsHomepage {...props} />);
+    expect(screen.getByRole('button', { name: /Recent movements/ })).toHaveAttribute('aria-expanded', 'true');
+    window.localStorage.removeItem('myoffice.tools.movementsOpen');
+  });
+
+  it('leads with the stat tiles and shortcuts, and puts recent movements last', () => {
+    window.localStorage.removeItem('myoffice.tools.movementsOpen');
+    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} />);
+    const order = ['Equipment: 12', 'Needs attention', 'Workspace shortcuts', 'Recent movements'].map(name => {
+      const node = screen.queryByRole('button', { name }) ?? screen.queryByLabelText(name) ?? screen.queryByRole('button', { name: /Recent movements/ });
+      return node!;
+    });
+    for (let i = 0; i < order.length - 1; i++) expect(order[i].compareDocumentPosition(order[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows unavailable states with retry instead of zeroes', async () => {
@@ -66,7 +94,8 @@ describe('ToolsHomepage', () => {
     render(<ToolsHomepage stats={loadingStats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} historyLoading attentionLoading sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Equipment: 12' })).toBeInTheDocument();
     expect(screen.getByLabelText('Employees, loading')).toBeInTheDocument();
-    expect(screen.getAllByText('Loading the latest records…')).toHaveLength(2);
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0);
+    expect(screen.getByText('Loading the latest records…')).toBeInTheDocument();
     expect(screen.queryByText('Everything is clear. No overdue returns, open incidents or due checks.')).not.toBeInTheDocument();
     expect(screen.queryByText('No movements recorded yet.')).not.toBeInTheDocument();
   });

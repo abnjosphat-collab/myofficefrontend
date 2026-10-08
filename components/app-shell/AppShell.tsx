@@ -68,6 +68,7 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
             collapsed={s.sidebarCollapsed}
             onToggleCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
             favoriteModules={s.favoriteModules}
+            recentModules={s.recentModules}
             onToggleFavorite={s.toggleFavorite}
             visibleCategories={s.visibleCategories}
           />

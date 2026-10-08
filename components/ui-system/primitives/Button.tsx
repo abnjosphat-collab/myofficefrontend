@@ -93,7 +93,7 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-const iconButtonVariants = cva(
+export const iconButtonVariants = cva(
   [
     'focus-ring touch-target inline-flex shrink-0 items-center justify-center rounded-control border',
     'transition-[background-color,border-color,color] duration-[var(--mo-duration-base)] ease-standard',

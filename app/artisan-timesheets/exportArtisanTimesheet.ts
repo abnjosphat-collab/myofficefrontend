@@ -12,6 +12,13 @@ function fmtHours(n: number): string {
   return (n || 0).toFixed(2);
 }
 
+/** Visible Excel text for a day comment: capped so the sheet stays scannable (the full text rides along as a cell note). */
+export function summarizeComment(comment: string, maxLen = 80): string {
+  const text = comment.trim().replace(/\s+/g, ' ');
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen - 1).trimEnd()}…`;
+}
+
 function fileStub(record: ArtisanTimesheetRecord): string {
   const safeName = record.employee_name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
   return `Artisan_Timesheet_${safeName}_${record.year}_${String(record.month).padStart(2, '0')}`;
@@ -25,7 +32,7 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
   wb.creator = 'Ozech MyOffice';
   const ws = wb.addWorksheet('Timesheet', { views: [{ state: 'frozen', ySplit: 8, xSplit: 2 }] });
 
-  const COLS = 16;
+  const COLS = 12;
   ws.mergeCells(1, 1, 1, COLS);
   const title = ws.getCell(1, 1);
   title.value = 'ARTISAN DAILY TIMESHEET';
@@ -38,8 +45,6 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
     ['Employee Name', record.employee_name],
     ['ID Number', record.id_number || '—'],
     ['Month', `${monthName(record.month)} ${record.year}`],
-    ['Shift Rate', record.shift_rate != null ? String(record.shift_rate) : '—'],
-    ['Hourly Rate', record.hourly_rate != null ? String(record.hourly_rate) : '—'],
   ];
   headerPairs.forEach(([label, value], i) => {
     const row = ws.getRow(3 + Math.floor(i / 2));
@@ -60,7 +65,7 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
   const hdrRowNum = 7;
   const hdr = ws.getRow(hdrRowNum);
   hdr.values = [
-    'Date', 'Day', 'Status', 'Normal Hrs', 'O/T @ 1.5', 'O/T @ 2.0', 'SB @ 1.5', 'SB @ 2.0', 'Night Shift', 'Standby',
+    'Date', 'Day', 'Status', 'Normal Hrs', 'O/T @ 1.5', 'O/T @ 2.0', 'Standby',
     'Sign In', 'Sign In Sig.', 'Sign Out', 'Sign Out Sig.', 'Comments',
   ];
   hdr.height = 28;
@@ -80,9 +85,6 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
       fmtHours(row.normal_hrs),
       fmtHours(row.ot_15),
       fmtHours(row.ot_20),
-      fmtHours(row.sb_15),
-      fmtHours(row.sb_20),
-      fmtHours(row.night_shift),
       row.on_standby ? 'Yes' : '',
       row.sign_in_time || '',
       row.sign_in_signature ? 'Signed' : '',
@@ -98,7 +100,12 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: stripe ? 'FFF6F9FB' : 'FFFFFFFF' } };
       c.border = CELL_BORDER;
     });
-    dataRow.getCell(15).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    dataRow.getCell(12).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+    if (row.comments?.trim()) {
+      const summary = summarizeComment(row.comments);
+      dataRow.getCell(12).value = summary;
+      if (summary !== row.comments) dataRow.getCell(12).note = row.comments;
+    }
   });
 
   const totalsRowNum = hdrRowNum + 1 + record.daily_rows.length;
@@ -108,9 +115,6 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
     fmtHours(totals.normal_hrs),
     fmtHours(totals.ot_15),
     fmtHours(totals.ot_20),
-    fmtHours(totals.sb_15),
-    fmtHours(totals.sb_20),
-    fmtHours(totals.night_shift),
     '', '', '', '', '', '',
   ];
   totalsRow.eachCell({ includeEmpty: true }, c => {
@@ -142,7 +146,7 @@ export async function downloadArtisanTimesheetExcel(record: ArtisanTimesheetReco
     row.height = 18;
   });
 
-  [9, 5, 12, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8, 22].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  [9, 5, 12, 8, 8, 8, 7, 8, 8, 8, 8, 22].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
   const buf = await wb.xlsx.writeBuffer();
   saveAs(
@@ -167,14 +171,14 @@ export async function downloadArtisanTimesheetPdf(record: ArtisanTimesheetRecord
   doc.setFontSize(9);
   const headerLines = [
     `Mine No.: ${record.employee_id || '—'}    Employee: ${record.employee_name}    ID: ${record.id_number || '—'}`,
-    `Month: ${monthName(record.month)} ${record.year}    Shift Rate: ${record.shift_rate ?? '—'}    Hourly Rate: ${record.hourly_rate ?? '—'}`,
+    `Month: ${monthName(record.month)} ${record.year}`,
   ];
   headerLines.forEach((line, i) => doc.text(line, 10, 20 + i * 5));
 
   autoTable(doc, {
     startY: 32,
     head: [[
-      'Date', 'Day', 'Status', 'Normal', 'OT 1.5', 'OT 2.0', 'SB 1.5', 'SB 2.0', 'Night', 'SB',
+      'Date', 'Day', 'Status', 'Normal', 'OT 1.5', 'OT 2.0', 'SB',
       'In', 'In Sig', 'Out', 'Out Sig', 'Comments',
     ]],
     body: record.daily_rows.map(row => [
@@ -184,9 +188,6 @@ export async function downloadArtisanTimesheetPdf(record: ArtisanTimesheetRecord
       fmtHours(row.normal_hrs),
       fmtHours(row.ot_15),
       fmtHours(row.ot_20),
-      fmtHours(row.sb_15),
-      fmtHours(row.sb_20),
-      fmtHours(row.night_shift),
       row.on_standby ? 'Yes' : '',
       row.sign_in_time || '',
       row.sign_in_signature ? 'Signed' : '',
@@ -199,9 +200,6 @@ export async function downloadArtisanTimesheetPdf(record: ArtisanTimesheetRecord
       fmtHours(totals.normal_hrs),
       fmtHours(totals.ot_15),
       fmtHours(totals.ot_20),
-      fmtHours(totals.sb_15),
-      fmtHours(totals.sb_20),
-      fmtHours(totals.night_shift),
       '', '', '', '', '', '',
     ]],
     styles: { fontSize: 6.5, cellPadding: 1, lineColor: [148, 163, 184], lineWidth: 0.1 },
@@ -209,7 +207,7 @@ export async function downloadArtisanTimesheetPdf(record: ArtisanTimesheetRecord
     footStyles: { fillColor: [228, 238, 245], textColor: EXPORT_BRAND_RGB, fontStyle: 'bold', halign: 'center' },
     alternateRowStyles: { fillColor: [246, 249, 251] },
     columnStyles: {
-      14: { cellWidth: 36, halign: 'left' },
+      11: { cellWidth: 36, halign: 'left' },
     },
   });
 
