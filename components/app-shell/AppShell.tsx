@@ -20,6 +20,9 @@ import { AppShellContext } from './context';
 import { QuickActionsManagePanel } from './QuickActionsManagePanel';
 import { ActiveNoticesPopup } from './ActiveNoticesPopup';
 
+// The sidebar lists the favourites only. An empty list keeps the sidebar's Recent section out of sight without removing it from the component.
+const NO_RECENT_MODULES: never[] = [];
+
 export function AppShell({ children, migrated = false }: { children: ReactNode; migrated?: boolean }) {
   const s = useAppShellState();
   const { appearance } = useAppearance();
@@ -68,7 +71,7 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
             collapsed={s.sidebarCollapsed}
             onToggleCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
             favoriteModules={s.favoriteModules}
-            recentModules={s.recentModules}
+            recentModules={NO_RECENT_MODULES}
             onToggleFavorite={s.toggleFavorite}
             visibleCategories={s.visibleCategories}
           />
