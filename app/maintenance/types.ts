@@ -55,3 +55,16 @@ export interface MaintenanceEvent {
 }
 
 export interface WorkOrderComment { id: number; work_order_id: number; body: string; author_name: string; created_at: string; }
+
+/** One person on approved leave on a day (GET /api/maintenance/registers/leave). */
+export interface LeaveRow { employee_id: string | null; employee_name: string; leave_type: string | null; start_date: string; end_date: string; }
+
+/** One tool from the Tools & Equipment register (GET /api/maintenance/registers/tools, read-only). */
+export interface ToolRegisterRow {
+  id: string; register_number: string; name: string; make_model: string | null; category: string | null; equipment_kind: string | null; department: string | null;
+  /** available, issued, overdue or attention. */
+  status: string; holder: string | null; expected_return_at: string | null; inspection_due: string[]; condition: string | null;
+}
+
+/** A tool a work order needs. A null register number is free text that is not on the register. */
+export interface WorkOrderTool { id?: number; tool_register_number: string | null; tool_name: string; note: string | null; }

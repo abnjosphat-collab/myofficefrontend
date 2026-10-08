@@ -127,7 +127,29 @@ const spec = {
     await nw.getByRole('button', { name: 'Add', exact: true }).click();
     await nw.getByLabel(/^Or type a machine name/).fill('Pump Y');
     await nw.getByRole('button', { name: 'Add', exact: true }).click();
-    await nw.getByLabel(/^Allocated to/).fill('Alex');
+    // pickers: a person on leave is greyed with the reason and dates and cannot be filled; a tool is picked from the Tools register with its warning
+    const who = nw.getByLabel(/^Allocated to/);
+    await who.fill('lee');
+    const leeRow = nw.getByRole('option', { name: /Lee Jones/ });
+    await leeRow.waitFor({ timeout: 5000 });
+    check(await leeRow.getAttribute('aria-disabled') === 'true' && /On annual leave, \d+ \w+ to \d+ \w+/.test(await leeRow.innerText()), 'a person on leave is greyed with the reason and dates');
+    await page.waitForTimeout(250); await shot(page, 'picker-leave@1440');
+    await who.press('Tab');
+    check(await who.inputValue() === 'lee', 'Tab does not fill someone who is on leave');
+    await who.fill('ale');
+    await who.press('Tab');
+    check(await who.inputValue() === 'Alex Smith' && await nw.getByText('From the employees register.').first().isVisible(), 'Tab fills the match and says it came from the register');
+    await who.fill('Alex');
+    const tool = nw.getByRole('combobox', { name: 'Add a tool' });
+    await tool.fill('torq');
+    await tool.press('Tab');
+    const needed = nw.getByRole('list', { name: 'Tools needed' });
+    check(await needed.getByText('Torque wrench').isVisible() && await nw.getByText(/Overdue to Alex Smith/).isVisible(), 'a tool from the Tools register is added with a warning that it is overdue');
+    await tool.fill('Big hammer');
+    await tool.press('Enter');
+    check(await needed.getByText('Not on the Tools register').isVisible(), 'a tool that is not on the register is kept as typed and says so');
+    await needed.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(250); await shot(page, 'picker-tools@1440');
     await nw.getByLabel(/^Job request/).fill('Grease the bearings');
     fx.f.refuseMachine = 'Pump Y';
     await nw.getByRole('button', { name: 'Raise 2 work orders' }).click();
@@ -135,6 +157,8 @@ const spec = {
     check(await nw.getByText(/Pump Y: Asset is locked \(fixture\)/).isVisible() && await nw.getByRole('button', { name: 'Raise work order' }).isVisible(), 'a refused machine is named with its reason and only it stays for a retry');
     await shot(page, 'new-error@1440');
     fx.f.refuseMachine = null;
+    const toolsSaved = calls.filter(c => c.method === 'PUT' && /\/work-orders\/99\/tools$/.test(c.pathname)).pop();
+    check(toolsSaved?.body.tools?.length === 2 && toolsSaved.body.tools[0].tool_register_number === 'PP-UG-0001' && toolsSaved.body.tools[1].tool_register_number === null, 'the raised work order saves its tools with the register number kept for the one from the register', JSON.stringify(toolsSaved?.body));
     await nw.getByRole('button', { name: 'Cancel' }).click();
   },
   create: {

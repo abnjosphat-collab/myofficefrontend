@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Field, FormDialog, Icon, Input, Segmented, Select, Textarea, cn } from '@/components/ui-system';
-import { PersonInput } from '@/components/shared/PersonInput';
+import { PersonField } from './PersonField';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
 import { createSchedule, updateSchedule } from './api';
@@ -59,8 +59,8 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Department" optional><Input value={d.to_department} onChange={e => set({ to_department: e.target.value })} placeholder="Engineering" /></Field>
           <Field label="Priority"><Select aria-label="Priority" value={d.priority} onValueChange={v => set({ priority: v as WorkOrderPriority })} options={PRIORITIES} /></Field>
-          <Field label="Allocated to" optional><PersonInput value={d.allocated_to} onChange={v => set({ allocated_to: v })} placeholder="Type to search employees" /></Field>
-          <Field label="Authorising foreman" optional><PersonInput value={d.authorising_foreman} onChange={v => set({ authorising_foreman: v })} placeholder="Type to search employees" /></Field>
+          <Field label="Allocated to" optional><PersonField value={d.allocated_to} onChange={v => set({ allocated_to: v })} /></Field>
+          <Field label="Authorising foreman" optional><PersonField value={d.authorising_foreman} onChange={v => set({ authorising_foreman: v })} /></Field>
           <Field label="Estimated hours"><Input type="number" min={0.5} step={0.5} value={d.estimated_hours} onChange={e => set({ estimated_hours: e.target.value })} /></Field>
         </div>
 

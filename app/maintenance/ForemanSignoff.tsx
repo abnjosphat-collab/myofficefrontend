@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Field, Input, Notice, Select } from '@/components/ui-system';
-import { PersonInput } from '@/components/shared/PersonInput';
+import { PersonField } from './PersonField';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { todayLocal } from '@/lib/dates';
 import { conflictOf, updateWorkOrder } from './api';
@@ -50,7 +50,7 @@ export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: 
       <section aria-labelledby="fs-sign" className="flex flex-col gap-3 rounded-card border border-line p-4">
         <h3 id="fs-sign" className="font-sans text-label font-semibold text-ink">Foreman sign-off</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Foreman name"><PersonInput value={f.foreman_name} onChange={v => set({ foreman_name: v })} placeholder="Type to search employees" /></Field>
+          <Field label="Foreman name"><PersonField value={f.foreman_name} onChange={v => set({ foreman_name: v })} /></Field>
           <Field label="Signature"><SignOffField label="Foreman signature" signerName={f.foreman_name} value={f.foreman_sign} onChange={v => set({ foreman_sign: v })} /></Field>
           <Field label="Date"><Input type="date" value={f.foreman_date} onChange={e => set({ foreman_date: e.target.value })} /></Field>
         </div>
