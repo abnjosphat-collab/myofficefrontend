@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ARTISAN_FILTER_VALUE } from '@/lib/employeeCatalog';
-import { NO_FILTERS, filterEmployees, formProblems, fullName, groupByProfession, groupBySectionAndProfession, isFiltered, sortEmployees, summarise, tenure } from './roster';
+import { NO_FILTERS, filterEmployees, formProblems, fullName, groupByProfession, groupBySectionAndProfession, isFiltered, necEmployees, sortEmployees, summarise, tenure } from './roster';
 import type { Employee } from './types';
 
 const emp = (o: Partial<Employee> = {}): Employee => ({ id: 1, employee_id: 'C1', first_name: 'Ann', last_name: 'Alpha', ...o }) as Employee;
@@ -85,5 +85,13 @@ describe('formProblems', () => {
       employee_id: 'Enter the mine number.', last_name: 'Enter the last name.', id_number: 'Enter the national ID or passport number.', designation: 'Choose the designation.',
     });
     expect(formProblems({ employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter' })).toEqual({});
+  });
+});
+
+describe('necEmployees', () => {
+  it('keeps only people on NEC terms, leaving out salaried staff and anyone with no type set', () => {
+    const list = [{ employment_type: 'NEC', id: 1 }, { employment_type: 'SALARIED', id: 2 }, { employment_type: '', id: 3 }, { employment_type: 'NEC', id: 4 }] as Array<Pick<Employee, 'employment_type'> & { id: number }>;
+    expect(necEmployees(list).map(e => e.id)).toEqual([1, 4]);
+    expect(necEmployees([])).toEqual([]);
   });
 });

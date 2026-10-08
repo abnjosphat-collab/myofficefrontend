@@ -102,7 +102,8 @@ function addGroupSpacer(ws: import('exceljs').Worksheet) {
 }
 
 /** Single-sheet registry export — grouped by designation, formatted for print/handout. */
-export async function exportPersonnelRegistryExcel(employees: Employee[], filename: string): Promise<void> {
+/** `title` heads the sheet and names its tab, so a filtered export (for example NEC only) says what it covers. */
+export async function exportPersonnelRegistryExcel(employees: Employee[], filename: string, title = 'Personnel Registry'): Promise<void> {
   if (employees.length === 0) {
     toast.error('No employees to export');
     return;
@@ -116,7 +117,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Ozech MyOffice';
     wb.created = new Date();
-    const ws = wb.addWorksheet('Personnel Registry', {
+    const ws = wb.addWorksheet(title.slice(0, 31), {
       views: [{ state: 'frozen', ySplit: 4, activeCell: 'A5' }],
     });
 
@@ -127,7 +128,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
     }));
     ws.getColumn(PHONE_COL).numFmt = '@';
 
-    const titleRow = ws.addRow(['Personnel Registry']);
+    const titleRow = ws.addRow([title]);
     titleRow.height = 32;
     titleRow.getCell(1).font = { bold: true, size: 18, color: { argb: EXPORT_BRAND_ARGB }, name: 'Calibri' };
     titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
@@ -214,7 +215,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
       new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
       `${filename}.xlsx`,
     );
-    toast.success(`Personnel Registry exported — ${employees.length} employees, ${groups.length} designations`);
+    toast.success(`${title} exported — ${employees.length} employees, ${groups.length} designations`);
   } catch (err) {
     toast.error(`Export failed: ${(err as Error).message}`);
   }

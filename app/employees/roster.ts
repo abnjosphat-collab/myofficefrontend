@@ -12,7 +12,9 @@ export const CLASS_OPTIONS = ['Permanent', 'Contract', 'Internship', 'Part-Time'
 export const CLASS_TONE: Record<string, Tone> = { Permanent: 'success', Contract: 'warning', Internship: 'info', 'Part-Time': 'brand' };
 export const ETYPE_TONE: Record<string, Tone> = { NEC: 'info', SALARIED: 'brand' };
 export const ETYPE_LABEL: Record<string, string> = { NEC: 'NEC', SALARIED: 'Salaried' };
-export const fullName = (e: Pick<Employee, 'first_name' | 'last_name'>) => `${e.first_name} ${e.last_name}`.trim();
+/** The NEC register: employees on NEC terms (Class 2 trades, assistants, drivers, attendants and the like), not the salaried artisans, foremen and management. People with no type set are left out until one is recorded. */
+export const necEmployees = <T extends Pick<Employee, 'employment_type'>>(list: T[]): T[] => list.filter(e => e.employment_type === 'NEC');
+export const fullName =(e: Pick<Employee, 'first_name' | 'last_name'>) => `${e.first_name} ${e.last_name}`.trim();
 
 /** Whole years and months since engagement (a month counts once its day has come round), as "3y 4m"; "Less than a month" for a new start; empty when there is no valid date. */
 export function tenure(engaged?: string, now = new Date()): string {

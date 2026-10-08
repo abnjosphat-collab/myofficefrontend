@@ -23,7 +23,7 @@ import { NormalizeRosterDialog } from './NormalizeRosterDialog';
 import { RosterExportDialog } from './RosterExportDialog';
 import { RosterGroups } from './RosterGroups';
 import {
-  CLASS_OPTIONS, CLASS_TONE, ETYPE_LABEL, ETYPE_TONE, NO_FILTERS, artisansOnly, filterEmployees, fullName, groupBySectionAndProfession, isFiltered, sortEmployees, summarise, tenure, type RosterFilters,
+  CLASS_OPTIONS, CLASS_TONE, ETYPE_LABEL, ETYPE_TONE, NO_FILTERS, artisansOnly, filterEmployees, fullName, groupBySectionAndProfession, isFiltered, necEmployees, sortEmployees, summarise, tenure, type RosterFilters,
 } from './roster';
 import type { Employee, SortDir, SortField } from './types';
 import { removeEmployee, saveEmployee, useRoster } from './useEmployeesData';
@@ -91,6 +91,14 @@ function EmployeesContent() {
     finally { setExporting(false); }
   };
 
+  const necList = useMemo(() => necEmployees(active), [active]);
+  const downloadNecRegistry = async () => {
+    setExporting(true);
+    try { await exportPersonnelRegistryExcel(necList, exportFilename('NEC_Personnel_Registry'), 'NEC Personnel Registry'); }
+    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); }
+    finally { setExporting(false); }
+  };
+
   const actionsOf = (e: Employee) => (
     <span className="inline-flex gap-1">
       <IconButton icon="edit" size="sm" variant="ghost" label={`Edit ${fullName(e)}`} onClick={() => setFormFor({ employee: e })} />
@@ -133,6 +141,7 @@ function EmployeesContent() {
             <IconButton icon="refresh" label="Refresh personnel" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu pending={exporting} items={[
               { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || exporting, onSelect: downloadRegistry },
+              { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || exporting, onSelect: downloadNecRegistry },
               { label: 'Organised roster', icon: 'export-roster', disabled: active.length === 0, onSelect: () => setRosterOpen(true) },
               ...(canNormalise ? [{ label: 'Normalise', icon: 'normalize' as const, disabled: active.length === 0, onSelect: () => setNormalising(true) }] : []),
             ]} />
