@@ -104,10 +104,10 @@
       "note": "Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns."
     },
     "/timesheets": {
-      "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (grid, entry, bulk and phone layout inspected; 820/844/1180 by the no-overflow checks); ready and empty states, and a refused refresh that keeps the grid (a server outage is retried automatically by the page's own read, so it is not a failed state). NEC and salaried rosters, approved leave laid over as 8 hours and pending overtime shown as Pending, entering a day, quick add (the role's normal shift), quick remove, keyboard fill across two days, bulk entry for the weekdays, copy-previous asking before it replaces, adding a person by hand, per-period notes, the Excel workbook (read back: values, the Actual and 1.5x formulas), and the scan import dialog opening. No live data; PDF and Excel were not opened in their apps.",
-      "note": "Presentation moved to the shared system; payroll rules (calcTotals), merging, fill and write rules, the hooks and the exports are unchanged and keep their own tests. The user's in-progress edits to those files were left as they were."
+      "status": "unverified",
+      "date": "2026-10-08",
+      "scope": "Route spec (NEC-only roster with salaried exclusion, period summary, grid, entry, bulk, copy-previous, downloads, honest failure) plus unit tests for the payroll math and the new summary; no fixture browser run since the NEC-only cut and reskin.",
+      "note": "NEC Timesheets: salaried tab removed (artisans have their own module), artisan-language period summary; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green."
     },
     "/employees": {
       "status": "verified",

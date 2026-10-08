@@ -41,13 +41,13 @@ function appendTimesheetExcelSignatures(
 
 export interface ExportArgs {
   employees: Employee[]; timesheets: TimesheetEntry[]; approvedOvertime: ApprovedOvertimeRecord[]; getHourTotals: (empId: string) => HourTotals;
-  period: Period; periodType: string; scope: 'combined' | 'individual'; empId: string;
+  period: Period; scope: 'combined' | 'individual'; empId: string;
 }
 
 /** The two downloads for one roster, period and scope. */
-export function makeExporters({ employees, timesheets, approvedOvertime, getHourTotals, period, periodType, scope, empId }: ExportArgs) {
+export function makeExporters({ employees, timesheets, approvedOvertime, getHourTotals, period, scope, empId }: ExportArgs) {
   const days = getDays(period);
-  const tabLabel = periodType === 'nec' ? 'NEC' : 'Salaried';
+  const tabLabel = 'NEC';
 
   const getEntry = (eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d));
   const periodDateStrs = days.map(d => fmtDate(d));
@@ -294,7 +294,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `timesheet-${periodType}-${fmtDate(period.start)}.xlsx`; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `timesheet-nec-${fmtDate(period.start)}.xlsx`; a.click(); URL.revokeObjectURL(url);
   };
 
   const downloadPDF = async () => {
@@ -365,7 +365,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
         });
       });
     }
-    doc.save(`timesheet-${periodType}-${fmtDate(period.start)}.pdf`);
+    doc.save(`timesheet-nec-${fmtDate(period.start)}.pdf`);
   };
 
   return { downloadExcel, downloadPDF, dayCell };

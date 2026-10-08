@@ -51,7 +51,7 @@ export interface MergeEffectiveTimesheetsInput {
   approvedOvertime: ApprovedOvertimeRecord[];
   shiftAssignments: ShiftAssignment[];
   dayStrs: string[];
-  tabIds: string[];
+  rosterIds: string[];
   employeeIdByHuman: Map<string, string>;
   leaveTypeToStatus: Record<string, StatusKey>;
   statusLabel: (status: StatusKey) => string;
@@ -60,14 +60,14 @@ export interface MergeEffectiveTimesheetsInput {
 export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): TimesheetEntry[] {
   const {
     timesheets, approvedLeaves, approvedOvertime, shiftAssignments,
-    dayStrs, tabIds, employeeIdByHuman, leaveTypeToStatus, statusLabel,
+    dayStrs, rosterIds, employeeIdByHuman, leaveTypeToStatus, statusLabel,
   } = input;
 
   const merged = new Map<string, TimesheetEntry>();
   timesheets.forEach(({ _moduleApproval: _oldApproval, ...ts }) => merged.set(`${ts.employee_id}:${ts.date}`, ts));
 
   const dayStrSet = new Set(dayStrs);
-  const tabIdSet = new Set(tabIds);
+  const rosterIdSet = new Set(rosterIds);
 
   const seenLeaveIds = new Set<number>();
   approvedLeaves.forEach(lv => {
@@ -77,7 +77,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
       seenLeaveIds.add(lv.id);
     }
     const dbId = resolveDbEmployeeId(lv.employee_id, employeeIdByHuman);
-    if (!dbId || !tabIdSet.has(dbId)) return;
+    if (!dbId || !rosterIdSet.has(dbId)) return;
     const status = leaveTypeToStatus[lv.leave_type];
     if (!status) return;
     dayStrs.forEach(ds => {
@@ -119,7 +119,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
       seenOvertimeIds.add(ot.id);
     }
     const dbId = resolveDbEmployeeId(ot.employee_id, employeeIdByHuman);
-    if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
+    if (!dbId || !rosterIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
     const bucket = OT_TYPE_TO_BUCKET[ot.overtime_type];
     if (!bucket) return;
     const hours = approvedOvertimeHours(ot);
@@ -172,7 +172,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
   dayStrs.forEach(ds => {
     const holidayName = zimHolidayName(ds);
     if (!holidayName) return;
-    tabIds.forEach(id => {
+    rosterIds.forEach(id => {
       const key = `${id}:${ds}`;
       if (merged.has(key)) return;
       merged.set(key, {
@@ -191,7 +191,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     });
   });
 
-  tabIds.forEach(dbId => {
+  rosterIds.forEach(dbId => {
     const humanId = [...employeeIdByHuman.entries()].find(([, v]) => v === dbId)?.[0];
     if (!humanId) return;
     const assignment = findShiftAssignment(shiftAssignments, humanId);
@@ -230,7 +230,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     if (OT_TYPE_TO_BUCKET[ot.overtime_type] !== 'ot15') return;
     if (!isNightRosterTail(ot)) return;
     const dbId = resolveDbEmployeeId(ot.employee_id, employeeIdByHuman);
-    if (!dbId || !tabIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
+    if (!dbId || !rosterIdSet.has(dbId) || !dayStrSet.has(ot.date)) return;
     if (approvedOvertimeHours(ot) <= 0) return;
     earlyMorningOtKeys.add(`${dbId}:${ot.date}`);
   });

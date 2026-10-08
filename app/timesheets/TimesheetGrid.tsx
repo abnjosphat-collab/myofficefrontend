@@ -40,12 +40,12 @@ export function entryCellTitle(entry: TimesheetEntry): string {
 const TH = 'sticky top-0 z-30 bg-surface-muted border-b border-line px-1 py-2 text-center font-sans text-caption font-semibold text-ink-muted';
 const num = 'px-2 py-2 text-center font-sans text-body-sm tabular text-ink border-b border-line-subtle';
 
-export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onRemoveEmployee, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect, includePendingModules }: {
+export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onRemoveEmployee, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[]; getHourTotals: (empId: string) => HourTotals;
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void; onQuickAdd: (emp: Employee, day: Date) => void; onQuickRemove: (emp: Employee, entry: TimesheetEntry) => void;
   onBulkAssign: (emp: Employee) => void; onBulkDay: (day: Date) => void; onRemoveEmployee: (id: string) => void;
   onFillDays: (emp: Employee, sourceDay: Date, targetDays: Date[], sourceEntry?: TimesheetEntry) => Promise<void>;
-  selectedEmployeeIds: Set<string>; onToggleEmployeeSelect: (id: string) => void; onToggleAllEmployeeSelect: () => void; includePendingModules: boolean;
+  selectedEmployeeIds: Set<string>; onToggleEmployeeSelect: (id: string) => void; onToggleAllEmployeeSelect: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const getEntry = useCallback((eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d)), [timesheets]);
@@ -114,7 +114,7 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
   return (
     <div className="flex flex-col gap-2">
       {hint && <p role="status" aria-live="polite" className="rounded-control border border-line bg-action-soft px-3 py-2 font-sans text-caption text-ink"><strong>Fill:</strong> {hint.off ? 'Off' : `${hint.hrs}h`} to {hint.n} {hint.n === 1 ? 'day' : 'days'}. Escape cancels{hint.n > 0 ? ', Enter applies' : ''}.</p>}
-      <div className="flex flex-wrap items-center gap-3 px-1 font-sans text-caption text-ink-muted"><span>Leaves and overtime</span><ModuleApprovalIndicator approval={{ approved: 1, pending: includePendingModules ? 1 : 0 }} legend /></div>
+      <div className="flex flex-wrap items-center gap-3 px-1 font-sans text-caption text-ink-muted"><span>Leaves and overtime</span><ModuleApprovalIndicator approval={{ approved: 1, pending: 1 }} legend /></div>
       {/* A scrollable region must be keyboard-focusable so keyboard users can scroll it. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
       <div ref={scrollRef} tabIndex={0} role="region" aria-label="Timesheet grid (scrollable)" className={cn('max-h-[min(72dvh,880px)] min-h-72 overflow-auto rounded-card border border-line', fillDrag && 'cursor-ew-resize select-none')}>

@@ -1,4 +1,4 @@
-// /timesheets: the roster grid for the NEC and salaried rosters, leave and overtime laid over entered days, entering a day, quick add and remove, bulk entry,
+// /timesheets: the NEC roster grid, leave and overtime laid over entered days, entering a day, quick add and remove, bulk entry,
 // fill across days from the keyboard, copying the previous period (asks before replacing), adding people, per-period notes, downloads, and honest failure.
 // Mock shapes mirror the real routers.
 const pad = n => String(n).padStart(2, '0');
@@ -27,7 +27,7 @@ let created = 0; let refuseEmployees = false;
 
 const spec = {
   route: '/timesheets',
-  h1: 'Maintenance timesheets',
+  h1: 'NEC timesheets',
   data: {
     '/api/employees': () => (refuseEmployees ? { __status: 403, body: { detail: 'Not allowed (fixture)' } } : EMP),
     '/api/timesheets': request => {
@@ -51,14 +51,13 @@ const spec = {
     check(/Leave/.test(await cellOf('Bob Beta', w2).textContent()) && /8/.test(await cellOf('Bob Beta', w2).textContent()), 'approved leave is laid over the grid as 8 hours of leave');
     check(await cellOf('Ann Alpha', w1).getByText('Pending').isVisible(), 'pending overtime is shown with its status in words');
     check(/10/.test(await cellOf('Ann Alpha', w0).textContent()), 'an entered day shows its hours');
+    check(await page.getByRole('heading', { name: 'Period at a glance' }).isVisible(), 'the period summary names its buckets');
+    check(await page.getByText('Payable total').isVisible(), 'the summary foots the payable total');
     await shot(page, 'grid@1440');
 
-    // roster and search
-    await page.getByRole('button', { name: 'Salaried', exact: true }).click();
-    await grid.getByText('Dee Delta').waitFor({ timeout: 8000 }).catch(() => {});
-    check(await grid.getByText('Dee Delta').isVisible() && !(await grid.getByText('Ann Alpha').isVisible().catch(() => false)), 'the Salaried roster shows its own people');
-    await page.getByRole('button', { name: 'NEC', exact: true }).click();
-    await grid.getByText('Ann Alpha').waitFor({ timeout: 8000 }).catch(() => {});
+    // NEC only: no roster toggle, and salaried people are never listed
+    check(!(await page.getByRole('button', { name: 'Salaried', exact: true }).isVisible().catch(() => false)), 'there is no salaried roster to switch to');
+    check(!(await grid.getByText('Dee Delta').isVisible().catch(() => false)), 'a salaried person never appears on the NEC roster');
     await page.getByRole('searchbox').fill('cy');
     check(await grid.getByRole('row').count() === 1 + 2, 'search narrows the roster', String(await grid.getByRole('row').count()));
     await page.getByRole('searchbox').fill('');

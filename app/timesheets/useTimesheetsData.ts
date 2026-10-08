@@ -71,7 +71,7 @@ export const api = {
   },
 };
 
-export function useTimesheetsData(activePeriod: Period, includePending = false) {
+export function useTimesheetsData(activePeriod: Period) {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([]);
   const [approvedLeaves, setApprovedLeaves] = useState<ApprovedLeaveRecord[]>([]);
@@ -106,8 +106,8 @@ export function useTimesheetsData(activePeriod: Period, includePending = false) 
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
         read(signal => api.employees(signal)),
         read(signal => api.timesheets(toLocalISODate(activePeriod.start), toLocalISODate(activePeriod.end), signal)),
-        read(signal => api.moduleLeaves(activePeriod, includePending, signal)),
-        read(signal => api.moduleOvertime(activePeriod, includePending, signal)),
+        read(signal => api.moduleLeaves(activePeriod, true, signal)),
+        read(signal => api.moduleOvertime(activePeriod, true, signal)),
         read(signal => api.shiftAssignments(signal)),
       ]);
       if (currentRequest !== requestId.current || controller.signal.aborted) return;
@@ -132,7 +132,7 @@ export function useTimesheetsData(activePeriod: Period, includePending = false) 
       toast.error('Failed to load: ' + msg);
     }
     finally { if (currentRequest === requestId.current) { setLoading(false); setRefreshing(false); setRetrying(false); } }
-  }, [activePeriod, includePending]);
+  }, [activePeriod]);
 
   useEffect(() => {
     const activeRequest = requestId;

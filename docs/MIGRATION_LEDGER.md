@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**57 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 4. Browser verified: 51.
+**57 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 4. Browser verified: 50.
 
 | Column | Meaning |
 |---|---|
@@ -66,7 +66,7 @@
 | `/standby` | Migrated | Yes | 4 | unverified (2026-10-08) | Standby module: weekly board and month calendar over standby_rotations and duty_rotations with crew, call/WhatsApp actions, covers holding in place of absent members, leave warnings, and duty overrides from duty_roster. |
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
-| `/timesheets` | Migrated | Yes | 14 | Yes, 2026-10-04 | Presentation moved to the shared system; payroll rules (calcTotals), merging, fill and write rules, the hooks and the exports are unchanged and keep their own tests. The user's in-progress edits to those files were left as they were. |
+| `/timesheets` | Migrated | Yes | 15 | unverified (2026-10-08) | NEC Timesheets: salaried tab removed (artisans have their own module), artisan-language period summary; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
 | `/tools` | Own chrome | No | 23 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |

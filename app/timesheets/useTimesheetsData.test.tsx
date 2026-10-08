@@ -34,15 +34,15 @@ describe('timesheet data loading', () => {
     expect((await api.employees())[0].employeeId).toBe('TBA');
   });
 
-  it('reloads module eligibility when switching from salaried to NEC', async () => {
+  it('always includes pending module records (NEC eligibility)', async () => {
     vi.spyOn(api, 'employees').mockResolvedValue([employee]);
     vi.spyOn(api, 'timesheets').mockResolvedValue([]);
     const leaves = vi.spyOn(api, 'moduleLeaves').mockResolvedValue([]);
     const overtime = vi.spyOn(api, 'moduleOvertime').mockResolvedValue([]);
     vi.spyOn(api, 'shiftAssignments').mockResolvedValue([]);
-    const { result, rerender } = renderHook(({ includePending }) => useTimesheetsData(september, includePending), { initialProps: { includePending: false } });
+    const { result } = renderHook(() => useTimesheetsData(september));
     await waitFor(() => expect(result.current.loading).toBe(false));
-    rerender({ includePending: true });
+
     await waitFor(() => expect(leaves).toHaveBeenLastCalledWith(september, true, expect.any(AbortSignal)));
     expect(overtime).toHaveBeenLastCalledWith(september, true, expect.any(AbortSignal));
   });
@@ -96,7 +96,7 @@ describe('automatic timesheet recovery', () => {
     vi.useFakeTimers();
     const leaves = mockReads().mockRejectedValueOnce(new ApiError('Resource temporarily unavailable', 500))
       .mockRejectedValueOnce(new ApiError('Try later', 503)).mockResolvedValue([]);
-    const { result } = renderHook(() => useTimesheetsData(september, true));
+    const { result } = renderHook(() => useTimesheetsData(september));
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current.loading).toBe(true);
     expect(result.current.retrying).toBe(true);

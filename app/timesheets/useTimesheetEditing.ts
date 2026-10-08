@@ -6,7 +6,7 @@
 import { toast } from 'sonner';
 import type { ConfirmFn } from '@/components/ui-system';
 import { applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource, isFillProtectedTarget } from './fillEntry';
-import { fmtDate, getDays, getNECPeriod, getSalariedPeriod } from './timesheetMeta';
+import { fmtDate, getDays, getNECPeriod } from './timesheetMeta';
 import { resolveFillTargetEntry, timesheetWritePayload } from './timesheetWritePayload';
 import type { Employee, TimesheetEntry } from './types';
 import { api } from './useTimesheetsData';
@@ -28,9 +28,9 @@ export function previousPeriodEntries(args: { previous: TimesheetEntry[]; employ
   return out;
 }
 
-export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets, tabEmployees, activeTab, currentMonth, activePeriod, confirm }: {
-  timesheets: TimesheetEntry[]; setTimesheets: React.Dispatch<React.SetStateAction<TimesheetEntry[]>>; effectiveTimesheets: TimesheetEntry[]; tabEmployees: Employee[];
-  activeTab: 'salaried' | 'nec'; currentMonth: Date; activePeriod: { start: Date; end: Date }; confirm: ConfirmFn;
+export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets, rosterEmployees, currentMonth, activePeriod, confirm }: {
+  timesheets: TimesheetEntry[]; setTimesheets: React.Dispatch<React.SetStateAction<TimesheetEntry[]>>; effectiveTimesheets: TimesheetEntry[]; rosterEmployees: Employee[];
+  currentMonth: Date; activePeriod: { start: Date; end: Date }; confirm: ConfirmFn;
 }) {
   const saveEntry = async (empId: string, date: Date, data: Entry) => {
     const ds = fmtDate(date);
@@ -162,10 +162,10 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
 
   const copyPrevious = async () => {
     const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-    const prevPeriod = activeTab === 'salaried' ? getSalariedPeriod(prevMonth) : getNECPeriod(prevMonth);
+    const prevPeriod = getNECPeriod(prevMonth);
     try {
       const previous = await api.timesheets(fmtDate(prevPeriod.start), fmtDate(prevPeriod.end));
-      const entries = previousPeriodEntries({ previous, employees: tabEmployees, currentDays: getDays(activePeriod), previousDays: getDays(prevPeriod) });
+      const entries = previousPeriodEntries({ previous, employees: rosterEmployees, currentDays: getDays(activePeriod), previousDays: getDays(prevPeriod) });
       if (entries.length === 0) { toast.info('No entries found in the previous period.'); return; }
       const replacing = entries.filter(e => timesheets.some(ts => String(ts.employee_id) === String(e.employee_id) && ts.date === e.date)).length;
       if (replacing > 0 && !await confirm({ title: 'Copy the previous period over this one?', message: `${entries.length} ${plural(entries.length, 'entry', 'entries')} are copied, ${replacing} of them replacing what is already entered here.`, confirmLabel: 'Copy', destructive: true })) return;

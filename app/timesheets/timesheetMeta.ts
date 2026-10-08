@@ -1,5 +1,5 @@
-// app/timesheets/timesheetMeta.ts — the fixed vocabulary and small helpers of the maintenance timesheets: what each day status is called
-// and how it is shown, how leave types map onto statuses, the salaried and NEC periods, a role's normal shift, and the browser keys of
+// app/timesheets/timesheetMeta.ts — the fixed vocabulary and small helpers of the NEC timesheets: what each day status is called
+// and how it is shown, how leave types map onto statuses, the NEC period, a role's normal shift, and the browser keys of
 // the roster exceptions. Pure and tested; the rules that carry money (hours, overtime, the 208 cap) stay in calcTotals.
 import type { IconMeaning, Tone } from '@/components/ui-system';
 import { toLocalISODate } from '@/lib/dates';
@@ -43,7 +43,7 @@ export function getDays({ start, end }: Period): Date[] {
   return days;
 }
 export const fmtPeriod = ({ start, end }: Period): string => `${start.getDate()} ${start.toLocaleString('en-GB', { month: 'short' })} ${start.getFullYear()} — ${end.getDate()} ${end.toLocaleString('en-GB', { month: 'short' })} ${end.getFullYear()}`;
-export const getSalariedPeriod = (month: Date): Period => { const y = month.getFullYear(), m = month.getMonth(); return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0) }; };
+
 /** The NEC cycle: the 13th of the previous month to the 12th of this one. */
 export const getNECPeriod = (month: Date): Period => { const y = month.getFullYear(), m = month.getMonth(); return { start: new Date(y, m - 1, 13), end: new Date(y, m, 12) }; };
 
@@ -57,5 +57,5 @@ export function timeFromHours(startHHMM: string, hours: number): string {
 export const normalShiftEnd = (hours: number): string => timeFromHours('07:00', hours);
 
 /** The roster is automatic (each person's employment type), with exceptions kept in this browser: people added by hand and people hidden. */
-export const ROSTER_KEYS = { salariedExtra: 'ts_salaried_extra_ids', necExtra: 'ts_nec_extra_ids', salariedHidden: 'ts_salaried_hidden_ids', necHidden: 'ts_nec_hidden_ids' } as const;
-export const notesKeyFor = (tab: string, period: Period): string => `ts_notes_${tab}_${fmtDate(period.start)}`;
+export const ROSTER_KEYS = { extra: 'ts_nec_extra_ids', hidden: 'ts_nec_hidden_ids' } as const;
+export const notesKeyFor = (period: Period): string => `ts_notes_nec_${fmtDate(period.start)}`;

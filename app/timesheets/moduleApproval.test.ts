@@ -5,7 +5,7 @@ import type { ApprovedOvertimeRecord, TimesheetEntry } from './types';
 import { applyNormalHoursFill, isFillProtectedTarget } from './fillEntry';
 
 const base: TimesheetEntry = { id: 1, employee_id: 10, date: '2026-09-29', status: 'work', regular_hours: 10 };
-const input = { timesheets: [base], approvedLeaves: [], approvedOvertime: [], shiftAssignments: [], dayStrs: ['2026-09-29'], tabIds: ['10'], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: { annual: 'leave' as const }, statusLabel: (s: string) => s };
+const input = { timesheets: [base], approvedLeaves: [], approvedOvertime: [], shiftAssignments: [], dayStrs: ['2026-09-29'], rosterIds: ['10'], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: { annual: 'leave' as const }, statusLabel: (s: string) => s };
 const ot: ApprovedOvertimeRecord = { id: 2, employee_id: 'C1', date: base.date, status: 'approved', overtime_type: 'regular', hours: 2 };
 
 describe('source module approval projection', () => {
