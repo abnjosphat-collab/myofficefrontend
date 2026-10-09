@@ -23,7 +23,12 @@ const PAGES = [
   { path: '/employees', name: 'employees' },
 ] as const;
 
+// One fixed moment for every screenshot: greetings ("Good morning"), "today", relative times and date headers would
+// otherwise change the picture from one run to the next and fail the comparison for no visual reason.
+const FIXED_NOW = new Date('2026-10-05T09:00:00Z');
+
 async function preparePage(page: Page, theme: 'light' | 'dark') {
+  await page.clock.setFixedTime(FIXED_NOW);
   // Skip the first-run preferences modal (same trick smoke.mjs uses) and force the
   // theme directly via localStorage — matches the key/values ThemeProvider itself
   // reads (design-system/tokens.tsx), so this is exercising the real persisted-theme
