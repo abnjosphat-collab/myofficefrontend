@@ -1,34 +1,19 @@
 // app/leaves/useLeavesData.ts — the leave register's data layer. The list is loaded honestly (a failed load is an error,
-// not an empty register; rows already loaded stay through a failed refresh) and refreshed every 30 seconds while the page
-// is visible. Writes throw so the dialog can show the reason and keep what was typed. The server returns every page.
+// not an empty register; rows already loaded stay through a failed refresh) and stays put while it is read: there is no
+// background polling and no refetch on tab switches — the register refreshes on demand and after every write. Writes throw
+// so the dialog can show the reason and keep what was typed. The server returns every page.
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { calcLeaveDays } from '@/lib/calcLeaveDays';
 import type { Leave } from './types';
 
-const POLL_MS = 30_000;
 // The API returns a numeric id; the page keys, selects and merges by string.
 const normalise = (l: Leave): Leave => ({ ...l, id: String(l.id) });
 
 export function useLeaves() {
-  const list = useApiList<Leave>('/api/leaves', normalise);
-  const refetch = useRef(list.refetch);
-  useEffect(() => { refetch.current = list.refetch; });
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!timer) timer = setInterval(() => { if (document.visibilityState === 'visible') refetch.current(); }, POLL_MS); };
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') { refetch.current(); start(); }
-      else if (timer) { clearInterval(timer); timer = null; }
-    };
-    start();
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => { if (timer) clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
-  }, []);
-  return list;
+  return useApiList<Leave>('/api/leaves', normalise);
 }
 
 const days = (d: Partial<Leave>) => {
