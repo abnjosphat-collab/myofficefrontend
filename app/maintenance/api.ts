@@ -1,7 +1,7 @@
 // frontend/app/maintenance/api.ts — work order + schedule API calls, shared
 // between the maintenance page and its extracted modal components.
 import { api, ApiError } from '@/lib/apiClient';
-import type { WorkOrder, MaintenanceSchedule, WorkOrderComment } from './types';
+import type { WorkOrder, MaintenanceSchedule, WorkOrderComment, WorkOrderTool } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
 // localStorage and return { success: true } on failure, so a work order that
@@ -36,6 +36,23 @@ export function conflictOf(error: unknown): WorkOrder | null {
 
 export async function addWorkOrderComment(id: string, body: string): Promise<WorkOrderComment> {
   return api.post<WorkOrderComment>(`/api/maintenance/work-orders/${id}/comments`, { body });
+}
+
+/** The tools a work order needs. */
+export async function getWorkOrderTools(id: string): Promise<WorkOrderTool[]> {
+  return api.get<WorkOrderTool[]>(`/api/maintenance/work-orders/${id}/tools`);
+}
+
+/** Replace the tools a work order needs with exactly this list. */
+export async function saveWorkOrderTools(id: string, tools: WorkOrderTool[]): Promise<WorkOrderTool[]> {
+  return api.put<WorkOrderTool[]>(`/api/maintenance/work-orders/${id}/tools`, { tools: tools.map(t => ({ tool_register_number: t.tool_register_number, tool_name: t.tool_name, note: t.note || null })) });
+}
+
+/** The person the server refused because they are on leave (409 person_on_leave), or null when `error` is something else. */
+export function onLeaveOf(error: unknown): { name: string; message: string } | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null;
+  const d = error.detail as { code?: string; people?: { name: string }[] } | undefined;
+  return d?.code === 'person_on_leave' ? { name: d.people?.[0]?.name ?? '', message: error.message } : null;
 }
 
 export async function deleteWorkOrder(id: string): Promise<void> {

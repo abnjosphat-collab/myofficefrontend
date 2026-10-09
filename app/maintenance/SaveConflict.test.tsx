@@ -10,7 +10,7 @@ vi.mock('./api', async () => {
   return { ...actual, updateWorkOrder: (...a: unknown[]) => updateWorkOrder(...a) };
 });
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
-vi.mock('@/components/shared/PersonInput', () => ({ PersonInput: ({ value }: { value: string }) => <input aria-label="Foreman name" readOnly value={value} /> }));
+vi.mock('./PersonField', () => ({ PersonField: ({ value }: { value: string }) => <input aria-label="Foreman name" readOnly value={value} /> }));
 vi.mock('./SignOffField', () => ({ SignOffField: () => <span>signature</span> }));
 vi.mock('./PhraseField', () => ({ PhraseField: ({ value }: { value: string }) => <span>{value}</span> }));
 vi.mock('@/components/shared/RecentChoices', () => ({ rememberChoice: vi.fn() }));

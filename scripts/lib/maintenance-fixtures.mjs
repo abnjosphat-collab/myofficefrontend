@@ -37,6 +37,13 @@ export function maintenanceFixtures() {
       '/api/maintenance/work-orders/2/events': () => EVENTS,
       'GET /api/maintenance/work-orders/2/comments': () => COMMENTS,
       'POST /api/maintenance/work-orders/2/comments': request => ({ id: 2, work_order_id: 2, author_name: 'me@mine.example', created_at: new Date().toISOString(), ...request.postDataJSON() }),
+      // Registers (slice 3): Lee is on leave for a week around today; the Tools register has one tool overdue and one fine.
+      '/api/maintenance/registers/leave': () => [{ employee_id: 'C2', employee_name: 'Lee Jones', leave_type: 'Annual leave', start_date: local(-2), end_date: local(5) }],
+      '/api/maintenance/registers/tools': () => [
+        { id: 't1', register_number: 'PP-UG-0001', name: 'Torque wrench', make_model: 'Gedore', category: 'Hand tools', equipment_kind: 'hand-tool', department: 'Engineering', status: 'overdue', holder: 'Alex Smith', expected_return_at: `${local(-1)}T08:00:00Z`, inspection_due: [], condition: 'Good' },
+        { id: 't2', register_number: 'PP-UG-0002', name: 'Socket set', make_model: '24 mm metric', category: 'Hand tools', equipment_kind: 'hand-tool', department: 'Engineering', status: 'available', holder: null, expected_return_at: null, inspection_due: ['monthly'], condition: 'Good' },
+      ],
+      'PUT /api/maintenance/work-orders/99/tools': request => request.postDataJSON().tools,
       '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
       'PATCH /api/schedules/1': () => (f.failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),
       '/api/equipment': [{ id: 1, name: 'Pump A', equipment_id: 'EQ-1', department: 'Mining', location: 'Pit', status: 'operational' }, { id: 2, name: 'Crusher 1', equipment_id: 'EQ-2', department: 'Plant', status: 'operational' }],

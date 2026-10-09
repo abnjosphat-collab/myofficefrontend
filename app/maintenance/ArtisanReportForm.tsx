@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Checkbox, Field, Input, Notice, Segmented, Select } from '@/components/ui-system';
-import { PersonInput } from '@/components/shared/PersonInput';
+import { PersonField } from './PersonField';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { SparesEditor, type SpareLine } from '@/components/shared/SparesEditor';
 import { todayLocal } from '@/lib/dates';
@@ -122,7 +122,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
       <section aria-labelledby="ar-sign" className="flex flex-col gap-3 rounded-card border border-line p-4">
         <h3 id="ar-sign" className="font-sans text-label font-semibold text-ink">Artisan sign-off</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="Artisan name"><PersonInput value={r.artisan_name} onChange={v => set({ artisan_name: v })} placeholder="Type to search employees" /></Field>
+          <Field label="Artisan name"><PersonField value={r.artisan_name} onChange={v => set({ artisan_name: v })} /></Field>
           <Field label="Signature"><SignOffField label="Artisan signature" signerName={r.artisan_name} value={r.artisan_sign} onChange={v => set({ artisan_sign: v })} /></Field>
           <Field label="Date"><Input type="date" value={r.artisan_date} onChange={e => set({ artisan_date: e.target.value })} /></Field>
         </div>
