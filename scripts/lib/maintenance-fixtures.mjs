@@ -43,6 +43,10 @@ export function maintenanceFixtures() {
         { id: 't1', register_number: 'PP-UG-0001', name: 'Torque wrench', make_model: 'Gedore', category: 'Hand tools', equipment_kind: 'hand-tool', department: 'Engineering', status: 'overdue', holder: 'Alex Smith', expected_return_at: `${local(-1)}T08:00:00Z`, inspection_due: [], condition: 'Good' },
         { id: 't2', register_number: 'PP-UG-0002', name: 'Socket set', make_model: '24 mm metric', category: 'Hand tools', equipment_kind: 'hand-tool', department: 'Engineering', status: 'available', holder: null, expected_return_at: null, inspection_due: ['monthly'], condition: 'Good' },
       ],
+      // Lifecycle (slice 4): the server lists the moves open to this person; WO-00002 is in progress, WO-00001 is pending.
+      '/api/maintenance/work-orders/1/transitions': () => [{ to: 'in-progress', needs_reason: false, needs_signature: false, checks_permits: true, min_role: 'user' }, { to: 'on-hold', needs_reason: true, needs_signature: false, checks_permits: false, min_role: 'manager' }],
+      '/api/maintenance/work-orders/2/transitions': () => [{ to: 'completed', needs_reason: false, needs_signature: true, checks_permits: false, min_role: 'user' }, { to: 'on-hold', needs_reason: true, needs_signature: false, checks_permits: false, min_role: 'user' }],
+      'POST /api/maintenance/work-orders/2/transition': request => ({ ...ORDERS[1], ...(request.postDataJSON().to === 'on-hold' ? { status: 'on-hold' } : { status: 'completed', progress: 100 }), version: 6, updated_at: new Date().toISOString() }),
       'PUT /api/maintenance/work-orders/99/tools': request => request.postDataJSON().tools,
       '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
       'PATCH /api/schedules/1': () => (f.failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),

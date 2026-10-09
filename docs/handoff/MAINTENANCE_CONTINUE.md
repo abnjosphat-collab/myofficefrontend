@@ -2,7 +2,7 @@
 
 Keep this file current. Update the **Status**, **Open pull requests** and **Next steps** sections every time something changes, then commit and push it. The prompt to paste into a new session is in [`CLAUDE_CODE_PROMPT.md`](./CLAUDE_CODE_PROMPT.md).
 
-Last updated: 9 Oct 2026 (end of the cloud session that built slices 1 to 3).
+Last updated: 9 Oct 2026 (slice 4 built; waiting on the owner for migrations and merges).
 
 ## 1. What this is
 
@@ -40,7 +40,7 @@ The plans (read these before building anything):
 | 1 | Audit trail, row-version check on PATCH (409 `version_conflict`), comments | Backend merged to `main` (PR #5, sha 47fea20). Frontend in PR #16. **Migration `supabase_migration_maintenance_audit.sql` NOT YET APPLIED by the owner.** |
 | 2 | One "Operations & Maintenance" sidebar group with separate Overview, Work Orders and Schedules modules, real data | Built, in frontend PR #16. |
 | 3 | Registers: `RegisterField` picker, leave greying and refusal, tools bridge, tools on a work order | Built. Backend PR #7, frontend PR #17 (stacked on #16). **Migration `supabase_migration_maintenance_tools.sql` NOT YET APPLIED.** |
-| 4 | Lifecycle, sign-off, permits (status state machine, permit-reference block, role rules) | **Not started, deliberately**: wait until slices 1 to 3 have run against the real database. See plan v1 section M.4 and slice table row 3. |
+| 4 | Lifecycle, sign-off, permits | Built (the owner said "build slice 4 anyway"). Backend PR #8 (stacked on #7), frontend PR #18 (stacked on #17). Uses only the 4 existing statuses; postponed/not-done/cancelled need product approval. **Migration `supabase_migration_maintenance_lifecycle.sql` NOT YET APPLIED.** Status moves go through `POST /transition`; PATCH status edits still work (shadow mode, logged as `shadow_refusal`). |
 | 5 to 13 | On-the-fly and breakdown work orders; list and record page; requests and approval; assignments; schedules; planner; parts; overview; task library | Not started. Order in `docs/plans/maintenance-modules.md` section 7. |
 
 ## 5. Open pull requests (check live status with the GitHub tools before acting)
@@ -51,6 +51,8 @@ The plans (read these before building anything):
 | [#7](https://github.com/abnjosphat-collab/myofficebackend/pull/7) | backend | `claude/maintenance-slice3` (4aa87fb) | Slice 3 backend | Only failing check is `pip-audit` (same advisories, from the base). Merge #6 first, then update #7 from `main` so CI re-runs. |
 | [#16](https://github.com/abnjosphat-collab/myofficefrontend/pull/16) | frontend | `claude/festive-noether-rrxq4l` (adca43f) | Slices 1 and 2 frontend | Merge only after the owner confirms the audit migration is applied. |
 | [#17](https://github.com/abnjosphat-collab/myofficefrontend/pull/17) | frontend | `claude/maintenance-slice3-fe` (88eb90a) | Slice 3 frontend | Base is #16's branch. After #16 merges, retarget to `main`. |
+| [#8](https://github.com/abnjosphat-collab/myofficebackend/pull/8) | backend | `claude/maintenance-slice4` (c71f8c0) | Slice 4 backend | Base is #7's branch. Merge #7 first, then retarget to `main`. |
+| #18 | frontend | `claude/maintenance-slice4-fe` | Slice 4 frontend | Base is #17's branch. |
 | [#14](https://github.com/abnjosphat-collab/myofficefrontend/pull/14) | frontend | `plan/maintenance-workflow` (3716e90) | The plans | Docs only. |
 | #15 | frontend | `prototype/maintenance-workflow` | First prototype | Never merge. |
 | (no PR) | frontend | `prototype/maintenance-modules` (0ff8d8b) | Clickable preview at `/maintenance-preview` | Never merge. |
@@ -61,7 +63,7 @@ The plans (read these before building anything):
 2. When the owner says the **audit migration is applied**: check frontend PR #16 (CI, mergeability), then merge it. Confirm the History and Comments tabs work against the real backend if you can.
 3. When the owner says **"merge #6"**: merge backend PR #6, then update #7 from `main` (merge `main` into the branch), wait for CI, and tell the owner.
 4. When the owner says the **tools migration is applied**: merge backend #7, then retarget frontend #17 to `main` (after #16 is merged) and merge it.
-5. Only then start **slice 4** (lifecycle, sign-off, permits) on new branches: backend first (rules module `app/maintenance_rules.py`, `POST /work-orders/{id}/transition`, `signoff`, permits, `supabase_migration_maintenance_lifecycle.sql` with a rehearsal script), then frontend (`StatusActions`, tabs, "Awaiting sign-off"). Follow plan v1 M.4 and R6, R9 to R11. Use shadow mode for new role rules in the first release. Permit reference missing blocks Start (Q6, decided yes, no manager bypass). If the owner says "build slice 4 anyway" before the migrations are applied, build it, but still merge nothing until the earlier migrations are applied.
+5. (Slice 4 is built; merge it after slices 1 to 3, with its migration applied.) Next build slice 5. Original note for slice 4: (lifecycle, sign-off, permits) on new branches: backend first (rules module `app/maintenance_rules.py`, `POST /work-orders/{id}/transition`, `signoff`, permits, `supabase_migration_maintenance_lifecycle.sql` with a rehearsal script), then frontend (`StatusActions`, tabs, "Awaiting sign-off"). Follow plan v1 M.4 and R6, R9 to R11. Use shadow mode for new role rules in the first release. Permit reference missing blocks Start (Q6, decided yes, no manager bypass). If the owner says "build slice 4 anyway" before the migrations are applied, build it, but still merge nothing until the earlier migrations are applied.
 6. Later slices in the order of `maintenance-modules.md` section 7. Update `docs/CURRENT_HANDOFF.md`, this file and the `docs/MIGRATION_LEDGER.md` (`npm run docs:ledger`) as each slice lands.
 
 ## 7. How things work (what the next session must know)
@@ -93,3 +95,4 @@ The plans (read these before building anything):
 ## 9. Change log of this file
 
 - 9 Oct 2026: created at the end of the session that built slices 1 to 3.
+- 9 Oct 2026: slice 4 built (backend #8, frontend #18). The owner asked me to apply the migrations myself; I cannot (no Supabase credentials in the cloud session, and the standing rule is that the owner applies them), so they remain the owner's to run.

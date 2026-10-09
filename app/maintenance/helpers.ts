@@ -2,7 +2,7 @@
 // and sort, how long a job took, and the payloads the forms send. The vocabulary (labels, tones) lives in meta.ts.
 import { todayLocal } from '@/lib/dates';
 import { priorityMeta } from './meta';
-import type { Discipline, MaintenanceSchedule, RecurrenceType, SpareItem, Trade, WOClassification, WorkOrder, WorkOrderPriority, WorkOrderStatus } from './types';
+import type { Discipline, MaintenanceSchedule, PermitKey, RecurrenceType, SpareItem, Trade, WOClassification, WorkOrder, WorkOrderPermit, WorkOrderPriority, WorkOrderStatus } from './types';
 
 export const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -150,9 +150,27 @@ export function blankWorkOrderBody(now = new Date()) {
   };
 }
 
+/** A completed job the foreman has not signed off yet. An earlier typed sign-off counts as signed. */
+export function awaitingSignoff(w: Pick<WorkOrder, 'status' | 'foreman_sign' | 'foreman_signed_at'>): boolean {
+  return w.status === 'completed' && !w.foreman_signed_at && !(w.foreman_sign || '').trim();
+}
+
+/** The flagged permits that still have no reference (these stop the job from starting). */
+export function permitsMissingReference(permits: WorkOrder['permits']): PermitKey[] {
+  return PERMIT_KEYS.filter(k => permits?.[k]?.required && !(permits[k]?.reference || '').trim());
+}
+
+export const PERMIT_KEYS: PermitKey[] = ['permit_to_work', 'hot_work', 'hazardous_work', 'confined_space', 'high_voltage_switching', 'land_disturbance', 'other'];
+export const PERMIT_NAMES: Record<PermitKey, string> = {
+  permit_to_work: 'Permit to work', hot_work: 'Hot work', hazardous_work: 'Hazardous work', confined_space: 'Confined space', high_voltage_switching: 'High-voltage switching',
+  land_disturbance: 'Land disturbance and vegetation clearance', other: 'Other permit',
+};
+
 export interface RequestForm {
   equipment_info: string; to_department: string; allocated_to: string; priority: WorkOrderPriority; estimated_hours: string; job_request_details: string;
   requested_by: string; authorising_foreman: string; job_instructions: string; date_raised: string; due_date: string; classification: WOClassification | '';
+  /** Only the flagged permits (a permit that is not required is not stored). */
+  permits: Partial<Record<PermitKey, WorkOrderPermit>>;
 }
 
 /** The body for one new work order (one per machine). The number is a placeholder: the server allocates the real one. */
@@ -163,6 +181,7 @@ export function newOrderBody(form: RequestForm, machine: string, number: string,
     responsible_foreman: form.authorising_foreman, job_instructions: form.job_instructions, date_raised: form.date_raised, artisan_name: form.allocated_to,
     // Omitted when blank: an empty string fails date validation on the API.
     ...(form.due_date ? { due_date: form.due_date } : {}), ...(form.classification ? { classification: form.classification } : {}),
+    ...(Object.keys(form.permits).length ? { permits: form.permits } : {}),
   };
 }
 
@@ -173,12 +192,13 @@ export function editOrderBody(form: RequestForm) {
     estimated_hours: form.estimated_hours, job_request_details: form.job_request_details, requested_by: form.requested_by, authorising_foreman: form.authorising_foreman,
     responsible_foreman: form.authorising_foreman, job_instructions: form.job_instructions, date_raised: form.date_raised, due_date: form.due_date || null,
     ...(form.classification ? { classification: form.classification } : {}),
+    permits: form.permits,
   };
 }
 
 export interface ArtisanReport {
   work_done_details: string; cause_of_failure: string; delay_details: string; time_work_started: string; time_work_finished: string; overtime_start_time: string; overtime_end_time: string;
-  delay_from_time: string; delay_to_time: string; artisan_name: string; artisan_sign: string; artisan_date: string; status: WorkOrderStatus; progress: number;
+  delay_from_time: string; delay_to_time: string; artisan_name: string; artisan_sign: string; artisan_date: string; progress: number;
   classification: WOClassification | ''; classification_custom: string; failure_mode: string; discipline: Discipline | ''; trade: Trade | '';
 }
 
@@ -193,7 +213,7 @@ export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
     time_work_started: r.time_work_started, time_work_finished: r.time_work_finished, total_time_worked: durationText(r.time_work_started, r.time_work_finished),
     overtime_start_time: r.overtime_start_time, overtime_end_time: r.overtime_end_time, overtime_hours: durationText(r.overtime_start_time, r.overtime_end_time),
     delay_from_time: r.delay_from_time, delay_to_time: r.delay_to_time, total_delay_hours: durationText(r.delay_from_time, r.delay_to_time),
-    artisan_name: r.artisan_name, artisan_sign: r.artisan_sign, artisan_date: r.artisan_date, status: r.status, progress: r.progress,
+    artisan_name: r.artisan_name, artisan_sign: r.artisan_sign, artisan_date: r.artisan_date, progress: r.progress,
     classification: r.classification || null, classification_custom: r.classification === 'custom' ? r.classification_custom || null : null,
     failure_mode: r.classification === 'breakdown' ? r.failure_mode || null : null, discipline: r.discipline || null, trade: r.discipline === 'Mechanical' ? r.trade || null : null,
     spares_used: spares,

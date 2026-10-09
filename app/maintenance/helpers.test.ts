@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  NO_FILTERS, artisanBody, calcStats, countByStatus, durationText, editOrderBody, filterOrders, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, recurrenceLabel,
+  NO_FILTERS, artisanBody, awaitingSignoff, permitsMissingReference, calcStats, countByStatus, durationText, editOrderBody, filterOrders, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, recurrenceLabel,
   NO_ANALYTICS_FILTERS, analyticsFilterCount, distinct, filterAnalytics, scheduleBody, scheduleProblems, type ArtisanReport, type RequestForm, type ScheduleDraft,
 } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
@@ -91,7 +91,7 @@ describe('numbers, labels and rules', () => {
   });
 });
 
-const form: RequestForm = { equipment_info: ' Pump A ', to_department: 'Engineering', allocated_to: 'Alex', priority: 'high', estimated_hours: '2', job_request_details: 'Seal', requested_by: 'Sam', authorising_foreman: 'Lee', job_instructions: '', date_raised: '2026-10-04', due_date: '', classification: '' };
+const form: RequestForm = { equipment_info: ' Pump A ', to_department: 'Engineering', allocated_to: 'Alex', priority: 'high', estimated_hours: '2', job_request_details: 'Seal', requested_by: 'Sam', authorising_foreman: 'Lee', job_instructions: '', date_raised: '2026-10-04', due_date: '', classification: '', permits: {} };
 
 describe('what the forms send', () => {
   it('a new order omits a blank due date and classification, and is pending at 0%', () => {
@@ -100,6 +100,23 @@ describe('what the forms send', () => {
     expect('due_date' in b).toBe(false);
     expect('classification' in b).toBe(false);
     expect(newOrderBody({ ...form, due_date: '2026-10-09', classification: 'project' }, 'Pump A', 'WO-1')).toMatchObject({ due_date: '2026-10-09', classification: 'project' });
+  });
+  it('permits are sent only when some are ticked, and an edit always sends them so unticking really clears', () => {
+    expect('permits' in newOrderBody(form, 'Pump A', 'WO-1')).toBe(false);
+    const permits = { hot_work: { required: true, reference: 'HW-1' } };
+    expect(newOrderBody({ ...form, permits }, 'Pump A', 'WO-1')).toMatchObject({ permits });
+    expect(editOrderBody(form).permits).toEqual({});
+    expect(editOrderBody({ ...form, permits }).permits).toEqual(permits);
+  });
+  it('a completed job is awaiting sign-off until the foreman has signed; an earlier typed sign-off counts as signed', () => {
+    expect(awaitingSignoff({ status: 'completed', foreman_sign: '', foreman_signed_at: null })).toBe(true);
+    expect(awaitingSignoff({ status: 'completed', foreman_sign: 'data:image/png;base64,AAA', foreman_signed_at: '2026-10-09' })).toBe(false);
+    expect(awaitingSignoff({ status: 'completed', foreman_sign: 'F. Ncube' })).toBe(false);
+    expect(awaitingSignoff({ status: 'in-progress', foreman_sign: '' })).toBe(false);
+  });
+  it('lists the flagged permits that still have no reference', () => {
+    expect(permitsMissingReference({ hot_work: { required: true, reference: ' ' }, permit_to_work: { required: true, reference: 'PTW-1' }, other: { required: false, reference: '' } })).toEqual(['hot_work']);
+    expect(permitsMissingReference(undefined)).toEqual([]);
   });
   it('an edit clears an emptied due date with null instead of keeping the old one', () => {
     expect(editOrderBody(form)).toMatchObject({ equipment_info: 'Pump A', due_date: null });
@@ -110,7 +127,7 @@ describe('what the forms send', () => {
 describe('artisanBody', () => {
   const r: ArtisanReport = {
     work_done_details: 'Replaced seal', cause_of_failure: '', delay_details: '', time_work_started: '08:00', time_work_finished: '10:30', overtime_start_time: '', overtime_end_time: '', delay_from_time: '', delay_to_time: '',
-    artisan_name: 'Alex', artisan_sign: 'Alex', artisan_date: '2026-10-04', status: 'completed', progress: 100, classification: 'breakdown', classification_custom: 'ignored', failure_mode: 'Seal / gasket failure', discipline: 'Mechanical', trade: 'Fitter',
+    artisan_name: 'Alex', artisan_sign: 'Alex', artisan_date: '2026-10-04', progress: 100, classification: 'breakdown', classification_custom: 'ignored', failure_mode: 'Seal / gasket failure', discipline: 'Mechanical', trade: 'Fitter',
   };
   it('works out the durations from the times and keeps what applies', () => {
     const b = artisanBody(r, []);

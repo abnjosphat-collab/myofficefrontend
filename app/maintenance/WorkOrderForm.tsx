@@ -13,15 +13,16 @@ import { editOrderBody, machinesOf, newOrderBody, nextWONumber, type RequestForm
 import { MachinePicker } from './MachinePicker';
 import { CLASSIFICATIONS, PRIORITY } from './meta';
 import { RegisterField } from './RegisterField';
+import { PermitsField } from './PermitsField';
 import { ToolsNeeded } from './ToolsNeeded';
 import { usePersonOptions } from './useRegisters';
 import type { WorkOrder, WorkOrderPriority, WorkOrderTool } from './types';
 
-const blank = (): RequestForm => ({ equipment_info: '', to_department: 'Engineering', allocated_to: '', priority: 'medium', estimated_hours: '2', job_request_details: '', requested_by: '', authorising_foreman: '', job_instructions: '', date_raised: todayLocal(), due_date: '', classification: '' });
+const blank = (): RequestForm => ({ equipment_info: '', to_department: 'Engineering', allocated_to: '', priority: 'medium', estimated_hours: '2', job_request_details: '', requested_by: '', authorising_foreman: '', job_instructions: '', date_raised: todayLocal(), due_date: '', classification: '', permits: {} });
 const fromOrder = (w: WorkOrder): RequestForm => ({
   equipment_info: w.equipment_info || '', to_department: w.to_department || 'Engineering', allocated_to: w.allocated_to || w.artisan_name || '', priority: w.priority || 'medium', estimated_hours: w.estimated_hours || '2',
   job_request_details: w.job_request_details || '', requested_by: w.requested_by || '', authorising_foreman: w.authorising_foreman || w.responsible_foreman || '', job_instructions: w.job_instructions || '',
-  date_raised: w.date_raised || todayLocal(), due_date: w.due_date || '', classification: w.classification || '',
+  date_raised: w.date_raised || todayLocal(), due_date: w.due_date || '', classification: w.classification || '', permits: w.permits ?? {},
 });
 const sameTools = (a: WorkOrderTool[], b: WorkOrderTool[]) => JSON.stringify(a.map(t => [t.tool_register_number, t.tool_name])) === JSON.stringify(b.map(t => [t.tool_register_number, t.tool_name]));
 const PRIORITIES = (Object.keys(PRIORITY) as WorkOrderPriority[]).map(value => ({ value, label: PRIORITY[value].label }));
@@ -120,6 +121,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
         </div>
         <Field label="Job request: what to do" required error={err(missing.job, 'Describe what the artisan should do.')}><Textarea rows={3} value={form.job_request_details} onChange={e => set({ job_request_details: e.target.value })} placeholder="Describe exactly what the artisan has to do" /></Field>
         <ToolsNeeded tools={tools} onChange={setTools} loadError={editing && !toolsState.loaded ? toolsState.error : null} locked={editing && !toolsState.loaded} />
+        <PermitsField value={form.permits} onChange={permits => set({ permits })} />
         <Field label="Special instructions" optional><Textarea rows={2} value={form.job_instructions} onChange={e => set({ job_instructions: e.target.value })} placeholder="Safety notes, special tools, access needed" /></Field>
         <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Classification <span className="font-normal text-ink-muted">Optional, the artisan can set it later</span></span><Segmented label="Classification" value={form.classification} onValueChange={v => set({ classification: v as RequestForm['classification'] })} options={CLASSES} /></div>
       </div>
