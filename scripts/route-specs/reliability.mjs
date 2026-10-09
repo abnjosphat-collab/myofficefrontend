@@ -6,7 +6,7 @@ const BREAKDOWNS = [
   { id: 3, equipment_name: 'Fixture Pump', section: 'Dewatering', downtime_hours: 1, breakdown_date: iso(-5) },
 ];
 
-export default {
+const spec = {
   route: '/reliability',
   h1: 'Reliability',
   data: {
@@ -34,3 +34,5 @@ export default {
     async recovered(page, { check }) { check(await page.getByRole('table', { name: 'Equipment reliability metrics' }).isVisible(), 'Try again loads the analytics'); },
   },
 };
+
+export default spec;

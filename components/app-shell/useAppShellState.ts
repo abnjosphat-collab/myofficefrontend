@@ -94,7 +94,7 @@ export function useAppShellState() {
   // race the load effect above and clobber whatever was just restored.
   const toggleFavorite = (href: string) => setFavoriteHrefs(prev => {
     const next = new Set(prev);
-    next.has(href) ? next.delete(href) : next.add(href);
+    if (next.has(href)) next.delete(href); else next.add(href);
     writeJSON(FAVORITES_KEY, Array.from(next));
     return next;
   });
@@ -109,7 +109,7 @@ export function useAppShellState() {
   });
   const toggleQuickAction = (href: string) => setQuickActionHrefs(prev => {
     const next = new Set(prev);
-    next.has(href) ? next.delete(href) : next.add(href);
+    if (next.has(href)) next.delete(href); else next.add(href);
     writeJSON(MANUAL_QA_KEY, Array.from(next));
     return next;
   });
@@ -126,7 +126,7 @@ export function useAppShellState() {
   });
   const setBuiltinQuickActionVisible = (id: string, visible: boolean) => setDismissedBuiltinIds(prev => {
     const next = new Set(prev);
-    visible ? next.delete(id) : next.add(id);
+    if (visible) next.delete(id); else next.add(id);
     writeJSON(BUILTIN_QA_DISMISSED_KEY, Array.from(next));
     return next;
   });

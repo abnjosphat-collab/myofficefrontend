@@ -11,7 +11,7 @@ let next = 1;
 const create = request => { const body = request.postDataJSON(); const id = `n${next++}`; const item = { ...body, id, status: status(body), lastRestocked: body.lastRestocked ?? '', createdAt: '', updatedAt: '' }; STORE.set(id, item); return item; };
 const update = id => request => { const item = { ...STORE.get(id), ...request.postDataJSON() }; item.status = status(item); STORE.set(id, item); return item; };
 
-export default {
+const spec = {
   route: '/inventory',
   // One item this browser saved before the register was shared: it is moved up on the first visit.
   storage: { 'inventory-items': [{ id: 'old-1', name: 'Fixture Old Valve', sku: 'OLD-1', category: '', description: '', currentStock: 2, minStock: 1, maxStock: 5, unit: 'pcs', cost: 3, supplier: '', location: '', status: 'in-stock', lastRestocked: '2025-12-01T00:00:00Z' }] },
@@ -84,3 +84,5 @@ export default {
   empty: { data: { '/api/inventory/items': [] }, storage: {}, text: 'No inventory items yet' },
   failing: { paths: ['GET /api/inventory/items'], text: 'Inventory could not be loaded', notShown: ['No inventory items yet'] },
 };
+
+export default spec;

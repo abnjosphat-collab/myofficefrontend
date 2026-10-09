@@ -11,7 +11,7 @@ const BREAKDOWNS = [
   { id: 3, equipment_name: 'Fixture Pump', downtime_hours: 1, breakdown_date: iso(-70) },
 ];
 
-export default {
+const spec = {
   route: '/engineering-dashboard',
   h1: 'Engineering dashboard',
   data: {
@@ -42,3 +42,5 @@ export default {
     check(await page.getByText('Fixture Crusher').first().isVisible(), 'repeat failures list real equipment');
   },
 };
+
+export default spec;

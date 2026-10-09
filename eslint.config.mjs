@@ -15,8 +15,16 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 // this is a visibility/backlog tool, not a new CI gate — the app hasn't been audited
 // against the full rule set yet, so some of these may fire broadly on day one.
 const a11yRecommended = jsxA11y.flatConfigs.recommended;
+// Each recommended rule becomes a warning WITH its recommended options, and a rule the plugin's recommended set
+// turns off stays off. (Until 2026-10-09 every rule was mapped to a bare "warn": that dropped the options and
+// switched on control-has-associated-label, which the plugin ships off because it misreads <datalist> and
+// labels that nest their control, producing 59 false positives. Accessible names are verified for real in the
+// browser by scripts/a11y-routes.mjs (axe, WCAG 2.1 AA, every route).)
 const a11yWarnRules = Object.fromEntries(
-  Object.keys(a11yRecommended.rules).map((rule) => [rule, "warn"])
+  Object.entries(a11yRecommended.rules).map(([rule, setting]) => {
+    const [level, ...options] = Array.isArray(setting) ? setting : [setting];
+    return [rule, level === "off" || level === 0 ? "off" : ["warn", ...options]];
+  })
 );
 // label-has-for is deprecated upstream in favor of label-has-associated-control (which
 // stays enabled above and already covers the real requirement: a label needs a matching
@@ -27,6 +35,10 @@ const a11yWarnRules = Object.fromEntries(
 // <select>/<textarea> tag even when its actual (correct, htmlFor/id-associated) label is
 // fine. Turned off rather than satisfied per-callsite with a fake nested element.
 a11yWarnRules["jsx-a11y/label-has-for"] = "off";
+// Check-box rows wrap their control and their text in one label, with the text two levels down
+// (<label><input/><span><strong>Name</strong><small>Detail</small></span></label>). The rule's default search depth
+// of 2 stops one level short of that text and reports a label with no text; 3 reaches it and still checks every label.
+a11yWarnRules["jsx-a11y/label-has-associated-control"] = ["warn", { depth: 3 }];
 
 // A single className chunk with two unmodified bg-* color utilities silently lets one
 // win with no warning — found and fixed 3 separate times in this codebase already. A
@@ -143,6 +155,9 @@ const eslintConfig = defineConfig([
     rules: {
       // Downgraded to warn — will be properly typed as each page is transformed
       '@typescript-eslint/no-explicit-any': 'warn',
+      // A leading underscore marks a name as deliberately unused: a field left out of a copy
+      // (`const { id: _id, ...rest } = row`) or a parameter a signature requires.
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_', ignoreRestSiblings: true }],
       // Re-triaged 2026-08-31: 34 findings across 25 files, read individually rather than
       // bulk-suppressed. 33 were legitimate, structurally-necessary effect patterns —
       // fetch-on-mount/on-dependency-change (the majority), SSR-safe hydration from
@@ -294,6 +309,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated TypeDoc HTML (git-ignored); its bundled scripts are not our source.
     "docs/_generated/**",
+    // The coverage report `npm run test:coverage` writes (git-ignored); generated, not source.
+    "coverage/**",
   ]),
 ]);
 

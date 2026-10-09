@@ -15,9 +15,7 @@
 
 import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
-import { authFetch } from '@/lib/api';
-import { ApiError } from '@/lib/apiClient';
-import { retryTransient } from '@/lib/transientRetry';
+import { fetchOrNull } from './fetchOrNull';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
 } from '@/components/ui-system';
@@ -57,23 +55,12 @@ export function timeAgo(iso?: string | null): string {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
-// Some of these endpoints (employees, individual work orders, breakdowns) are
-// auth-gated server-side; others (aggregate stats, equipment) are open. Using
-// authFetch for all of them is harmless either way — it just attaches a
-// Bearer token when a session exists — and avoids silently 401ing on the
-// gated ones.
-async function safeJson(url: string): Promise<any> {
-  try {
-    // A slow or waking service is waited out (up to a minute and a half) so the figures appear instead of showing as unavailable.
-    return await retryTransient(async () => {
-      const r = await authFetch(url);
-      if (!r.ok) throw new ApiError(`HTTP ${r.status}`, r.status);
-      return r.json();
-    }, { maxWaitMs: 90_000 });
-  } catch {
-    return null;
-  }
-}
+// The fields this hook reads from each endpoint (all optional: a partial row must not break the homepage).
+interface WorkOrderStats { pending?: number; in_progress?: number }
+interface EquipmentRow { status?: string | null }
+interface BreakdownOverview { metrics?: { open_breakdowns?: number } }
+interface WorkOrderRow { id: number | string; work_order_number?: string | null; job_request_details?: string | null; created_at?: string | null; date_raised?: string | null; status?: string | null; requested_by?: string }
+interface BreakdownRow { id: number | string; machine_name?: string | null; machine_id?: string | null; created_at?: string | null; breakdown_date?: string | null; priority?: string | null; artisan_name?: string }
 
 interface DashboardLoadResult { stats: DashboardStats; activity: ActivityItem[]; activityFailed: boolean }
 
@@ -94,14 +81,14 @@ let _inflight: Promise<DashboardLoadResult> | null = null;
 
 async function loadDashboardData(): Promise<DashboardLoadResult> {
   const [employees, woStats, equipment, breakdownOverview, workOrders, breakdowns] = await Promise.all([
-    safeJson(`${API_BASE}/api/employees`),
-    safeJson(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
-    safeJson(`${API_BASE}/api/equipment`),
-    safeJson(`${API_BASE}/api/breakdowns/dashboard/overview`),
+    fetchOrNull<unknown[]>(`${API_BASE}/api/employees`),
+    fetchOrNull<WorkOrderStats>(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
+    fetchOrNull<EquipmentRow[]>(`${API_BASE}/api/equipment`),
+    fetchOrNull<BreakdownOverview>(`${API_BASE}/api/breakdowns/dashboard/overview`),
     // Only the newest 6 are ever shown (sliced below) — no reason to pull
     // the entire table over the wire on every page load.
-    safeJson(`${API_BASE}/api/maintenance/work-orders?limit=6`),
-    safeJson(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
+    fetchOrNull<WorkOrderRow[]>(`${API_BASE}/api/maintenance/work-orders?limit=6`),
+    fetchOrNull<BreakdownRow[] | { data?: BreakdownRow[] }>(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
   ]);
 
   const employeeCount = Array.isArray(employees) ? employees.length : null;
@@ -114,7 +101,7 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
   // actually seeded, though the API model default is "Available") — match either.
   let equipmentAvailablePct: number | null = null;
   if (Array.isArray(equipment) && equipment.length > 0) {
-    const available = equipment.filter((e: any) => {
+    const available = equipment.filter(e => {
       const s = (e.status || '').toLowerCase();
       return s === 'available' || s === 'operational';
     }).length;
@@ -125,7 +112,7 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
 
   // Activity feed: merge the newest work orders + breakdowns into one timeline.
   const woItems: ActivityItem[] = Array.isArray(workOrders)
-    ? workOrders.slice(0, 6).map((w: any) => ({
+    ? workOrders.slice(0, 6).map(w => ({
       id: `wo-${w.id}`,
       action: `Work order ${w.work_order_number ? `#${w.work_order_number}` : ''} — ${w.job_request_details || 'raised'}`.slice(0, 80),
       module: 'Maintenance',
@@ -137,9 +124,9 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
     }))
     : [];
 
-  const breakdownRecords = breakdowns?.data ?? (Array.isArray(breakdowns) ? breakdowns : []);
+  const breakdownRecords: BreakdownRow[] = Array.isArray(breakdowns) ? breakdowns : (breakdowns?.data ?? []);
   const bdItems: ActivityItem[] = Array.isArray(breakdownRecords)
-    ? breakdownRecords.slice(0, 6).map((b: any) => ({
+    ? breakdownRecords.slice(0, 6).map(b => ({
       id: `bd-${b.id}`,
       action: `Breakdown reported — ${b.machine_name || b.machine_id || 'equipment'}`,
       module: 'Breakdowns',

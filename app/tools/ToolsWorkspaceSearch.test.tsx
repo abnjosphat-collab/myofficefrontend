@@ -54,6 +54,7 @@ describe('ToolsWorkspaceSearch', () => {
     const { onChoose, onChange } = setup('equipment');
     await user.click(screen.getByRole('button', { name: 'Expand search' }));
     const box = screen.getByRole('combobox', { name: 'Search the Tools workspace' });
+    expect(box).toHaveValue('equipment');
     expect(screen.getByRole('option', { name: /Equipment register/ })).toBeInTheDocument();
     await user.keyboard('{Enter}');
     expect(onChoose).toHaveBeenCalledWith(results[0]);

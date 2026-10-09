@@ -89,7 +89,7 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
             <img src={pending.qrCode} alt="Authenticator QR code" width={176} height={176} className="rounded-control border border-line bg-white" />
           </div>
           <p className="break-all text-center font-sans text-caption text-ink-muted">Can&apos;t scan? Key in this secret: <span className="font-mono text-ink">{pending.secret}</span></p>
-          <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center tracking-[0.4em]" /></Field>
+        <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center tracking-[0.4em]" /></Field>
           {error && <Notice tone="danger" title="Not verified">{error}</Notice>}
           <div className="flex gap-2">
             <Button variant="primary" className="flex-1" pending={busy} onClick={confirmEnroll}>Verify and enable</Button>
@@ -144,6 +144,8 @@ export function MfaChallenge({ onVerified, onCancel }: { onVerified: () => void;
   return (
     <AuthCard title="Two-factor verification" description="Enter the 6-digit code from your authenticator app." headingId="mfa-title">
       <form onSubmit={submit} className="flex flex-col gap-3.5">
+        {/* The code is this screen's only task and it follows the password step, so focus starts in it (one-time-code autofill lands there too). */}
+        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" autoFocus value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center text-body tracking-[0.5em]" /></Field>
         {error && <Notice tone="danger" title="Not verified">{error}</Notice>}
         <Button type="submit" variant="primary" fullWidth pending={busy} disabled={!ready}>Verify</Button>

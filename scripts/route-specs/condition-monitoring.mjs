@@ -5,7 +5,7 @@ const READINGS = [
   { id: 3, equipment_name: 'Motor M3', component: 'Winding', monitoring_type: 'Thermography', sampled_date: '2026-09-25', value: 95, unit: 'C', result: 'critical', technician: 'Cat', notes: 'Hot spot' },
 ];
 
-export default {
+const spec = {
   route: '/condition-monitoring',
   h1: 'Condition monitoring',
   data: { '/api/condition-monitoring': READINGS },
@@ -28,3 +28,5 @@ export default {
   empty: { data: { '/api/condition-monitoring': [] }, text: 'No readings yet' },
   failing: { paths: ['/api/condition-monitoring'], text: 'Monitoring records could not be loaded', notShown: ['No readings yet'], async recovered(page, { check }) { check(await page.getByRole('table').isVisible(), 'Try again loads the readings'); } },
 };
+
+export default spec;

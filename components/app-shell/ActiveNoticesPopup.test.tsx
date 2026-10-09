@@ -27,7 +27,7 @@ function notice(over: Partial<Notice> = {}): Notice {
 }
 
 function notification(id: string, unread: boolean): Notification {
-  return { id, action: 'x', module: 'Noticeboard', icon: (() => null) as any, time: '', timestamp: 0, status: 'normal', unread };
+  return { id, action: 'x', module: 'Noticeboard', icon: (() => null) as unknown as Notification['icon'], time: '', timestamp: 0, status: 'normal', unread };
 }
 
 function setup(notices: Notice[], { loading = false } = {}) {

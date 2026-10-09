@@ -7,7 +7,7 @@ const DATA = {
   '/api/breakdowns/dashboard/overview': { metrics: { open_breakdowns: 4 } },
 };
 
-export default {
+const spec = {
   route: '/',
   h1: 'Home',
   data: DATA,
@@ -69,3 +69,5 @@ export default {
   },
   empty: { data: { '/api/employees': [], '/api/maintenance/work-orders/stats/summary': { pending: 0, in_progress: 0 }, '/api/equipment': [], '/api/breakdowns/dashboard/overview': { metrics: {} } }, text: 'No data' },
 };
+
+export default spec;

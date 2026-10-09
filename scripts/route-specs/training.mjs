@@ -5,7 +5,7 @@ const CERTS = [
   { id: 2, employee_name: 'Ben Beta', employee_id: 'E2', department: 'Mining', certification_name: 'Blasting', expiry_date: iso(40), required_refresher: '', status: 'Due Soon', certificate_url: null },
   { id: 3, employee_name: 'Cat Gamma', employee_id: 'E3', department: 'Mining', certification_name: 'Rigging', expiry_date: iso(400), required_refresher: '', status: 'Valid', certificate_url: null },
 ];
-export default {
+const spec = {
   route: '/training',
   h1: 'Training',
   data: {
@@ -63,3 +63,5 @@ export default {
   empty: { data: { '/api/training': [], '/api/training/reports/compliance_rate': { compliance_rate: 0, total_tracked: 0, non_compliant: 0 }, '/api/training/reports/due_refreshers': [] }, text: 'No certifications yet' },
   failing: { paths: ['/api/training'], text: 'Certifications could not be loaded', notShown: ['No certifications yet'], async recovered(page, { check }) { check(await page.getByRole('table', { name: 'Certification register' }).isVisible(), 'Try again loads the register'); } },
 };
+
+export default spec;

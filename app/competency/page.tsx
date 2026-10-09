@@ -103,7 +103,7 @@ function CompetencyContent() {
 
   /** Save one level. Returns true on success. On failure nothing on screen changes and the user is told. */
   const saveLevel = async (employee: Employee, skill: string, level: SkillLevel): Promise<boolean> => {
-    const existing = rawRows.find((r: any) => r.employee_id === employee.employeeId && (r.skill_area === skill || r.equipment_type === skill));
+    const existing = rawRows.find(r => String(r.employee_id) === employee.employeeId && (r.skill_area === skill || r.equipment_type === skill));
     try {
       if (existing) await updateSkillLevel(existing.id, level);
       else await createSkillLevel(employee, skill, level);

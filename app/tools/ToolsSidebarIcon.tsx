@@ -3,6 +3,9 @@
 'use client';
 
 import { IconArrowUpRight, IconBox, IconChartLine, IconChecklist, IconHistory, IconHome, IconPencil, IconUpload, IconUser, IconUserCog } from '@tabler/icons-react';
+// The owner's Settings choice between two icon packs needs the raw Phosphor set beside Tabler; the UI system's icon layer fixes one
+// weight for every page, which is the opposite of what this setting does. Confined to this one file.
+// eslint-disable-next-line no-restricted-imports
 import { ArrowCircleUpRight, ChartBar, ChatCircleText, ClockClockwise, Cube, FileArrowUp, House, ShieldCheck, User as PhosphorUser, UserGear } from '@phosphor-icons/react';
 import { ICON_PACKS, type IconPackId } from './sidebarNav';
 import s from './tools.module.css';

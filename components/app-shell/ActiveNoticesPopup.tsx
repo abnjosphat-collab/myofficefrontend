@@ -44,33 +44,30 @@ export function ActiveNoticesPopup() {
   const router = useRouter();
   const { notices, loading: noticesLoading } = useNoticeAlerts();
   const { notifications, loading: notifLoading, markRead } = useNotifications();
-  // null = this mount hasn't decided what to show yet; [] = decided, nothing (or
-  // everything) has been dismissed since.
-  const [shownIds, setShownIds] = useState<string[] | null>(null);
+  // Read once, when this mount starts: an earlier mount this session already showed the popup.
+  const [alreadyShown] = useState(hasShownThisSession);
+  // Cards closed on this mount. They are also marked read, but this hides them at once rather than when the seen list re-reads.
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const ready = !noticesLoading && !notifLoading;
 
   const unreadNoticeIds = useMemo(
     () => new Set(notifications.filter(n => n.module === 'Noticeboard' && n.unread).map(n => n.id)),
     [notifications],
   );
 
-  useEffect(() => {
-    if (shownIds !== null) return; // already decided this mount
-    if (noticesLoading || notifLoading) return;
-    if (hasShownThisSession()) { setShownIds([]); return; }
-    markShownThisSession();
-    setShownIds(notices.filter(n => unreadNoticeIds.has(`notice-${n.id}`)).map(n => `notice-${n.id}`));
-  }, [noticesLoading, notifLoading, shownIds, notices, unreadNoticeIds]);
+  // Once this mount has its answer, later mounts this session stay quiet, whether or not anything was shown.
+  useEffect(() => { if (ready && !alreadyShown) markShownThisSession(); }, [ready, alreadyShown]);
 
-  const displayed: Notice[] = shownIds ? notices.filter(n => shownIds.includes(`notice-${n.id}`)) : [];
+  const displayed: Notice[] = ready && !alreadyShown
+    ? notices.filter(n => unreadNoticeIds.has(`notice-${n.id}`) && !dismissed.has(`notice-${n.id}`))
+    : [];
 
-  const dismiss = (id: string) => {
-    markRead([`notice-${id}`]);
-    setShownIds(prev => (prev ?? []).filter(x => x !== `notice-${id}`));
+  const close = (ids: string[]) => {
+    markRead(ids);
+    setDismissed(prev => new Set([...prev, ...ids]));
   };
-  const dismissAll = () => {
-    markRead(displayed.map(n => `notice-${n.id}`));
-    setShownIds([]);
-  };
+  const dismiss = (id: string) => close([`notice-${id}`]);
+  const dismissAll = () => close(displayed.map(n => `notice-${n.id}`));
   const openNotice = () => router.push('/noticeboard');
 
   if (displayed.length === 0) return null;

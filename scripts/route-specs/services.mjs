@@ -21,7 +21,7 @@ const JOBS = [
 const ATTACHMENTS = [{ id: 'a1', service_id: 's1', created_at: '2026-09-02T08:00:00Z', filename: 'completion-cert.pdf', file_url: 'https://files.example.test/c.pdf', file_size: 52000, mime_type: 'application/pdf' }];
 const SIGS = { s1: {}, s2: {} };
 let failSave = false; let failAttachments = false; let failImportFor = null;
-const putOf = (id, ok) => request => (failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...JOBS.find(j => j.id === id), ...request.postDataJSON(), id });
+const putOf = id => request => (failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...JOBS.find(j => j.id === id), ...request.postDataJSON(), id });
 
 const spec = {
   route: '/services',

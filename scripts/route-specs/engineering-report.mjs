@@ -7,7 +7,7 @@ const PRODUCTION = [{ id: 1, prod_date: day(1), tonnes_milled: 2000, recovery_pc
 const COMPLIANCE = [{ id: 1, status: 'current' }, { id: 2, status: 'overdue' }];
 const LUBE = [{ id: 1, status: 'due_soon' }];
 
-export default {
+const spec = {
   route: '/engineering_report',
   h1: 'Engineering report',
   data: {
@@ -36,3 +36,5 @@ export default {
     async recovered(page, { check }) { check(/2,000 t/.test(await page.locator('main').innerText()), 'Try again loads production'); },
   },
 };
+
+export default spec;

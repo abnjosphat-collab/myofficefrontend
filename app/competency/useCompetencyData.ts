@@ -10,12 +10,23 @@ import { api, ApiError } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
 import type { Employee, SkillLevel } from './types';
 
-export function pivotFromAPI(rows: any[]): Employee[] {
+/** One row of /api/competency: a single employee's level in a single skill. */
+export interface CompetencyRow {
+  id: number;
+  employee_id: string | number;
+  employee_name: string;
+  trade?: string | null;
+  skill_area?: string | null;
+  equipment_type?: string | null;
+  skill_level?: number | null;
+}
+
+export function pivotFromAPI(rows: CompetencyRow[]): Employee[] {
   const map = new Map<string, Employee>();
   for (const r of rows) {
-    const key = r.employee_id;
+    const key = String(r.employee_id);
     if (!map.has(key)) map.set(key, { id: r.id, employeeId: String(r.employee_id), name: r.employee_name, trade: r.trade || '', department: r.trade || '', skills: {} });
-    map.get(key)!.skills[r.skill_area || r.equipment_type] = (r.skill_level ?? 0) as SkillLevel;
+    map.get(key)!.skills[r.skill_area || r.equipment_type || ''] = (r.skill_level ?? 0) as SkillLevel;
   }
   return Array.from(map.values());
 }
@@ -29,7 +40,7 @@ export async function createSkillLevel(emp: { employeeId: string; name: string; 
 
 export function useCompetencyData() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [rawRows, setRawRows] = useState<any[]>([]);
+  const [rawRows, setRawRows] = useState<CompetencyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +49,7 @@ export function useCompetencyData() {
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await retryTransient(() => api.get<any[]>('/api/competency'));
+      const rows = await retryTransient(() => api.get<CompetencyRow[]>('/api/competency'));
       setRawRows(rows); setEmployees(pivotFromAPI(rows));
       setLoaded(true); setError(null); setErrorStatus(null);
     } catch (e) {

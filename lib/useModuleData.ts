@@ -7,7 +7,7 @@ import { retryTransient } from '@/lib/transientRetry';
 
 const BASE_URL = API_BASE;
 
-export function useModuleData<T>(endpoint: string) {
+export function useModuleData<T extends { id: number | string }>(endpoint: string) {
   const [data,    setData]    = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -51,14 +51,14 @@ export function useModuleData<T>(endpoint: string) {
     const r = await authFetch(`${url}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(await r.text());
     const updated: T = await r.json();
-    setData(prev => prev.map((item: any) => item.id === id ? updated : item));
+    setData(prev => prev.map(item => item.id === id ? updated : item));
     return updated;
   };
 
   const remove = async (id: number | string): Promise<void> => {
     const r = await authFetch(`${url}/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error(await r.text());
-    setData(prev => prev.filter((item: any) => item.id !== id));
+    setData(prev => prev.filter(item => item.id !== id));
   };
 
   return { data, loading, error, refetch, create, update, remove };

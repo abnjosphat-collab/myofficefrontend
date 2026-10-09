@@ -35,6 +35,8 @@ function offerSignIn() {
       label: 'Sign in',
       onClick: () => {
         const here = window.location.pathname + window.location.search;
+        // A full load on purpose: this runs from a toast outside the React tree (no router), and signing in should start from a clean page.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = `/login?next=${encodeURIComponent(here)}`;
       },
     },

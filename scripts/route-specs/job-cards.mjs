@@ -7,7 +7,7 @@ const CARDS = [
 let patchMode = 'fail';
 const patches = [];
 
-export default {
+const spec = {
   route: '/job-cards',
   h1: 'Job cards',
   data: {
@@ -56,3 +56,5 @@ export default {
   empty: { data: { '/api/job-cards': [] }, text: 'No job cards yet' },
   failing: { paths: ['/api/job-cards'], text: 'Job cards could not be loaded', notShown: ['No job cards yet'], async recovered(page, { check }) { check(await page.getByRole('table', { name: 'Job cards' }).isVisible(), 'Try again loads the job cards'); } },
 };
+
+export default spec;

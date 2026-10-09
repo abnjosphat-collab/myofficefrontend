@@ -90,7 +90,6 @@ export function NavSpotlight({ label, icon, href, collapsed, onNavigate, current
 export interface NavGroupProps {
   label: string;
   icon?: NavIconSource;
-  count?: number;
   /** Controlled open state; omit for self-managed. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -101,7 +100,7 @@ export interface NavGroupProps {
 }
 
 /** Collapsible group. The height animates with a grid-row transition (no JS measuring; instant under reduced motion). */
-export function NavGroup({ label, icon, count, open: controlled, onOpenChange, defaultOpen = false, action, children }: NavGroupProps) {
+export function NavGroup({ label, icon, open: controlled, onOpenChange, defaultOpen = false, action, children }: NavGroupProps) {
   const [internal, setInternal] = useState(defaultOpen);
   const open = controlled ?? internal;
   const bodyId = useId();

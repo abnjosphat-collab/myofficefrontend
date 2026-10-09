@@ -39,9 +39,8 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
       }}
     />
     {/* WAI-ARIA combobox with a listbox popup: the options are not tab stops, the search box above drives them from the keyboard (arrows, Enter, Tab). */}
-    {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role */}
     <ul id={listId} role="listbox" aria-label={`${label} suggestions`} className={s.pickerList}>
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-to-interactive-role */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
       {matches.map((choice, index) => <li key={choice.label} id={`${id}-option-${index}`} role="option" aria-selected={choice.label === value} data-active={index === current} className={s.pickerOption} onMouseDown={event => event.preventDefault()} onClick={() => choose(choice)}>
         <span className={s.pickerAvatar} aria-hidden="true"><Icon name="user" size={17} /></span>
         <span className={s.pickerText}><strong>{choice.label.split(' · ')[0]}</strong><small>{[choice.label.split(' · ')[1], choice.detail].filter(Boolean).join(' · ')}</small></span>

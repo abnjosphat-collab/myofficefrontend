@@ -5,7 +5,6 @@
  * for real record states.
  */
 export function toolsChartTheme() {
-  const light = true;
   return {
     accent: '#7652c5',
     series: ['#7652c5', '#3e806e', '#b17839', '#557ba8', '#a45f83', '#737488', '#a579b6', '#728d61'],

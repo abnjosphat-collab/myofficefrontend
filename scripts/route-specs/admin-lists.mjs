@@ -2,7 +2,7 @@
 const LOCATIONS = [{ id: 1, value: 'Shaft 1' }, { id: 2, value: 'Mill' }];
 const NATURES = [{ id: 7, value: 'Electrical fault' }];
 
-export default {
+const spec = {
   route: '/admin/lists',
   h1: 'Shared lists',
   data: {
@@ -48,3 +48,5 @@ export default {
   empty: { data: { '/api/lookup-lists/location': [], '/api/lookup-lists/breakdown_nature': [] }, text: 'No entries yet' },
   failing: { paths: ['/api/lookup-lists/location'], text: 'Locations could not be loaded', notShown: ['No entries yet'], async recovered(page, { check }) { check(await page.getByText('Shaft 1').isVisible(), 'Try again loads the list'); } },
 };
+
+export default spec;

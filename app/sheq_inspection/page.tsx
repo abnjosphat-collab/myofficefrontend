@@ -210,6 +210,8 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
           <FactList>
             {[{ label: 'Head of department', name: inspection.hodName, sig: inspection.hodSignature }, { label: 'SHEQ official', name: inspection.sheqOfficialName, sig: inspection.sheqSignature }].map(({ label, name, sig }) => (
               <Fact key={label} label={label}>
+                {/* The signature is a data: URL drawn on the signature pad; next/image cannot optimise it and would add nothing. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 {sig ? <img src={sig} alt={`${label} signature`} className="max-h-10" /> : <span className="text-ink-muted">{name ? `${name} (not yet signed)` : 'Not signed'}</span>}
               </Fact>
             ))}

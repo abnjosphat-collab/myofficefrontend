@@ -11,7 +11,7 @@ const EVENTS = [
 ];
 let remoteFails = true;
 
-export default {
+const spec = {
   route: '/usage-analyzer',
   h1: 'Usage analyzer',
   storage: { oz_usageEvents: EVENTS },
@@ -49,3 +49,5 @@ export default {
     check(await page.getByText('No usage recorded yet').isVisible(), 'after clearing, the empty state is shown');
   },
 };
+
+export default spec;

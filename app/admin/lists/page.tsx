@@ -42,6 +42,8 @@ function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (i
           <Input
             aria-label={`Rename ${item.value}`}
             value={draft}
+            // Focus follows the user's own Rename click to the field it just revealed; nothing is focused on page load.
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') cancel(); }}

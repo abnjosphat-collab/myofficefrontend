@@ -79,7 +79,7 @@ export function exportPDF(drivers: Driver[], filterLabel: string) {
 
   phonePositions.forEach(pos => doc.link(pos.x, pos.y, pos.w, pos.h, { url: pos.tel }));
 
-  const totalPages = (doc as any).internal.getNumberOfPages();
+  const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     doc.setFontSize(7); doc.setTextColor(160, 160, 160);

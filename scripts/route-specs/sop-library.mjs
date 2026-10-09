@@ -7,7 +7,7 @@ const ARCHIVED = [sop('a1', 'SOP-OLD-001', 'Retired procedure', 'retired')];
 const REVISIONS = [{ id: 'r1', sop_id: 's1', revision_number: 2, snapshot: SOPS[0], change_note: 'Added lock steps', author_email: 'ann@example.invalid', created_at: '2026-09-01T10:00:00Z' }];
 let postMode = 'fail';
 
-export default {
+const spec = {
   route: '/sop-library',
   h1: 'SOP library',
   data: {
@@ -62,3 +62,5 @@ export default {
   empty: { data: { '/api/sops': [], '/api/sops/archived': [] }, text: 'No SOPs yet' },
   failing: { paths: ['/api/sops'], text: 'SOPs could not be loaded', notShown: ['No SOPs yet'], async recovered(page, { check }) { check(await page.getByRole('button', { name: /^Open SOP-OPS-/ }).first().isVisible(), 'Try again loads the SOPs'); } },
 };
+
+export default spec;

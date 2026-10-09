@@ -15,7 +15,6 @@ import {
   rosterSubgroupLabel,
   isHoistDriverDesignation,
   shouldArchiveEmployee,
-  ARTISAN_FILTER_VALUE,
   ARTISAN_SUBCATEGORY,
   FOREMAN_SUBCATEGORY,
   DESIGNATION_ORDER,

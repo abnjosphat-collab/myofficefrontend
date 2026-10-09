@@ -50,7 +50,7 @@ const CONTRACTORS = [
 if (ONLY.includes('contractors')) {
   console.log('\n== /contractors ==');
   let postMode = 'fail';
-  await scenario('contractors rows', async (route, calls) => {
+  await scenario('contractors rows', async route => {
     const request = route.request();
     if (new URL(request.url()).pathname === '/api/contractors') {
       if (request.method() === 'POST') return postMode === 'fail' ? json(route, { detail: 'Contractor service rejected the request' }, 500) : json(route, { id: 9 });

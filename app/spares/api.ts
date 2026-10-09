@@ -8,10 +8,12 @@ import { api } from '@/lib/apiClient';
 import type { SavedRequisition, Spare, SpareFormData } from './types';
 
 export async function apiFetchAll(): Promise<Spare[]> {
-  const d = await api.get<any>('/api/spares');
-  const records=Array.isArray(d)?d:Array.isArray(d?.items)?d.items:Array.isArray(d?.data)?d.data:null;
-  if(!records)throw new Error('Spares returned an unexpected response.');
-  return records;
+  // The list arrives bare or wrapped in { items } / { data } depending on the endpoint version.
+  const d = await api.get<unknown>('/api/spares');
+  const wrapped = (d && typeof d === 'object' ? d : {}) as { items?: unknown; data?: unknown };
+  const records = Array.isArray(d) ? d : Array.isArray(wrapped.items) ? wrapped.items : Array.isArray(wrapped.data) ? wrapped.data : null;
+  if (!records) throw new Error('Spares returned an unexpected response.');
+  return records as Spare[];
 }
 export async function apiCreate(data: Partial<SpareFormData>): Promise<Spare> {
   return api.post<Spare>('/api/spares', data);
@@ -42,9 +44,9 @@ const reqToDbPayload = (req: SavedRequisition) => ({
 });
 
 export const apiGetSavedReqs = async (): Promise<SavedRequisition[]> => {
-  const data=await api.get<any[]>('/api/spares/saved-requisitions');
+  const data=await api.get<unknown>('/api/spares/saved-requisitions');
   if(!Array.isArray(data))throw new Error('Saved requisitions returned an unexpected response.');
-  return data.map(dbRowToReq);
+  return (data as Record<string, unknown>[]).map(dbRowToReq);
 };
 export const apiCreateSavedReq = async (req: SavedRequisition): Promise<SavedRequisition> => {
   return dbRowToReq(await api.post('/api/spares/saved-requisitions', reqToDbPayload(req)));

@@ -6,7 +6,7 @@ const DRIVERS = [
   { id: 3, full_name: 'Cat Gamma', phone_numbers: ['082 333 3333'], department: null, license_class: null, license_expiry: null, status: 'inactive', notes: '' },
 ];
 
-export default {
+const spec = {
   route: '/drivers',
   h1: 'Drivers',
   data: {
@@ -57,3 +57,5 @@ export default {
   empty: { data: { '/api/drivers': [] }, text: 'No drivers yet' },
   failing: { paths: ['/api/drivers'], text: 'Drivers could not be loaded', notShown: ['No drivers yet', 'No drivers found'], async recovered(page, { check }) { check(await page.getByRole('button', { name: /^Edit (?!favourites)/ }).first().isVisible(), 'Try again loads the drivers'); } },
 };
+
+export default spec;

@@ -6,7 +6,7 @@
 // the bell badge can reflect a genuine unread count rather than "is anything urgent".
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useDashboardData, type ActivityItem } from './useDashboardData';
 import { useOperationalAlerts } from './useOperationalAlerts';
 import { useNoticeAlerts } from './useNoticeAlerts';
@@ -14,13 +14,31 @@ import { useNoticeAlerts } from './useNoticeAlerts';
 const SEEN_KEY = 'oz_notifSeen';
 const SEEN_EVENT = 'oz-notif-seen-changed';
 
-function readSeen(): string[] {
-  if (typeof window === 'undefined') return [];
+/** The stored list exactly as written: a string, so React can compare snapshots by value. */
+function readSeenRaw(): string {
+  try { return window.localStorage.getItem(SEEN_KEY) ?? ''; } catch { return ''; }
+}
+
+function parseSeen(raw: string): string[] {
   try {
-    const raw = window.localStorage.getItem(SEEN_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr : [];
   } catch { return []; }
+}
+
+function readSeen(): string[] {
+  if (typeof window === 'undefined') return [];
+  return parseSeen(readSeenRaw());
+}
+
+// Another tab (storage) or another component on this page (SEEN_EVENT) changed the list.
+function subscribeSeen(onChange: () => void) {
+  window.addEventListener(SEEN_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(SEEN_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
 }
 
 function writeSeen(ids: string[]) {
@@ -46,20 +64,9 @@ export function useNotifications() {
   /** True when any source could not be loaded, so an empty list is not mistaken for "nothing to report". */
   const failed = activityFailed || alertsFailed || noticeFailed;
   const loading = activityLoading || alertsLoading || noticeLoading;
-  const [seen, setSeen] = useState<string[]>([]);
-
-  useEffect(() => {
-    setSeen(readSeen());
-    const onChange = () => setSeen(readSeen());
-    window.addEventListener(SEEN_EVENT, onChange);
-    window.addEventListener('storage', onChange);
-    return () => {
-      window.removeEventListener(SEEN_EVENT, onChange);
-      window.removeEventListener('storage', onChange);
-    };
-  }, []);
-
-  const seenSet = useMemo(() => new Set(seen), [seen]);
+  // Read straight from the store: the server render (and hydration) sees nothing marked read, then the browser's list.
+  const seenRaw = useSyncExternalStore(subscribeSeen, readSeenRaw, () => '');
+  const seenSet = useMemo(() => new Set(parseSeen(seenRaw)), [seenRaw]);
 
   // Alerts (pending approvals, unresolved SHEQ, overdue work orders) surface first —
   // they're the ones with an actual action attached, not just "here's what happened."
@@ -75,8 +82,7 @@ export function useNotifications() {
 
   const markRead = useCallback((ids: string[]) => {
     const combined = Array.from(new Set([...readSeen(), ...ids]));
-    writeSeen(combined);
-    setSeen(combined);
+    writeSeen(combined); // announces the change, which re-reads the store in every subscriber, this one included
   }, []);
 
   const markAllRead = useCallback(() => {
