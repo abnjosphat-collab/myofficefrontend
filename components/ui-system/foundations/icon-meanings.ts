@@ -5,7 +5,7 @@
 import type { ElementType } from 'react';
 import {
   Archive, ArrowClockwise, ArrowCounterClockwise, ArrowDown, ArrowLeft, ArrowSquareOut, ArrowUUpLeft, ArrowUUpRight,
-  ArrowUp, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, Buildings, CalendarBlank, Camera,
+  ArrowUp, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, Briefcase, Buildings, CalendarBlank, Camera,
   Car, CaretDown, CaretLeft, CaretRight, CaretUp, ChartLineUp, ChatCircleText, Check,
   CheckCircle, CheckSquare, CirclesFour, ClipboardText, Clock, ClockCounterClockwise, Columns, Copy,
   Cube, CurrencyCircleDollar, DotsSixVertical, DotsThree, DotsThreeVertical, DownloadSimple, EnvelopeSimple, Eye,
@@ -41,7 +41,7 @@ export const ICON_MEANINGS = [
   'admin-role',
   'eye', 'target', 'flag', 'cart', 'package',
   'gauge', 'activity', 'settings', 'percent',
-  'wrench', 'zap', 'building',
+  'wrench', 'zap', 'building', 'brand',
   'normalize', 'export-roster',
   'today', 'week', 'month',
   'draft', 'safe', 'unsafe',
@@ -220,6 +220,8 @@ export const ICON_BY_MEANING: Record<IconMeaning, ElementType> = {
   wrench: Wrench,
   zap: Lightning,
   building: Buildings,
+  // The MyOffice mark: the office briefcase, distinct from the Tools toolbox and the dashboard grid.
+  brand: Briefcase,
   normalize: Sparkle,
   'export-roster': Medal,
   today: CalendarBlank,

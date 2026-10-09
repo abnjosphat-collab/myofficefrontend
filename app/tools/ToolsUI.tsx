@@ -3,7 +3,7 @@
 import { createContext, useContext, useId, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Dialog as SharedDialog, HelpHint, Tooltip as SharedTooltip, type DialogSkin, type TooltipSkin } from '@/components/ui-system';
+import { Dialog as SharedDialog, HelpHint, Tooltip as SharedTooltip, type DialogSkin, type TooltipSkin, Button } from '@/components/ui-system';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { attachmentError, type Evidence } from './prototype';
 import s from './tools.module.css';
@@ -71,7 +71,7 @@ export function EvidencePicker({ value, onChange, addFiles, toolPhoto = false }:
   return <div className={s.evidencePicker}>
     <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image remains attached to the equipment record.' : 'Add a photo of the condition or a PDF report. Saved files stay with the equipment record.'}</Help></div>
     <label className={s.uploadZone} htmlFor={inputId}><Icon name={toolPhoto ? 'image' : 'upload'} size={22} /><span><strong>{toolPhoto ? 'Add a tool photograph or PDF' : 'Add photos or a PDF'}</strong><small>{toolPhoto ? 'The first image becomes the register photo · ' : ''}Up to 6 files · original-quality photos</small></span><Icon name="plus" size={18} /><input id={inputId} className={s.fileInput} aria-label="Attach photos or PDF" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf" onChange={e => { receive(Array.from(e.target.files || [])); e.target.value = ''; }} /></label>
-    {value.length > 0 && <div className={s.evidenceList}>{value.map(file => <div key={file.id} className={s.evidenceRow}><Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size={20} /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></span><button type="button" aria-label={`Remove ${file.name}`} className={s.iconButton} onClick={() => onChange(value.filter(f => f.id !== file.id))}><Icon name="close" size={16} /></button></div>)}</div>}
+    {value.length > 0 && <div className={s.evidenceList}>{value.map(file => <div key={file.id} className={s.evidenceRow}><Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size={20} /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></span><Button type="button" aria-label={`Remove ${file.name}`} variant="ghost" size="sm" className={`${s.sharedIconButton}`} onClick={() => onChange(value.filter(f => f.id !== file.id))}><Icon name="close" size={16} /></Button></div>)}</div>}
     {error && <p role="alert" className={s.warning}>{error}</p>}
   </div>;
 }

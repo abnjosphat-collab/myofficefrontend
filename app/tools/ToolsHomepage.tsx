@@ -7,6 +7,7 @@ import { ToolsIcon as Icon, type IconName } from './ToolsIcon';
 import type { Status } from './prototype';
 import type { ToolsTab } from './toolSelectors';
 import s from './tools.module.css';
+import { Button } from '@/components/ui-system';
 
 export type HomepageStat = { key: string; label: string; value: number; icon: IconName; tab: ToolsTab; filter: Status | 'all'; tone?: 'amber' | 'red'; unavailable?: boolean; loading?: boolean };
 export type HomepageAttention = { id: string; tone: 'amber' | 'red'; title: string; detail: string; tab: ToolsTab };
@@ -53,12 +54,12 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
     <div className={`${s.homeStats} ${s.homeStatsHero}`}>{stats.map((stat, i) => stat.loading
       ? <motion.div key={stat.key} className={s.homeStat} aria-busy="true" aria-label={`${stat.label}, loading`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong>—</strong><span>{stat.label}</span><small>Loading…</small></div></motion.div>
       : stat.unavailable
-      ? <motion.div key={stat.key} className={s.homeStat} data-unavailable="true" aria-label={`${stat.label} unavailable`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong>—</strong><span>{stat.label}</span><small>Unavailable</small></div><button className={s.textButton} onClick={onRetry}>Retry</button></motion.div>
+      ? <motion.div key={stat.key} className={s.homeStat} data-unavailable="true" aria-label={`${stat.label} unavailable`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong>—</strong><span>{stat.label}</span><small>Unavailable</small></div><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></motion.div>
       : <motion.button key={stat.key} className={s.homeStat} data-tone={stat.tone} onClick={() => onNavigate(stat.tab, stat.filter)} aria-label={`${stat.label}: ${stat.value}`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong><AnimatedText value={stat.value}>{stat.value}</AnimatedText></strong><span>{stat.label}</span></div><Icon name="chevron" size={15} /></motion.button>)}
     </div>
     <motion.section className={s.homePanel} aria-label="Needs attention" {...tileEmergeProps(stats.length, reduced)}><div className={s.homePanelHeader}><h3><Icon name="alert" size={15} />Needs attention</h3>{attention.length > 0 && <small>{attention.length}</small>}</div>
         {attentionLoading ? <div className={s.homeEmpty} role="status"><p>Loading the latest records…</p></div>
-          : attentionFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Needs-attention data is unavailable.</p><button className={s.textButton} onClick={onRetry}>Retry</button></div>
+          : attentionFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Needs-attention data is unavailable.</p><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></div>
           : attention.length ? <div className={s.homeAttention}>{attention.map(item => <button key={item.id} data-tone={item.tone} onClick={() => onNavigate(item.tab, 'all')}><i /><span><strong>{item.title}</strong><small>{item.detail}</small></span><Icon name="chevron" size={15} /></button>)}</div>
             : <div className={s.homeEmpty}><Icon name="check" size={22} /><p>Everything is clear. No overdue returns, open incidents or due checks.</p></div>}
       </motion.section>
@@ -67,10 +68,10 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
       <motion.section className={s.homePanel} aria-label="Recent movements" data-open={movementsOpen} {...tileEmergeProps(stats.length + 2 + sections.length, reduced)}>
         <div className={s.homePanelHeader}>
           <h3><button type="button" className={s.homeDisclosure} aria-expanded={movementsOpen} aria-controls="home-movements" disabled={historyFailed} onClick={toggleMovements}><Icon name="history" size={15} />Recent movements<small>{movementsChip}</small><Icon name="down" size={14} /></button></h3>
-          {movementsOpen && !historyLoading && <button className={s.textButton} onClick={() => onNavigate('activity', 'all')}>View all<Icon name="out" size={14} /></button>}
+          {movementsOpen && !historyLoading && <Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={() => onNavigate('activity', 'all')}>View all<Icon name="out" size={14} /></Button>}
         </div>
         {movementsOpen && <div id="home-movements">{historyLoading ? <div className={s.homeEmpty} role="status"><p>Loading the latest records…</p></div>
-          : historyFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Movement history is unavailable.</p><button className={s.textButton} onClick={onRetry}>Retry</button></div>
+          : historyFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Movement history is unavailable.</p><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></div>
           : movements.length ? <div className={s.homeMoves}>{movements.map(item => <button key={item.id} onClick={() => onNavigate('activity', 'all')}><span><strong>{item.title}</strong><small>{item.detail}</small></span><time>{item.time}</time></button>)}</div>
             : <div className={s.homeEmpty}><Icon name="history" size={22} /><p>No movements recorded yet.</p></div>}</div>}
       </motion.section>

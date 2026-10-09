@@ -8,6 +8,7 @@ import { ToolsIcon as Icon } from './ToolsIcon';
 import type { CompetencyRecord, IncidentRecord } from './complianceTypes';
 import type { Employee, Tool } from './prototype';
 import s from './tools.module.css';
+import { Button } from '@/components/ui-system';
 
 export const INCIDENT_NAMES: Record<IncidentRecord['incident_type'], string> = { lost: 'Lost equipment', damaged: 'Damage', stolen: 'Suspected theft', missing_components: 'Missing components', late_return: 'Late return' };
 const shortDate = (value: string) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -46,7 +47,7 @@ export function InspectionsView({ tools, onRecord }: { tools: Tool[]; onRecord?:
             <div className={s.acctPerson} role="cell"><span className={s.acctAvatar} aria-hidden="true"><Icon name="box" size={19} /></span><span><strong>{tool.name}</strong><small>{tool.id} · {tool.location}</small></span></div>
             <div className={s.acctCell} role="cell" data-label="Checks">{overdue.length ? <div className={s.cmpChips}>{overdue.map(item => <span key={item} className={s.cmpChip} data-tone="due">{label(item)} overdue</span>)}</div> : <span className={s.cmpChip} data-tone="ok">Up to date</span>}</div>
             <div className={s.acctCell} role="cell" data-label="Last colour inspection"><div className={s.inspectionColour} data-colour={(quarterly?.colour_code || 'none').toLowerCase()}><i />{quarterly ? `${quarterly.colour_code} · ${shortDate(quarterly.inspected_at)}` : 'Not recorded'}</div></div>
-            <div className={`${s.acctActions} ${s.acctActionsCompact}`} role="cell">{onRecord && <button type="button" className={overdue.length ? s.primary : s.secondary} aria-label={`Record a check for ${tool.name}`} onClick={() => onRecord(tool)}>Record check</button>}</div>
+            <div className={`${s.acctActions} ${s.acctActionsCompact}`} role="cell">{onRecord && <Button variant={overdue.length ? 'primary' : 'secondary'} size="lg" className={s.sharedButton} aria-label={`Record a check for ${tool.name}`} onClick={() => onRecord(tool)}>Record check</Button>}</div>
           </div>;
         })}
         {rows.length === 0 && <p className={s.eligEmpty}>No equipment matches.</p>}
@@ -70,7 +71,7 @@ export function IncidentsView({ incidents, toolById, employeeById, onClose }: { 
           <div className={s.acctPerson} role="cell"><span className={s.acctAvatar} aria-hidden="true"><Icon name="alert" size={19} /></span><span><strong>{INCIDENT_NAMES[item.incident_type]}</strong><small>{tool ? `${tool.id} · ${tool.name}` : 'Equipment'}{person ? ` · ${person.name}` : ''}</small></span></div>
           <div className={s.acctCell} role="cell" data-label="What happened"><p className={s.cmpText}>{item.explanation}</p><small className={s.cmpMuted}>Reported by {item.reported_by}</small></div>
           <div className={s.acctCell} role="cell" data-label="Investigation"><span className={s.cmpChip} data-tone={overdue ? 'due' : 'ok'}>{overdue ? 'Overdue' : 'Due'} {new Date(item.investigation_due_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
-          <div className={`${s.acctActions} ${s.acctActionsCompact}`} role="cell">{onClose && <button type="button" className={s.secondary} aria-label={`Close the investigation into ${INCIDENT_NAMES[item.incident_type]}${tool ? ` on ${tool.name}` : ''}`} onClick={() => onClose(item)}>Close investigation</button>}</div>
+          <div className={`${s.acctActions} ${s.acctActionsCompact}`} role="cell">{onClose && <Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} aria-label={`Close the investigation into ${INCIDENT_NAMES[item.incident_type]}${tool ? ` on ${tool.name}` : ''}`} onClick={() => onClose(item)}>Close investigation</Button>}</div>
         </div>;
       })}
     </div>
@@ -94,7 +95,7 @@ export function ApprovalsView({ tools, competencies, toolById, employeeById, onO
   const rows = tools.filter(tool => (show === 'all' || !(tool.eligibleEmployees || []).length) && `${tool.id} ${tool.name}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className={s.cmpPanel}>
     <p className={s.acctNote}><Icon name="info" size={16} /><span>An approval counts only while training, qualification and authorisation are all current. People and what they may use are managed under Employees; this view shows where the cover has gaps.</span></p>
-    {onOpenEmployees && <div><button type="button" className={s.secondary} onClick={onOpenEmployees}>Manage who can use what</button></div>}
+    {onOpenEmployees && <div><Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={onOpenEmployees}>Manage who can use what</Button></div>}
     {expiring.length > 0 && <div className={s.cmpBlock}>
       <h3>Expiring within 30 days <span className={s.eligCount}>{expiring.length}</span></h3>
       <div className={s.acctTable} role="table" aria-label="Approvals expiring soon" style={cols('minmax(200px,1.2fr) minmax(200px,1.2fr) minmax(130px,.8fr) minmax(130px,.8fr)')}>

@@ -179,7 +179,19 @@ The owner asked whether the app defines things once and reuses them, whether it 
   - The mock `/api/reports` router was deleted.
   - The fake work orders and placeholder people no longer appear in the Tools forms.
   - `supabase_migration_record_links.sql` (a draft) adds `employee_ref`/`equipment_ref` foreign keys and fills them by mine number, then row id, then a unique name. On 9 Oct the records that would still match nobody were: leaves 9, overtime 12, PPE 16, breakdowns 10 (machines missing from the Equipment register).
-- **Owner decisions still open.**
+- **Done and pushed 9 Oct 2026, after the owner approved the push and migrations:**
+  - Commits: frontend `48df4ae` and `c679707`; backend `7cdd44d` and `66362b7`.
+  - Migrations applied: `training_certifications` and `inventory_items`, each with a service-role policy.
+  - Inventory is now a shared table. A browser's old local items are moved up once, and each is removed locally only after the server saves it.
+  - The record-links migration was dropped by the owner's choice. Leaves, Overtime and PPE instead flag records whose employee number is not on the register ("Show them"), for manual clean-up. On 9 Oct that was 22, 68 and 36 records.
+  - The Tools login stays separate (owner's decision).
+  - **Employee numbers corrected (live data, owner's instruction).** 104 leave/overtime/PPE records (14, 61, 29) took their number from the employee register. A record changed only on a unique name match, or when it held the register row id of the same-named person. 22 records that match no one remain for the owner to delete through "Show them". The old → new list was kept outside the repo, so the change is reversible.
+- **Unified design, same day:**
+  - Tools' 89 ordinary buttons use the shared `Button`. Their Tools-only styles are deleted; container rules now target `button` for layout only, and `data-variant` is exposed for that.
+  - `MetricTile` has one design (the quiet chip); the large card variant is gone and the number takes its tone colour.
+  - The MyOffice mark is a briefcase and Core Management uses stacked layers (no more buildings).
+  - The Tools close quarter-turn is `closeTurn` in `foundations/gestures.ts`, on every close and remove control.
+- **Owner decisions (superseded by the above where answered).**
   - Inventory: its own table, or merge into Spares? Its backend is still in-memory.
   - The Tools login and employee/equipment copies: link them to the main tables or retire them.
   - Timesheet roster exceptions to the database (the other session is active in Timesheets).

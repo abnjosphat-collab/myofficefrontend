@@ -5,7 +5,7 @@
 import {
   Users, ToolCase, Package, CalendarDays, Fan,
   HardHat, Wrench, LineChart, Clock4, Megaphone,
-  Building, ShieldAlert, FileWarning, PackageOpen,
+  Layers, ShieldAlert, FileWarning, PackageOpen,
   Target, MessageSquareWarning, Upload, PackageMinus,
   Activity, FileCheck2, TrendingUp,
   HeartHandshake, GraduationCap, FileBarChart,
@@ -55,7 +55,7 @@ export interface QuickAction {
 export const CATEGORIES: Category[] = [
   {
     id: 'core', title: 'Core Management', description: 'Foundational business operations',
-    icon: Building,
+    icon: Layers,
     modules: [
       { icon: Users,    title: 'Personnel',  description: 'Employee profiles & team structure', href: '/employees',  tags: ['HR', 'People'], badge: '12', featured: true, metrics: [{ label: 'Active', value: '48' }, { label: 'Departments', value: '6' }] },
       { icon: ToolCase, title: 'Equipment', description: 'Track equipment across your site',  href: '/equipment',  tags: ['Equipment'], badge: '48', metrics: [{ label: 'Total', value: '234' }, { label: 'In Use', value: '189' }] },

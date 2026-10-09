@@ -3,6 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
+import { closeTurn } from '../foundations/gestures';
 
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'brand';
 
@@ -67,7 +68,7 @@ export function Tag({ children, className, onRemove, removeLabel, disabled }: {
           aria-label={`Remove ${name}`}
           disabled={disabled}
           onClick={onRemove}
-          className="focus-ring inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-ink-muted hover:bg-surface-muted hover:text-ink disabled:pointer-events-none disabled:opacity-45"
+          className={cn('focus-ring inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-ink-muted hover:bg-surface-muted hover:text-ink disabled:pointer-events-none disabled:opacity-45', closeTurn)}
         >
           <Icon name="close" size="xs" />
         </button>

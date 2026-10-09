@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cn } from '../foundations/cn';
-import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Skeleton } from '../primitives/Skeleton';
 
@@ -11,6 +10,7 @@ export interface MetricTileProps {
   label: string;
   /** The number or short value. `undefined` while loading; use `unavailable` when the source failed. */
   value?: ReactNode;
+  /** No longer shown: the label says what the number is. */
   icon?: IconMeaning;
   /** Context line: unit, period, comparison. */
   detail?: ReactNode;
@@ -21,75 +21,47 @@ export interface MetricTileProps {
   href?: string;
   onClick?: () => void;
   selected?: boolean;
-  /** Quiet one-line form: label and number only, no icon well, no chevron, no shadow. For a summary strip. */
+  /** No longer changes anything: every tile is the one quiet design. */
   compact?: boolean;
   className?: string;
 }
 
-const toneIcon = {
-  default: 'bg-surface-muted text-ink-muted',
-  warning: 'bg-warning-soft text-warning',
-  danger: 'bg-danger-soft text-danger',
-  success: 'bg-success-soft text-success',
+// The number carries the meaning; colour follows lib/status.ts (amber waiting, red needs action, green done).
+const toneValue = {
+  default: 'text-ink',
+  warning: 'text-warning',
+  danger: 'text-danger',
+  success: 'text-success',
 } as const;
 
 /**
- * Metric / navigation tile — one anatomy for homepage launchers, dashboard KPIs and
- * filter shortcuts: icon well, label, value, optional detail, optional chevron.
- * Interactive tiles are real links/buttons with the shared focus ring and stay still.
+ * The quick-stat tile: label, number, optional note, in one quiet line. It is the only design, so every summary
+ * row in the app (page headers, analytics, weekly totals) reads the same way; `compact` and `icon` are accepted
+ * for older call sites and no longer change anything. A clickable tile is a real button or link and shows
+ * whether it is the active filter.
  */
-export function MetricTile({ label, value, icon, detail, tone = 'default', loading, unavailable, href, onClick, selected, compact, className }: MetricTileProps) {
-  if (compact) {
-    const quiet = cn(
-      'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
-      selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
-      (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-action/35',
-      className,
-    );
-    const line = (
-      <>
-        <span className="text-ink-muted">{label}</span>
-        <span className="font-display font-semibold text-ink tabular">
-          {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : value}
-        </span>
-        {detail && !loading && <span className="text-caption text-ink-subtle">{detail}</span>}
-      </>
-    );
-    if (href) return <Link href={href} className={quiet}>{line}</Link>;
-    if (onClick) return <button type="button" onClick={onClick} aria-pressed={selected} className={quiet}>{line}</button>;
-    return <div className={quiet}>{line}</div>;
-  }
-  const body = (
-    <>
-      {icon && <span className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-control sm:size-10', toneIcon[tone])}><Icon name={icon} size="lg" weight="navigation" /></span>}
-      <span className="min-w-0 flex-1">
-        <span className="line-clamp-2 block font-sans text-caption text-ink-muted [overflow-wrap:anywhere]">{label}</span>
-        <span className="block font-display text-metric font-semibold text-ink tabular">
-          {loading ? <Skeleton className="mt-1 h-7 w-14" /> : unavailable ? <span className="text-body font-medium text-warning">Unavailable</span> : value}
-        </span>
-        {detail && !loading && <span className="line-clamp-2 block font-sans text-caption text-ink-muted [overflow-wrap:anywhere]">{detail}</span>}
-      </span>
-      {(href || onClick) && <Icon name="chevron-right" size="md" className="shrink-0 text-ink-subtle" />}
-    </>
-  );
-  const classes = cn(
-    'flex w-full items-center gap-2.5 rounded-card border bg-surface p-3 shadow-card sm:gap-3 sm:p-3.5',
-    selected ? 'border-action bg-action-soft/60' : 'border-line',
-    (href || onClick) && 'focus-ring text-left transition-[border-color,box-shadow] duration-[var(--mo-duration-base)] hover:border-line-strong hover:shadow-card-hover',
+export function MetricTile({ label, value, detail, tone = 'default', loading, unavailable, href, onClick, selected, className }: MetricTileProps) {
+  const quiet = cn(
+    'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
+    selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
+    (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-action/35',
     className,
   );
-  if (href) return <Link href={href} className={classes}>{body}</Link>;
-  if (onClick) return <button type="button" onClick={onClick} aria-pressed={selected} className={classes}>{body}</button>;
-  return <div className={classes}>{body}</div>;
+  const line = (
+    <>
+      <span className="text-ink-muted">{label}</span>
+      <span className={cn('font-display font-semibold tabular', toneValue[tone])}>
+        {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : value}
+      </span>
+      {detail && !loading && <span className="text-caption text-ink-subtle">{detail}</span>}
+    </>
+  );
+  if (href) return <Link href={href} className={quiet}>{line}</Link>;
+  if (onClick) return <button type="button" onClick={onClick} aria-pressed={selected} className={quiet}>{line}</button>;
+  return <div className={quiet}>{line}</div>;
 }
 
-/**
- * Responsive row of tiles: one swipeable row on phones (so a register's records start on the first screen instead of
- * below three rows of tiles), a wrapping grid from `sm` up to `columns` on desktop.
- */
-export function MetricGrid({ children, columns = 4, compact, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; /** A slim wrapping strip for compact tiles. */ compact?: boolean; className?: string }) {
-  if (compact) return <div className={cn('flex flex-wrap items-center gap-2', className)}>{children}</div>;
-  // Tablet width (768 and up) already gets its columns, so five tiles are not stacked in three rows at 820 px.
-  const cols = { 2: 'lg:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-3 lg:grid-cols-5' } as const;
-  return <div className={cn('gap-2.5 sm:grid sm:grid-cols-2 sm:gap-3', 'max-sm:flex max-sm:snap-x max-sm:overflow-x-auto max-sm:pb-1 max-sm:[&>*]:w-[9.5rem] max-sm:[&>*]:shrink-0 max-sm:[&>*]:snap-start', cols[columns], className)}>{children}</div>;
+/** The row of quick-stat tiles: one wrapping strip everywhere. `columns` and `compact` are accepted for older call sites. */
+export function MetricGrid({ children, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; compact?: boolean; className?: string }) {
+  return <div className={cn('flex flex-wrap items-center gap-2', className)}>{children}</div>;
 }

@@ -7,6 +7,7 @@ import { cn } from '../foundations/cn';
 import { Icon, type IconSize } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Tooltip } from '../overlays/Tooltip';
+import { closeTurn } from '../foundations/gestures';
 
 /** The one button. Hierarchy: primary (one per view) → secondary → ghost; danger only after confirmation. */
 export const buttonVariants = cva(
@@ -73,6 +74,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={asChild ? undefined : (type ?? 'button')}
       className={cn(buttonVariants({ variant, size, fullWidth }), className)}
+      data-variant={variant ?? 'secondary'}
       disabled={asChild ? undefined : disabled || pending}
       aria-disabled={asChild && (disabled || pending) ? true : undefined}
       aria-busy={pending || undefined}
@@ -141,7 +143,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-pressed={pressed}
       aria-busy={pending || undefined}
       disabled={disabled || pending}
-      className={cn(iconButtonVariants({ variant, size }), badge != null && 'relative', pressed && 'bg-action-soft text-action', className)}
+      className={cn(iconButtonVariants({ variant, size }), badge != null && 'relative', icon === 'close' && closeTurn, pressed && 'bg-action-soft text-action', className)}
       {...rest}
     >
       {pending ? <Spinner /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}

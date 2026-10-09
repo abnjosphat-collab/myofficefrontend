@@ -7,6 +7,7 @@ import { ActionHint } from './ToolsUI';
 import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
 import type { WorkspaceAccount } from './prototype';
 import s from './tools.module.css';
+import { Button } from '@/components/ui-system';
 
 const ROLE_LABELS = { admin: 'Administrator', issuer: 'Issuer', viewer: 'Viewer' } as const;
 
@@ -47,11 +48,11 @@ export function ToolsProfileMenu({ account, open, onOpenChange, onSignIn, onSign
   return <div ref={root} className={s.accountShell}>
     <ActionHint label={account ? 'View your account, role or sign out.' : 'Sign in to save records.'}><button className={s.accountButton} aria-label={account ? `Account: ${account.name}` : 'Sign in'} aria-expanded={account ? open : undefined} aria-controls={account ? 'tools-profile' : undefined} onClick={toggle}><Icon name="user" size={16} /></button></ActionHint>
     <AnimatePresence>{account && open && <motion.div id="tools-profile" role="dialog" aria-label="Your profile" className={s.accountPanel} initial={{ opacity: 0, y: -5, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: .98 }} transition={{ duration }}>
-      <div className={s.notificationHeader}><span><strong>Profile</strong><small>{account.username}</small></span><button className={s.iconButton} aria-label="Close profile" onClick={() => onOpenChange(false)}><Icon name="close" size={15} /></button></div>
+      <div className={s.notificationHeader}><span><strong>Profile</strong><small>{account.username}</small></span><Button variant="ghost" size="sm" className={`${s.sharedIconButton}`} aria-label="Close profile" onClick={() => onOpenChange(false)}><Icon name="close" size={15} /></Button></div>
       <div className={s.profilePanelBody}>
         <div className={s.profileIdentity}><span className={s.profileAvatar} aria-hidden="true">{initials(account.name)}</span><div><strong>{account.name}</strong><small>{ROLE_LABELS[account.role]}{account.department ? ` · ${account.department}` : ''}</small></div></div>
         <dl className={s.profileDetails}><div><dt>Access</dt><dd>{ROLE_LABELS[account.role]}</dd></div>{account.department && <div><dt>Department</dt><dd>{account.department}</dd></div>}<div><dt>Session</dt><dd>This device · 7 days</dd></div></dl>
-        <button type="button" className={`${s.secondary} ${s.profileSignout}`} onClick={() => { onOpenChange(false); onSignOut(); }}><Icon name="out" size={15} />Sign out</button>
+        <Button type="button" variant="secondary" size="lg" className={`${s.profileSignout} ${s.sharedButton}`} onClick={() => { onOpenChange(false); onSignOut(); }}><Icon name="out" size={15} />Sign out</Button>
       </div>
     </motion.div>}</AnimatePresence>
   </div>;

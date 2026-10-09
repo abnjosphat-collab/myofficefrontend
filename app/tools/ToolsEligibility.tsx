@@ -11,6 +11,7 @@ import type { Employee, Tool } from './prototype';
 import { groupEmployeesByDepartment, type Eligibility } from './toolEligibility';
 import type { CompetencyRecord } from './complianceTypes';
 import s from './tools.module.css';
+import { Button } from '@/components/ui-system';
 
 export type GrantCompetency = (value: { employee_id: string; tool_id: string; trained: boolean; qualified: boolean; authorized: boolean; authorized_by?: string }) => Promise<void>;
 
@@ -93,9 +94,9 @@ function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, elig
     </>}
     {canManage && <SuggestField label="Add equipment" required={false} options={addable.map(toolLabel)} value={adding} onChange={setAdding} onSelect={label => { const tool = addable.find(item => toolLabel(item) === label); setAdding(''); if (tool) void change(tool, true); }} emptyMessage="No more equipment to add." hint={authoriser ? `Recorded as trained, qualified and authorised by ${authoriser}.` : 'Recorded as trained, qualified and authorised.'} />}
     <div className={s.eligActions}>
-      {canManage&&(employee.active?(allowDeactivate&&<RemoveButton label={`Deactivate ${employee.name}`} labelText="Deactivate" confirmText="Yes, deactivate" onConfirm={()=>void onSetActive(employee,false)}/>):<button type="button" className={s.secondary} onClick={()=>void onSetActive(employee,true)}>Reactivate</button>)}
-      <button type="button" className={s.secondary} onClick={() => onOpenApprovals(employee)}>Detailed approvals</button>
-      <button type="button" className={s.primary} disabled={!employee.active || eligible.length === 0} title={!employee.active ? 'This employee is inactive.' : eligible.length === 0 ? 'Add equipment first.' : undefined} onClick={() => onIssue(employee)}>Issue tool</button>
+      {canManage&&(employee.active?(allowDeactivate&&<RemoveButton label={`Deactivate ${employee.name}`} labelText="Deactivate" confirmText="Yes, deactivate" onConfirm={()=>void onSetActive(employee,false)}/>):<Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={()=>void onSetActive(employee,true)}>Reactivate</Button>)}
+      <Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={() => onOpenApprovals(employee)}>Detailed approvals</Button>
+      <Button type="button" variant="primary" size="lg" className={`${s.sharedButton}`} disabled={!employee.active || eligible.length === 0} title={!employee.active ? 'This employee is inactive.' : eligible.length === 0 ? 'Add equipment first.' : undefined} onClick={() => onIssue(employee)}>Issue tool</Button>
     </div>
   </>;
 }
