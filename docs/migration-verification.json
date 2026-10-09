@@ -106,8 +106,8 @@
     "/timesheets": {
       "status": "unverified",
       "date": "2026-10-08",
-      "scope": "Route spec (NEC-only roster with salaried exclusion, period summary, grid, entry, bulk, copy-previous, downloads, honest failure) plus unit tests for the payroll math and the new summary; no fixture browser run since the NEC-only cut and reskin.",
-      "note": "NEC Timesheets: salaried tab removed (artisans have their own module), artisan-language period summary; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green."
+      "scope": "Route spec (NEC-only roster with salaried exclusion, period summary, grid, entry, bulk, copy-previous, person tab, downloads, honest failure) plus unit tests for the payroll math, the shared timesheet shells and the person view; no fixture browser run since the shared-shell rebuild.",
+      "note": "NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green."
     },
     "/employees": {
       "status": "verified",

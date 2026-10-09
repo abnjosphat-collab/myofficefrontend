@@ -1,5 +1,6 @@
 // /timesheets: the NEC roster grid, leave and overtime laid over entered days, entering a day, quick add and remove, bulk entry,
-// fill across days from the keyboard, copying the previous period (asks before replacing), adding people, per-period notes, downloads, and honest failure.
+// fill across days from the keyboard, copying the previous period (asks before replacing), adding people, per-period notes, the person
+// tab (one period as day cards or a quick-view table), downloads, and honest failure.
 // Mock shapes mirror the real routers.
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -155,6 +156,19 @@ const spec = {
     await shot(page, 'import@1440');
     await page.keyboard.press('Escape');
     await imp.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+
+    // the person tab opens one period on the shared timesheet shells
+    await page.getByRole('tab', { name: 'Person' }).click();
+    check(await page.getByText('Choose a person to open their period').isVisible(), 'the person tab starts by asking who to open');
+    await page.getByRole('combobox', { name: 'Person' }).click();
+    await page.getByRole('option', { name: /Ann Alpha/ }).click();
+    check(await page.getByRole('heading', { name: /Ann Alpha/ }).isVisible(), 'the person view heads the period with the person');
+    check(await page.getByRole('table', { name: "Ann Alpha's days" }).isVisible(), 'their days open as a quick-view table');
+    await page.getByRole('tab', { name: 'Day cards' }).click();
+    check(await page.getByRole('article').first().isVisible(), 'and as day cards');
+    await shot(page, 'person@1440');
+    await page.getByRole('tab', { name: 'Roster' }).click();
+    await grid.waitFor({ timeout: 5000 });
 
     // a refused refresh says so and keeps the grid it already has (a server outage is retried automatically instead)
     refuseEmployees = true;

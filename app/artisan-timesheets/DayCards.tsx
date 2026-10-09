@@ -3,12 +3,16 @@
 // (read-only — overtime is computed, not typed), a standby toggle, sign-in/out
 // with native time inputs, and comments. A totals summary leads. One layout at
 // every width (1/2/3 columns), so there is no separate desktop grid to drift.
+// The cards and the totals are the shared timesheet shells; this file owns the
+// artisan behaviour.
 'use client';
 
 import { useMemo } from 'react';
 import { Checkbox, Input, StatusBadge, Tag, cn } from '@/components/ui-system';
 import type { SignatureReuseOption } from '@/components/shared/SignaturePad';
 import { SignatureField } from '@/components/shared/SignatureField';
+import { DayCard, DayCardsShell, DayHoursList } from '@/components/shared/timesheet/DayCards';
+import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 import { formatDate } from '@/lib/format';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import { pendingFootnoteText, pendingForDay, pendingMonthTotals, pendingSummaryText, type AutoPopulateSources, type PendingDayItems } from './autoPopulate';
@@ -33,21 +37,10 @@ function DayHours({ row }: { row: ArtisanTimesheetDayRow }) {
     ['Overtime @ 1.5×', row.ot_15 || 0],
     ['Overtime @ 2.0×', row.ot_20 || 0],
   ];
-  const lines = all.filter(([, n]) => n > 0);
-  if (lines.length === 0) return <p className="font-sans text-body-sm text-ink-muted">No hours recorded.</p>;
-  return (
-    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
-      {lines.map(([label, n]) => (
-        <div key={label} className="contents">
-          <dt className="font-sans text-body-sm text-ink-muted">{label}</dt>
-          <dd className="font-sans text-body-sm font-semibold tabular text-ink">{n.toFixed(2)}h</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <DayHoursList lines={all.filter(([, n]) => n > 0).map(([label, n]) => ({ label, value: `${n.toFixed(2)}h` }))} emptyText="No hours recorded." />;
 }
 
-function DayCard({ row, employeeName, pending, reuseSignatures, onChange }: {
+function ArtisanDayCard({ row, employeeName, pending, reuseSignatures, onChange }: {
   row: ArtisanTimesheetDayRow;
   employeeName: string;
   pending: PendingDayItems;
@@ -59,34 +52,26 @@ function DayCard({ row, employeeName, pending, reuseSignatures, onChange }: {
   const holiday = zimHolidayName(row.date);
   const dayOt = (row.ot_15 || 0) + (row.ot_20 || 0);
   const onLeave = isLeaveDayStatus(row.day_status);
+  const hasPending = pending.leaves.length > 0 || pending.overtime.length > 0;
   return (
-    <article aria-labelledby={`day-${row.date}`} className="flex min-w-0 flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 id={`day-${row.date}`} className="font-display text-title font-semibold text-ink">
-          {row.day}, {date}
-          {row._auto && (
-            <span className="ml-2 inline-block size-1.5 rounded-full bg-action align-middle" title="Filled from leave, overtime, standby or holidays">
-              <span className="sr-only">Filled from the system</span>
-            </span>
-          )}
-        </h3>
-        {dayOt > 0 && <span className="shrink-0 font-display text-title font-semibold tabular text-action">{dayOt.toFixed(2)}h OT</span>}
-      </div>
-
-      {(tone || holiday) && (
-        <div className="flex flex-wrap items-center gap-1.5">
+    <DayCard
+      titleId={`day-${row.date}`}
+      title={`${row.day}, ${date}`}
+      auto={row._auto ? { title: 'Filled from leave, overtime, standby or holidays', srLabel: 'Filled from the system' } : undefined}
+      headline={dayOt > 0 ? `${dayOt.toFixed(2)}h OT` : undefined}
+      badges={(tone || holiday || hasPending) ? (
+        <>
           {tone && <StatusBadge tone={tone}>{dayStatusLabel(row.day_status)}</StatusBadge>}
           {holiday && <Tag>{holiday}</Tag>}
-        </div>
-      )}
-
-      {(pending.leaves.length > 0 || pending.overtime.length > 0) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <StatusBadge tone="warning">Awaiting approval</StatusBadge>
-          <span className="font-sans text-body-sm text-ink-muted">{pendingSummaryText(pending)}</span>
-        </div>
-      )}
-
+          {hasPending && (
+            <>
+              <StatusBadge tone="warning">Awaiting approval</StatusBadge>
+              <span className="font-sans text-body-sm text-ink-muted">{pendingSummaryText(pending)}</span>
+            </>
+          )}
+        </>
+      ) : undefined}
+    >
       <DayHours row={row} />
 
       <div className={cn('rounded-control border px-3 py-1', row.on_standby ? 'border-warning-line bg-warning-soft' : 'border-line-subtle bg-surface-subtle')}>
@@ -115,7 +100,7 @@ function DayCard({ row, employeeName, pending, reuseSignatures, onChange }: {
       </div>
 
       <CommentField value={row.comments} dateLabel={date} onChange={v => onChange({ comments: v })} />
-    </article>
+    </DayCard>
   );
 }
 
@@ -137,34 +122,23 @@ export function DayCards({ rows, employeeName, employeeMineNo, sources, year, mo
   const standbyDays = rows.filter(r => r.on_standby).length;
 
   return (
-    <div className="flex flex-col gap-4">
-      <section aria-label="Month totals" className="rounded-card border border-line bg-surface p-4 shadow-card sm:p-5">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
-          <div>
-            <p className="font-display text-metric tabular text-ink">{totals.ot_15.toFixed(2)}h</p>
-            <p className="mt-0.5 font-sans text-caption text-ink-muted">Overtime @ 1.5×</p>
-          </div>
-          <div>
-            <p className="font-display text-title font-semibold tabular text-ink">{totals.ot_20.toFixed(2)}h</p>
-            <p className="mt-0.5 font-sans text-caption text-ink-muted">Overtime @ 2.0×</p>
-          </div>
-          <div>
-            <p className="font-display text-title font-semibold text-ink">{standbyDays} {standbyDays === 1 ? 'day' : 'days'}</p>
-            <p className="mt-0.5 font-sans text-caption text-ink-muted">Standby</p>
-          </div>
-          <div>
-            <p className="font-display text-title font-semibold tabular text-ink">{totals.normal_hrs.toFixed(2)}h</p>
-            <p className="mt-0.5 font-sans text-caption text-ink-muted">Normal (leave only)</p>
-          </div>
-        </div>
-        {pendingFootnote && <p className="mt-3 font-sans text-body-sm text-warning">{pendingFootnote}</p>}
-      </section>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {rows.map((r, i) => (
-          <DayCard key={r.date} row={r} employeeName={employeeName} pending={pendingByDay.get(r.date) ?? { leaves: [], overtime: [] }} reuseSignatures={reuseSignatures} onChange={patch => update(i, patch)} />
-        ))}
-      </div>
-    </div>
+    <DayCardsShell
+      totals={(
+        <TotalsStrip
+          label="Month totals"
+          figures={[
+            { value: `${totals.ot_15.toFixed(2)}h`, label: 'Overtime @ 1.5×', hero: true },
+            { value: `${totals.ot_20.toFixed(2)}h`, label: 'Overtime @ 2.0×' },
+            { value: `${standbyDays} ${standbyDays === 1 ? 'day' : 'days'}`, label: 'Standby' },
+            { value: `${totals.normal_hrs.toFixed(2)}h`, label: 'Normal (leave only)' },
+          ]}
+          footnote={pendingFootnote || undefined}
+        />
+      )}
+    >
+      {rows.map((r, i) => (
+        <ArtisanDayCard key={r.date} row={r} employeeName={employeeName} pending={pendingByDay.get(r.date) ?? { leaves: [], overtime: [] }} reuseSignatures={reuseSignatures} onChange={patch => update(i, patch)} />
+      ))}
+    </DayCardsShell>
   );
 }

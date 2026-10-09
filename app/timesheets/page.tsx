@@ -1,15 +1,15 @@
-// app/timesheets/page.tsx — the NEC timesheets: one row for each person on the NEC roster and one cell for
-// each day of the NEC cycle, with leave and overtime from the other modules laid over what was entered. Enter a day, fill across days, assign
-// shifts in bulk (with undo), see each person's totals, and download the result as Excel or PDF. Roster exceptions and period notes stay in
-// this browser. The payroll rules (the 208 cap, overtime buckets, night allowance) are in calcTotals and are unchanged.
+// app/timesheets/page.tsx — the NEC timesheets: the Roster tab shows one row for each person on the NEC roster and one cell for
+// each day of the NEC cycle, with leave and overtime from the other modules laid over what was entered; the Person tab opens one
+// person's period as day cards or a quick-view table on the shared timesheet shells, like an artisan's month. Enter a day, fill
+// across days, assign shifts in bulk (with undo), see each person's totals, and download the result as Excel or PDF. Roster
+// exceptions and period notes stay in this browser. The payroll rules (the 208 cap, overtime buckets, night allowance) are in
+// calcTotals and are unchanged.
 // Salaried artisans have their own module (artisan-timesheets); this page lists NEC employment types only.
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, EmptyState, Field, IconButton, Notice, PageHeader, SearchField, Skeleton, Textarea, Toolbar, useConfirm, MoreMenu
-} from '@/components/ui-system';
+import { Button, Combobox, EmptyState, Field, IconButton, Notice, PageHeader, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, useConfirm, MoreMenu, LoadingPulse } from '@/components/ui-system';
 import { AddEmployeesDialog } from './AddEmployeesDialog';
 import { BulkAssignDialog } from './BulkAssignDialog';
 import { calcEmployeeTotals, buildEarlyMorningOtDatesForEmployee, buildModuleOt15ByDateForEmployee } from './calcTotals';
@@ -18,6 +18,7 @@ import { DownloadDialog } from './DownloadDialog';
 import { normalizeTimesheetEmployeeCode } from './employeeCode';
 import { EntryDialog } from './EntryDialog';
 import { mergeEffectiveTimesheets } from './mergeEffectiveTimesheets';
+import { NecPersonView } from './NecPersonView';
 import { NecQuickView } from './NecQuickView';
 import { NecScanImportPanel } from './necImport/NecScanImportPanel';
 import { TimesheetGrid } from './TimesheetGrid';
@@ -62,6 +63,9 @@ function TimesheetsContent() {
   const [showImport, setShowImport] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<{ anchor: Employee; dates?: string[]; ids?: string[] } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [view, setView] = useState<'roster' | 'person'>('roster');
+  const [personId, setPersonId] = useState('');
+  const [downloadPreset, setDownloadPreset] = useState<{ scope: 'combined' | 'individual'; empId: string } | null>(null);
 
   // The automatic roster: everyone on NEC employment (no one is left off by number), plus the people added by hand, less those hidden here.
   const autoIds = useMemo(() => allEmployees.filter(e => e.employmentType === 'NEC').map(e => e.id), [allEmployees]);
@@ -81,6 +85,9 @@ function TimesheetsContent() {
     return allEmployees.filter(e => rosterIds.includes(e.id) && (!q || e.name.toLowerCase().includes(q) || e.position.toLowerCase().includes(q) || e.department.toLowerCase().includes(q)))
       .sort((a, b) => (sortBy === 'dept' ? a.department.localeCompare(b.department) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name)));
   }, [allEmployees, rosterIds, search, sortBy]);
+  const personOptions = useMemo(() => rosterEmployees.map(e => ({ value: e.id, label: e.name, description: [e.employeeId, e.position].filter(Boolean).join(' · ') })), [rosterEmployees]);
+  const selectedPerson = rosterEmployees.find(e => e.id === personId);
+  const openDownload = (preset: { scope: 'combined' | 'individual'; empId: string } | null) => { setDownloadPreset(preset); setShowDownload(true); };
 
   // Leaves and overtime store the human employee number; timesheets use the database id. This is the join between them.
   const employeeIdByHuman = useMemo(() => { const m = new Map<string, string>(); allEmployees.forEach(e => { if (e.employeeId) m.set(normalizeTimesheetEmployeeCode(e.employeeId), e.id); }); return m; }, [allEmployees]);
@@ -134,20 +141,11 @@ function TimesheetsContent() {
             <IconButton icon="refresh" label="Refresh timesheets" variant="ghost" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
             <MoreMenu items={[
               { label: 'Import scans', icon: 'documents' as const, disabled: unavailable, onSelect: () => setShowImport(true) },
-              { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => setShowDownload(true) },
+              { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => openDownload(null) },
             ]} />
             <Button variant="primary" icon="calendar" disabled={unavailable || rosterEmployees.length === 0} onClick={() => setBulkOpen({ anchor: rosterEmployees[0] })}>Bulk entry</Button>
           </>
         )}
-      />
-
-      <NecQuickView
-        totals={{
-          people: rosterEmployees.length, actual: summary.actual, reg: summary.reg, ot15: summary.ot15,
-          ot20: summary.ot20, night: summary.night, standby: summary.standby,
-          filled: summary.filled, possible: summary.possible,
-        }}
-        loading={loading}
       />
 
       <section aria-label="Period" className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -163,17 +161,36 @@ function TimesheetsContent() {
         </div>
       </section>
 
-      <Toolbar filtered={search !== ''}>
-        <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" wrapperClassName="min-w-48 max-w-md flex-1" />
-        <Button icon="sort" onClick={() => setSortBy(s => (s === 'name' ? 'dept' : 'name'))}>{sortBy === 'name' ? 'Sorted by name' : 'Sorted by department'}</Button>
-        {search !== '' && <Button variant="ghost" icon="close" onClick={() => setSearch('')}>Clear search</Button>}
-      </Toolbar>
-
-      {loading && <div className="flex flex-col gap-3" role="status" aria-busy="true"><Skeleton className="h-10 w-full" /><Skeleton className="h-72 w-full" /><p className="font-sans text-body-sm text-ink-muted">{retrying ? 'Waiting for the server… retrying automatically.' : 'Loading timesheets…'}</p></div>}
+      {loading && <LoadingPulse label="Loading timesheets" />}
       {!loading && refreshing && retrying && <Notice tone="info" title="Waiting for the server">Retrying automatically.</Notice>}
       {!loading && loadError && <Notice tone="danger" title="Could not load timesheets" action={<Button size="sm" icon="refresh" disabled={refreshing} onClick={() => { void load(allEmployees.length > 0); }}>Try again</Button>}>{loadError}{allEmployees.length > 0 ? ' The figures shown may be out of date.' : ''}</Notice>}
 
-      {selectedIds.size > 0 && !loading && (
+      {!loading && initialUnavailable && <EmptyState icon="warning" title="The roster is unavailable" description="The people could not be loaded, so no grid is shown. Try again." action={<Button icon="refresh" onClick={() => { void load(); }}>Try again</Button>} />}
+
+      {!loading && !initialUnavailable && (
+        <Tabs value={view} onValueChange={v => setView(v === 'person' ? 'person' : 'roster')}>
+          <TabsList aria-label="Timesheet views">
+            <TabsTrigger value="roster" icon="table-view">Roster</TabsTrigger>
+            <TabsTrigger value="person" icon="user">Person</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="roster" className="mt-4 flex flex-col gap-4">
+            <NecQuickView
+              totals={{
+                people: rosterEmployees.length, actual: summary.actual, reg: summary.reg, ot15: summary.ot15,
+                ot20: summary.ot20, night: summary.night, standby: summary.standby,
+                filled: summary.filled, possible: summary.possible,
+              }}
+              loading={loading}
+            />
+
+            <Toolbar filtered={search !== ''}>
+              <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" wrapperClassName="min-w-48 max-w-md flex-1" />
+              <Button icon="sort" onClick={() => setSortBy(s => (s === 'name' ? 'dept' : 'name'))}>{sortBy === 'name' ? 'Sorted by name' : 'Sorted by department'}</Button>
+              {search !== '' && <Button variant="ghost" icon="close" onClick={() => setSearch('')}>Clear search</Button>}
+            </Toolbar>
+
+      {selectedIds.size > 0 && (
         <section aria-label="Selected employees" className="flex flex-col gap-2 rounded-control border border-line bg-action-soft px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-sans text-body-sm text-ink"><strong>{selectedIds.size}</strong> {selectedIds.size === 1 ? 'employee' : 'employees'} selected</span>
@@ -186,17 +203,24 @@ function TimesheetsContent() {
         </section>
       )}
 
-      {!loading && !initialUnavailable && (
-        <TimesheetGrid
-          employees={rosterEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
-          onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })} onQuickAdd={edit.quickAdd} onQuickRemove={edit.quickRemove}
-          onBulkAssign={emp => setBulkOpen({ anchor: emp, ids: [emp.id] })} onBulkDay={openBulkForDay} onRemoveEmployee={removeFromRoster} onFillDays={edit.fillDays}
-          selectedEmployeeIds={selectedIds} onToggleEmployeeSelect={toggleEmployee} onToggleAllEmployeeSelect={toggleAll}
-        />
-      )}
-      {!loading && initialUnavailable && <EmptyState icon="warning" title="The roster is unavailable" description="The people could not be loaded, so no grid is shown. Try again." action={<Button icon="refresh" onClick={() => { void load(); }}>Try again</Button>} />}
+            <TimesheetGrid
+              employees={rosterEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
+              onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })} onQuickAdd={edit.quickAdd} onQuickRemove={edit.quickRemove}
+              onBulkAssign={emp => setBulkOpen({ anchor: emp, ids: [emp.id] })} onBulkDay={openBulkForDay} onRemoveEmployee={removeFromRoster} onFillDays={edit.fillDays}
+              selectedEmployeeIds={selectedIds} onToggleEmployeeSelect={toggleEmployee} onToggleAllEmployeeSelect={toggleAll}
+            />
 
-      {!loading && rosterEmployees.length > 0 && <PeriodNotes key={notesKeyFor(activePeriod)} storageKey={notesKeyFor(activePeriod)} people={rosterEmployees} />}
+            {rosterEmployees.length > 0 && <PeriodNotes key={notesKeyFor(activePeriod)} storageKey={notesKeyFor(activePeriod)} people={rosterEmployees} />}
+          </TabsContent>
+
+          <TabsContent value="person" className="mt-4 flex flex-col gap-4">
+            <Field label="Person" className="w-full sm:w-72"><Combobox aria-label="Person" value={personId} onValueChange={setPersonId} options={personOptions} placeholder="Search the roster" /></Field>
+            {selectedPerson
+              ? <NecPersonView employee={selectedPerson} period={activePeriod} days={days} entries={effectiveTimesheets} approvedLeaves={approvedLeaves} approvedOvertime={approvedOvertime} totals={getHourTotals(selectedPerson.id)} onEditDay={(day, entry) => setEditCell({ employee: selectedPerson, date: day, entry })} onDownload={() => openDownload({ scope: 'individual', empId: selectedPerson.id })} />
+              : <EmptyState icon="user" title="Choose a person to open their period" description="Search the roster above. Their days open as cards or a quick-view table with their own totals, like an artisan's month." />}
+          </TabsContent>
+        </Tabs>
+      )}
 
       {editCell && (
         <EntryDialog
@@ -211,7 +235,7 @@ function TimesheetsContent() {
         />
       )}
       {showAdd && <AddEmployeesDialog allEmployees={allEmployees} currentIds={rosterIds} loading={loading} onAdd={emps => addToRoster(emps.map(e => e.id))} onClose={() => setShowAdd(false)} />}
-      {showDownload && <DownloadDialog employees={rosterEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} getHourTotals={getHourTotals} period={activePeriod} onClose={() => setShowDownload(false)} />}
+      {showDownload && <DownloadDialog key={downloadPreset ? `preset-${downloadPreset.scope}-${downloadPreset.empId}` : 'default'} employees={rosterEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} getHourTotals={getHourTotals} period={activePeriod} initialScope={downloadPreset?.scope} initialEmpId={downloadPreset?.empId} onClose={() => setShowDownload(false)} />}
       {showImport && <NecScanImportPanel open period={activePeriod} onClose={() => setShowImport(false)} onApplied={() => { void load(true); setShowImport(false); }} />}
     </div>
   );

@@ -8,11 +8,11 @@ import { Button, Dialog, Field, Notice, Segmented, Select } from '@/components/u
 import { makeExporters, type ExportArgs } from './exportTimesheet';
 import { fmtPeriod } from './timesheetMeta';
 
-export function DownloadDialog(props: Omit<ExportArgs, 'scope' | 'empId'> & { onClose: () => void }) {
-  const { onClose, ...rest } = props;
+export function DownloadDialog(props: Omit<ExportArgs, 'scope' | 'empId'> & { initialScope?: 'combined' | 'individual'; initialEmpId?: string; onClose: () => void }) {
+  const { onClose, initialScope, initialEmpId, ...rest } = props;
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
-  const [scope, setScope] = useState<'combined' | 'individual'>('combined');
-  const [empId, setEmpId] = useState('');
+  const [scope, setScope] = useState<'combined' | 'individual'>(initialScope ?? 'combined');
+  const [empId, setEmpId] = useState(initialEmpId ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generate = async () => {
