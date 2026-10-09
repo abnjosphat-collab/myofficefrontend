@@ -1,19 +1,17 @@
-// e2e/visual.spec.ts — visual-regression net for the UI foundation hardening work
-// (audit/07-ui-polish-findings.md). Screenshots the same representative page set the
-// 2026-08-29 UI audit used — homepage, a dense table page (spares), a form/modal-heavy
-// page (breakdowns), a dashboard-style page (maintenance) — in both light and dark
-// theme, with every /api/** call mocked via the same discoverRoutes/mockApi helpers
-// e2e/smoke.mjs uses (e2e/mockApi.mjs — split from the rest of smoke.mjs's shared
-// route-discovery code in shared.mjs, since that file's use of `import.meta` isn't
-// something @playwright/test's test-file transform can load), so this needs no
-// backend or auth.
+// e2e/visual.spec.ts — visual-regression net for the shared UI. Screenshots a representative page set (the homepage, a
+// dense table page (spares), a form-heavy page (breakdowns), a dashboard-style page (maintenance) and the employee
+// register) signed in as a fixture admin, with every /api/** call answered by the same mockApi helper e2e/smoke.mjs
+// uses, so it needs no backend and no real account. The app has one appearance, so each page has one baseline.
 //
-// Updating baselines: see the note at the top of playwright.config.ts — baselines
-// must come from a CI (ubuntu-latest) run with --update-snapshots, not a local
-// Windows/Mac run, or every comparison will spuriously fail on font/AA differences
+// Signed in on purpose: without a session every page redirects to sign-in, and the first baselines (9 Oct 2026) were
+// ten pictures of the sign-in card. Each test now fails if the page is the sign-in screen, so that cannot recur quietly.
+//
+// Updating baselines: run the "Visual baselines" workflow (.github/workflows/visual-baseline.yml). Baselines must come
+// from ubuntu-latest, not a local Windows/Mac run, or every comparison fails on font and anti-aliasing differences
 // that have nothing to do with a real regression.
 import { test, expect, type Page } from '@playwright/test';
 import { mockApi } from './mockApi.mjs';
+import { signInFixture } from '../scripts/lib/fixtures.mjs';
 
 const PAGES = [
   { path: '/', name: 'home' },
@@ -27,30 +25,22 @@ const PAGES = [
 // otherwise change the picture from one run to the next and fail the comparison for no visual reason.
 const FIXED_NOW = new Date('2026-10-05T09:00:00Z');
 
-async function preparePage(page: Page, theme: 'light' | 'dark') {
+async function preparePage(page: Page) {
   await page.clock.setFixedTime(FIXED_NOW);
-  // Skip the first-run preferences modal (same trick smoke.mjs uses) and force the
-  // theme directly via localStorage — matches the key/values ThemeProvider itself
-  // reads (design-system/tokens.tsx), so this is exercising the real persisted-theme
-  // path, not a test-only shortcut.
-  await page.addInitScript((t) => {
-    try {
-      localStorage.setItem('oz_prefsSeen', '1');
-      localStorage.setItem('myoffice_theme', t);
-      localStorage.setItem('myoffice_design', 'dallaglio');
-    } catch { /* ignore */ }
-  }, theme);
+  await signInFixture(page.context());
+  // Skip the first-run preferences popup (same as smoke.mjs).
+  await page.addInitScript(() => { try { localStorage.setItem('oz_prefsSeen', '1'); } catch { /* storage unavailable */ } });
   await page.route('**/api/**', mockApi);
 }
 
 for (const { path, name } of PAGES) {
-  for (const theme of ['light', 'dark'] as const) {
-    test(`${name} — ${theme}`, async ({ page }) => {
-      await preparePage(page, theme);
-      await page.goto(path, { waitUntil: 'load' });
-      // Let the pre-paint script/ThemeProvider settle and any entrance animation finish.
-      await page.waitForTimeout(1500);
-      await expect(page).toHaveScreenshot(`${name}-${theme}.png`, { fullPage: false });
-    });
-  }
+  test(name, async ({ page }) => {
+    await preparePage(page);
+    await page.goto(path, { waitUntil: 'load' });
+    await expect(page.getByRole('heading', { name: /^Sign in/ })).toHaveCount(0);
+    await expect(page.getByRole('main')).toBeVisible();
+    // Let data render and any entrance animation finish.
+    await page.waitForTimeout(1500);
+    await expect(page).toHaveScreenshot(`${name}.png`, { fullPage: false });
+  });
 }

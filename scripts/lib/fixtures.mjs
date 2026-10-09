@@ -3,9 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const env = Object.fromEntries(fs.readFileSync(path.resolve(process.cwd(), '.env.local'), 'utf8').split(/\r?\n/)
-  .filter(line => line && !line.startsWith('#') && line.includes('=')).map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; }));
-const supabaseUrl = new URL(env.NEXT_PUBLIC_SUPABASE_URL);
+// The Supabase project the running build was compiled against: .env.local on a developer machine, else the environment, else
+// the placeholder lib/supabase.ts falls back to (a CI build has no Supabase settings). The session's storage key derives from it.
+const envFile = path.resolve(process.cwd(), '.env.local');
+const env = fs.existsSync(envFile) ? Object.fromEntries(fs.readFileSync(envFile, 'utf8').split(/\r?\n/)
+  .filter(line => line && !line.startsWith('#') && line.includes('=')).map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; })) : {};
+const supabaseUrl = new URL(env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co');
 const storageKey = `sb-${supabaseUrl.hostname.split('.')[0]}-auth-token`;
 const now = Math.floor(Date.now() / 1000);
 const user = { id: '00000000-0000-4000-8000-000000000009', aud: 'authenticated', role: 'authenticated', email: 'shell-check@example.invalid', email_confirmed_at: new Date().toISOString(), app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { full_name: 'Shell Check' }, created_at: new Date().toISOString() };
@@ -16,9 +19,8 @@ const session = { access_token: token, refresh_token: 'fixture', expires_in: 360
 
 export { chromium };
 
-/** New browser context signed in as a fixture admin. `api(route)` handles every /api/** request. */
-export async function fixtureContext(browser, api, viewport = { width: 1440, height: 900 }, { serviceWorkers = 'block', ...contextOptions } = {}) {
-  const context = await browser.newContext({ viewport, serviceWorkers, ...contextOptions });
+/** Signs an existing browser context in as a fixture admin: a stored session plus answers for the Supabase auth and profile calls. */
+export async function signInFixture(context) {
   await context.addInitScript(([key, value]) => { localStorage.setItem(key, JSON.stringify(value)); }, [storageKey, session]);
   await context.route(`${supabaseUrl.origin}/**`, async route => {
     const { pathname } = new URL(route.request().url());
@@ -31,6 +33,12 @@ export async function fixtureContext(browser, api, viewport = { width: 1440, hei
     if (pathname === '/auth/v1/user') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) });
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   });
+}
+
+/** New browser context signed in as a fixture admin. `api(route)` handles every /api/** request. */
+export async function fixtureContext(browser, api, viewport = { width: 1440, height: 900 }, { serviceWorkers = 'block', ...contextOptions } = {}) {
+  const context = await browser.newContext({ viewport, serviceWorkers, ...contextOptions });
+  await signInFixture(context);
   await context.route('**/api/**', api);
   return context;
 }
