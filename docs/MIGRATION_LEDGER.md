@@ -38,11 +38,11 @@
 | `/engineering_report` | Migrated | Yes | No | Yes, 2026-10-03 | Monthly report; each source fails independently; report targets are hard-coded policy numbers to confirm. |
 | `/engineering-dashboard` | Migrated | Yes | No | Yes, 2026-10-03 | Only real figures; invented KPIs removed. |
 | `/equipment` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog. |
-| `/inventory` | Migrated | Yes | 1 | Yes, 2026-10-03 | Browser-local prototype, labelled as such; no seeded sample data. Product decision pending. |
+| `/inventory` | Migrated | Yes | 2 | Yes, 2026-10-03 | Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data. |
 | `/issues` | Migrated | Yes | 2 | Yes, 2026-10-04 | Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF). |
 | `/job-cards` | Migrated | Yes | No | Yes, 2026-10-03 | Register and details dialog with task toggles and save; dead New job card button removed. |
 | `/leave-management` | Redirect | No | No | Yes, 2026-10-04 | Retired demo prototype (sample data, no backend; owner decision 4 Oct 2026); replaced by a redirect to /leaves. |
-| `/leaves` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
+| `/leaves` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
 | `/login` | Own chrome | No | No | Not checked | sign-in page |
 | `/maintenance` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns. |
 | `/near_miss` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table with section tiles as filters, detail dialog, add/edit/delete; failed save keeps input; failed load is not shown as empty. Inline row expansion dropped (the detail dialog shows the same fields). |

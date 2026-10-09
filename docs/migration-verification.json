@@ -47,7 +47,7 @@
       "status": "verified",
       "date": "2026-10-03",
       "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected); ready, empty and failed-load states; the page's own interactions; keyboard and dialog focus where applicable. No live data.",
-      "note": "Browser-local prototype, labelled as such; no seeded sample data. Product decision pending."
+      "note": "Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data."
     },
     "/training": {
       "status": "verified",

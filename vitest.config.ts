@@ -13,6 +13,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    // Component tests drive real user interactions through Radix (dialogs, selects, menus). A test that takes
+    // 1–2 s alone can pass 5 s under coverage instrumentation on a two-core CI runner, so the default made the
+    // result depend on machine load. 15 s still fails a test that genuinely hangs.
+    testTimeout: 15_000,
     include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'app/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.ts', 'components/**/*.test.tsx'],
     coverage: {
       provider: 'v8',
@@ -22,11 +26,13 @@ export default defineConfig({
       // coverage parser if swept in.
       include: ['lib/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/types.ts'],
+      // A ratchet, not a target: just under the measured figures (9 Oct 2026: 31.85 / 30.93 / 24.56 / 34.84 %),
+      // so coverage can only rise. Raise these whenever a change lifts the totals; never lower them to pass.
       thresholds: {
-        statements: 14,
-        branches: 10,
-        functions: 8,
-        lines: 15,
+        statements: 31,
+        branches: 30,
+        functions: 24,
+        lines: 34,
       },
     },
   },
