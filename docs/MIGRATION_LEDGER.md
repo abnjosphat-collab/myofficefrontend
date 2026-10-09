@@ -44,7 +44,7 @@
 | `/leave-management` | Redirect | No | No | Yes, 2026-10-04 | Retired demo prototype (sample data, no backend; owner decision 4 Oct 2026); replaced by a redirect to /leaves. |
 | `/leaves` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
 | `/login` | Own chrome | No | No | Not checked | sign-in page |
-| `/maintenance` | Migrated | Yes | 8 | Yes, 2026-10-08 | Maintenance overview. The old single page (work orders, schedules and analytics in tabs) was split into the Operations & Maintenance modules Overview, Work Orders and Schedules on 8 Oct 2026. |
+| `/maintenance` | Migrated | Yes | 11 | Yes, 2026-10-08 | Maintenance overview. The old single page (work orders, schedules and analytics in tabs) was split into the Operations & Maintenance modules Overview, Work Orders and Schedules on 8 Oct 2026. |
 | `/maintenance/schedules` | Migrated | Yes | No | Yes, 2026-10-08 | The Schedules tab of the old /maintenance page, unchanged in behaviour, now its own module. |
 | `/maintenance/work-orders` | Migrated | Yes | No | Yes, 2026-10-08 | Register pattern. The Work orders tab of the old /maintenance page, unchanged in behaviour; /maintenance/work-orders?new=1 opens the New work order form. |
 | `/near_miss` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table with section tiles as filters, detail dialog, add/edit/delete; failed save keeps input; failed load is not shown as empty. Inline row expansion dropped (the detail dialog shows the same fields). |

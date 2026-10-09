@@ -14,7 +14,7 @@ import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { deleteWorkOrder, uploadStrandedLocalFields } from '../api';
-import { NO_FILTERS, countByStatus, filterOrders, isFiltered, isOverdue, type OrderFilters, type SortKey } from '../helpers';
+import { NO_FILTERS, awaitingSignoff, countByStatus, filterOrders, isFiltered, isOverdue, type OrderFilters, type SortKey } from '../helpers';
 import { PRIORITY, classificationLabel, priorityMeta, statusMeta } from '../meta';
 import { useWorkOrders } from '../useMaintenanceData';
 import { WorkOrderDetail } from '../WorkOrderDetail';
@@ -95,7 +95,7 @@ function WorkOrdersContent() {
       <IconButton icon="edit" size="sm" variant="ghost" label={`Edit work order ${w.work_order_number}`} onClick={() => setFormFor({ order: w })} />
     </span>
   );
-  const badges = (w: WorkOrder) => { const s = statusMeta(w.status); return <><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{isOverdue(w) && <StatusBadge tone="danger">Overdue</StatusBadge>}</>; };
+  const badges = (w: WorkOrder) => { const s = statusMeta(w.status); return <><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{isOverdue(w) && <StatusBadge tone="danger">Overdue</StatusBadge>}{awaitingSignoff(w) && <StatusBadge tone="warning">Awaiting sign-off</StatusBadge>}</>; };
   const COLUMNS: Column<WorkOrder>[] = [
     { id: 'wo', header: 'Work order', sticky: true, cell: w => <div className="min-w-0"><p className="font-medium text-ink [overflow-wrap:anywhere]">{w.equipment_info}</p><p className="text-caption text-ink-muted tabular">{[`#${w.work_order_number}`, classificationLabel(w), w.trade || w.discipline].filter(Boolean).join(', ')}</p></div> },
     { id: 'status', header: 'Status', cell: w => <div className="flex flex-col items-start gap-1"><span className="flex flex-wrap gap-1">{badges(w)}</span><span className="text-caption text-ink-muted">{priorityMeta(w.priority).label} priority</span></div> },

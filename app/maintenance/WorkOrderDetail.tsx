@@ -10,7 +10,8 @@ import { ArtisanReportForm } from './ArtisanReportForm';
 import { AuditTab } from './AuditTab';
 import { CommentsTab } from './CommentsTab';
 import { ForemanSignoff } from './ForemanSignoff';
-import { isOverdue } from './helpers';
+import { StatusActions } from './StatusActions';
+import { awaitingSignoff, isOverdue } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
 import type { WorkOrder } from './types';
 
@@ -39,9 +40,11 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             <StatusBadge tone={priority.tone}>{priority.label} priority</StatusBadge>
             {overdue && <StatusBadge tone="danger">Overdue</StatusBadge>}
+            {awaitingSignoff(w) && <StatusBadge tone="warning">Awaiting sign-off</StatusBadge>}
             {classificationLabel(w) && <StatusBadge tone="info">{classificationLabel(w)}</StatusBadge>}
           </div>
           <Progress value={w.progress ?? 0} label={`Progress on ${w.equipment_info}`} />
+          <StatusActions key={`${w.id}-${w.status}-${w.updated_at}`} order={w} onSaved={onSaved} />
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList aria-label="Work order steps">
               <TabsTrigger value="request" icon="documents">Work request</TabsTrigger>

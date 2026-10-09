@@ -1,7 +1,7 @@
 // frontend/app/maintenance/api.ts — work order + schedule API calls, shared
 // between the maintenance page and its extracted modal components.
 import { api, ApiError } from '@/lib/apiClient';
-import type { WorkOrder, MaintenanceSchedule, WorkOrderComment, WorkOrderTool } from './types';
+import type { WorkOrder, MaintenanceSchedule, WorkOrderComment, WorkOrderMove, WorkOrderTool } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
 // localStorage and return { success: true } on failure, so a work order that
@@ -53,6 +53,21 @@ export function onLeaveOf(error: unknown): { name: string; message: string } | n
   if (!(error instanceof ApiError) || error.status !== 409) return null;
   const d = error.detail as { code?: string; people?: { name: string }[] } | undefined;
   return d?.code === 'person_on_leave' ? { name: d.people?.[0]?.name ?? '', message: error.message } : null;
+}
+
+/** The status moves the signed-in user may make on this work order, and what each needs. */
+export async function getWorkOrderMoves(id: string): Promise<WorkOrderMove[]> {
+  return api.get<WorkOrderMove[]>(`/api/maintenance/work-orders/${id}/transitions`);
+}
+
+/** Move a work order to another status. The server checks who may, and asks for the reason, signature and permit references the move needs. */
+export async function transitionWorkOrder(id: string, body: { to: string; version?: number; reason?: string; artisan_sign?: string }): Promise<WorkOrder> {
+  return api.post<WorkOrder>(`/api/maintenance/work-orders/${id}/transition`, body);
+}
+
+/** The foreman signs off a completed work order (a manager does this). */
+export async function signOffWorkOrder(id: string, body: { foreman_sign: string; version?: number }): Promise<WorkOrder> {
+  return api.post<WorkOrder>(`/api/maintenance/work-orders/${id}/signoff`, body);
 }
 
 export async function deleteWorkOrder(id: string): Promise<void> {

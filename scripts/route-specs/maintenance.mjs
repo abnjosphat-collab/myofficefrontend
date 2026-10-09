@@ -93,7 +93,7 @@ const spec = {
     const d2 = dialog('Work order WO-00002');
     await d2.waitFor({ timeout: 5000 });
     await d2.getByRole('tab', { name: 'Foreman sign-off' }).click();
-    check(await d2.getByRole('combobox', { name: /Final status/ }).innerText().then(t => /In progress/.test(t)), 'the foreman step starts from the current status');
+    check(await d2.getByRole('combobox', { name: /Final status/ }).count() === 0 && await d2.getByText('In progress', { exact: true }).first().isVisible(), 'the foreman step shows the current status as text (the buttons move it, the form never does)');
     await d2.getByRole('button', { name: /Foreman signature, not signed/ }).click();
     const pad = page.getByRole('dialog', { name: 'Foreman signature' });
     await pad.waitFor({ timeout: 5000 });
@@ -104,7 +104,26 @@ const spec = {
     await d2.getByRole('button', { name: 'Save foreman sign-off' }).click();
     await page.waitForTimeout(500);
     const fp = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
-    check(/^data:image\/png/.test(fp?.body.foreman_sign || '') && fp.body.status === 'in-progress', 'the sign-off is saved with the current status', JSON.stringify(fp?.body).slice(0, 120));
+    check(/^data:image\/png/.test(fp?.body.foreman_sign || '') && !('status' in fp.body), 'the sign-off saves the signature and never sends a status', JSON.stringify(fp?.body).slice(0, 120));
+    await page.keyboard.press('Escape');
+
+    // the status buttons come from the server's list for this person: a signed completion and a held job with a reason
+    await page.getByRole('button', { name: /^Open work order WO-00002/ }).click();
+    const d3 = dialog('Work order WO-00002');
+    await d3.waitFor({ timeout: 5000 });
+    await d3.getByRole("button", { name: "Complete job" }).waitFor({ timeout: 5000 }).catch(() => {});
+    check(await d3.getByRole('button', { name: 'Complete job' }).isVisible() && await d3.getByRole('button', { name: 'Put on hold' }).isVisible(), 'the buttons for the moves the server allows are shown');
+    await d3.getByRole('button', { name: 'Put on hold' }).click();
+    const hold = page.getByRole('dialog', { name: 'Put on hold' });
+    await hold.waitFor({ timeout: 5000 });
+    await hold.getByRole('button', { name: 'Put on hold' }).click();
+    check(await hold.getByText('Give a reason.').isVisible(), 'holding a job without a reason is refused in words');
+    await hold.getByLabel(/^Reason/).fill('Waiting for the bearing');
+    await hold.getByRole('button', { name: 'Put on hold' }).click();
+    await hold.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const held = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/2/transition').pop();
+    check(held?.body.to === 'on-hold' && held.body.reason === 'Waiting for the bearing' && held.body.version === 5, 'the move is sent with the reason and the version the page last saw', JSON.stringify(held?.body));
+    await page.waitForTimeout(450); await shot(page, 'actions@1440');
     await page.keyboard.press('Escape');
 
     // edit the request: an emptied due date is cleared, not kept

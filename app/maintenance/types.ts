@@ -46,7 +46,18 @@ export interface WorkOrder {
   discipline?: Discipline; trade?: Trade; spares_used?: SpareItem[];
   /** Row version, bumped by the database on every save; sent back so a stale save is refused. Absent until the audit migration is applied. */
   version?: number;
+  /** The permit checklist (needs supabase_migration_maintenance_lifecycle.sql). */
+  permits?: Partial<Record<PermitKey, WorkOrderPermit>>;
+  started_at?: string | null; completed_at?: string | null;
+  artisan_signed_by?: string | null; artisan_signed_at?: string | null; foreman_signed_by?: string | null; foreman_signed_at?: string | null;
 }
+
+export type PermitKey = 'permit_to_work' | 'hot_work' | 'hazardous_work' | 'confined_space' | 'high_voltage_switching' | 'land_disturbance' | 'other';
+/** One permit on a job: flagged as required, and the reference of the permit once issued. */
+export interface WorkOrderPermit { required: boolean; reference: string; label?: string }
+
+/** A status move open to the signed-in user (GET /work-orders/{id}/transitions), and what it needs. */
+export interface WorkOrderMove { to: string; needs_reason: boolean; needs_signature: boolean; checks_permits: boolean; min_role: string }
 
 export interface MaintenanceEvent {
   id: number; entity: string; entity_id: number; entity_number: string | null; action: string;

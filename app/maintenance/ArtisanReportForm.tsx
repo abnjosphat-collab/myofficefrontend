@@ -13,7 +13,7 @@ import { todayLocal } from '@/lib/dates';
 import { conflictOf, updateWorkOrder } from './api';
 import { ConflictNotice } from './ConflictNotice';
 import { artisanBody, durationText, type ArtisanReport } from './helpers';
-import { CLASSIFICATIONS, DISCIPLINES, FAILURE_MODES, MECHANICAL_TRADES, REPORT_STATUSES, statusMeta } from './meta';
+import { CLASSIFICATIONS, DISCIPLINES, FAILURE_MODES, MECHANICAL_TRADES, statusMeta } from './meta';
 import { PhraseField } from './PhraseField';
 import { SignOffField } from './SignOffField';
 import type { SpareItem, WorkOrder, WorkOrderStatus } from './types';
@@ -21,7 +21,6 @@ import type { SpareItem, WorkOrder, WorkOrderStatus } from './types';
 const SAVED_NAME = 'maint_artisan_name';
 const CLASS_OPTIONS = [{ value: '', label: 'Not set' }, ...CLASSIFICATIONS.map(c => ({ value: c.value as string, label: c.label }))];
 const DISCIPLINE_OPTIONS = [{ value: '', label: 'Not set' }, ...DISCIPLINES.map(d => ({ value: d as string, label: d }))];
-const STATUS_OPTIONS = REPORT_STATUSES.map(s => ({ value: s, label: statusMeta(s).label }));
 const savedName = () => { try { return localStorage.getItem(SAVED_NAME) || ''; } catch { return ''; } };
 const toLines = (s: SpareItem[]): SpareLine[] => s.map(x => ({ name: x.name, quantity: x.quantity, unit_price: x.unit_cost, total_cost: x.quantity * x.unit_cost }));
 const fromLines = (l: SpareLine[]): SpareItem[] => l.map((x, i) => ({ id: `${Date.now()}-${i}`, name: x.name, quantity: x.quantity, unit_cost: x.unit_price ?? 0 }));
@@ -35,7 +34,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
     work_done_details: order.work_done_details || '', cause_of_failure: order.cause_of_failure || '', delay_details: order.delay_details || '',
     time_work_started: order.time_work_started || '', time_work_finished: order.time_work_finished || '', overtime_start_time: order.overtime_start_time || '', overtime_end_time: order.overtime_end_time || '',
     delay_from_time: order.delay_from_time || '', delay_to_time: order.delay_to_time || '', artisan_name: order.artisan_name || order.allocated_to || savedName(), artisan_sign: order.artisan_sign || '',
-    artisan_date: order.artisan_date || todayLocal(), status: order.status, progress: order.progress ?? 0, classification: order.classification || '', classification_custom: order.classification_custom || '',
+    artisan_date: order.artisan_date || todayLocal(), progress: order.progress ?? 0, classification: order.classification || '', classification_custom: order.classification_custom || '',
     failure_mode: order.failure_mode || '', discipline: order.discipline || '', trade: order.trade || '',
   }));
   const [spares, setSpares] = useState<SpareItem[]>(order.spares_used || []);
@@ -76,7 +75,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Status"><Select aria-label="Status" value={r.status} onValueChange={v => set({ status: v as WorkOrderStatus })} options={STATUS_OPTIONS} /></Field>
+        <Field label="Status" description="Move the job with the buttons at the top of this window."><p className="flex h-9 items-center font-sans text-body font-semibold text-ink">{statusMeta(order.status).label}</p></Field>
         <Field label={`Progress, ${r.progress}%`}><Input type="range" min={0} max={100} step={5} value={r.progress} onChange={e => set({ progress: parseInt(e.target.value, 10) || 0 })} /></Field>
       </div>
 
