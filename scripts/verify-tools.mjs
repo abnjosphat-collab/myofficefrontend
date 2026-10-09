@@ -214,7 +214,10 @@ try{
   await page.getByRole('button',{name:'Open Employees'}).click();
   const sectionNavigated=await page.locator('aside button[aria-current="page"]').getAttribute('aria-label')==='Employees';
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
-  const hoveredTool=page.getByRole('button',{name:'View Torque wrench',exact:true}).first();
+  // The register opens as a list; the hover check is about the cards, so switch to them first.
+  await page.getByRole('button',{name:'Grid view'}).click();
+  // Scoped to a card, so the measurement waits for the grid instead of reading the list row it replaces.
+  const hoveredTool=page.locator('article').getByRole('button',{name:'View Torque wrench',exact:true}).first();
   const cardRestStyle=await hoveredTool.evaluate(element=>{
     const card=element.closest('article');
     if(!card)return null;
@@ -285,7 +288,10 @@ try{
   await page.getByRole('button',{name:'Employees',exact:true}).click();
   await waitForText('Engineering');
   const departmentGrouped=await page.getByRole('heading',{name:'Engineering',exact:true}).isVisible();
-  await page.getByRole('button',{name:'View Tariro Moyo',exact:true}).click();
+  // Each person is an expanding row; the full approvals dialog opens from inside it.
+  const personRow=page.getByRole('button',{name:/Tariro Moyo.*E-001/});
+  await personRow.click();
+  await page.getByRole('button',{name:'Detailed approvals',exact:true}).click();
   const employeeDialog=page.getByRole('dialog',{name:'Tariro Moyo'});
   const torqueCompetency=employeeDialog.getByLabel('Torque wrench competency requirements');
   const eligibilityMatrixVisible=await employeeDialog.getByText('Tool eligibility',{exact:true}).isVisible()
@@ -296,8 +302,11 @@ try{
   await page.screenshot({path:path.join(os.tmpdir(),'myoffice-tools-employee-eligibility.png')});
   await employeeDialog.getByRole('button',{name:'Close',exact:true}).click();
   await page.getByRole('button',{name:'Compliance',exact:true}).click();
-  await waitForText('Inspection and maintenance control');
-  const complianceVisible=await page.getByText('Current competency register',{exact:true}).isVisible();
+  // Compliance is one page in sections (Inspections, Incidents, Approvals, Record); the approvals section replaced the old competency register.
+  await page.getByRole('heading',{name:'Compliance',exact:true}).waitFor({timeout:120_000});
+  await page.getByRole('group',{name:'Compliance sections'}).getByRole('button',{name:'Approvals',exact:true}).click();
+  await waitForText('Cover by equipment');
+  const complianceVisible=await page.getByRole('heading',{name:'Cover by equipment',exact:true}).isVisible();
   // Gate passes removed from the UI (component, backend, and data retained for restoration); assert no entry point remains.
   const gatePassesAbsent=await page.getByRole('button',{name:'Gate passes',exact:true}).count()===0&&await page.getByText('Gate pass control',{exact:true}).count()===0;
   let analyticsVisualsVisible=null;
