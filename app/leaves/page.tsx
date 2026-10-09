@@ -21,6 +21,7 @@ import { daysText, statusMeta } from './leaveMeta';
 import { LEAVE_TYPES, typeOf } from './leaveTypes';
 import type { Leave } from './types';
 import { bulkSetLeaveStatus, createLeave, deleteLeave, setLeaveStatus, updateLeave, useLeaves } from './useLeavesData';
+import { formatDate } from '@/lib/format';
 
 const SORTS = [
   { value: 'date-desc', label: 'Newest first' }, { value: 'date-asc', label: 'Oldest first' }, { value: 'days-desc', label: 'Most days' },
@@ -31,7 +32,7 @@ const EXPORT: DLColumn[] = [
   { key: 'position', label: 'Position', width: 18, format: v => (v as string) ?? '' }, { key: 'leave_type', label: 'Leave type', width: 18, format: v => typeOf(v as string).name },
   { key: 'start_date', label: 'Start date', width: 14 }, { key: 'end_date', label: 'End date', width: 14 }, { key: 'total_days', label: 'Days', width: 8, format: v => daysText(v as number) },
   { key: 'status', label: 'Status', width: 12, format: v => statusMeta(v as string).label }, { key: 'reason', label: 'Reason', width: 30 }, { key: 'contact_number', label: 'Contact', width: 16 },
-  { key: 'handover_to', label: 'Handover to', width: 18 }, { key: 'applied_date', label: 'Applied', width: 14, format: v => (v ? new Date(v as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '') },
+  { key: 'handover_to', label: 'Handover to', width: 18 }, { key: 'applied_date', label: 'Applied', width: 14, format: v => (v ? formatDate(new Date(v as string)) : '') },
 ];
 
 const StatusTag = ({ status }: { status: string }) => { const m = statusMeta(status); return <StatusBadge tone={m.tone} icon={m.icon}>{m.label}</StatusBadge>; };

@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
+import { type } from '../foundations/typography';
 import { IconButton } from '../primitives/Button';
 
 const panelVariants = cva(
@@ -89,7 +90,7 @@ export function Dialog({
         >
           <header className="flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6">
             <div className="min-w-0 flex-1">
-              <DialogPrimitive.Title className="font-display text-section font-semibold tracking-tight text-ink">{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Title className={cn(type.sectionTitle, 'tracking-tight')}>{title}</DialogPrimitive.Title>
               {description ? (
                 <DialogPrimitive.Description className="mt-1 font-sans text-body-sm text-ink-muted">{description}</DialogPrimitive.Description>
               ) : (

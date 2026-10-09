@@ -6,6 +6,7 @@
 //    when no part has data the score is null: an empty period is "no data", not "good standing".
 
 import type { ComputedStats, MonthBucket, QuickRange, RawData, Rec, ScorePart } from './types';
+import { formatMonth, formatDayMonth } from '@/lib/format';
 
 type DatedModule = 'nm' | 'ws' | 'vfl' | 'pto';
 
@@ -89,7 +90,7 @@ export function computeStats(raw: RawData, from: Date | null, to: Date | null, n
 
   const months: MonthBucket[] = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    return { label: d.toLocaleDateString('en-GB', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), count: 0 };
+    return { label: formatMonth(d), year: d.getFullYear(), month: d.getMonth(), count: 0 };
   });
   const moduleMonthly = {
     nm: monthly(nm, months, ['submittedAt', 'date', 'created_at']),
@@ -144,6 +145,6 @@ export function weekLabel(now = new Date()) {
   monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const fmt = (d: Date) => formatDayMonth(d);
   return `${fmt(monday)} to ${fmt(sunday)} ${sunday.getFullYear()}`;
 }

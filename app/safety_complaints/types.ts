@@ -4,7 +4,7 @@
 // one component, not the page's data contract. The derived `Stats` shape and its
 // `calcStats` computation also stay in page.tsx (an analytics/display concern, same as
 // every other page's inline stats useMemo, not a data-model type). CATEGORIES/
-// PRIORITIES/SECTIONS/STATUSES/PRIORITY_HEX/STATUS_HEX stay in page.tsx too (business
+// PRIORITIES/SECTIONS/STATUSES stay in page.tsx too (business
 // vocabulary, same as every other page's config constants).
 
 export interface Complaint {

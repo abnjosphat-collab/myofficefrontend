@@ -14,9 +14,10 @@ import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
 import { summarizeActions } from '@/lib/actionPlan';
 import { exportFilename } from '@/lib/exportUtils';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatTime } from '@/lib/format';
 import type { ActionItem, ActionStatus, BehaviourCategory, CoachingTechnique, ObservationType, SectionType, VFLReport, VFLStatus } from './types';
 import { createVFLReport, deleteVFLReport, updateVFLReport, useVFLData } from './useVFLData';
+import { exportStatusColor, statusTone } from '@/lib/status';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const BEHAVIOURS: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
@@ -31,18 +32,17 @@ const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { M
 const BEHAVIOUR_META: Record<BehaviourCategory, { tone: Tone; icon: IconMeaning }> = { 'Safe Behaviour': { tone: 'success', icon: 'safe' }, 'Unsafe Behaviour': { tone: 'danger', icon: 'unsafe' } };
 const OBSERVATION_META: Record<ObservationType, Tone> = { 'Safe Behaviour': 'success', 'Safe Condition': 'success', 'At Risk Behaviour': 'warning', 'At Risk Condition': 'danger' };
 const STATUS_META: Record<VFLStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
-  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
-  reviewed: { tone: 'brand', icon: 'reviewed', label: 'Reviewed' }, closed: { tone: 'success', icon: 'closed', label: 'Closed' },
+  draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
+  reviewed: { tone: statusTone('reviewed'), icon: 'reviewed', label: 'Reviewed' }, closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' },
 };
 const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
-const STATUS_HEX: Record<VFLStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
 
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
 // A malformed but non-empty time is a valid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {
   if (!s) return '';
   const d = new Date(`2000-01-01T${s}`);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return Number.isNaN(d.getTime()) ? '' : formatTime(d);
 };
 const newId = () => Math.random().toString(36).slice(2, 11);
 // A missing or unrecognised technique used to render "undefined — undefined".
@@ -56,7 +56,7 @@ const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION
 type Form = Pick<VFLReport, 'observerName' | 'designation' | 'sectionChoice' | 'departmentSection' | 'date' | 'time' | 'behaviourCategory' | 'observationType' | 'description' | 'coachingTechnique' | 'actions' | 'status'>;
 const emptyForm = (): Form => ({
   observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering', date: new Date().toISOString().slice(0, 10),
-  time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour',
+  time: formatTime(new Date()), behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour',
   description: '', coachingTechnique: 'SBR', actions: [], status: 'draft',
 });
 
@@ -312,7 +312,7 @@ function VFLContent() {
                 filename={exportFilename('VFL_Observations')}
                 title="Visible Felt Leadership"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_HEX[row.status as VFLStatus]?.replace('#', '')}
+                statusColor={(_v, row) => exportStatusColor(String(row.status))}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>

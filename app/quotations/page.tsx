@@ -7,9 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, Skeleton, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, MoreMenu
-} from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, MoreMenu, LoadingPulse } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -87,7 +85,7 @@ function QuotationsContent() {
     catch (e) { toast.error(`${s.id} was not deleted: ${e instanceof Error ? e.message : 'the server did not accept it.'}`); }
   };
 
-  if (!ready) return <div className="flex flex-col gap-4" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
+  if (!ready) return <LoadingPulse label="Loading quotations" />;
   return (
     <div className="flex flex-col gap-6">
       <PageHeader

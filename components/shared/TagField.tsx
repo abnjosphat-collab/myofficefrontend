@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Field, Icon, Input } from '@/components/ui-system';
+import { Button, Field, Input, Tag } from '@/components/ui-system';
 
 export function TagField({ label, value, onChange, placeholder, description }: { label: string; value: string[]; onChange: (items: string[]) => void; placeholder?: string; description?: string }) {
   const [text, setText] = useState('');
@@ -19,10 +19,7 @@ export function TagField({ label, value, onChange, placeholder, description }: {
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={label}>
           {value.map((item, i) => (
-            <li key={`${item}-${i}`} className="inline-flex max-w-full items-center gap-1.5 rounded-control border border-line-subtle bg-surface-subtle py-0.5 pl-2 pr-1 font-sans text-caption text-ink">
-              <span className="truncate">{item}</span>
-              <button type="button" aria-label={`Remove ${item}`} onClick={() => onChange(value.filter((_, n) => n !== i))} className="focus-ring inline-flex size-5 items-center justify-center rounded-xs text-ink-muted hover:bg-surface-muted hover:text-ink"><Icon name="close" size="xs" /></button>
-            </li>
+            <li key={`${item}-${i}`}><Tag onRemove={() => onChange(value.filter((_, n) => n !== i))}>{item}</Tag></li>
           ))}
         </ul>
       )}

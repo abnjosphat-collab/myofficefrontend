@@ -16,15 +16,16 @@ import { exportFilename } from '@/lib/exportUtils';
 import type { Equipment } from './types';
 import { averageAvailability, figureText, hasFigure } from './figures';
 import { useAvailabilityData } from './useAvailabilityData';
+import { EXPORT_TONE_HEX } from '@/lib/status';
 
 const ALL = '__all__';
-const STATUS_META: Record<Equipment['status'], { label: string; tone: Tone; icon: IconMeaning; hex: string }> = {
-  operational: { label: 'Operational', tone: 'success', icon: 'active', hex: '34d399' },
-  maintenance: { label: 'Maintenance', tone: 'warning', icon: 'maintenance', hex: 'fbbf24' },
-  breakdown: { label: 'Breakdown', tone: 'danger', icon: 'breakdown', hex: 'f87171' },
-  idle: { label: 'Idle', tone: 'neutral', icon: 'inactive', hex: '94a3b8' },
+const STATUS_META: Record<Equipment['status'], { label: string; tone: Tone; icon: IconMeaning }> = {
+  operational: { label: 'Operational', tone: 'success', icon: 'active' },
+  maintenance: { label: 'Maintenance', tone: 'warning', icon: 'maintenance' },
+  breakdown: { label: 'Breakdown', tone: 'danger', icon: 'breakdown' },
+  idle: { label: 'Idle', tone: 'neutral', icon: 'inactive' },
 };
-const meta = (s: Equipment['status']) => STATUS_META[s] ?? { label: String(s), tone: 'neutral' as Tone, icon: 'inactive' as IconMeaning, hex: '94a3b8' };
+const meta = (s: Equipment['status']) => STATUS_META[s] ?? { label: String(s), tone: 'neutral' as Tone, icon: 'inactive' as IconMeaning };
 /** 95% and above is good, 90% and above needs watching, below that is poor. */
 const availabilityTone = (pct: number): 'success' | 'warning' | 'danger' => (pct >= 95 ? 'success' : pct >= 90 ? 'warning' : 'danger');
 const TONE_TEXT = { success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
@@ -108,7 +109,7 @@ function AvailabilityContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh availability" variant="ghost" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => meta(row.status as Equipment['status']).hex} />}
+            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[meta(row.status as Equipment['status']).tone]} />}
             <Button asChild><Link href="/breakdowns">Breakdowns</Link></Button>
           </>
         )}

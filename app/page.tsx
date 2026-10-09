@@ -10,13 +10,14 @@ import {
 import { AppShell, useAppShell, useDashboardData, type Module } from '@/components/app-shell';
 import { ModuleBrowser, QuickViewDialog } from '@/components/home/ModuleBrowser';
 import { Snapshot } from '@/components/home/Snapshot';
+import { formatTime, formatFullDate } from '@/lib/format';
 
 /** The current date and time, shown quietly under the title. */
 function Clock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(id); }, []);
   // The server and the browser disagree on "now"; the text is correct once the browser renders it.
-  return <time suppressHydrationWarning dateTime={now.toISOString()}>{now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}, {now.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })}</time>;
+  return <time suppressHydrationWarning dateTime={now.toISOString()}>{formatFullDate(now)}, {formatTime(now)}</time>;
 }
 
 function Tips() {

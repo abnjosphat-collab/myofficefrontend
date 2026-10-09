@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, FormDialog, Input, Notice, Select, Skeleton, StatusBadge, Textarea } from '@/components/ui-system';
+import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse } from '@/components/ui-system';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { PeoplePicker } from './PeoplePicker';
 import { addComment, listComments } from './useTasksEventsData';
@@ -109,7 +109,7 @@ export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onT
           {item.description && <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{item.description}</p></div>}
           <section aria-labelledby="te-comments" className="flex flex-col gap-3">
             <h3 id="te-comments" className="font-sans text-label font-semibold text-ink">Progress comments</h3>
-            {state === 'loading' && <Skeleton className="h-12 w-full" />}
+            {state === 'loading' && <LoadingPulse compact label="Loading progress comments" />}
             {state === 'error' && <Notice tone="danger" title="Comments could not be loaded" action={<Button size="sm" icon="refresh" onClick={load}>Try again</Button>}>{error}</Notice>}
             {state === 'ready' && (comments.length === 0
               ? <p className="font-sans text-body-sm text-ink-muted">No comments yet.</p>

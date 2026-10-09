@@ -17,6 +17,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { ActionStatus, CorrectiveAction, SectionType, WorkStoppageReport } from './types';
 import { createReport, deleteReport, updateReport, useWorkStoppageData } from './useWorkStoppageData';
+import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
@@ -24,9 +25,8 @@ const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = {
   Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' }, General: { tone: 'neutral', icon: 'general' },
 };
 const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = {
-  Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' },
+  Pending: { tone: statusTone('Pending'), icon: 'pending' }, 'In Progress': { tone: statusTone('In Progress'), icon: 'clock' }, Completed: { tone: statusTone('Completed'), icon: 'closed' },
 };
-const SECTION_HEX: Record<SectionType, string> = { Mechanical: '#86BBD8', Electrical: '#f59e0b', General: '#a78bfa' };
 const ALL = '__all__';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -325,7 +325,7 @@ function WorkStoppageContent() {
                 filename={exportFilename('Work_Stoppage_Reports')}
                 title="Work Stoppages"
                 statusColumn="section"
-                statusColor={(_v, row) => SECTION_HEX[row.section as SectionType]?.replace('#', '')}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.section as SectionType]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>

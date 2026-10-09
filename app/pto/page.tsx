@@ -16,6 +16,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { ActionPlanItem, ActionStatus, ObservationType, PTOReport, Reasons, ReportStatus, RiskAssessment, SectionType, SuggestedRemedies, YesNoType } from './types';
 import { createPTOReport, deletePTOReport, updatePTOReport, usePTOData } from './usePTOData';
+import { exportStatusColor, statusTone } from '@/lib/status';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const STATUSES: ReportStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
@@ -25,11 +26,10 @@ const YES_NO = [{ value: 'Yes' as YesNoType, label: 'Yes' }, { value: 'No' as Ye
 
 const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
 const STATUS_META: Record<ReportStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
-  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
-  reviewed: { tone: 'brand', icon: 'reviewed', label: 'Reviewed' }, closed: { tone: 'success', icon: 'closed', label: 'Closed' },
+  draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
+  reviewed: { tone: statusTone('reviewed'), icon: 'reviewed', label: 'Reviewed' }, closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' },
 };
-const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
-const STATUS_HEX: Record<ReportStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', reviewed: '#a78bfa', closed: '#10b981' };
+const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: statusTone('Pending'), icon: 'pending' }, 'In Progress': { tone: statusTone('In Progress'), icon: 'clock' }, Completed: { tone: statusTone('Completed'), icon: 'closed' } };
 
 const REASON_LABELS: Record<keyof Reasons, string> = {
   monthly: 'Monthly observation', newEmployee: 'New employee', safetyAwareness: 'Safety awareness',
@@ -368,7 +368,7 @@ function PTOContent() {
                 filename={exportFilename('PTO_Reports')}
                 title="Planned Task Observation"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_HEX[row.status as ReportStatus]?.replace('#', '')}
+                statusColor={(_v, row) => exportStatusColor(String(row.status))}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>

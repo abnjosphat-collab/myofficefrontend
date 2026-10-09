@@ -59,8 +59,8 @@ describe('MonthBoard', () => {
   it('unfolds the selected day with crew and contacts', async () => {
     const user = userEvent.setup();
     render(<MonthBoard {...base} />);
-    await user.click(screen.getByRole('button', { name: /08 Oct 2026/ }));
-    const detail = screen.getByRole('region', { name: /Detail for 08 Oct 2026/ });
+    await user.click(screen.getByRole('button', { name: /\b8 Oct 2026/ }));
+    const detail = screen.getByRole('region', { name: /Detail for 8 Oct 2026/ });
     expect(within(detail).getByText('Crew One')).toBeInTheDocument();
     expect(within(detail).getByRole('link', { name: /Call Ann Alpha/ })).toHaveAttribute('href', 'tel:+263771111111');
     expect(within(detail).getByText('Dee Delta')).toBeInTheDocument();

@@ -11,6 +11,7 @@ import {
 import type { ApiListState } from '@/lib/useApiList';
 import { REPORT_TARGETS, maintenanceFigures, periodLabel, periodKey, periodOptions, productionFigures, statusCounts, type AnyRecord } from '@/lib/engineeringReport';
 import { useEngineeringReportData } from './useEngineeringReportData';
+import { formatLongDate } from '@/lib/format';
 
 type Source = ApiListState<AnyRecord>;
 const regionStatus = (s: Source): DataStatus => deriveDataStatus({ loaded: s.loaded, loading: s.loading, error: s.error, errorStatus: s.errorStatus, count: 1, transient: isTransientStatus(s.errorStatus) });
@@ -197,7 +198,7 @@ function EngineeringReportContent() {
         </div>
       </Card>
 
-      <p className="pb-2 text-center font-sans text-caption text-ink-muted">Generated {now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}. Targets used: breakdowns {REPORT_TARGETS.breakdownsPerMonth} or fewer, mean time to repair {REPORT_TARGETS.mttrHours} h or less, work order completion {REPORT_TARGETS.workOrderCompletionPct}%, recovery {REPORT_TARGETS.recoveryPct}%, {REPORT_TARGETS.tonnesPerDay} t per record.</p>
+      <p className="pb-2 text-center font-sans text-caption text-ink-muted">Generated {formatLongDate(now)}. Targets used: breakdowns {REPORT_TARGETS.breakdownsPerMonth} or fewer, mean time to repair {REPORT_TARGETS.mttrHours} h or less, work order completion {REPORT_TARGETS.workOrderCompletionPct}%, recovery {REPORT_TARGETS.recoveryPct}%, {REPORT_TARGETS.tonnesPerDay} t per record.</p>
     </div>
   );
 }

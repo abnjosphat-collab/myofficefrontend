@@ -8,13 +8,12 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import {
-  Button, Card, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, SkeletonRows, chartColor, chartTheme, useConfirm,
-} from '@/components/ui-system';
+import { Button, Card, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches, usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
 } from '@/lib/usage';
+import { formatFullDate } from '@/lib/format';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
@@ -138,7 +137,7 @@ function UsageAnalyzerContent() {
 
       {dataSource === 'all' && remoteError && <Notice tone="warning" title={remoteError} action={<Button size="sm" onClick={loadRemote}>Try again</Button>} />}
 
-      {showRemoteSkeleton ? <SkeletonRows rows={4} label="Loading activity across all users" />
+      {showRemoteSkeleton ? <LoadingPulse label="Loading activity across all users" />
         : showRemoteError ? null
         : !hasData ? <EmptyState icon="analytics" title="No usage recorded yet" description="As you open modules, browse pages, search and leave feedback, this page fills with charts: most-used modules, activity trends, a time-of-day heatmap, dwell time and more." />
         : (
@@ -253,7 +252,7 @@ function UsageAnalyzerContent() {
                     <div key={wi} className="flex flex-col gap-[3px]">
                       {w.map((day, di) => {
                         if (!day) return <div key={di} className="size-[13px]" />;
-                        const dateLabel = new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                        const dateLabel = formatFullDate(new Date(`${day.date}T00:00:00`), true);
                         const title = day.count === 0 ? `${dateLabel}: no activity` : `${dateLabel}: ${day.count} ${day.count === 1 ? 'interaction' : 'interactions'}${day.times.length ? ` at ${day.times.join(', ')}${day.count > day.times.length ? '…' : ''}` : ''}`;
                         return <div key={di} className="size-[13px] rounded-[3px]" style={{ background: day.count === 0 ? 'var(--mo-surface-muted)' : heat(day.count / maxDayCount, 3) }} title={title} />;
                       })}

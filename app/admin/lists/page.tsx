@@ -9,10 +9,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, EmptyState, IconButton, Input, PageHeader, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus,
-  useConfirm, type IconMeaning,
-} from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, IconButton, Input, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, type IconMeaning, LoadingPulse } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -131,7 +128,7 @@ function AdminListsContent() {
 
   // `loading` resolves to false whether or not a session was found, so each state must be explicit;
   // returning nothing for them would leave a signed-out visitor on a blank page.
-  if (loading) return <SkeletonRows rows={4} label="Checking your access" />;
+  if (loading) return <LoadingPulse label="Checking your access" />;
   if (!profile) return <EmptyState icon="lock" title="Sign in required" description="Sign in with a manager account (top right) to manage shared lists." />;
   if (!isAtLeast('manager')) return <EmptyState icon="lock" title="Manager access needed" description="You are being taken back to the home page." />;
 

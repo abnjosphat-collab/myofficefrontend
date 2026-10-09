@@ -3,17 +3,18 @@
 // holding something unexpected still renders.
 import type { Tone } from '@/components/ui-system';
 import type { Discipline, RecurrenceType, Trade, WOClassification, WorkOrderPriority, WorkOrderStatus } from './types';
+import { priorityTone, statusTone } from '@/lib/status';
 
 export const STATUS: Record<WorkOrderStatus, { label: string; tone: Tone }> = {
-  pending: { label: 'Pending', tone: 'warning' }, 'in-progress': { label: 'In progress', tone: 'info' }, completed: { label: 'Completed', tone: 'success' },
-  'on-hold': { label: 'On hold', tone: 'warning' }, cancelled: { label: 'Cancelled', tone: 'danger' }, postponed: { label: 'Postponed', tone: 'neutral' }, 'not-done': { label: 'Not done', tone: 'neutral' },
+  pending: { label: 'Pending', tone: statusTone('pending') }, 'in-progress': { label: 'In progress', tone: statusTone('in-progress') }, completed: { label: 'Completed', tone: statusTone('completed') },
+  'on-hold': { label: 'On hold', tone: statusTone('on-hold') }, cancelled: { label: 'Cancelled', tone: statusTone('cancelled') }, postponed: { label: 'Postponed', tone: statusTone('postponed') }, 'not-done': { label: 'Not done', tone: statusTone('not-done') },
 };
 export const statusMeta = (s: string): { label: string; tone: Tone } => STATUS[s as WorkOrderStatus] ?? { label: s || 'Pending', tone: 'neutral' };
 /** The statuses a person can choose when reporting on a job. */
 export const REPORT_STATUSES: WorkOrderStatus[] = ['pending', 'in-progress', 'completed', 'on-hold', 'postponed', 'not-done', 'cancelled'];
 
 export const PRIORITY: Record<WorkOrderPriority, { label: string; tone: Tone; rank: number }> = {
-  urgent: { label: 'Urgent', tone: 'danger', rank: 0 }, high: { label: 'High', tone: 'warning', rank: 1 }, medium: { label: 'Medium', tone: 'info', rank: 2 }, low: { label: 'Low', tone: 'neutral', rank: 3 },
+  urgent: { label: 'Urgent', tone: priorityTone('urgent'), rank: 0 }, high: { label: 'High', tone: priorityTone('high'), rank: 1 }, medium: { label: 'Medium', tone: priorityTone('medium'), rank: 2 }, low: { label: 'Low', tone: priorityTone('low'), rank: 3 },
 };
 export const priorityMeta = (p: string): { label: string; tone: Tone; rank: number } => PRIORITY[p as WorkOrderPriority] ?? PRIORITY.medium;
 

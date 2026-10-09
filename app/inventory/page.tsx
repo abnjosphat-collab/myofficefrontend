@@ -14,12 +14,13 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { InventoryItem } from './types';
 import { stockStatus, useInventoryData } from './useInventoryData';
+import { EXPORT_TONE_HEX } from '@/lib/status';
 
 type StockStatus = ReturnType<typeof stockStatus>;
-const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | 'low-stock' | 'out-of-stock'; hex: string }> = {
-  'in-stock': { label: 'In stock', tone: 'success', icon: 'valid', hex: '34d399' },
-  'low-stock': { label: 'Low stock', tone: 'warning', icon: 'low-stock', hex: 'f59e0b' },
-  'out-of-stock': { label: 'Out of stock', tone: 'danger', icon: 'out-of-stock', hex: 'f43f5e' },
+const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | 'low-stock' | 'out-of-stock' }> = {
+  'in-stock': { label: 'In stock', tone: 'success', icon: 'valid' },
+  'low-stock': { label: 'Low stock', tone: 'warning', icon: 'low-stock' },
+  'out-of-stock': { label: 'Out of stock', tone: 'danger', icon: 'out-of-stock' },
 };
 const STATUS_FILTERS: { value: 'all' | StockStatus; label: string }[] = [{ value: 'all', label: 'All' }, ...(Object.keys(STATUS) as StockStatus[]).map(s => ({ value: s, label: STATUS[s].label }))];
 const ALL = '__all__';
@@ -175,7 +176,7 @@ function InventoryPageContent() {
                 filename={exportFilename('Inventory')}
                 title="Inventory"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS[stockStatus(row as unknown as InventoryItem)].hex}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS[stockStatus(row as unknown as InventoryItem)].tone]}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>

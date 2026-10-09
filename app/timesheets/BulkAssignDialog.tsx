@@ -13,6 +13,7 @@ import { LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calcTotals';
 import { buildBulkEntries, datesInRange, estimatedHours, missingOnDays, normalShiftBreakdown, perDay, weekDates, weekdayDates, type BulkSettings } from './bulkAssign';
 import { STATUS_KEYS, fmtDate, fmtPeriod, getDays, normalShiftHours, statusMeta } from './timesheetMeta';
 import type { Employee, Period, StatusKey, TimesheetEntry } from './types';
+import { formatFullDate } from '@/lib/format';
 
 const STATUS_OPTIONS = STATUS_KEYS.map(k => ({ value: k as string, label: statusMeta(k).label }));
 const WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -152,7 +153,7 @@ export function BulkAssignDialog({ initialEmployee, allEmployees, period, timesh
               const ds = fmtDate(d); const wk = d.getDay() === 0 || d.getDay() === 6; const off = skipWeekends && wk; const sel = dates.has(ds); const isAnchor = anchor === ds; const inPreview = preview.has(ds) && !sel;
               const has = ids.some(eid => timesheets.some(ts => String(ts.employee_id) === String(eid) && ts.date === ds));
               return (
-                <button key={ds} type="button" disabled={off} aria-pressed={sel} aria-label={`${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}${has ? ', has an entry' : ''}${isAnchor ? ', range start' : ''}`}
+                <button key={ds} type="button" disabled={off} aria-pressed={sel} aria-label={`${formatFullDate(d)}${has ? ', has an entry' : ''}${isAnchor ? ', range start' : ''}`}
                   onClick={() => clickDay(ds)} onMouseEnter={() => anchor && setHover(ds)} onMouseLeave={() => anchor && setHover(null)}
                   className={cn('focus-ring relative h-10 rounded-control font-sans text-body-sm font-medium tabular transition-colors disabled:cursor-not-allowed disabled:opacity-30',
                     isAnchor ? 'bg-action text-action-ink ring-2 ring-focus' : sel ? 'bg-action text-action-ink' : inPreview ? 'bg-action-soft text-ink' : wk ? 'bg-surface-muted text-ink-muted hover:bg-surface-subtle' : 'bg-surface-subtle text-ink hover:bg-surface-muted', ds === today && 'ring-1 ring-ink-muted')}>

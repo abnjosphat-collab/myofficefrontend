@@ -3,6 +3,7 @@
 // issue recorded just after midnight into the previous day's bucket).
 import { toLocalISODate } from '@/lib/dates';
 import type { DescStats, Period, PeriodPoint, StockIssue } from './types';
+import { formatMonth, formatDayMonth } from '@/lib/format';
 
 const lineTotal = (qty: number, price: number) => (qty || 0) * (price || 0);
 
@@ -25,11 +26,11 @@ export function buildTimeSeries(issues: StockIssue[], period: Period, now: Date 
   const keys: string[] = [];
   const open = (key: string, label: string) => { if (!map.has(key)) { keys.push(key); map.set(key, blank(key, label)); } };
   if (period === 'day') {
-    for (let i = 29; i >= 0; i--) { const d = addDays(now, -i); open(toLocalISODate(d), d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })); }
+    for (let i = 29; i >= 0; i--) { const d = addDays(now, -i); open(toLocalISODate(d), formatDayMonth(d)); }
   } else if (period === 'week') {
-    for (let i = 12; i >= 0; i--) { const mon = startOfWeek(addDays(now, -i * 7)); open(toLocalISODate(mon), `W/c ${mon.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`); }
+    for (let i = 12; i >= 0; i--) { const mon = startOfWeek(addDays(now, -i * 7)); open(toLocalISODate(mon), `W/c ${formatDayMonth(mon)}`); }
   } else {
-    for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); open(monthKey(d), d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })); }
+    for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); open(monthKey(d), formatMonth(d, 'short')); }
   }
   for (const issue of issues) {
     const d = new Date(issue.issued_at);

@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Drawer, Notice, Skeleton } from '@/components/ui-system';
+import { Button, Drawer, Notice, LoadingPulse } from '@/components/ui-system';
 import { SOP_SECTION_LABELS, type SopDocument, type SopRevision } from '@/lib/sops/types';
 import { formatDate } from '@/lib/format';
 import { SopBadges } from './SopCard';
@@ -73,7 +73,7 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
           <section aria-labelledby="sop-history">
             <h3 id="sop-history" className="mb-2 font-display text-title font-semibold text-ink">Revision history</h3>
             {history === undefined ? (
-              <div role="status" aria-label="Loading revision history" className="flex flex-col gap-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-4 w-1/2" /></div>
+              <LoadingPulse compact label="Loading revision history" />
             ) : history === null ? (
               <Notice tone="warning" title="Revision history could not be loaded">Close and reopen this SOP to try again.</Notice>
             ) : history.length === 0 ? (

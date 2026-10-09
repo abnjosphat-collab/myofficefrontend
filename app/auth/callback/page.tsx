@@ -13,8 +13,8 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Spinner } from '@/components/ui-system';
-import { AuthPage, BrandMark } from '@/components/app-shell/auth/AuthLayout';
+import { LoadingPulse } from '@/components/ui-system';
+import { AuthPage } from '@/components/app-shell/auth/AuthLayout';
 
 function CallbackHandler() {
   const router = useRouter();
@@ -67,10 +67,7 @@ function CallbackHandler() {
 
   return (
     <AuthPage>
-      <div role="status" className="flex flex-col items-center gap-4">
-        <BrandMark className="animate-pulse" />
-        <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Spinner />Signing you in…</p>
-      </div>
+      <LoadingPulse screen label="Signing you in" />
     </AuthPage>
   );
 }

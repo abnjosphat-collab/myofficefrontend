@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CountBadge, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, SkeletonRows, cn } from '@/components/ui-system';
+import { CountBadge, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, cn, LoadingPulse } from '@/components/ui-system';
 import { useNotifications } from './useNotifications';
 
 export function ShellNotifications() {
@@ -39,7 +39,7 @@ export function ShellNotifications() {
             </div>
           )}
           {loading ? (
-            <div className="p-2.5"><SkeletonRows rows={3} label="Loading notifications" /></div>
+            <div className="p-3"><LoadingPulse compact label="Loading notifications" /></div>
           ) : notifications.length === 0 ? (
             !failed && <p className="px-4 py-8 text-center font-sans text-body-sm text-ink-muted">Nothing new. Approvals, notices and activity will appear here.</p>
           ) : (

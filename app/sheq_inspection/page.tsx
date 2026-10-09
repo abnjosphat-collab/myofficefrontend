@@ -14,9 +14,10 @@ import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatTime } from '@/lib/format';
 import type { FindingStatus, InspectionFinding, InspectionStatus, PriorityType, SectionType, SHEQFormData } from './types';
 import { createInspection, deleteInspection, updateInspection, useSheqInspectionData } from './useSheqInspectionData';
+import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 
 const SECTIONS: SectionType[] = ['mechanical', 'electrical'];
 const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
@@ -28,17 +29,16 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { mechanical: { tone: 'info', icon: 'mechanical' }, electrical: { tone: 'warning', icon: 'electrical' } };
 const PRIORITY_META: Record<PriorityType, { tone: Tone; icon: IconMeaning }> = {
-  low: { tone: 'neutral', icon: 'flag' }, medium: { tone: 'info', icon: 'info' }, high: { tone: 'warning', icon: 'warning' }, critical: { tone: 'danger', icon: 'critical' },
+  low: { tone: priorityTone('low'), icon: 'flag' }, medium: { tone: priorityTone('medium'), icon: 'info' }, high: { tone: priorityTone('high'), icon: 'warning' }, critical: { tone: priorityTone('critical'), icon: 'critical' },
 };
 const FINDING_META: Record<FindingStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
-  open: { tone: 'warning', icon: 'warning', label: 'Open' }, 'in-progress': { tone: 'info', icon: 'clock', label: 'In progress' },
-  closed: { tone: 'success', icon: 'closed', label: 'Closed' }, overdue: { tone: 'danger', icon: 'overdue', label: 'Overdue' },
+  open: { tone: statusTone('open'), icon: 'warning', label: 'Open' }, 'in-progress': { tone: statusTone('in-progress'), icon: 'clock', label: 'In progress' },
+  closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' }, overdue: { tone: statusTone('overdue'), icon: 'overdue', label: 'Overdue' },
 };
 const INSPECTION_META: Record<InspectionStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
-  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
-  approved: { tone: 'success', icon: 'check', label: 'Approved' }, rejected: { tone: 'danger', icon: 'cancel', label: 'Rejected' },
+  draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
+  approved: { tone: statusTone('approved'), icon: 'check', label: 'Approved' }, rejected: { tone: statusTone('rejected'), icon: 'cancel', label: 'Rejected' },
 };
-const INSPECTION_HEX: Record<InspectionStatus, string> = { draft: '#94a3b8', submitted: '#3b82f6', approved: '#34d399', rejected: '#f43f5e' };
 
 const uid = () => Math.random().toString(36).slice(2, 11);
 const fmtDate = (d: string) => (d ? formatDate(d) : '');
@@ -51,7 +51,7 @@ const InspectionBadge = ({ status }: { status: InspectionStatus }) => { const m 
 
 type Form = Pick<SHEQFormData, 'inspectors' | 'title' | 'place' | 'date' | 'time' | 'department' | 'section' | 'findings' | 'hodName' | 'sheqOfficialName' | 'status' | 'before_photos' | 'after_photos'>;
 const emptyForm = (): Form => ({
-  inspectors: '', title: '', place: '', date: new Date().toISOString().slice(0, 10), time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+  inspectors: '', title: '', place: '', date: new Date().toISOString().slice(0, 10), time: formatTime(new Date()),
   department: '', section: 'mechanical', findings: [], hodName: '', sheqOfficialName: '', status: 'draft', before_photos: [], after_photos: [],
 });
 
@@ -311,7 +311,7 @@ function InspectionContent() {
                 filename={exportFilename('SHEQ_Inspections')}
                 title="SHEQ Inspections"
                 statusColumn="status"
-                statusColor={(_v, row) => INSPECTION_HEX[row.status as InspectionStatus]?.replace('#', '')}
+                statusColor={(_v, row) => exportStatusColor(String(row.status))}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>

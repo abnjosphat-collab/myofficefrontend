@@ -19,6 +19,7 @@ import { formatCurrency } from '@/components/shared/utils';
 import type { Requisition, RequisitionItem } from './types';
 import { apiCreate, apiDelete, apiUpdate, useRequisitionsData } from './useRequisitionsData';
 import { itemTotal } from './calcRequisitions';
+import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 
 const STATUSES: Requisition['status'][] = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
 const PRIORITIES: Requisition['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
@@ -26,13 +27,12 @@ const SECTIONS: Requisition['section'][] = ['Electrical', 'Mechanical'];
 const ALL = '__all__';
 
 const STATUS_META: Record<Requisition['status'], { tone: Tone; icon: IconMeaning }> = {
-  Draft: { tone: 'neutral', icon: 'draft' }, Pending: { tone: 'warning', icon: 'pending' }, Approved: { tone: 'success', icon: 'check' },
-  Rejected: { tone: 'danger', icon: 'cancel' }, Processing: { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' },
+  Draft: { tone: statusTone('Draft'), icon: 'draft' }, Pending: { tone: statusTone('Pending'), icon: 'pending' }, Approved: { tone: statusTone('Approved'), icon: 'check' },
+  Rejected: { tone: statusTone('Rejected'), icon: 'cancel' }, Processing: { tone: statusTone('Processing'), icon: 'clock' }, Completed: { tone: statusTone('Completed'), icon: 'closed' },
 };
 const PRIORITY_META: Record<Requisition['priority'], { tone: Tone; icon: IconMeaning }> = {
-  Critical: { tone: 'danger', icon: 'critical' }, High: { tone: 'warning', icon: 'warning' }, Medium: { tone: 'info', icon: 'info' }, Low: { tone: 'neutral', icon: 'flag' },
+  Critical: { tone: priorityTone('Critical'), icon: 'critical' }, High: { tone: priorityTone('High'), icon: 'warning' }, Medium: { tone: priorityTone('Medium'), icon: 'info' }, Low: { tone: priorityTone('Low'), icon: 'flag' },
 };
-const STATUS_HEX: Record<Requisition['status'], string> = { Approved: '#34d399', Completed: '#34d399', Pending: '#f59e0b', Processing: '#f59e0b', Rejected: '#f43f5e', Draft: '#94a3b8' };
 
 const fmtDate = (d?: string) => formatDate(d);
 // An unrecognised status or priority (legacy or malformed data) must not crash the page.
@@ -259,7 +259,7 @@ function RequisitionsContent() {
                 filename={exportFilename('Purchase_Requisitions')}
                 title="Purchase Requisitions"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_HEX[row.status as Requisition['status']]?.replace('#', '')}
+                statusColor={(_v, row) => exportStatusColor(String(row.status))}
               />
             )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button>

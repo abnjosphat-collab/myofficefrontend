@@ -29,6 +29,33 @@ export function formatTime(value?: string | number | Date | null): string {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
+const asDate = (value?: string | number | Date | null): Date | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+const en = (value: string | number | Date | null | undefined, options: Intl.DateTimeFormatOptions) => {
+  const d = asDate(value);
+  return d ? d.toLocaleDateString('en-GB', options) : '—';
+};
+
+/** "5 July 2026" — a date written out, for documents and headings. */
+export const formatLongDate = (value?: string | number | Date | null) => en(value, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** "5 Jul", or "5 July" with `long` — a day within a known year (chart axes, compact lists). */
+export const formatDayMonth = (value?: string | number | Date | null, long = false) => en(value, { day: 'numeric', month: long ? 'long' : 'short' });
+
+/** "Monday 5 July", or "Monday 5 July 2026" with `withYear` — a day as people say it. */
+export const formatFullDate = (value?: string | number | Date | null, withYear = false) =>
+  en(value, { weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' as const } : {}) });
+
+/** "Mon", or "Monday" with `long`. */
+export const formatWeekday = (value?: string | number | Date | null, long = false) => en(value, { weekday: long ? 'long' : 'short' });
+
+/** "Jul"; "Jul 26" with `year: 'short'`; "Jul 2026" with `year: 'full'` — month labels for charts and periods. */
+export const formatMonth = (value?: string | number | Date | null, year: 'none' | 'short' | 'full' = 'none') =>
+  en(value, { month: 'short', ...(year === 'short' ? { year: '2-digit' as const } : year === 'full' ? { year: 'numeric' as const } : {}) });
+
 /** Relative "time ago" for activity feeds: "just now", "5 min", "3 hours", "2 days". */
 export function timeAgo(value?: string | number | Date | null): string {
   if (value === null || value === undefined || value === '') return '';

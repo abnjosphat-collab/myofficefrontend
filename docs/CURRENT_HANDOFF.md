@@ -111,6 +111,43 @@ Finish ("fine linen") pass: audited nine pages at desktop, tablet and phone (`do
 
 Page-body migration is paused at a milestone boundary (last route: `/tasks-events`) while the layout architecture is reviewed. Done: every route rendered at 1440 and 390 px and its structure measured (`docs/wireframes/before/`), eight page patterns and six overlay patterns defined in [PAGE_PATTERNS.md](./PAGE_PATTERNS.md), each route assigned a pattern in [WIREFRAME_LEDGER.md](./WIREFRAME_LEDGER.md), the typography pairing reviewed on the rendered patterns (kept), and two shared changes made: `Toolbar` collapses its filters behind a Filters button on phones, and `PageHeader` carries a hairline rule. Shared changes made and verified on all 30 migrated routes (after-captures in `docs/wireframes/after/`; route specs pass): `Toolbar` collapses filters behind a Filters button on phones (looks through fragments), `PageHeader` has a hairline rule, `MetricGrid` is one swipeable row on phones and columns from 768 px, and `RecordCard` lets its status badges wrap below a crowded title. Overlays reviewed 4 Oct 2026 on every migrated route (`scripts/overlay-audit.mjs`, results in `docs/overlays/before/`): create, detail, manage and confirm dialogs and the Download menu open at desktop and phone, all fit the screen, take focus, close on Escape and keep their action reachable (the compressor reading dialog scrolls its own Save on a phone). Fixed from that review: the compressor status dialog is a 2x2 option grid, requisition numbers no longer wrap. Not yet done: the 18 legacy routes have not been rebuilt to their pattern, and tablet was only spot-checked. Next: resume migration in pattern order using the ledger (planning grids and workflow pages next, since they are the least covered patterns). The system-wide layout pass is not complete until every route and significant overlay has been reviewed in the rendered app.
 
+## 8b. Reuse, database and clean-UI audit (owner instruction, 9 Oct 2026)
+
+The owner asked whether the app defines things once and reuses them, whether it really organises information in a database, and whether the UI is as clean as the Tools top bar (icon-only controls with hints, nothing extra). Three measured audits answered it. The full plan is in the owner's plan file, `mellow-bouncing-eclipse.md`, in five phases.
+
+**Findings, in short:**
+- Reuse is mostly good: 214 files import `ui-system`, no raw palette colours or raw text sizes.
+- The real departures are three:
+  - The Tools workspace is a second UI system, with 78% of the app's raw `<button>`/`<input>` elements and its own dialog, select, tooltip and CSS module.
+  - The SHEQ report pages are near-copies of each other.
+  - Status colours, dates and chips were each defined many times.
+- About 45 of 51 live routes use the database. Six gaps:
+  - Training is held in backend memory, seeded with mock records.
+  - Inventory lives only in the browser.
+  - The Tools workspace keeps its own people, equipment and login.
+  - People and machines are linked by typed names, and some links already point at no record.
+  - Timesheet roster exceptions are kept in the browser.
+  - `reports.py` serves mock figures.
+- Every page header stacks a breadcrumb, a description, 3–4 buttons and a tile row. The Tools topline is the target.
+
+**Phase 1 done 9 Oct 2026 (uncommitted at the time of writing):**
+- One status vocabulary in `lib/status.ts` (a new file; the unused one of the same name was deleted on 4 Oct). It holds `statusTone`, `priorityTone`, `conditionTone` and `EXPORT_TONE_HEX`. 20 modules' maps read from it, and `lib/status.test.ts` asserts that the same word looks the same across modules.
+- Visible effects:
+  - "In progress" is blue everywhere.
+  - "Open" is amber everywhere.
+  - Cancelled is grey everywhere.
+  - Priority is low grey → medium blue → high amber → critical red everywhere.
+  - Damaged and poor items are red.
+  - Excel/PDF status cells use darker, print-legible shades of the same tones.
+- Dates: `components/shared/utils.ts` `fmtDate`/`fmtDateTime` now delegate to `lib/format.ts`, so the day is no longer zero-padded. Named label formats were added: `formatLongDate`, `formatDayMonth`, `formatFullDate`, `formatWeekday`, `formatMonth`. 31 hand-written calls were converted. There is one `formatCurrency`.
+- `Tag` has `onRemove`, which replaced 5 hand-built chips. `IconButton` shows its label as a real tooltip (Tools hint behaviour, 350 ms) instead of the native `title`. `Tooltip` supplies its own provider outside the root.
+- The typography roles in `foundations/typography.ts` are wired into `PageHeader`, `Panel`, `ChartPanel`, `Dialog`, `DataRegion` and `RecordCard`. `ChartPanel` headings now match `Panel` (`text-section`).
+- Lint:
+  - The text-size guard had been silently disabled. The auth block's `no-restricted-syntax` replaced its list, because flat config replaces a rule's options rather than merging them.
+  - It is now the local rule `local/no-raw-text-size`, beside the new `local/no-hex-colour` and `local/no-locale-date` (app code, Tools exempt).
+
+**Next:** Phase 2 (icon-only `MoreMenu`/`DownloadButton`/Filters, a collapsible `SearchField`, the `ReportModule` scaffold for the SHEQ pages), then Phase 3 (the clean header standard through `PageHeader`). Database phases need the owner's go-ahead for each migration.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:

@@ -8,11 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, Skeleton, StatusBadge,
-  Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type SortState, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -179,7 +175,7 @@ function TasksEventsContent() {
   useEffect(() => { if (!loading && profile && !isAtLeast('manager')) router.replace('/'); }, [loading, profile, isAtLeast, router]);
 
   // "Still checking" and "checked, nobody is signed in" are different states: a signed-out visitor must not see a spinner forever.
-  if (loading) return <div role="status" aria-label="Checking your access" className="flex flex-col gap-3 py-8"><Skeleton className="h-8 w-64" /><Skeleton className="h-24 w-full" /></div>;
+  if (loading) return <LoadingPulse label="Checking your access" />;
   if (!profile) return <EmptyState icon="lock" title="Sign in required" description="Sign in with a manager account (top right) to view events and tasks." />;
   if (!isAtLeast('manager')) return null;
   return <Board completedBy={profile.email || profile.id} />;

@@ -1,11 +1,12 @@
 // app/compressors/meta.ts — how a compressor's status, service urgency and rating are shown (tone + icon + words).
 import type { IconMeaning, Tone } from '@/components/ui-system';
+import { statusTone } from '@/lib/status';
 
 export const STATUS_META: Record<string, { label: string; tone: Tone; icon: IconMeaning }> = {
-  running: { label: 'Running', tone: 'success', icon: 'active' },
-  standby: { label: 'Standby', tone: 'info', icon: 'pending' },
-  maintenance: { label: 'Maintenance', tone: 'warning', icon: 'maintenance' },
-  offline: { label: 'Offline', tone: 'danger', icon: 'inactive' },
+  running: { label: 'Running', tone: statusTone('running'), icon: 'active' },
+  standby: { label: 'Standby', tone: statusTone('standby'), icon: 'pending' },
+  maintenance: { label: 'Maintenance', tone: statusTone('maintenance'), icon: 'maintenance' },
+  offline: { label: 'Offline', tone: statusTone('offline'), icon: 'inactive' },
 };
 export const STATUS_KEYS = Object.keys(STATUS_META);
 export const statusLabel = (s: string) => STATUS_META[s]?.label ?? s;

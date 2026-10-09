@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn } from '../foundations/cn';
+import { type } from '../foundations/typography';
 import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Button, Spinner } from '../primitives/Button';
@@ -22,7 +23,7 @@ export function EmptyState({ icon = 'empty', title, description, action, classNa
     <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-line-subtle bg-surface px-6 py-10 text-center', className)}>
       <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name={icon} size="xl" /></span>
       <div className="max-w-md">
-        <h3 className="font-display text-title font-semibold text-ink">{title}</h3>
+        <h3 className={type.title}>{title}</h3>
         {description && <p className="mt-1 font-sans text-body-sm text-ink-muted">{description}</p>}
       </div>
       {action}

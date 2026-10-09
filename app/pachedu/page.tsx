@@ -16,6 +16,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { BehaviourType, PacheduReport, PacheduStatus, SectionType } from './types';
 import { createPacheduReport, deletePacheduReport, updatePacheduReport, usePacheduData } from './usePacheduData';
+import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const BEHAVIOURS: BehaviourType[] = ['Intentional', 'Unintentional'];
@@ -25,10 +26,9 @@ const ALL = '__all__';
 const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
 const BEHAVIOUR_META: Record<BehaviourType, { tone: Tone; icon: IconMeaning }> = { Intentional: { tone: 'warning', icon: 'flag' }, Unintentional: { tone: 'info', icon: 'info' } };
 const STATUS_META: Record<PacheduStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
-  draft: { tone: 'neutral', icon: 'draft', label: 'Draft' }, submitted: { tone: 'info', icon: 'submitted', label: 'Submitted' },
-  reviewed: { tone: 'brand', icon: 'reviewed', label: 'Reviewed' }, closed: { tone: 'success', icon: 'closed', label: 'Closed' },
+  draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
+  reviewed: { tone: statusTone('reviewed'), icon: 'reviewed', label: 'Reviewed' }, closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' },
 };
-const STATUS_HEX: Record<SectionType, string> = { Mechanical: '#60a5fa', Electrical: '#f59e0b' };
 
 const IMPACT_OPTIONS = ['Minor injury', 'Serious injury', 'Fatality', 'Damage To Property/RTA', 'Increased Cost', 'Loss of Production', 'Environmental Impact', 'Health threat'];
 const SERIOUS_IMPACTS = ['Serious injury', 'Fatality', 'Environmental Impact'];
@@ -276,7 +276,7 @@ function PacheduContent() {
                 filename={exportFilename('Pachedu_Care_Observations')}
                 title="Pachedu Care Observations"
                 statusColumn="sectionChoice"
-                statusColor={(_v, row) => STATUS_HEX[row.sectionChoice as SectionType]?.replace('#', '')}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.sectionChoice as SectionType]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button>

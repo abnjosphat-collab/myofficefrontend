@@ -12,9 +12,10 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatTime } from '@/lib/format';
 import type { NearMissReport } from './types';
 import { createReport, deleteReport, updateReport, useNearMissData } from './useNearMissData';
+import { EXPORT_TONE_HEX } from '@/lib/status';
 
 type Section = NearMissReport['section'];
 const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }[] = [
@@ -23,7 +24,6 @@ const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }
   { value: 'General', label: 'General / other', tone: 'neutral', icon: 'general' },
 ];
 const SECTION_META = Object.fromEntries(SECTIONS.map(s => [s.value, s])) as Record<Section, (typeof SECTIONS)[number]>;
-const SECTION_HEX: Record<Section, string> = { Mechanical: '#86BBD8', Electrical: '#fbbf24', General: '#a78bfa' };
 const ALL = '__all__';
 
 const fmtDate = (s: string) => (s ? formatDate(s) : '');
@@ -31,7 +31,7 @@ const fmtDate = (s: string) => (s ? formatDate(s) : '');
 const fmtTime = (s: string) => {
   if (!s) return '';
   const d = new Date(`2000-01-01T${s}`);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return Number.isNaN(d.getTime()) ? '' : formatTime(d);
 };
 
 const SectionBadge = ({ section }: { section: Section }) => {
@@ -228,7 +228,7 @@ function NearMissContent() {
                 filename={exportFilename('Near_Miss_Reports')}
                 title="Near Miss Reports"
                 statusColumn="section"
-                statusColor={(_v, row) => SECTION_HEX[row.section as Section]?.replace('#', '')}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.section as Section]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>

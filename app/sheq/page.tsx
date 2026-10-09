@@ -15,6 +15,7 @@ import { formatDateTime } from '@/lib/format';
 import { computeStats, rangeToFromTo, scoreLabel, weekLabel, weeklyActuals } from './stats';
 import type { Comment, ModuleKey, QuickRange } from './types';
 import { postSafetyAnalysis, useSheqDashboardData } from './useSheqDashboardData';
+import { priorityTone } from '@/lib/status';
 
 const RANGES: { value: QuickRange | 'custom'; label: string }[] = [
   { value: '7d', label: '7 days' }, { value: '30d', label: '30 days' }, { value: '90d', label: '90 days' },
@@ -52,7 +53,7 @@ interface AiResult {
   trends?: { metric: string; direction?: string; insight?: string }[];
   top_risk_locations?: string[]; top_risk_departments?: string[];
 }
-const RISK_TONE: Record<string, Tone> = { low: 'success', medium: 'warning', high: 'warning', critical: 'danger' };
+const RISK_TONE: Record<string, Tone> = { low: priorityTone('low'), medium: priorityTone('medium'), high: priorityTone('high'), critical: priorityTone('critical') };
 const PRIORITY_TONE: Record<string, Tone> = { immediate: 'danger', short_term: 'warning', long_term: 'info' };
 const summarise = (rows: { name: string; value: number }[]) => rows.map(r => `${r.name} ${r.value}`).join(', ') || 'no data';
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);

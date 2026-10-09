@@ -24,11 +24,11 @@ import { useSchedules, useWorkOrders } from './useMaintenanceData';
 import { WorkOrderDetail } from './WorkOrderDetail';
 import { WorkOrderForm } from './WorkOrderForm';
 import type { MaintenanceSchedule, WorkOrder, WorkOrderPriority } from './types';
+import { exportStatusColor } from '@/lib/status';
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'date-desc', label: 'Newest first' }, { value: 'date-asc', label: 'Oldest first' }, { value: 'priority', label: 'Priority' }, { value: 'status', label: 'Status' }, { value: 'machine', label: 'Machine, A to Z' },
 ];
-const STATUS_HEX: Record<string, string> = { pending: 'FBBF24', 'in-progress': '60A5FA', completed: '34D399', 'on-hold': 'FB923C', cancelled: 'F87171' };
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'work_order_number', label: 'WO #', width: 14 }, { key: 'equipment_info', label: 'Equipment', width: 24 }, { key: 'classification', label: 'Classification', width: 18 }, { key: 'discipline', label: 'Discipline', width: 14 },
   { key: 'trade', label: 'Trade', width: 14 }, { key: 'status', label: 'Status', width: 14, format: v => statusMeta(String(v)).label }, { key: 'priority', label: 'Priority', width: 12, format: v => priorityMeta(String(v)).label },
@@ -119,7 +119,7 @@ function MaintenanceContent() {
         actions={(
           <>
             <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="ghost" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
-            {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => STATUS_HEX[String(row.status)] ?? '94A3B8'} />}
+            {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} />}
             {headerAction}
           </>
         )}

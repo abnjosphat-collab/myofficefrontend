@@ -3,6 +3,7 @@
 // "extract + test business logic" standard (app/timesheets/calcTotals.ts precedent).
 // Previously inline in page.tsx with no test coverage at all.
 import type { AvailRecord, PeriodRow } from './types';
+import { formatMonth } from '@/lib/format';
 
 export type Period = 'day' | 'week' | 'month';
 
@@ -18,7 +19,7 @@ export function getWeekLabel(dateStr: string): string {
 }
 
 export function getMonthLabel(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  return formatMonth(new Date(dateStr), 'full');
 }
 
 // Groups records into day/week/month buckets and averages availability_percentage

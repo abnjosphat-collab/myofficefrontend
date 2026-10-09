@@ -1,14 +1,23 @@
 'use client';
 
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import { cn } from '../foundations/cn';
 import { COLLISION_PADDING } from './surfaces';
 
+const Provided = createContext(false);
+
 /** Mount once near the root so every tooltip shares open-delay behaviour. */
 export const TooltipProvider = ({ children }: { children: ReactNode }) => (
-  <TooltipPrimitive.Provider delayDuration={120} skipDelayDuration={150}>{children}</TooltipPrimitive.Provider>
+  <TooltipPrimitive.Provider delayDuration={350} skipDelayDuration={150}>
+    <Provided.Provider value>{children}</Provided.Provider>
+  </TooltipPrimitive.Provider>
 );
+
+/** Tooltips also work outside the root provider (a test, an isolated workspace) by supplying their own. */
+function EnsureProvider({ children }: { children: ReactNode }) {
+  return useContext(Provided) ? children : <TooltipProvider>{children}</TooltipProvider>;
+}
 
 const contentClasses = cn(
   'z-[var(--mo-z-tooltip)] max-w-72 rounded-[8px] border border-line bg-surface px-2.5 py-1.5 font-sans text-tip text-ink shadow-popover',
@@ -22,14 +31,16 @@ const contentClasses = cn(
  */
 export function Tooltip({ content, children, side = 'top' }: { content: ReactNode; children: ReactElement; side?: 'top' | 'right' | 'bottom' | 'left' }) {
   return (
-    <TooltipPrimitive.Root>
-      <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
-        <TooltipPrimitive.Content side={side} sideOffset={7} collisionPadding={COLLISION_PADDING} className={contentClasses}>
-          {content}
-        </TooltipPrimitive.Content>
-      </TooltipPrimitive.Portal>
-    </TooltipPrimitive.Root>
+    <EnsureProvider>
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content side={side} sideOffset={7} collisionPadding={COLLISION_PADDING} className={contentClasses}>
+            {content}
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    </EnsureProvider>
   );
 }
 
@@ -40,6 +51,7 @@ export function Tooltip({ content, children, side = 'top' }: { content: ReactNod
 export function HelpHint({ label, children }: { label: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
+    <EnsureProvider>
     <TooltipPrimitive.Root open={open} onOpenChange={setOpen}>
       <TooltipPrimitive.Trigger asChild>
         <button
@@ -60,5 +72,6 @@ export function HelpHint({ label, children }: { label: string; children: ReactNo
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
+    </EnsureProvider>
   );
 }

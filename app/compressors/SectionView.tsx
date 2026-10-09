@@ -3,7 +3,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Button, Notice, SkeletonRows } from '@/components/ui-system';
+import { Button, Notice, LoadingPulse } from '@/components/ui-system';
 import type { Section } from './useCompressorsData';
 
 export function SectionView<T>({ section, subject, onRetry, children }: {
@@ -17,7 +17,7 @@ export function SectionView<T>({ section, subject, onRetry, children }: {
   if (!section.loaded && section.error) {
     return <Notice tone="danger" title={`${cap} could not be loaded`} action={<Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button>}>{section.error}</Notice>;
   }
-  if (!section.loaded) return <SkeletonRows rows={3} label={`Loading ${subject}`} />;
+  if (!section.loaded) return <LoadingPulse label={`Loading ${subject}`} />;
   return (
     <div className="flex flex-col gap-3">
       {section.error && <Notice tone="warning" title={`${cap} may be out of date`} action={<Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button>}>{section.error}</Notice>}

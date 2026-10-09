@@ -87,6 +87,47 @@ const localRules = {
         };
       },
     },
+    // The design-drift guards below are separate named rules rather than entries in one
+    // no-restricted-syntax list: a later config block that sets no-restricted-syntax for the same
+    // files (the auth guard does, for every file) replaces an earlier block's list instead of adding
+    // to it, which silently switched off the text-size guard until 2026-10-09.
+    "no-raw-text-size": {
+      meta: { type: "suggestion", schema: [] },
+      create(context) {
+        const RE = /\btext-(xs|sm)\b/;
+        const message = "Raw text-xs/text-sm bypasses the UI system's type roles (components/ui-system/foundations/typography.ts); use text-body, text-body-sm, text-label or text-caption.";
+        return {
+          Literal(node) { if (typeof node.value === "string" && isClassNameAttrValue(node) && RE.test(node.value)) context.report({ node, message }); },
+          TemplateElement(node) { if (isClassNameAttrValue(node) && RE.test(node.value.raw)) context.report({ node, message }); },
+        };
+      },
+    },
+    // A colour written as hex in a page cannot follow light/dark mode or the tone vocabulary.
+    "no-hex-colour": {
+      meta: { type: "suggestion", schema: [] },
+      create(context) {
+        const RE = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3}(?:[0-9a-fA-F]{2})?)?\b/;
+        const message = "Hex colour in page code. Use a token (bg-action, text-danger, chartColor(n)), a tone from lib/status.ts, or EXPORT_TONE_HEX for Excel/PDF exports.";
+        return {
+          Literal(node) { if (typeof node.value === "string" && RE.test(node.value)) context.report({ node, message }); },
+          TemplateElement(node) { if (RE.test(node.value.raw)) context.report({ node, message }); },
+        };
+      },
+    },
+    // Dates are formatted in one place so every screen shows them the same way.
+    "no-locale-date": {
+      meta: { type: "suggestion", schema: [] },
+      create(context) {
+        return {
+          CallExpression(node) {
+            const name = node.callee.type === "MemberExpression" && node.callee.property.name;
+            if (name === "toLocaleDateString" || name === "toLocaleTimeString") {
+              context.report({ node, message: `${name}() in page code. Use formatDate / formatDateTime / formatTime from lib/format.ts so dates read the same everywhere.` });
+            }
+          },
+        };
+      },
+    },
   },
 };
 
@@ -131,17 +172,7 @@ const eslintConfig = defineConfig([
     files: ["app/**/*.tsx", "components/**/*.tsx"],
     plugins: { local: localRules },
     rules: {
-      "no-restricted-syntax": [
-        "warn",
-        {
-          selector: "JSXAttribute[name.name='className'] Literal[value=/\\btext-(xs|sm)\\b/]",
-          message: "Raw text-xs/text-sm bypasses the UI system's type roles (components/ui-system/foundations/typography.ts); use text-body, text-body-sm, text-label or text-caption.",
-        },
-        {
-          selector: "JSXAttribute[name.name='className'] TemplateElement[value.raw=/\\btext-(xs|sm)\\b/]",
-          message: "Raw text-xs/text-sm bypasses the UI system's type roles (components/ui-system/foundations/typography.ts); use text-body, text-body-sm, text-label or text-caption.",
-        },
-      ],
+      "local/no-raw-text-size": "warn",
       "local/no-bg-class-collision": "warn",
       // Page-size guardrail. Every payroll bug this project has found has lived in
       // untested inline logic with nowhere to put a test (see the calcX.ts convention
@@ -212,6 +243,46 @@ const eslintConfig = defineConfig([
           ],
         },
       ],
+    },
+  },
+  // One loading animation: pages show loading through <DataRegion> (lists, tables, grids) or <LoadingPulse>
+  // (a gate, a panel, a dialog), both in the UI system, so every screen waits the same way. Building a
+  // page-level loader out of Skeleton/SkeletonRows is how pages drifted into one-off placeholders. The rule
+  // restates the icon restriction above because a later block replaces an earlier one's options for the same
+  // files. Tile-level shimmers live inside MetricTile (components/), which is not affected. 'warn', like its neighbours.
+  {
+    files: ["app/**/*.tsx"],
+    ignores: ["**/*.test.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "warn",
+        {
+          paths: [
+            {
+              name: "@phosphor-icons/react",
+              message: "Import glyphs from @/components/ui-system (the single icon layer) instead; direct package imports bypass its weight and size policy. See components/ui-system/README.md.",
+            },
+            {
+              name: "@/components/ui-system",
+              importNames: ["Skeleton", "SkeletonRows"],
+              message: "Do not build a page-level loader from Skeleton placeholders. Use <DataRegion> for lists and tables, or <LoadingPulse> for a gate, panel or dialog, so every page loads the same way.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Colour and date drift in page code. Status colours come from lib/status.ts (screen tones and the
+  // EXPORT_TONE_HEX palette for Excel/PDF), dates from lib/format.ts. Exempt: the generated app icon,
+  // Google's brand colours on the sign-in button, and the Tools workspace, which keeps its own palette
+  // until it moves onto the UI system. 'warn', like its neighbours.
+  {
+    files: ["app/**/*.ts", "app/**/*.tsx"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx", "app/icon.tsx", "app/apple-icon.tsx", "app/tools/**"],
+    plugins: { local: localRules },
+    rules: {
+      "local/no-hex-colour": "warn",
+      "local/no-locale-date": "warn",
     },
   },
   // Override default ignores of eslint-config-next.

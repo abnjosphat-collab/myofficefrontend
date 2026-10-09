@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, Checkbox, Dialog, EmptyState, SearchField } from '@/components/ui-system';
+import { Button, Checkbox, Dialog, EmptyState, LoadingPulse, SearchField } from '@/components/ui-system';
 import type { Employee } from './types';
 
 export function AddEmployeesDialog({ allEmployees, currentIds, loading, onAdd, onClose }: { allEmployees: Employee[]; currentIds: string[]; loading: boolean; onAdd: (emps: Employee[]) => void; onClose: () => void }) {
@@ -23,8 +23,10 @@ export function AddEmployeesDialog({ allEmployees, currentIds, loading, onAdd, o
       <div className="flex flex-col gap-3">
         <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" />
         <div className="flex items-center justify-between font-sans text-caption text-ink-muted"><span role="status">{available.length} available, {selected.size} selected</span><Button size="sm" variant="ghost" disabled={available.length === 0} onClick={() => setSelected(all ? new Set() : new Set(available.map(e => e.id)))}>{all ? 'Deselect all' : 'Select all'}</Button></div>
-        {available.length === 0
-          ? <EmptyState icon="employees" title={loading ? 'Loading people' : 'No one available'} description={loading ? undefined : search ? 'Try a different search.' : 'Everyone is already on this roster.'} />
+        {loading && available.length === 0
+          ? <LoadingPulse compact label="Loading people" />
+          : available.length === 0
+          ? <EmptyState icon="employees" title="No one available" description={search ? 'Try a different search.' : 'Everyone is already on this roster.'} />
           : (
             <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto" aria-label="Employees to add">
               {available.map(e => (

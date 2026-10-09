@@ -3,13 +3,14 @@
 // falls back to the raw value instead of failing.
 import type { Tone } from '@/components/ui-system';
 import type { OTStatus, OTType, PayoutMethod, PlanningStatus } from './types';
+import { statusTone } from '@/lib/status';
 
 export const TYPE_LABELS: Record<OTType, string> = { regular: 'Regular', weekend: 'Weekend', emergency: 'Emergency', project: 'Project', holiday: 'Holiday', night: 'Night shift' };
 const TYPE_TONE: Record<OTType, Tone> = { regular: 'info', weekend: 'brand', emergency: 'danger', project: 'success', holiday: 'warning', night: 'neutral' };
 export const typeMeta = (type: string): { label: string; tone: Tone } => ({ label: TYPE_LABELS[type as OTType] ?? String(type), tone: TYPE_TONE[type as OTType] ?? 'neutral' });
 
 export const STATUS_LABELS: Record<OTStatus, string> = { pending: 'Pending', approved: 'Approved', rejected: 'Rejected', paid: 'Paid', cancelled: 'Cancelled' };
-const STATUS_TONE: Record<OTStatus, Tone> = { pending: 'warning', approved: 'success', rejected: 'danger', paid: 'info', cancelled: 'neutral' };
+const STATUS_TONE: Record<OTStatus, Tone> = { pending: statusTone('pending'), approved: statusTone('approved'), rejected: statusTone('rejected'), paid: statusTone('paid'), cancelled: statusTone('cancelled') };
 export const statusMeta = (status: string): { label: string; tone: Tone } => ({ label: STATUS_LABELS[status as OTStatus] ?? String(status), tone: STATUS_TONE[status as OTStatus] ?? 'neutral' });
 
 export const PLANNING_LABELS: Record<PlanningStatus, string> = { planned: 'Planned', unplanned: 'Unplanned' };

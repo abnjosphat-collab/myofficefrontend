@@ -14,13 +14,14 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { CMReading, CMResult, CMType } from './types';
 import { useConditionMonitoringData, createCMReading } from './useConditionMonitoringData';
+import { EXPORT_TONE_HEX } from '@/lib/status';
 
 const CM_TYPES: CMType[] = ['Oil Analysis', 'Vibration', 'Thermography'];
 const TYPE_LABEL: Record<CMType, string> = { 'Oil Analysis': 'Oil analysis', Vibration: 'Vibration', Thermography: 'Thermography' };
-const RESULT_META: Record<CMResult, { label: string; tone: Tone; icon: 'success' | 'warning' | 'critical'; hex: string }> = {
-  normal: { label: 'Normal', tone: 'success', icon: 'success', hex: '34d399' },
-  caution: { label: 'Caution', tone: 'warning', icon: 'warning', hex: 'fbbf24' },
-  critical: { label: 'Critical', tone: 'danger', icon: 'critical', hex: 'fb7185' },
+const RESULT_META: Record<CMResult, { label: string; tone: Tone; icon: 'success' | 'warning' | 'critical' }> = {
+  normal: { label: 'Normal', tone: 'success', icon: 'success' },
+  caution: { label: 'Caution', tone: 'warning', icon: 'warning' },
+  critical: { label: 'Critical', tone: 'danger', icon: 'critical' },
 };
 const TYPE_FILTERS: { value: 'All' | CMType; label: string }[] = [{ value: 'All', label: 'All' }, ...CM_TYPES.map(type => ({ value: type, label: TYPE_LABEL[type] }))];
 const EMPTY_FORM = { equipment: '', component: '', type: 'Vibration' as CMType, date: '', value: '', unit: '', result: 'normal' as CMResult, technician: '', notes: '' };
@@ -125,7 +126,7 @@ function ConditionMonitoringContent() {
                 filename={exportFilename('Condition_Monitoring')}
                 title="Condition Monitoring"
                 statusColumn="result"
-                statusColor={(_v, row) => RESULT_META[row.result as CMResult]?.hex}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[RESULT_META[row.result as CMResult]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>

@@ -1,31 +1,16 @@
 // Shared utility functions — import these instead of re-defining in every page
 
 import type { EquipmentBase } from '@/app/equipment/types';
+import { formatDate, formatDateTime } from '@/lib/format';
 
+// Dates have one definition, in lib/format.ts. These names stay because 40+ files import them.
 export function fmtDate(s?: string | null, style: 'short' | 'long' = 'short'): string {
-  if (!s) return '—';
-  try {
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('en-GB',
-      style === 'short'
-        ? { day: '2-digit', month: 'short', year: 'numeric' }
-        : { day: 'numeric', month: 'long', year: 'numeric' }
-    );
-  } catch { return '—'; }
+  if (style === 'short') return formatDate(s);
+  const d = s ? new Date(s) : null;
+  return d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 }
 
-export function fmtDateTime(s?: string | null): string {
-  if (!s) return '—';
-  try {
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch { return '—'; }
-}
+export const fmtDateTime = (s?: string | null): string => formatDateTime(s);
 
 export function initials(name: string): string {
   return name
@@ -45,10 +30,10 @@ export function calcDays(start?: string | null, end?: string | null): number {
   } catch { return 0; }
 }
 
-export function formatCurrency(n: number, currency = 'USD'): string {
+export function formatCurrency(n: number, currency = 'USD', fractionDigits = 2): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency,
-    minimumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits,
   }).format(n || 0);
 }
 

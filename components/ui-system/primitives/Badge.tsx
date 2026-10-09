@@ -41,11 +41,37 @@ export function StatusBadge({ tone = 'neutral', icon, children, className }: Sta
   );
 }
 
-/** A neutral category / metadata chip (not a status). */
-export function Tag({ children, className }: { children: ReactNode; className?: string }) {
+/**
+ * A neutral category / metadata chip (not a status). With `onRemove` it is a picked value
+ * (a person, a machine, a tag) and carries its own remove button named "Remove {removeLabel}".
+ */
+export function Tag({ children, className, onRemove, removeLabel, disabled }: {
+  children: ReactNode;
+  className?: string;
+  onRemove?: () => void;
+  /** What the remove button names, when `children` is not plain text. */
+  removeLabel?: string;
+  disabled?: boolean;
+}) {
+  const name = removeLabel ?? (typeof children === 'string' || typeof children === 'number' ? String(children) : 'item');
   return (
-    <span className={cn('inline-flex max-w-full items-center rounded-control border border-line-subtle bg-surface-subtle px-1.5 py-0.5 font-sans text-caption text-ink-muted', className)}>
+    <span className={cn(
+      'inline-flex max-w-full items-center rounded-control border border-line-subtle bg-surface-subtle py-0.5 font-sans text-caption',
+      onRemove ? 'gap-1.5 pl-2 pr-1 text-ink' : 'px-1.5 text-ink-muted',
+      className,
+    )}>
       <span className="truncate">{children}</span>
+      {onRemove && (
+        <button
+          type="button"
+          aria-label={`Remove ${name}`}
+          disabled={disabled}
+          onClick={onRemove}
+          className="focus-ring inline-flex size-5 shrink-0 items-center justify-center rounded-xs text-ink-muted hover:bg-surface-muted hover:text-ink disabled:pointer-events-none disabled:opacity-45"
+        >
+          <Icon name="close" size="xs" />
+        </button>
+      )}
     </span>
   );
 }

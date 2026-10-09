@@ -11,11 +11,13 @@ export const type = {
   /** Rare: a single headline moment, e.g. a greeting on the homepage. */
   display: 'font-display text-display text-ink',
   /** One per page — the page <h1>. */
-  pageTitle: 'font-display text-page text-ink',
-  /** Section / panel / dialog headings. */
-  sectionTitle: 'font-display text-section text-ink',
-  /** Card and list-item titles, table record names. */
-  title: 'font-sans text-title text-ink',
+  pageTitle: 'font-display text-page font-medium tracking-tight text-ink',
+  /** Panel, chart and dialog headings: the blocks a page is made of. */
+  sectionTitle: 'font-display text-section font-semibold text-ink',
+  /** A heading inside a section: an empty or error state, a group within a panel. */
+  title: 'font-display text-title font-semibold text-ink',
+  /** The name on a record card or list item. */
+  recordTitle: 'font-display text-title font-medium leading-snug text-ink',
   /** Running text. */
   body: 'font-sans text-body text-ink',
   /** Supporting descriptions beneath a title or field. */

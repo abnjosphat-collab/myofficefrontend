@@ -121,7 +121,7 @@ describe('WeekBoard', () => {
     const crewLeave: LeaveRecord = { ...leave, id: 2, employee_id: 'C010', employee_name: 'Crew One', start_date: '2026-10-07', end_date: '2026-10-07' };
     render(<WeekBoard {...base} leaves={[crewLeave]} />);
     expect(screen.getByText('On leave')).toBeInTheDocument();
-    expect(screen.getByText('07 Oct 2026')).toBeInTheDocument();
+    expect(screen.getByText('7 Oct 2026')).toBeInTheDocument();
   });
 
   it('shows the duty roster week with its own sequence and restart', () => {

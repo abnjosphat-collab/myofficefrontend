@@ -1,6 +1,7 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
+import { type } from '../foundations/typography';
 
 /**
  * Surface container. STATIONARY: cards never lift, tilt or scale. Interactive cards
@@ -43,7 +44,7 @@ export function Panel({ title, description, actions, children, className, bodyCl
     <section className={cn('rounded-card border border-line bg-surface shadow-card', className)}>
       <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pt-4 sm:px-5">
         <div className="min-w-0">
-          <Heading className="font-display text-section font-semibold text-ink">{title}</Heading>
+          <Heading className={type.sectionTitle}>{title}</Heading>
           {description && <p className="mt-0.5 font-sans text-body-sm text-ink-muted">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

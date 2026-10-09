@@ -1,6 +1,7 @@
 // app/ppe/ppeMeta.ts — the fixed vocabulary of the PPE module: the kinds of equipment, the default months each lasts, and the labels and
 // tones for condition and status. Lookups fall back to the raw value so a record holding something unexpected still renders.
 import type { Tone } from '@/components/ui-system';
+import { conditionTone, statusTone } from '@/lib/status';
 
 export const PPE_TYPES: Record<string, { name: string; short: string }> = {
   helmet: { name: 'Safety Helmet', short: 'Helmet' }, gloves: { name: 'Safety Gloves', short: 'Gloves' }, glasses: { name: 'Safety Glasses', short: 'Glasses' },
@@ -20,13 +21,13 @@ export const PPE_MATRIX_DEFAULTS: Record<string, number> = {
 };
 
 export const CONDITIONS: { value: string; label: string; tone: Tone }[] = [
-  { value: 'excellent', label: 'Excellent', tone: 'success' }, { value: 'good', label: 'Good', tone: 'info' }, { value: 'fair', label: 'Fair', tone: 'warning' },
-  { value: 'poor', label: 'Poor', tone: 'warning' }, { value: 'damaged', label: 'Damaged', tone: 'danger' },
+  { value: 'excellent', label: 'Excellent', tone: conditionTone('excellent') }, { value: 'good', label: 'Good', tone: conditionTone('good') }, { value: 'fair', label: 'Fair', tone: conditionTone('fair') },
+  { value: 'poor', label: 'Poor', tone: conditionTone('poor') }, { value: 'damaged', label: 'Damaged', tone: conditionTone('damaged') },
 ];
 export const conditionMeta = (c: string) => CONDITIONS.find(x => x.value === c) ?? { value: c, label: c || 'Not recorded', tone: 'neutral' as Tone };
 
 export const STATUSES: { value: string; label: string; tone: Tone }[] = [
-  { value: 'active', label: 'Active', tone: 'success' }, { value: 'expired', label: 'Due', tone: 'danger' }, { value: 'returned', label: 'Returned', tone: 'neutral' },
-  { value: 'lost', label: 'Lost', tone: 'danger' }, { value: 'damaged', label: 'Damaged', tone: 'warning' }, { value: 'not_required', label: 'Not required', tone: 'neutral' },
+  { value: 'active', label: 'Active', tone: statusTone('active') }, { value: 'expired', label: 'Due', tone: statusTone('expired') }, { value: 'returned', label: 'Returned', tone: statusTone('returned') },
+  { value: 'lost', label: 'Lost', tone: statusTone('lost') }, { value: 'damaged', label: 'Damaged', tone: statusTone('damaged') }, { value: 'not_required', label: 'Not required', tone: statusTone('not_required') },
 ];
 export const statusMeta = (s: string) => STATUSES.find(x => x.value === s) ?? { value: s, label: s || 'Unknown', tone: 'neutral' as Tone };

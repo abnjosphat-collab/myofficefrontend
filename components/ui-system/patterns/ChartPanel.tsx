@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../foundations/cn';
+import { type } from '../foundations/typography';
 import { Card } from '../primitives/Card';
 
 /**
@@ -16,7 +17,7 @@ export function ChartPanel({ title, description, summary, children, className }:
   return (
     <Card padding="lg" className={cn('flex flex-col gap-4', className)}>
       <div>
-        <h2 className="font-display text-title font-semibold text-ink">{title}</h2>
+        <h2 className={type.sectionTitle}>{title}</h2>
         {description && <p className="mt-0.5 font-sans text-body-sm text-ink-muted">{description}</p>}
       </div>
       <figure className="m-0" aria-label={title}>

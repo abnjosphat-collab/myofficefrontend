@@ -9,7 +9,7 @@ import { Button, EmptyState, Field, Input, MetricGrid, MetricTile, Notice, Progr
 import { cleanReasonText, toISODate } from './calcOvertime';
 import { downloadWeeklySummary } from './exportWeeklySummary';
 import { lastCompletedWeek, recordHours, weeklyView, type WeeklySort } from './overtimeLogic';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatWeekday, formatMonth } from '@/lib/format';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { OTRecord } from './types';
 
@@ -116,7 +116,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
                     const ds = toISODate(d); const weekend = d.getDay() === 0 || d.getDay() === 6;
                     return (
                       <th key={ds} scope="col" className={cn('min-w-14 border-b border-line px-1 py-1 text-center font-normal', ds === today ? 'bg-action-soft text-action' : weekend ? 'bg-surface-muted text-ink-muted' : 'bg-surface-subtle text-ink-muted')}>
-                        <span className="block text-caption">{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span><span className="block font-semibold tabular text-ink">{d.getDate()}</span><span className="block text-caption">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                        <span className="block text-caption">{formatWeekday(d)}</span><span className="block font-semibold tabular text-ink">{d.getDate()}</span><span className="block text-caption">{formatMonth(d)}</span>
                       </th>
                     );
                   })}

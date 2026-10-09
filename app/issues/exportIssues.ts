@@ -4,6 +4,7 @@ import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { formatCurrency, lineTotal } from '@/components/shared/utils';
 import { issueCost } from './analytics';
 import type { StockIssue } from './types';
+import { formatDate } from '@/lib/format';
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 const when = (s: string) => (s ? new Date(s).toLocaleString('en-GB') : '');
@@ -65,7 +66,7 @@ export async function exportIssuesPdf(issues: StockIssue[]): Promise<void> {
   doc.setFontSize(14); doc.setTextColor(...EXPORT_BRAND_RGB);
   doc.text('Stock Issues Register', 14, 14);
   doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-  doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  ·  ${issues.length} issues  ·  Total cost: ${formatCurrency(total)}`, 14, 20);
+  doc.text(`Generated ${formatDate(new Date())}  ·  ${issues.length} issues  ·  Total cost: ${formatCurrency(total)}`, 14, 20);
   autoTable(doc, {
     startY: 25,
     head: [['Issue Date', 'Recipient', 'Recipient ID', 'Issued By', 'Items', 'Total Cost', 'Notes']],

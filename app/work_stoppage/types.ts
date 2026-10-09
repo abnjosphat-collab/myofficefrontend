@@ -1,8 +1,8 @@
 // app/work_stoppage/types.ts — the work stoppage page's data model: the corrective-action
 // and report shapes. Split out of page.tsx as part of the standing "decompose on touch"
 // convention. Component *prop* interfaces stay in page.tsx — they're coupled to one
-// component, not the page's data contract. SECTIONS/ACTION_STATUSES/SECTION_ICON/
-// SECTION_HEX/STATUS_HEX also stay in page.tsx (business vocabulary, same as every
+// component, not the page's data contract. SECTIONS/ACTION_STATUSES/SECTION_ICON
+// also stay in page.tsx (business vocabulary, same as every
 // other page's config constants).
 
 export type SectionType = 'Mechanical' | 'Electrical' | 'General';

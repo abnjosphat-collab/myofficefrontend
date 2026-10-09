@@ -6,11 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented,
-  Select, Skeleton, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type IconMeaning, type SortState, type Tone,
-} from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -220,7 +216,7 @@ function AdminContent() {
   useEffect(() => { if (!loading && profile && !isAtLeast('admin')) router.replace('/'); }, [loading, profile, isAtLeast, router]);
 
   // "Still checking" and "checked, nobody is signed in" are different states: a signed-out visitor must not see a spinner forever.
-  if (loading) return <div role="status" aria-label="Checking your access" className="flex flex-col gap-3 py-8"><Skeleton className="h-8 w-64" /><Skeleton className="h-24 w-full" /></div>;
+  if (loading) return <LoadingPulse label="Checking your access" />;
   if (!profile) return <EmptyState icon="lock" title="Sign in required" description="Sign in with an admin account (top right) to view the admin panel." />;
   if (!isAtLeast('admin')) return null;
   return <Directory caller={profile} />;

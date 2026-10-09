@@ -4,6 +4,7 @@ import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { formatCurrency } from '@/components/shared/utils';
 import { filled, lineValue, requisitionTotal } from './stock';
 import type { ReqHeader, ReqLine } from './types';
+import { formatLongDate } from '@/lib/format';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -11,7 +12,7 @@ export async function downloadRequisitionPdf(header: ReqHeader, lines: ReqLine[]
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const today = formatLongDate(new Date());
   const rows = filled(lines);
   doc.setFillColor(...EXPORT_BRAND_RGB); doc.rect(0, 0, 297, 26, 'F');
   doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('Ozech MyOffice', 12, 11);

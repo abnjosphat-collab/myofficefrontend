@@ -5,6 +5,7 @@ import type { EmployeeLookup } from '@/hooks/useLookups';
 import { WEEKDAYS } from './overtimeMeta';
 import { addDays, buildWeeklyRows, calcHours, groupSimilarReasons, mondayOf, overtimeCostCentre, recordsForEngineeringCostCentreExport, toISODate } from './calcOvertime';
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
+import { formatMonth } from '@/lib/format';
 
 /** Hours entered directly win; otherwise the length of the start-to-end span. One definition, so the table, detail and totals agree. */
 export const recordHours = (r: Pick<OTRecord, 'hours' | 'start_time' | 'end_time'>): number => r.hours ?? calcHours(r.start_time, r.end_time);
@@ -45,7 +46,7 @@ export function monthOptions(records: OTRecord[]) {
   const months = new Set(records.map(r => r.date?.slice(0, 7)).filter((m): m is string => !!m));
   return [...months].sort((a, b) => b.localeCompare(a)).slice(0, 12).map(m => {
     const [y, mo] = m.split('-').map(Number);
-    return { key: m, label: new Date(y, mo - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }), from: `${m}-01`, to: `${m}-${String(new Date(y, mo, 0).getDate()).padStart(2, '0')}` };
+    return { key: m, label: formatMonth(new Date(y, mo - 1, 1), 'full'), from: `${m}-01`, to: `${m}-${String(new Date(y, mo, 0).getDate()).padStart(2, '0')}` };
   });
 }
 

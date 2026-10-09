@@ -2,7 +2,7 @@
 // its form/filter/stats mirrors. Split out of page.tsx as part of the standing
 // "decompose on touch" convention. Component *prop* interfaces stay in page.tsx — they're
 // coupled to one component, not the page's data contract. CATEGORIES/PRIORITIES/
-// STATUSES/DEPARTMENTS/TARGET_AUDIENCE/NOTIFICATION_TYPES/PRIORITY_HEX/STATUS_HEX also
+// STATUSES/DEPARTMENTS/TARGET_AUDIENCE/NOTIFICATION_TYPES also
 // stay in page.tsx (business vocabulary, same as every other page's config constants).
 
 export interface Attachment { name: string; url: string; size: string; }

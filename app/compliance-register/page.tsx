@@ -15,11 +15,12 @@ import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Status, ComplianceItem } from './types';
+import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
 
-const STATUS_META: Record<Status, { label: string; tone: Tone; icon: 'valid' | 'due-soon' | 'overdue'; hex: string }> = {
-  current: { label: 'Current', tone: 'success', icon: 'valid', hex: '#34d399' },
-  due_soon: { label: 'Due soon', tone: 'warning', icon: 'due-soon', hex: '#fbbf24' },
-  overdue: { label: 'Overdue', tone: 'danger', icon: 'overdue', hex: '#fb7185' },
+const STATUS_META: Record<Status, { label: string; tone: Tone; icon: 'valid' | 'due-soon' | 'overdue' }> = {
+  current: { label: 'Current', tone: statusTone('current'), icon: 'valid' },
+  due_soon: { label: 'Due soon', tone: statusTone('due_soon'), icon: 'due-soon' },
+  overdue: { label: 'Overdue', tone: statusTone('overdue'), icon: 'overdue' },
 };
 const FILTERS: { value: Status | 'all'; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'current', label: 'Current' }, { value: 'due_soon', label: 'Due soon' }, { value: 'overdue', label: 'Overdue' }];
 const EMPTY_FORM = { equipment_name: '', inspection_type: '', regulatory_body: '', certificate_no: '', expiry_date: '', responsible: '', notes: '' };
@@ -137,7 +138,7 @@ function ComplianceRegisterContent() {
                 filename={exportFilename('Compliance_Register')}
                 title="Statutory Compliance Register"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_META[row.status as Status]?.hex.replace('#', '')}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS_META[row.status as Status]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>

@@ -6,6 +6,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
 import { Icon, type IconSize } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
+import { Tooltip } from '../overlays/Tooltip';
 
 /** The one button. Hierarchy: primary (one per view) → secondary → ghost; danger only after confirmation. */
 export const buttonVariants = cva(
@@ -116,23 +117,25 @@ export const iconButtonVariants = cva(
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>, VariantProps<typeof iconButtonVariants> {
   icon: IconMeaning;
-  /** Required: an icon-only control must have an accessible name (also used as the tooltip title). */
+  /** Required: an icon-only control must have an accessible name. It is also the tooltip. */
   label: string;
+  /** Longer hint than the label, or `false` when the control already sits inside its own tooltip. */
+  tooltip?: ReactNode | false;
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
   pending?: boolean;
   pressed?: boolean;
 }
 
-/** Icon-only action. The label is mandatory so the control is never unnamed. */
+/** Icon-only action. The label is mandatory so the control is never unnamed, and it shows as a tooltip on hover and focus. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon, label, variant, size, pending = false, pressed, className, disabled, type, ...rest },
+  { icon, label, tooltip, tooltipSide = 'bottom', variant, size, pending = false, pressed, className, disabled, type, ...rest },
   ref,
 ) {
-  return (
+  const button = (
     <button
       ref={ref}
       type={type ?? 'button'}
       aria-label={label}
-      title={label}
       aria-pressed={pressed}
       aria-busy={pending || undefined}
       disabled={disabled || pending}
@@ -142,4 +145,5 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       {pending ? <Spinner /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
     </button>
   );
+  return tooltip === false ? button : <Tooltip content={tooltip ?? label} side={tooltipSide}>{button}</Tooltip>;
 });

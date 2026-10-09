@@ -15,6 +15,7 @@ import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/componen
 import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
 import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
 import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, type AttachmentKind } from './attachments';
+import { exportPriorityColor, priorityTone, statusTone } from '@/lib/status';
 
 const CATEGORIES = ['HR', 'Safety', 'IT', 'General', 'Operations', 'Finance'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -26,10 +27,9 @@ const ALL = '__all__';
 const NO_FILTERS: NoticeFilters = { category: ALL, priority: ALL, status: ALL, department: ALL, is_pinned: null };
 
 const PRIORITY_META: Record<string, { tone: Tone; icon: IconMeaning }> = {
-  Critical: { tone: 'danger', icon: 'critical' }, High: { tone: 'warning', icon: 'warning' }, Medium: { tone: 'info', icon: 'info' }, Low: { tone: 'neutral', icon: 'flag' },
+  Critical: { tone: priorityTone('Critical'), icon: 'critical' }, High: { tone: priorityTone('High'), icon: 'warning' }, Medium: { tone: priorityTone('Medium'), icon: 'info' }, Low: { tone: priorityTone('Low'), icon: 'flag' },
 };
-const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning }> = { Active: { tone: 'success', icon: 'active' }, Draft: { tone: 'neutral', icon: 'draft' }, Archived: { tone: 'neutral', icon: 'archive' } };
-const PRIORITY_HEX: Record<string, string> = { Critical: '#f43f5e', High: '#f97316', Medium: '#60a5fa', Low: '#94a3b8' };
+const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning }> = { Active: { tone: statusTone('Active'), icon: 'active' }, Draft: { tone: statusTone('Draft'), icon: 'draft' }, Archived: { tone: statusTone('Archived'), icon: 'archive' } };
 const KIND_ICON: Record<AttachmentKind, IconMeaning> = { image: 'image', video: 'attachment', audio: 'attachment', pdf: 'pdf', spreadsheet: 'table-view', document: 'documents', archive: 'archive', file: 'attachment' };
 
 const PriorityTag = ({ priority }: { priority: string }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{priority}</StatusBadge>; };
@@ -322,7 +322,7 @@ function NoticeboardContent() {
                 filename={exportFilename('Noticeboard')}
                 title="Noticeboard"
                 statusColumn="priority"
-                statusColor={(_v, row) => PRIORITY_HEX[row.priority as string]?.replace('#', '')}
+                statusColor={(_v, row) => exportPriorityColor(String(row.priority))}
               />
             )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button>

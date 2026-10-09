@@ -3,6 +3,7 @@
 import { Children, Fragment, isValidElement, useId, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { cn } from '../foundations/cn';
+import { type } from '../foundations/typography';
 import { Icon } from '../foundations/Icon';
 import { Button } from '../primitives/Button';
 import { CountBadge } from '../primitives/Badge';
@@ -41,7 +42,7 @@ export function PageHeader({ title, description, breadcrumbs, actions, meta, cla
       )}
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 max-w-3xl">
-          <h1 className="font-display text-page font-medium tracking-tight text-ink">{title}</h1>
+          <h1 className={type.pageTitle}>{title}</h1>
           {description && <p className="mt-1 font-sans text-body text-ink-muted">{description}</p>}
           {meta && <p className="mt-1 font-sans text-caption text-ink-muted">{meta}</p>}
         </div>

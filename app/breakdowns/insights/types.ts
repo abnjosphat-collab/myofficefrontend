@@ -3,6 +3,8 @@
 // tables every tab draws from. Split out of page.tsx as part of the standing
 // "decompose on touch" convention.
 
+import { formatCurrency as formatMoney } from '@/components/shared/utils';
+
 export interface HeatmapData {
   heatmap: {
     hour_day: number[][];
@@ -105,6 +107,5 @@ export const formatTime = (minutes: number): string => {
   return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}`.trim() : `${m}m`;
 };
 
-export const formatCurrency = (value: number): string => {
-  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
-};
+/** Whole dollars, from the app's one currency formatter. */
+export const formatCurrency = (value: number): string => formatMoney(value, 'USD', 0);

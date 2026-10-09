@@ -15,6 +15,7 @@ import { TimesheetDayCell } from './TimesheetDayCell';
 import { TimesheetEmployeeCell } from './TimesheetEmployeeCell';
 import { fmtDate, normalShiftHours, statusMeta } from './timesheetMeta';
 import type { Employee, HourTotals, StatusKey, TimesheetEntry } from './types';
+import { formatWeekday, formatMonth } from '@/lib/format';
 
 /** Accessible summary for a cell: the status, times and hours, plus where it came from. */
 export function entryCellTitle(entry: TimesheetEntry): string {
@@ -131,9 +132,9 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
                   <th key={ds} scope="col" className={cn(TH, 'min-w-[4.75rem] px-0.5', holiday && 'bg-action-soft')}>
                     <button type="button" aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`} title={holiday ? `${holiday}: bulk assign this day` : 'Bulk assign this day for everyone'} onClick={() => onBulkDay(d)}
                       className="focus-ring flex w-full flex-col items-center gap-0.5 rounded-control py-1.5 hover:bg-surface-subtle">
-                      <span className={wk ? 'text-ink-subtle' : undefined}>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+                      <span className={wk ? 'text-ink-subtle' : undefined}>{formatWeekday(d)}</span>
                       <span className={cn('font-sans text-body-sm tabular', ds === today ? 'font-bold text-ink' : 'text-ink')}>{d.getDate()}</span>
-                      <span className="text-[0.6875rem] font-normal">{holiday ? 'Holiday' : d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                      <span className="text-[0.6875rem] font-normal">{holiday ? 'Holiday' : formatMonth(d)}</span>
                     </button>
                   </th>
                 );

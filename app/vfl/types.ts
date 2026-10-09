@@ -2,8 +2,8 @@
 // report shapes. Split out of page.tsx as part of the standing "decompose on touch"
 // convention. Component *prop* interfaces stay in page.tsx — they're coupled to one
 // component, not the page's data contract. SECTIONS/BEHAVIOUR_CATEGORIES/
-// OBSERVATION_TYPES/COACHING_TECHNIQUES/SECTION_HEX/SECTION_ICONS/BEHAVIOUR_HEX/
-// OBSERVATION_HEX/COACHING_DESC/STATUS_HEX/ACTION_HEX also stay in page.tsx (business
+// OBSERVATION_TYPES/COACHING_TECHNIQUES/SECTION_ICONS/
+// COACHING_DESC also stay in page.tsx (business
 // vocabulary, same as every other page's config constants).
 
 export type SectionType = 'Mechanical' | 'Electrical';

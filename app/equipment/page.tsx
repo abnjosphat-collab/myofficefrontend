@@ -18,13 +18,14 @@ import { EquipmentFormDialog } from './EquipmentFormDialog';
 import { createEquipment, deleteEquipment, updateEquipment } from './api';
 import { NO_EQUIPMENT_FILTERS, STATUSES, STATUS_LABELS, calcAge, countByStatus, filterEquipment, type EquipmentFilters } from './equipmentLogic';
 import type { EquipmentItem } from './types';
+import { priorityTone, statusTone } from '@/lib/status';
 
 const ALL = 'all';
 const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning }> = {
-  operational: { tone: 'success', icon: 'active' }, maintenance: { tone: 'warning', icon: 'maintenance' }, out_of_service: { tone: 'danger', icon: 'breakdown' },
-  reserved: { tone: 'info', icon: 'pending' }, retired: { tone: 'neutral', icon: 'inactive' },
+  operational: { tone: statusTone('operational'), icon: 'active' }, maintenance: { tone: statusTone('maintenance'), icon: 'maintenance' }, out_of_service: { tone: statusTone('out_of_service'), icon: 'breakdown' },
+  reserved: { tone: statusTone('reserved'), icon: 'pending' }, retired: { tone: statusTone('retired'), icon: 'inactive' },
 };
-const CRIT_TONE: Record<string, Tone> = { High: 'danger', Medium: 'warning', Low: 'neutral' };
+const CRIT_TONE: Record<string, Tone> = { High: priorityTone('High'), Medium: priorityTone('Medium'), Low: priorityTone('Low') };
 const PAGE_SIZES = [12, 24, 48, 96].map(n => ({ value: String(n), label: `${n} per page` }));
 const statusOf = (e: EquipmentItem) => (e.status || '').toLowerCase();
 const StatusTag = ({ item }: { item: EquipmentItem }) => { const s = statusOf(item); const m = STATUS_META[s]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{STATUS_LABELS[s] ?? (item.status || 'Unknown')}</StatusBadge>; };

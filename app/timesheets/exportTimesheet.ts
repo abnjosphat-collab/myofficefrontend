@@ -5,6 +5,7 @@ import { EXPORT_BRAND_RGB, excelActualSumFormula, excelColumnLetter, excelOt15Fo
 import { DOUBLE_TIME_STATUSES, LEAVE_STATUSES, NEC_REG_CAP, ZERO_HOUR_STATUSES, moduleOt15FormulaAddends } from './calcTotals';
 import { STATUS_META, fmtDate, fmtPeriod, getDays } from './timesheetMeta';
 import type { ApprovedOvertimeRecord, Employee, HourTotals, Period, RowData, StatusKey, TimesheetEntry } from './types';
+import { formatDate, formatWeekday } from '@/lib/format';
 
 /** Monochrome timesheet .xlsx styling; leave days use a soft green fill only. */
 const EXCEL_BW = {
@@ -74,7 +75,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
 
   const buildRows = (emp: Employee): RowData[] => days.map(day => {
     const e = getEntry(emp.id, day);
-    return { day: day.toLocaleDateString('en-GB', { weekday: 'short' }), date: fmtDate(day), status: excelStatusLabel(e), start: e?.start_time || '—', end: e?.end_time || '—', reg: e?.regular_hours?.toFixed(2) || '0.00', ot15: e?.overtime_hours?.toFixed(2) || '0.00', ot20: e?.holiday_overtime_hours?.toFixed(2) || '0.00', night: e?.nightshift_hours?.toFixed(2) || '0.00', notes: e?.notes || '' };
+    return { day: formatWeekday(day), date: fmtDate(day), status: excelStatusLabel(e), start: e?.start_time || '—', end: e?.end_time || '—', reg: e?.regular_hours?.toFixed(2) || '0.00', ot15: e?.overtime_hours?.toFixed(2) || '0.00', ot20: e?.holiday_overtime_hours?.toFixed(2) || '0.00', night: e?.nightshift_hours?.toFixed(2) || '0.00', notes: e?.notes || '' };
   });
 
   const statusAbbr = (s: string) => ({ work: '', leave: 'Lv', sick: 'Sick', special_leave: 'SL', holiday: 'PPH', holiday_paid: 'PH', training: 'Trn', off: 'Off', absent: 'Abs' }[s] ?? s);
@@ -117,7 +118,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
       ws.getRow(2).height = 28;
 
       const hdrRow = ws.getRow(3);
-      hdrRow.values = ['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}\n${d.toLocaleDateString('en-GB', { weekday: 'short' })}`), ...sumHdr];
+      hdrRow.values = ['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}\n${formatWeekday(d)}`), ...sumHdr];
       hdrRow.height = 32;
       hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
         const isFixedCol = col <= FIXED_COLS;
@@ -308,7 +309,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
       doc.setFillColor(...BRAND); doc.rect(0, 0, 297, 16, 'F');
       doc.setTextColor(255, 255, 255); doc.setFontSize(11);
       doc.text(`${tabLabel} Timesheet — ${fmtPeriod(period)}`, 10, 10);
-      doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`, 10, 14);
+      doc.setFontSize(8); doc.text(`${targets.length} employees · Generated ${formatDate(new Date())}`, 10, 14);
 
       const dayW = Math.min(5.5, (277 - 35 - 20 - 66) / days.length);
       const colStyles: Record<number, { cellWidth: number; halign?: 'center' | 'left' }> = {

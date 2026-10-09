@@ -1,5 +1,6 @@
 // app/services/meta.ts — the fixed vocabulary of the services tracker: service categories and the six approval stages a job passes.
 import type { IconMeaning, Tone } from '@/components/ui-system';
+import { statusTone } from '@/lib/status';
 
 export const CATEGORIES = [
   'Maintenance', 'Electrical', 'Civil / Construction', 'IT / Technology', 'Cleaning', 'Security', 'Transport', 'Catering', 'Consulting', 'Other',
@@ -18,8 +19,8 @@ export const STAGES: ReadonlyArray<{ key: StageKey; label: string; short: string
 
 export type StatusKey = 'not_started' | 'in_progress' | 'completed';
 export const STATUS: Record<StatusKey, { label: string; tone: Tone }> = {
-  not_started: { label: 'Not started', tone: 'neutral' },
-  in_progress: { label: 'In progress', tone: 'warning' },
-  completed: { label: 'Completed', tone: 'success' },
+  not_started: { label: 'Not started', tone: statusTone('not_started') },
+  in_progress: { label: 'In progress', tone: statusTone('in_progress') },
+  completed: { label: 'Completed', tone: statusTone('completed') },
 };
 export const STAGE_COUNT = STAGES.length;

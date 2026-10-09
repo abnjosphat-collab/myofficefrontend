@@ -14,6 +14,7 @@ import { DOUBLE_TIME_STATUSES, LEAVE_STATUSES, ZERO_HOUR_STATUSES } from './calc
 import { entryProblems, entryTotal, initialForm, toEntry, withStatus, withTimes } from './entryForm';
 import { STATUS_KEYS, fmtDate, statusMeta } from './timesheetMeta';
 import type { Employee, EntryForm, StatusKey, TimesheetEntry } from './types';
+import { formatFullDate, formatDayMonth } from '@/lib/format';
 
 const OPTIONS = STATUS_KEYS.map(k => ({ value: k as string, label: statusMeta(k).label }));
 
@@ -38,14 +39,14 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
   };
   const remove = async () => {
     if (!onDelete) return;
-    if (!await confirm({ title: 'Delete this entry?', message: `${employee.name}, ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
+    if (!await confirm({ title: 'Delete this entry?', message: `${employee.name}, ${formatDayMonth(date, true)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
     try { await onDelete(); toast.success('Entry deleted.'); onClose(); }
     catch (e) { toast.error(`The entry was not deleted: ${(e as Error).message}`); }
   };
 
   return (
     <FormDialog
-      open onOpenChange={o => { if (!o) onClose(); }} size="md" title="Timesheet entry" description={`${employee.name}, ${date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`} submitLabel="Save entry" onSubmit={submit}
+      open onOpenChange={o => { if (!o) onClose(); }} size="md" title="Timesheet entry" description={`${employee.name}, ${formatFullDate(date)}`} submitLabel="Save entry" onSubmit={submit}
       secondaryAction={onDelete ? <Button variant="danger" icon="delete" onClick={remove}>Delete entry</Button> : undefined}
     >
       <div className="flex flex-col gap-4">

@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EXPORT_BRAND_RGB, styleExcelHeaderRow, exportFilename } from '@/lib/exportUtils';
 import type { Driver } from './types';
+import { formatDate } from '@/lib/format';
 
 export async function exportExcel(drivers: Driver[]) {
   const ExcelJS = (await import('exceljs')).default;
@@ -48,7 +49,7 @@ export function exportPDF(drivers: Driver[], filterLabel: string) {
   const phonePositions: { x: number; y: number; w: number; h: number; tel: string }[] = [];
   const body = drivers.map(d => [
     d.full_name, (d.phone_numbers || []).join('\n'), d.department || '—', d.license_class || '—',
-    d.license_expiry ? new Date(d.license_expiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—', d.status.toUpperCase(), d.notes || '',
+    d.license_expiry ? formatDate(new Date(d.license_expiry)) : '—', d.status.toUpperCase(), d.notes || '',
   ]);
 
   autoTable(doc, {

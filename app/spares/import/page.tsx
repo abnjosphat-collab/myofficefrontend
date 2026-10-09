@@ -5,10 +5,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataTable, Field, Icon, MetricGrid, MetricTile, Notice, PageHeader, Select, Spinner, StatusBadge, cn, useConfirm,
-  type Column,
-} from '@/components/ui-system';
+import { Button, DataTable, Field, Icon, MetricGrid, MetricTile, Notice, PageHeader, Select, StatusBadge, cn, useConfirm, type Column, LoadingPulse } from '@/components/ui-system';
 import { api } from '@/lib/apiClient';
 import { confidenceTone, extractRows, toBulkItem, type ExtractedRow, type Mapping } from './extract';
 
@@ -132,7 +129,7 @@ function SpareImportContent() {
             onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
             className={cn('focus-ring flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors', dragging ? 'border-action bg-action-soft' : 'border-line-control bg-surface hover:bg-surface-subtle')}
           >
-            {uploading ? (<><Spinner className="size-8 text-action" /><p className="font-sans text-body font-medium text-ink">Reading {fileName || 'the file'}…</p></>) : (
+            {uploading ? (<LoadingPulse compact label={`Reading ${fileName || 'the file'}`} />) : (
               <>
                 <span className="inline-flex size-14 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name="upload" size="xl" /></span>
                 <div><p className="font-display text-title font-semibold text-ink">Drop your file here</p><p className="mt-1 font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls) or CSV, up to 25 MB.</p></div>

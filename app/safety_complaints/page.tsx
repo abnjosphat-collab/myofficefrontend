@@ -17,6 +17,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { Complaint } from './types';
 import { api, useSafetyComplaintsData } from './useSafetyComplaintsData';
+import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 
 const CATEGORIES = ['Safety', 'Health', 'Environment', 'Quality', 'General', 'Other'];
 const SECTIONS = ['Mechanical', 'Electrical', 'General'];
@@ -26,13 +27,12 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const ALL = '__all__';
 
 const PRIORITY_META: Record<string, { tone: Tone; icon: IconMeaning }> = {
-  critical: { tone: 'danger', icon: 'critical' }, high: { tone: 'warning', icon: 'warning' }, medium: { tone: 'info', icon: 'info' }, low: { tone: 'neutral', icon: 'flag' },
+  critical: { tone: priorityTone('critical'), icon: 'critical' }, high: { tone: priorityTone('high'), icon: 'warning' }, medium: { tone: priorityTone('medium'), icon: 'info' }, low: { tone: priorityTone('low'), icon: 'flag' },
 };
 const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning; label: string }> = {
-  open: { tone: 'danger', icon: 'warning', label: 'Open' }, 'in-progress': { tone: 'warning', icon: 'pending', label: 'In progress' },
-  closed: { tone: 'success', icon: 'closed', label: 'Closed' }, overdue: { tone: 'danger', icon: 'overdue', label: 'Overdue' },
+  open: { tone: statusTone('open'), icon: 'warning', label: 'Open' }, 'in-progress': { tone: statusTone('in-progress'), icon: 'pending', label: 'In progress' },
+  closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' }, overdue: { tone: statusTone('overdue'), icon: 'overdue', label: 'Overdue' },
 };
-const STATUS_HEX: Record<string, string> = { open: '#f43f5e', 'in-progress': '#fbbf24', closed: '#34d399', overdue: '#fb923c' };
 
 const StatusTag = ({ status }: { status: string }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const PriorityTag = ({ priority }: { priority: string }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{cap(priority)}</StatusBadge>; };
@@ -291,7 +291,7 @@ function SafetyComplaintsContent() {
                 filename={exportFilename('Safety_Complaints')}
                 title="Safety Complaints"
                 statusColumn="status"
-                statusColor={(_v, row) => STATUS_HEX[row.status as string]?.replace('#', '')}
+                statusColor={(_v, row) => exportStatusColor(String(row.status))}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>

@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Field, FormDialog, Icon, Input, Segmented, Select, Textarea, cn } from '@/components/ui-system';
+import { Button, Field, FormDialog, Icon, Input, Segmented, Select, Textarea, Tag } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
@@ -80,7 +80,7 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
               <div className="flex items-end gap-2"><Field label="Add a date" error={err(problems.recurrence)} className="flex-1"><Input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} /></Field><Button icon="plus" disabled={!newDate} onClick={addDate}>Add</Button></div>
               {d.specific_dates.length > 0 && (
                 <ul className="flex flex-wrap gap-1.5" aria-label="Dates">
-                  {d.specific_dates.map(x => <li key={x} className={cn('inline-flex items-center gap-1.5 rounded-control border border-line-subtle bg-surface-subtle py-0.5 pl-2 pr-1 font-sans text-caption text-ink tabular')}>{fmtDate(x)}<button type="button" aria-label={`Remove ${fmtDate(x)}`} onClick={() => set({ specific_dates: d.specific_dates.filter(y => y !== x) })} className="focus-ring inline-flex size-5 items-center justify-center rounded-xs text-ink-muted hover:bg-surface-muted hover:text-ink"><Icon name="close" size="xs" /></button></li>)}
+                  {d.specific_dates.map(x => <li key={x}><Tag className="tabular" onRemove={() => set({ specific_dates: d.specific_dates.filter(y => y !== x) })}>{fmtDate(x)}</Tag></li>)}
                 </ul>
               )}
             </div>

@@ -2,21 +2,22 @@
 // and badge tone each one carries. A value the page does not know (an old or imported record) is shown as it was typed, never as a
 // default, so it is not mistaken for a real one.
 import type { Tone } from '@/components/ui-system';
+import { priorityTone, statusTone } from '@/lib/status';
 
 export interface Meta { value: string; label: string; tone: Tone }
 
 export const STATUSES: Meta[] = [
-  { value: 'logged', label: 'Logged', tone: 'info' },
-  { value: 'in_progress', label: 'In progress', tone: 'warning' },
-  { value: 'resolved', label: 'Resolved', tone: 'success' },
-  { value: 'closed', label: 'Closed', tone: 'neutral' },
-  { value: 'cancelled', label: 'Cancelled', tone: 'neutral' },
+  { value: 'logged', label: 'Logged', tone: statusTone('logged') },
+  { value: 'in_progress', label: 'In progress', tone: statusTone('in_progress') },
+  { value: 'resolved', label: 'Resolved', tone: statusTone('resolved') },
+  { value: 'closed', label: 'Closed', tone: statusTone('closed') },
+  { value: 'cancelled', label: 'Cancelled', tone: statusTone('cancelled') },
 ];
 export const PRIORITIES: Meta[] = [
-  { value: 'critical', label: 'Critical', tone: 'danger' },
-  { value: 'high', label: 'High', tone: 'warning' },
-  { value: 'medium', label: 'Medium', tone: 'info' },
-  { value: 'low', label: 'Low', tone: 'neutral' },
+  { value: 'critical', label: 'Critical', tone: priorityTone('critical') },
+  { value: 'high', label: 'High', tone: priorityTone('high') },
+  { value: 'medium', label: 'Medium', tone: priorityTone('medium') },
+  { value: 'low', label: 'Low', tone: priorityTone('low') },
 ];
 export const TYPES: Meta[] = ['mechanical', 'electrical', 'hydraulic', 'pneumatic', 'electronic', 'other'].map(value => ({ value, label: value[0].toUpperCase() + value.slice(1), tone: 'neutral' as Tone }));
 

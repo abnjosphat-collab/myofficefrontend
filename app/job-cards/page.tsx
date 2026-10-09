@@ -12,17 +12,18 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { JobCard, JCStatus, Priority } from './types';
+import { EXPORT_TONE_HEX, priorityTone, statusTone } from '@/lib/status';
 
 const PRIORITY: Record<Priority, { tone: Tone; label: string }> = {
-  critical: { tone: 'danger', label: 'Critical' }, high: { tone: 'warning', label: 'High' }, medium: { tone: 'info', label: 'Medium' }, low: { tone: 'neutral', label: 'Low' },
+  critical: { tone: priorityTone('critical'), label: 'Critical' }, high: { tone: priorityTone('high'), label: 'High' }, medium: { tone: priorityTone('medium'), label: 'Medium' }, low: { tone: priorityTone('low'), label: 'Low' },
 };
-const STATUS: Record<JCStatus, { tone: Tone; label: string; hex: string }> = {
-  open: { tone: 'neutral', label: 'Open', hex: '94a3b8' }, in_progress: { tone: 'info', label: 'In progress', hex: '86bbd8' }, on_hold: { tone: 'warning', label: 'On hold', hex: 'f59e0b' },
-  completed: { tone: 'success', label: 'Completed', hex: '34d399' }, cancelled: { tone: 'neutral', label: 'Cancelled', hex: '64748b' },
+const STATUS: Record<JCStatus, { tone: Tone; label: string }> = {
+  open: { tone: statusTone('open'), label: 'Open' }, in_progress: { tone: statusTone('in_progress'), label: 'In progress' }, on_hold: { tone: statusTone('on_hold'), label: 'On hold' },
+  completed: { tone: statusTone('completed'), label: 'Completed' }, cancelled: { tone: statusTone('cancelled'), label: 'Cancelled' },
 };
 // Legacy or malformed values must still render a labelled badge, never a blank one.
 const priorityMeta = (p: string) => PRIORITY[p as Priority] ?? { tone: 'neutral' as Tone, label: p || 'Unknown' };
-const statusMeta = (s: string) => STATUS[s as JCStatus] ?? { tone: 'neutral' as Tone, label: s || 'Unknown', hex: '94a3b8' };
+const statusMeta = (s: string) => STATUS[s as JCStatus] ?? { tone: 'neutral' as Tone, label: s || 'Unknown' };
 const PriorityBadge = ({ value }: { value: string }) => <StatusBadge tone={priorityMeta(value).tone}>{priorityMeta(value).label}</StatusBadge>;
 const StatusTag = ({ value }: { value: string }) => <StatusBadge tone={statusMeta(value).tone}>{statusMeta(value).label}</StatusBadge>;
 const taskProgress = (jc: JobCard) => { const tasks = jc.tasks ?? []; return tasks.length ? Math.round((tasks.filter(x => x.done).length / tasks.length) * 100) : 0; };
@@ -187,7 +188,7 @@ function JobCardsContent() {
                 filename={exportFilename('Job_Cards')}
                 title="Job Cards"
                 statusColumn="status"
-                statusColor={(_v, row) => statusMeta(row.status as string).hex}
+                statusColor={(_v, row) => EXPORT_TONE_HEX[statusMeta(row.status as string).tone]}
               />
             )}
           </>
