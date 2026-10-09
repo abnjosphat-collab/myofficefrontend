@@ -32,7 +32,7 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
   ];
   const barAxis = (data: Array<{ name: string; cost: number }>, color: 1 | 2) => (
     <ResponsiveContainer width="100%" height={Math.max(180, data.length * 38 + 40)}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
+      <BarChart accessibilityLayer={false} data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
         <XAxis type="number" tick={chartTheme.axisTick} axisLine={false} tickLine={false} tickFormatter={formatCurrencyShort} />
         <YAxis type="category" dataKey="name" tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={120} />
@@ -54,10 +54,10 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
         title="Cost over time"
         description={`${SPAN[period]}${peak.cost > 0 ? `. Peak: ${peak.label} (${formatCurrency(peak.cost)})` : ''}`}
         summary={`Cost and number of issues per ${period}: ${series.filter(p => p.count > 0).map(p => `${p.label} ${formatCurrency(p.cost)}, ${p.count} issues`).join('; ') || 'none in this span'}.`}
+        controls={<Segmented label="Group by" value={period} onValueChange={v => setPeriod(v as Period)} options={PERIODS} />}
       >
-        <div className="mb-3"><Segmented label="Group by" value={period} onValueChange={v => setPeriod(v as Period)} options={PERIODS} /></div>
         <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={series} margin={{ left: 8, right: 12 }}>
+          <AreaChart accessibilityLayer={false} data={series} margin={{ left: 8, right: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
             <XAxis dataKey="label" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis yAxisId="cost" tick={chartTheme.axisTick} axisLine={false} tickLine={false} tickFormatter={formatCurrencyShort} width={56} />

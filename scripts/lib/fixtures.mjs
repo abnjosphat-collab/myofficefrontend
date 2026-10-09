@@ -36,3 +36,18 @@ export async function fixtureContext(browser, api, viewport = { width: 1440, hei
 }
 
 export const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+/** Mock API: `data[pathname]` is the body (or a function (request) => body | {status, body}); unknown paths return []. */
+export function makeHandler(data, calls) {
+  return async route => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    calls.push({ method: request.method(), pathname, query: new URL(request.url()).search, body: request.method() === 'GET' ? null : safeJson(request) });
+    const entry = data[`${request.method()} ${pathname}`] ?? data[pathname];
+    const value = typeof entry === 'function' ? entry(request, calls) : entry;
+    if (value === undefined) return json(route, []);
+    if (value && typeof value === 'object' && '__status' in value) return route.fulfill({ status: value.__status, contentType: 'application/json', body: JSON.stringify(value.body ?? { detail: 'error' }) });
+    return json(route, value);
+  };
+}
+const safeJson = request => { try { return request.postDataJSON(); } catch { return null; } };

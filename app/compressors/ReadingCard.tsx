@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Field, Icon, Input, Notice, Progress, StatusBadge, cn } from '@/components/ui-system';
-import { calculateDailyDelta, calculateEfficiency, efficiencyTone, getEfficiencyStatus, readingProblems, type NextServiceInfo } from './calcCompressors';
+import { calculateDailyDelta, calculateEfficiency, getEfficiencyStatus, readingProblems, type NextServiceInfo } from './calcCompressors';
 import { STATUS_META, URGENCY_TONE, hours, statusLabel } from './meta';
 import type { Compressor, PreviousReading } from './types';
 
@@ -107,7 +107,7 @@ export function ReadingCard({ compressor, previous, previousUnavailable, previou
         <div className="flex flex-col gap-2 rounded-control bg-surface-subtle p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="font-sans text-label font-medium text-ink">Efficiency <span className="font-display text-title font-semibold tabular">{efficiency}%</span></p>
-            <StatusBadge tone={efficiencyTone(efficiency)}>{eff.label}</StatusBadge>
+            <StatusBadge tone={eff.tone}>{eff.label}</StatusBadge>
           </div>
           <Progress value={efficiency} label={`${compressor.name} efficiency`} />
         </div>

@@ -56,7 +56,7 @@ function EngineeringDashboardContent() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChartPanel title="Breakdowns per month" description="Last six months" summary={monthlySummary}>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={monthly} barSize={28}>
+              <BarChart accessibilityLayer={false} data={monthly} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />

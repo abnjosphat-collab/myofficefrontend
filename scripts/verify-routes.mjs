@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
-import { chromium, fixtureContext, json } from './lib/fixtures.mjs';
+import { chromium, fixtureContext, json, makeHandler } from './lib/fixtures.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > -1 ? process.argv[i + 1] : fallback; };
 const BASE = arg('base', 'http://localhost:3000');
@@ -26,20 +26,6 @@ const check = (ok, label, detail = '') => { if (!ok) failures += 1; console.log(
 const browser = await chromium.launch({ headless: true });
 const slug = route => route.replace(/\W+/g, '-').replace(/^-|-$/g, '');
 
-/** Mock API: `data[pathname]` is the body (or a function (request) => body | {status, body}); unknown paths return []. */
-function makeHandler(data, calls) {
-  return async route => {
-    const request = route.request();
-    const pathname = new URL(request.url()).pathname;
-    calls.push({ method: request.method(), pathname, query: new URL(request.url()).search, body: request.method() === 'GET' ? null : safeJson(request) });
-    const entry = data[`${request.method()} ${pathname}`] ?? data[pathname];
-    const value = typeof entry === 'function' ? entry(request, calls) : entry;
-    if (value === undefined) return json(route, []);
-    if (value && typeof value === 'object' && '__status' in value) return route.fulfill({ status: value.__status, contentType: 'application/json', body: JSON.stringify(value.body ?? { detail: 'error' }) });
-    return json(route, value);
-  };
-}
-const safeJson = request => { try { return request.postDataJSON(); } catch { return null; } };
 
 async function scenario(name, spec, data, run, viewport, storage = spec.storage) {
   const calls = [];

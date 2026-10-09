@@ -28,6 +28,17 @@ export const PRIORITY_TONE: Readonly<Record<string, Tone>> = {
   low: 'neutral', medium: 'info', high: 'warning', critical: 'danger', urgent: 'danger', immediate: 'danger',
 };
 
+/**
+ * Time away from work, by what it means for the roster rather than by type: planned leave is blue (agreed in
+ * advance), unplanned absence amber (sick, emergency: someone must cover), unexcused absence red. Leave types are
+ * told apart by name and icon, not by colour. Shared by Leaves and the timesheets.
+ */
+export const ABSENCE_TONE: Readonly<Record<string, Tone>> = {
+  annual: 'info', leave: 'info', compassionate: 'info', special_leave: 'info', maternity: 'info', study: 'info', lieu: 'info', training: 'info',
+  sick: 'warning', emergency: 'warning',
+  absent: 'danger',
+};
+
 /** The physical state of an item (PPE, a compressor, a tool). */
 export const CONDITION_TONE: Readonly<Record<string, Tone>> = {
   excellent: 'success', good: 'info', fair: 'warning', poor: 'danger', damaged: 'danger',
@@ -37,6 +48,7 @@ export const CONDITION_TONE: Readonly<Record<string, Tone>> = {
 export const statusTone = (status?: string | null, fallback: Tone = 'neutral'): Tone => STATUS_TONE[key(status)] ?? fallback;
 export const priorityTone = (priority?: string | null, fallback: Tone = 'neutral'): Tone => PRIORITY_TONE[key(priority)] ?? fallback;
 export const conditionTone = (condition?: string | null, fallback: Tone = 'neutral'): Tone => CONDITION_TONE[key(condition)] ?? fallback;
+export const absenceTone = (kind?: string | null, fallback: Tone = 'neutral'): Tone => ABSENCE_TONE[key(kind)] ?? fallback;
 
 /**
  * The same tones as text colour in Excel and PDF exports, where CSS tokens cannot reach.

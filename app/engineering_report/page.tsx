@@ -107,7 +107,7 @@ function EngineeringReportContent() {
         <ChartPanel title="Breakdown trend" description="Last six months" summary={trendSummary}>
           <DataRegion status={regionStatus(breakdowns)} subject="breakdown records" error={breakdowns.error} onRetry={() => breakdowns.refetch()}>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={maint.trend} barSize={28}>
+              <BarChart accessibilityLayer={false} data={maint.trend} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
@@ -147,7 +147,7 @@ function EngineeringReportContent() {
       {prod.daily.length > 0 && (
         <ChartPanel title="Daily tonnes milled against target" summary={dailySummary}>
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={prod.daily}>
+            <LineChart accessibilityLayer={false} data={prod.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
               <XAxis dataKey="date" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
               <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} />

@@ -4,23 +4,24 @@
 import type { IconMeaning, Tone } from '@/components/ui-system';
 import { toLocalISODate } from '@/lib/dates';
 import type { Period, StatusKey } from './types';
+import { absenceTone } from '@/lib/status';
 
 export interface StatusMeta { label: string; short: string; abbr: string; tone: Tone; icon: IconMeaning }
 export const STATUS_META: Record<StatusKey, StatusMeta> = {
   work: { label: 'Work', short: '', abbr: '', tone: 'neutral', icon: 'check' },
-  leave: { label: 'Leave', short: 'Leave', abbr: 'Lv', tone: 'info', icon: 'calendar' },
-  sick: { label: 'Sick', short: 'Sick', abbr: 'Sick', tone: 'warning', icon: 'warning' },
-  special_leave: { label: 'Special Leave', short: 'Special', abbr: 'SL', tone: 'info', icon: 'calendar' },
+  leave: { label: 'Leave', short: 'Leave', abbr: 'Lv', tone: absenceTone('leave'), icon: 'calendar' },
+  sick: { label: 'Sick', short: 'Sick', abbr: 'Sick', tone: absenceTone('sick'), icon: 'warning' },
+  special_leave: { label: 'Special Leave', short: 'Special', abbr: 'SL', tone: absenceTone('special_leave'), icon: 'calendar' },
   // 'holiday' = worked ON the public holiday (2.0x, "PPH"). The not-worked case is 'holiday_paid'.
   holiday: { label: 'PPH (Worked Holiday)', short: 'PPH', abbr: 'PPH', tone: 'brand', icon: 'calendar' },
   holiday_paid: { label: 'Paid Holiday', short: 'PH', abbr: 'PH', tone: 'warning', icon: 'calendar' },
-  training: { label: 'Training', short: 'Train', abbr: 'Trn', tone: 'info', icon: 'calendar' },
+  training: { label: 'Training', short: 'Train', abbr: 'Trn', tone: absenceTone('training'), icon: 'calendar' },
   off: { label: 'Off', short: 'Off', abbr: 'Off', tone: 'neutral', icon: 'close' },
-  absent: { label: 'Absent', short: 'Absent', abbr: 'Abs', tone: 'danger', icon: 'warning' },
+  absent: { label: 'Absent', short: 'Absent', abbr: 'Abs', tone: absenceTone('absent'), icon: 'warning' },
   weekend: { label: 'Weekend (2.0×)', short: '2.0×', abbr: 'Wkd', tone: 'warning', icon: 'calendar' },
-  maternity: { label: 'Maternity', short: 'Mat', abbr: 'Mat', tone: 'info', icon: 'calendar' },
-  study: { label: 'Study Leave', short: 'Study', abbr: 'Study', tone: 'info', icon: 'calendar' },
-  lieu: { label: 'In Lieu of OT', short: 'Lieu', abbr: 'Lieu', tone: 'info', icon: 'calendar' },
+  maternity: { label: 'Maternity', short: 'Mat', abbr: 'Mat', tone: absenceTone('maternity'), icon: 'calendar' },
+  study: { label: 'Study Leave', short: 'Study', abbr: 'Study', tone: absenceTone('study'), icon: 'calendar' },
+  lieu: { label: 'In Lieu of OT', short: 'Lieu', abbr: 'Lieu', tone: absenceTone('lieu'), icon: 'calendar' },
 };
 export const STATUS_KEYS = Object.keys(STATUS_META) as StatusKey[];
 export const statusMeta = (s: string): StatusMeta => STATUS_META[s as StatusKey] ?? { label: s, short: s, abbr: s, tone: 'neutral', icon: 'info' };

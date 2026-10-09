@@ -75,6 +75,8 @@ export const metadata: Metadata = {
 // themeColor/viewport live in a separate export (not `metadata`) as of Next.js 14+ —
 // putting themeColor in `metadata` is deprecated and silently ignored.
 export const viewport: Viewport = {
+  // The browser chrome colour must be a literal colour (CSS variables are not read here); it is the canvas token.
+  // eslint-disable-next-line local/no-hex-colour
   themeColor: "#f4f6f5",
   width: "device-width",
   initialScale: 1,

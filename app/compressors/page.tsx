@@ -21,12 +21,13 @@ import { calculateNextService, localDateString } from './calcCompressors';
 import { STATUS_KEYS, STATUS_META, URGENCY_TONE, hours, statusLabel } from './meta';
 import type { Compressor } from './types';
 import { useCompressorsData } from './useCompressorsData';
+import { formatDate, formatWeekday } from '@/lib/format';
 
 const ALL = '__all__';
 
 const parseDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
 const shiftDay = (s: string, by: number) => { const d = parseDay(s); d.setDate(d.getDate() + by); return localDateString(d); };
-const dayLabel = (s: string) => parseDay(s).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const dayLabel = (s: string) => `${formatWeekday(parseDay(s))} ${formatDate(parseDay(s))}`;
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'name', label: 'Name', width: 20 }, { key: 'model', label: 'Model', width: 20 }, { key: 'capacity', label: 'Capacity', width: 14 },

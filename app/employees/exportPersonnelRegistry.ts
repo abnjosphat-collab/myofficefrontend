@@ -3,7 +3,7 @@ import type { Borders } from 'exceljs';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { normalizeSection } from '@/lib/sections';
 import { formatPhoneDisplay } from '@/lib/phone';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatLongDate, formatTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 
@@ -134,9 +134,8 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
     titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     ws.mergeCells(1, 1, 1, COL_COUNT);
 
-    const generated = new Date().toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
+    const now = new Date();
+    const generated = `${formatLongDate(now)}, ${formatTime(now)}`;
     const subRow = ws.addRow([
       `Grouped by designation · ${employees.length} employee${employees.length !== 1 ? 's' : ''} · ${generated}`,
     ]);

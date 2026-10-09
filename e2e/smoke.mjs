@@ -125,7 +125,7 @@ async function targeted(context) {
   await run('Tools filter dropdown opens inside the viewport', async page => {
     await gotoEquipment(page);
     await page.getByRole('button', { name: 'Open filter and sort controls' }).click();
-    await page.getByRole('button', { name: 'Status' }).click();
+    await page.getByRole('combobox', { name: 'Status' }).click();
     const option = page.getByRole('option', { name: 'All active tools' });
     if (await option.count() === 0 || !await option.isVisible()) throw new Error('status choices did not open');
     const bounds = await option.boundingBox();

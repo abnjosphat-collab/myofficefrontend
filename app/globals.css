@@ -29,3 +29,13 @@ select option {
   background-color: #ffffff;
   color: #111827;
 }
+
+/* Toast colours come from the status tokens, so a success or error toast reads like the matching badge and meets
+   WCAG AA (Sonner's own success green measured 4.25:1 on its fill). `:root` raises specificity above Sonner's
+   injected rule, whatever the stylesheet order. */
+:root [data-sonner-toaster][data-sonner-theme='light'] {
+  --success-bg: var(--mo-success-soft);  --success-border: var(--mo-success-line);  --success-text: var(--mo-success);
+  --info-bg: var(--mo-info-soft);        --info-border: var(--mo-info-line);        --info-text: var(--mo-info);
+  --warning-bg: var(--mo-warning-soft);  --warning-border: var(--mo-warning-line);  --warning-text: var(--mo-warning);
+  --error-bg: var(--mo-danger-soft);     --error-border: var(--mo-danger-line);     --error-text: var(--mo-danger);
+}

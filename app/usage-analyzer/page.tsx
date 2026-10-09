@@ -186,10 +186,10 @@ function UsageAnalyzerContent() {
             <ChartPanel
               title={`Activity by ${granularity}${moduleLabel ? `: ${moduleLabel}` : ''}`}
               summary={`Module opens and page views per ${granularity}: ${overTime.map(p => `${p.label} ${p.opens + p.views}`).join(', ')}.`}
+              controls={<Segmented label="Time grouping" value={granularity} onValueChange={setGranularity} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />}
             >
-              <div className="mb-3"><Segmented label="Time grouping" value={granularity} onValueChange={setGranularity} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} /></div>
               <ResponsiveContainer width="100%" height={240} minWidth={320}>
-                <LineChart data={overTime} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
+                <LineChart accessibilityLayer={false} data={overTime} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="label" tick={chartTheme.axisTick} tickLine={false} axisLine={false} interval={granularity === 'day' ? 4 : 0} />
                   <YAxis tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
@@ -205,7 +205,7 @@ function UsageAnalyzerContent() {
               <ChartPanel title="Most-used modules" summary={modules.length ? `Module opens: ${modules.map(m => `${m.label} ${m.count}`).join(', ')}.` : 'No module opens yet.'}>
                 {modules.length === 0 ? <NoData /> : (
                   <ResponsiveContainer width="100%" height={Math.max(180, modules.length * 30)} minWidth={280}>
-                    <BarChart data={modules} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
+                    <BarChart accessibilityLayer={false} data={modules} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
                       <XAxis type="number" tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="label" tick={chartTheme.axisTick} tickLine={false} axisLine={false} width={110} />
@@ -217,7 +217,7 @@ function UsageAnalyzerContent() {
               </ChartPanel>
               <ChartPanel title="Activity by time of day" summary={`Interactions by hour of day. Busiest hour: ${busiestLabel}.`}>
                 <ResponsiveContainer width="100%" height={220} minWidth={320}>
-                  <AreaChart data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+                  <AreaChart accessibilityLayer={false} data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis dataKey="hour" tick={chartTheme.axisTick} tickLine={false} axisLine={false} interval={2} />
                     <YAxis tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />

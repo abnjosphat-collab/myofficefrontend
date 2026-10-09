@@ -8,6 +8,7 @@ import { Button, Dialog, Field, Input, MetricGrid, MetricTile, Notice } from '@/
 import type { Period } from '../types';
 import * as necApi from './api';
 import type { NecImportJob, NecImportPreview } from './types';
+import { formatDate } from '@/lib/format';
 
 type Step = 'setup' | 'upload' | 'review' | 'done';
 const payrollMonthFromPeriod = (period: Period) => ({ year: period.end.getFullYear(), month: period.end.getMonth() + 1 });
@@ -45,7 +46,7 @@ export function NecScanImportPanel({ period, open, onClose, onApplied }: { perio
 
   const exceptions = preview?.line_items.filter(x => x.kind === 'unresolved' || x.kind === 'exception') ?? [];
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }} size="xl" title="Import scanned NEC timesheets" description={`Period ${period.start.toLocaleDateString('en-GB')} to ${period.end.toLocaleDateString('en-GB')}.`}>
+    <Dialog open={open} onOpenChange={o => { if (!o && !busy) onClose(); }} size="xl" title="Import scanned NEC timesheets" description={`Period ${formatDate(period.start)} to ${formatDate(period.end)}.`}>
       <div className="flex flex-col gap-4">
         <Notice tone="info" title="What an import changes">Payroll rules and the grid&apos;s totals are unchanged. An import writes attendance rows only; Leaves and Overtime stay authoritative.</Notice>
         {configNote && <p className="font-sans text-body-sm text-ink-muted">{configNote}</p>}

@@ -168,7 +168,7 @@ function Analytics({ items, closureRate, overdue }: { items: Complaint[]; closur
         <ChartPanel title="Monthly trend" description="Last six months with complaints" summary={`Complaints per month: ${trend.map(t => `${t.month} ${t.total} raised, ${t.closed} closed`).join('; ') || 'no data'}.`}>
           {trend.length === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No data</p> : (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={trend} barSize={18}>
+              <BarChart accessibilityLayer={false} data={trend} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />

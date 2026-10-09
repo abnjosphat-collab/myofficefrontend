@@ -33,14 +33,17 @@
 
   /* ── Text ────────────────────────────────────────────────────────────────── */
   --mo-ink: #1b2923;               /* primary text — 14.7:1 on surface */
-  --mo-ink-muted: #5b6d64;         /* supporting text — 8.4:1 on surface */
-  --mo-ink-subtle: #66776f;        /* placeholders, disabled labels — 7.3:1 on raised */
+  /* Measured 2026-10-09 (WCAG 2 AA needs 4.5:1 for text). Both were darkened slightly along the same hue after an
+     audit found the earlier values below 4.5:1 on hover and track fills; ratios are on the lightest and darkest
+     surface text sits on. */
+  --mo-ink-muted: #52625a;         /* supporting text — 6.3:1 on surface, 4.6:1 on the darkest interactive fill */
+  --mo-ink-subtle: #5c6b64;        /* quiet notes, placeholders — 5.6:1 on raised, 4.6:1 on muted wells; lighter than muted */
   --mo-ink-inverse: #f8fbf9;
 
   /* ── Lines ───────────────────────────────────────────────────────────────── */
   --mo-line: #ccd7d1;              /* card and panel borders */
   --mo-line-subtle: #e2e9e5;       /* row dividers, inner separators */
-  --mo-line-control: #87978f;      /* input/select/checkbox boundary — 6.5:1 on raised (WCAG 1.4.11 needs 3:1) */
+  --mo-line-control: #87978f;      /* input/select/checkbox boundary — 3.1:1 on raised (WCAG 1.4.11 needs 3:1) */
   --mo-line-strong: #6f887c;       /* emphasis rules */
 
   /* ── Action (brand) ──────────────────────────────────────────────────────── */
@@ -57,7 +60,7 @@
   --mo-warning: #8a5d18;  --mo-warning-soft: #f8eedc;  --mo-warning-line: #e6cfa3;
   --mo-danger:  #a13f47;  --mo-danger-soft:  #f8e6e7;  --mo-danger-line:  #e7bfc3;
   --mo-info:    #2f5f8a;  --mo-info-soft:    #e4edf6;  --mo-info-line:    #bed2e6;
-  --mo-neutral: #5b6d64;  --mo-neutral-soft: #eaefec;  --mo-neutral-line: #d3ddd8;
+  --mo-neutral: #52625a;  --mo-neutral-soft: #eaefec;  --mo-neutral-line: #d3ddd8;
 
   /* ── Data visualisation (categorical, fixed order — never cycled) ───────────
      Validated with the dataviz six-checks on #fbfcfb: all hard gates pass.

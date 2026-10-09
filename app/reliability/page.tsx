@@ -67,7 +67,7 @@ function ReliabilityContent() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartPanel title="Breakdowns per month" description="Last six months" summary={monthlySummary}>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={monthly} barSize={28}>
+                <BarChart accessibilityLayer={false} data={monthly} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
@@ -78,7 +78,7 @@ function ReliabilityContent() {
             </ChartPanel>
             <ChartPanel title="MTTR by section" description="Mean hours to repair" summary={sectionSummary}>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={sections} barSize={28}>
+                <BarChart accessibilityLayer={false} data={sections} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="section" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} />

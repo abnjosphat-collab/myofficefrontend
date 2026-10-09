@@ -30,7 +30,7 @@ export function OverviewTab({ stats, people, count, result, analysing, picked, o
         <ChartPanel title="Weekly trend" description="Overtime hours per week" summary={trend.length >= 2 ? `Weekly overtime hours: ${trend.map(t => `${t.week} ${t.hours}`).join('; ')}.` : 'Not enough weeks of data for a trend.'}>
           {trend.length < 2 ? <p className="py-12 text-center font-sans text-body-sm text-ink-muted">{analysing ? 'Loading the trend…' : 'Not enough data for a trend yet.'}</p> : (
             <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={trend} margin={{ left: 0, right: 8 }}>
+              <AreaChart accessibilityLayer={false} data={trend} margin={{ left: 0, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="week" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} />

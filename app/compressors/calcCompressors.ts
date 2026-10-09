@@ -16,13 +16,12 @@ export function calculateEfficiency(running: number, loaded: number): number {
   return !running ? 0 : parseFloat(((loaded / running) * 100).toFixed(1));
 }
 
-export interface EfficiencyStatus { label: string; color: string; }
+/** An efficiency rating: one set of thresholds gives both the word and its badge tone. */
+export interface EfficiencyStatus { label: string; tone: EfficiencyTone }
 
 export function getEfficiencyStatus(efficiency: number): EfficiencyStatus {
-  if (efficiency >= 80) return { label: 'Excellent', color: '#34d399' };
-  if (efficiency >= 60) return { label: 'Good', color: '#2563eb' }; // matches ACCENT_HEX.blue
-  if (efficiency >= 40) return { label: 'Fair', color: '#f59e0b' };
-  return { label: 'Poor', color: '#f43f5e' };
+  const tone = efficiencyTone(efficiency);
+  return { label: ({ success: 'Excellent', info: 'Good', warning: 'Fair', danger: 'Poor' } as const)[tone], tone };
 }
 
 // A reading's "loaded" hours can never exceed its "running" hours (you can't be loaded

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { conditionTone, priorityTone, statusTone } from './status';
+import { absenceTone, conditionTone, priorityTone, statusTone } from './status';
 import { statusMeta as workOrderStatus, priorityMeta as workOrderPriority } from '@/app/maintenance/meta';
 import { statusMeta as breakdownStatus } from '@/app/breakdowns/breakdownMeta';
 import { STATUS as serviceStatus } from '@/app/services/meta';
 import { statusMeta as overtimeStatus } from '@/app/overtime/overtimeMeta';
 import { statusMeta as ppeStatus, conditionMeta } from '@/app/ppe/ppeMeta';
 import { PRIORITY_TONE as taskPriority } from '@/app/tasks-events/meta';
+import { typeOf as leaveType } from '@/app/leaves/leaveTypes';
+import { statusMeta as dayCode } from '@/app/timesheets/timesheetMeta';
 
 describe('status vocabulary', () => {
   it('reads any spelling of a status', () => {
@@ -39,5 +41,18 @@ describe('status vocabulary', () => {
     expect(ppeStatus('damaged').tone).toBe(conditionMeta('damaged').tone);
     expect([taskPriority.Medium, workOrderPriority('medium').tone]).toEqual(['info', 'info']);
     expect([taskPriority.High, workOrderPriority('high').tone]).toEqual(['warning', 'warning']);
+  });
+});
+
+describe('absence vocabulary', () => {
+  it('colours time away by what it means for the roster, not by leave type', () => {
+    expect(['annual', 'study', 'maternity', 'lieu', 'compassionate'].map(k => absenceTone(k))).toEqual(['info', 'info', 'info', 'info', 'info']);
+    expect([absenceTone('sick'), absenceTone('emergency'), absenceTone('absent')]).toEqual(['warning', 'warning', 'danger']);
+  });
+
+  it('shows the same kind of absence in the same colour on Leaves and on the timesheet', () => {
+    for (const [leave, code] of [['sick', 'sick'], ['study', 'study'], ['maternity', 'maternity'], ['lieu', 'lieu'], ['compassionate', 'special_leave'], ['annual', 'leave']] as const) {
+      expect(leaveType(leave).tone, `${leave} / ${code}`).toBe(dayCode(code).tone);
+    }
   });
 });

@@ -30,7 +30,7 @@ export function AnalyticsTab({ t, picked, onToggle }: { t: Tally; picked: string
       </div>
       <ChartPanel title="By weekday" description="Overtime hours" summary={`Hours by weekday: ${t.byWeekday.map(d => `${d.day} ${d.hours}`).join('; ')}.`}>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={t.byWeekday} margin={{ left: 0, right: 8 }}>
+          <BarChart accessibilityLayer={false} data={t.byWeekday} margin={{ left: 0, right: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
             <XAxis dataKey="day" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
             <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} />

@@ -80,7 +80,7 @@ export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
           <ChartPanel title="When breakdowns are raised" description={st.breakdowns > 0 ? `Busiest hour: ${peak.hour}:00 (${peak.count})` : undefined} summary={`Breakdowns raised per hour of the day: ${hours.filter(h => h.count > 0).map(h => `${h.hour}:00 ${h.count}`).join('; ') || 'none'}.`}>
             {st.breakdowns === 0 ? <p className="py-6 font-sans text-body-sm text-ink-muted">No breakdown times recorded yet.</p> : (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={hours} margin={{ left: 0, right: 8 }}>
+                <BarChart accessibilityLayer={false} data={hours} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="hour" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval={1} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={28} />

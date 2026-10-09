@@ -46,7 +46,7 @@ const PARTS: Column<Part>[] = [
 function Bars({ data, x }: { data: { name: string; value: number }[]; x: string }) {
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ left: 0, right: 8 }}>
+      <BarChart accessibilityLayer={false} data={data} margin={{ left: 0, right: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
         <XAxis dataKey={x} tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
         <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
@@ -96,7 +96,7 @@ export function BreakdownInsights({ data }: { data: HeatmapData }) {
           <ChartPanel title="By department" description="Breakdowns, and the downtime they caused" summary={`Departments: ${depts.map(d => `${d.department} ${d.count} breakdowns, ${duration(d.downtime)} downtime`).join('; ') || 'none'}.`}>
             {depts.length ? (
               <ResponsiveContainer width="100%" height={240}>
-                <ComposedChart data={depts} margin={{ left: 0, right: 8 }}>
+                <ComposedChart accessibilityLayer={false} data={depts} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="department" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="l" tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} allowDecimals={false} />

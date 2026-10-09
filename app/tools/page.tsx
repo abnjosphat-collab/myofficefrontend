@@ -41,7 +41,7 @@ import { SidebarIcon } from './ToolsSidebarIcon';
 import { abbreviateDepartment, categoryOf, inferEquipmentKind, primaryToolImage, SEED_TOOLS, SEED_ACTIVITY, CATEGORIES, DEPARTMENTS, STATUS, departmentOf, type Status, type Tool, type Movement, type ActionKind, type Employee, type Evidence, type WorkspaceAccount } from './prototype';
 import { loadToolsWorkspace, mapAnalytics, type ServerTool, type ToolNotification, type WorkspaceSource, type WorkspaceSourceResult } from './workspaceLoad';
 import s from './tools.module.css';
-import { Button } from '@/components/ui-system';
+import { Button, LoadingPulse } from '@/components/ui-system';
 
 type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | null;
 const tabs = [{ value: 'homepage', label: 'Overview', icon: 'home' }, { value: 'register', label: 'Equipment', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'compliance', label: 'Compliance', icon: 'check', signedInOnly:true }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
@@ -56,10 +56,8 @@ const fromServerTool = (row:ServerTool):Tool => ({ id:row.register_number,backen
 type SourceState={loaded:boolean;loading:boolean;error?:string};
 const emptySourceState=():Record<WorkspaceSource,SourceState>=>({employees:{loaded:false,loading:false},tools:{loaded:false,loading:false},history:{loaded:false,loading:false},sources:{loaded:false,loading:false},notifications:{loaded:false,loading:false},compliance:{loaded:false,loading:false},analytics:{loaded:false,loading:false},accounts:{loaded:false,loading:false}});
 function ToolsDataState({title,state,onRetry,compact=false}:{title:string;state:SourceState;onRetry:()=>void;compact?:boolean}) {
-  if(state.loading&&!state.loaded) return <div className={`${s.dataState} ${s.dataStateLoading} ${compact?s.dataStateCompact:''}`} role="status">
-    <div className={s.loadingHeading}><span className={s.loadingSignal} aria-hidden="true"><i/><i/><i/></span><div><strong>Loading {title.toLowerCase()}</strong><p>Preparing the latest records.</p></div></div>
-    {!compact&&<div className={s.loadingSkeleton} aria-hidden="true">{[0,1,2].map(item=><span key={item}><i/><i/><i/></span>)}</div>}
-  </div>;
+  // The same loading animation as every other page (ui-system LoadingPulse).
+  if(state.loading&&!state.loaded) return <LoadingPulse label={`Loading ${title.toLowerCase()}`} compact={compact} />;
   if(state.error) return <div className={`${s.dataState} ${s.dataStateError} ${compact?s.dataStateCompact:''}`} role="alert"><Icon name="alert" size={20}/><div><strong>{state.loaded?`${title} may be out of date`:`${title} unavailable`}</strong><p>{state.error}</p></div><Button variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={onRetry}>{state.loading?'Retrying…':'Retry'}</Button></div>;
   if(state.loading&&state.loaded) return <div className={`${s.dataState} ${s.dataStateCompact} ${s.dataStateRefreshing}`} role="status"><span className={s.loadingSignal} aria-hidden="true"><i/><i/><i/></span><div><strong>Refreshing {title.toLowerCase()}</strong><p>Current records remain visible.</p></div></div>;
   return null;

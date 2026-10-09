@@ -11,7 +11,7 @@ import {
   Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, useConfirm, useMediaQuery, usePersistentState,
   type Column, type IconMeaning, type Tone,
 } from '@/components/ui-system';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatTime } from '@/lib/format';
 import { computeStats, rangeToFromTo, scoreLabel, weekLabel, weeklyActuals } from './stats';
 import type { Comment, ModuleKey, QuickRange } from './types';
 import { postSafetyAnalysis, useSheqDashboardData } from './useSheqDashboardData';
@@ -199,7 +199,7 @@ function SheqContent() {
           </>
         )}
       />
-      {lastUpdated && <p className="-mt-3 font-sans text-caption text-ink-muted">Refreshed {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}{autoRefresh ? ' · refreshes every 5 minutes' : ''}</p>}
+      {lastUpdated && <p className="-mt-3 font-sans text-caption text-ink-muted">Refreshed {formatTime(lastUpdated)}{autoRefresh ? ' · refreshes every 5 minutes' : ''}</p>}
 
       <Toolbar>
         <Segmented label="Period" value={range} onValueChange={setRange} options={RANGES} />
@@ -274,7 +274,7 @@ function SheqContent() {
               >
                 {delta !== null && <p className="mb-2 font-sans text-body-sm text-ink-muted">{delta >= 0 ? '+' : ''}{delta} compared with the previous month</p>}
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={trend} barSize={26}>
+                  <BarChart accessibilityLayer={false} data={trend} barSize={26}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
@@ -315,7 +315,7 @@ function SheqContent() {
           <TabsContent value="analytics" className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartPanel title="Reports by module" summary={`Reports by module: ${summarise(reportsByModule)}.`}>
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={reportsByModule} barSize={26}>
+                <BarChart accessibilityLayer={false} data={reportsByModule} barSize={26}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="name" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval={0} angle={narrow ? -40 : 0} textAnchor={narrow ? 'end' : 'middle'} height={narrow ? 60 : 30} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
