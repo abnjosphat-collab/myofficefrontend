@@ -191,12 +191,22 @@ The owner asked whether the app defines things once and reuses them, whether it 
   - `MetricTile` has one design (the quiet chip); the large card variant is gone and the number takes its tone colour.
   - The MyOffice mark is a briefcase and Core Management uses stacked layers (no more buildings).
   - The Tools close quarter-turn is `closeTurn` in `foundations/gestures.ts`, on every close and remove control.
+- **Quality pass, later 9 Oct (all pushed: frontend `ae5d000`, `dabd07c`, `a518456`, `81f739a`, the visual-regression commits; backend `34a2283`):**
+  - CI gates: a scoped `sharp` patch cleared the audit step; the coverage floor is a ratchet (31/30/24/34); a 15 s test timeout ended a load flake; the backend pyright baseline is 198.
+  - WCAG 2.1 AA: `scripts/a11y-routes.mjs` (axe, every route) passes 46/46. The muted-ink, subtle-ink and neutral tokens were darkened to measured contrast; Sonner toasts use the status tokens; charts set `accessibilityLayer={false}`; `ChartPanel` has a `controls` slot.
+  - One absence vocabulary (`ABSENCE_TONE` in `lib/status.ts`) for Leaves and Timesheets.
+  - Lint: every warning in files this effort owns is cleared, each remaining exception has its reason written beside it. The 13 left are in the other session's files (shifts, test-homepage, shift presets, the timesheets spec). The jsx-a11y recommended rules now keep their options.
+  - The shell's background reads share `components/app-shell/fetchOrNull.ts` and typed rows; notifications read their seen list with `useSyncExternalStore`.
+  - `scripts/verify-tools.mjs` follows the current Tools workspace and passes end to end. Run it with `TOOLS_CDP_URL=http://127.0.0.1:1` so it launches its own browser instead of attaching to an open one.
+  - Visual regression is now a real CI gate (no `continue-on-error`). The spec signs in with the fixture session (`signInFixture` in `scripts/lib/fixtures.mjs`), pins the browser clock and fails on a sign-in screen. The first baselines were ten pictures of the sign-in card and were replaced. `.github/workflows/visual-baseline.yml` (run by hand after a deliberate visual change) makes Linux baselines and commits them only if two more comparisons match.
+  - Backend CI fails only at `pip-audit` (pyjwt, urllib3, multidict). The owner keeps backend dependencies as they are, so this is the owner's call.
+  - Unused empty tables: `spare_parts`, `sheq_reports` and `document_categories` have no code anywhere; dropping them is the owner's decision. `maintenance_schedule` is **in use** (compressor servicing writes it), so it stays. The document categories stay in `app/documents/categories.ts`: they are the seven fixed ISO 55001 clauses, not editable records.
 - **Owner decisions (superseded by the above where answered).**
   - Inventory: its own table, or merge into Spares? Its backend is still in-memory.
   - The Tools login and employee/equipment copies: link them to the main tables or retire them.
   - Timesheet roster exceptions to the database (the other session is active in Timesheets).
 - **Left for the other session:** refresh buttons in Artisan timesheets, Shifts and Standby still use `ghost`.
-- **Verification:** frontend 1,205 tests pass; backend 1,757 pass. Run pytest with a short `--basetemp`, because a long temp path breaks the NEC import tests on Windows.
+- **Verification (latest):** frontend 1,218 tests pass under coverage; backend 1,773 pass at 93.8 % coverage. Run pytest with a short `--basetemp`, because a long temp path breaks the NEC import tests on Windows.
 
 ## 8. Next bounded item
 
