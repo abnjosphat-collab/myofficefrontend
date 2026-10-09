@@ -7,10 +7,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE,
-  deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
@@ -27,6 +24,7 @@ import {
 } from './roster';
 import type { Employee, SortDir, SortField } from './types';
 import { removeEmployee, saveEmployee, useRoster } from './useEmployeesData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const ALL = 'all';
 const SORTS: { value: SortField; label: string }[] = [
@@ -40,7 +38,7 @@ const PAGE_SIZE = 50;
 
 
 function EmployeesContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { isAtLeast } = useAuth();
   const canNormalise = isAtLeast('manager');
   const list = useRoster();
@@ -80,9 +78,7 @@ function EmployeesContent() {
 
   const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id); await list.refetch(); };
   const remove = async (e: Employee) => {
-    if (!await confirm({ title: `Delete ${fullName(e)}?`, message: `${e.employee_id}. This cannot be undone. To keep the record but hide the person, archive them instead.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await removeEmployee(e.id); setViewingId(null); toast.success(`${fullName(e)} deleted.`); await list.refetch(); }
-    catch (err) { toast.error(`${fullName(e)} was not deleted: ${(err as Error).message}`); }
+    await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${e.employee_id}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
   const downloadRegistry = async () => {
     setExporting(true);
@@ -134,11 +130,11 @@ function EmployeesContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Personnel' }]}
-        title="Personnel register"
+        title="Personnel"
         description="Employee profiles, roles and the organisation's structure."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh personnel" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh personnel" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu pending={exporting} items={[
               { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || exporting, onSelect: downloadRegistry },
               { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || exporting, onSelect: downloadNecRegistry },

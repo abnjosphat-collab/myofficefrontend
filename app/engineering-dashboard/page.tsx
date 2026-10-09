@@ -42,7 +42,7 @@ function EngineeringDashboardContent() {
         title="Engineering dashboard"
         description="Open job cards and breakdown activity, taken from the records in MyOffice."
         meta={monthName}
-        actions={<IconButton icon="refresh" label="Refresh dashboard" variant="ghost" pending={(jobCards.loading && jobCards.loaded) || (breakdowns.loading && breakdowns.loaded)} onClick={refreshAll} />}
+        actions={<IconButton icon="refresh" label="Refresh dashboard" variant="shell" pending={(jobCards.loading && jobCards.loaded) || (breakdowns.loading && breakdowns.loaded)} onClick={refreshAll} />}
       />
 
       <MetricGrid compact>

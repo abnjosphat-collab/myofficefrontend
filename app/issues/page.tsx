@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader,
-  SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type SortState, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -76,7 +72,7 @@ function IssuesContent() {
         description="Record the items issued to people, and look back over the cost."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh stock issues" variant="ghost" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh stock issues" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
             <Menu>
               <MenuTrigger asChild><Button icon="download" disabled={issues.length === 0}>Download</Button></MenuTrigger>
               <MenuContent>
@@ -154,10 +150,10 @@ function IssuesContent() {
       >
         {viewing && (
           <div className="flex flex-col gap-4">
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">Issued by</dt><dd className="font-sans text-body text-ink">{viewing.issued_by || 'Not recorded'}</dd></div>
-              <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">Recipient ID</dt><dd className="font-sans text-body text-ink">{viewing.recipient_id || 'Not recorded'}</dd></div>
-            </dl>
+            <FactList>
+              <Fact label="Issued by">{viewing.issued_by || 'Not recorded'}</Fact>
+              <Fact label="Recipient ID">{viewing.recipient_id || 'Not recorded'}</Fact>
+            </FactList>
             <ul className="flex flex-col gap-2" aria-label="Items issued">
               {(viewing.items ?? []).map((it, n) => (
                 <li key={n} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-control border border-line bg-surface-subtle px-3 py-2 font-sans text-body-sm">

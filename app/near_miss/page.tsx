@@ -4,10 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select,
-  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
@@ -15,7 +12,8 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatTime } from '@/lib/format';
 import type { NearMissReport } from './types';
 import { createReport, deleteReport, updateReport, useNearMissData } from './useNearMissData';
-import { EXPORT_TONE_HEX } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 type Section = NearMissReport['section'];
 const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }[] = [
@@ -26,7 +24,6 @@ const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }
 const SECTION_META = Object.fromEntries(SECTIONS.map(s => [s.value, s])) as Record<Section, (typeof SECTIONS)[number]>;
 const ALL = '__all__';
 
-const fmtDate = (s: string) => (s ? formatDate(s) : '');
 // `new Date('2000-01-01Tundefined')` is an invalid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {
   if (!s) return '';
@@ -34,10 +31,6 @@ const fmtTime = (s: string) => {
   return Number.isNaN(d.getTime()) ? '' : formatTime(d);
 };
 
-const SectionBadge = ({ section }: { section: Section }) => {
-  const meta = SECTION_META[section];
-  return <StatusBadge tone={meta?.tone ?? 'neutral'} icon={meta?.icon}>{meta?.value ?? section}</StatusBadge>;
-};
 
 type Form = { department: string; section: Section; date: string; time: string; location: string; description: string; witnessDetails: string; reporterName: string };
 const emptyForm = (): Form => ({
@@ -112,17 +105,13 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ report, onClose, onEdit, onDelete }: { report: NearMissReport | null; onClose: () => void; onEdit: (r: NearMissReport) => void; onDelete: (r: NearMissReport) => void }) {
   return (
     <Dialog
       open={!!report}
       onOpenChange={open => { if (!open) onClose(); }}
       title="Near miss report"
-      description={report ? `${report.department}, ${fmtDate(report.date)}` : undefined}
+      description={report ? `${report.department}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
         <>
@@ -134,14 +123,14 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: NearMissR
     >
       {report && (
         <div className="flex flex-col gap-4">
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Department">{report.department}</Fact>
-            <Fact label="Section"><SectionBadge section={report.section} /></Fact>
-            <Fact label="Date">{fmtDate(report.date)}</Fact>
+            <Fact label="Section"><SectionBadge section={report.section} label={SECTION_META[report.section]?.label} /></Fact>
+            <Fact label="Date">{formatDate(report.date)}</Fact>
             <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
             <Fact label="Location">{report.location}</Fact>
             <Fact label="Reporter">{report.reporterName || 'Anonymous'}</Fact>
-          </dl>
+          </FactList>
           <div><h3 className="font-sans text-caption text-ink-muted">Description of incident</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.description}</p></div>
           {report.witnessDetails && <div><h3 className="font-sans text-caption text-ink-muted">Witness details</h3><p className="mt-1 font-sans text-body text-ink">{report.witnessDetails}</p></div>}
         </div>
@@ -162,7 +151,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function NearMissContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reports, loading, loaded, error, errorStatus, refetch } = useNearMissData();
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL);
@@ -200,14 +189,13 @@ function NearMissContent() {
 
   const openEditor = (r?: NearMissReport) => { setViewing(null); setEditing(r); setDialogOpen(true); };
   const remove = async (r: NearMissReport) => {
-    if (!await confirm({ title: 'Delete this report?', message: `${r.department}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteReport(r.id); setViewing(null); toast.success('Report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this report?', message: `${r.department}, ${formatDate(r.date)}. This cannot be undone.`, what: 'The report', run: async () => { await deleteReport(r.id); setViewing(null); }, done: 'Report deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<NearMissReport>[] = [
-    { id: 'date', header: 'Date and time', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}<span className="ml-2 text-ink-muted">{fmtTime(r.time)}</span></span> },
+    { id: 'date', header: 'Date and time', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{formatDate(r.date)}<span className="ml-2 text-ink-muted">{fmtTime(r.time)}</span></span> },
     { id: 'department', header: 'Department', sortable: true, cell: r => r.department },
-    { id: 'section', header: 'Section', sortable: true, cell: r => <SectionBadge section={r.section} /> },
+    { id: 'section', header: 'Section', sortable: true, cell: r => <SectionBadge section={r.section} label={SECTION_META[r.section]?.label} /> },
     { id: 'location', header: 'Location', sortable: true, hideBelow: 'md', cell: r => r.location },
     { id: 'reporterName', header: 'Reporter', sortable: true, hideBelow: 'lg', cell: r => r.reporterName || <span className="text-ink-muted">Anonymous</span> },
   ];
@@ -216,19 +204,17 @@ function NearMissContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Near miss' }]}
-        title="Near miss reporting"
+        title="Near miss"
         description="Report dangerous occurrences. Every report helps prevent a future incident."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh reports" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
                 columns={EXPORT_COLUMNS}
                 filename={exportFilename('Near_Miss_Reports')}
                 title="Near Miss Reports"
-                statusColumn="section"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.section as Section]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>
@@ -286,8 +272,8 @@ function NearMissContent() {
           onRowActivate={setViewing}
           rowActions={r => (
             <span className="inline-flex gap-1">
-              <IconButton icon="edit" size="sm" label={`Edit report from ${r.department}, ${fmtDate(r.date)}`} onClick={() => openEditor(r)} />
-              <IconButton icon="delete" variant="danger" size="sm" label={`Delete report from ${r.department}, ${fmtDate(r.date)}`} onClick={() => remove(r)} />
+              <IconButton icon="edit" size="sm" label={`Edit report from ${r.department}, ${formatDate(r.date)}`} onClick={() => openEditor(r)} />
+              <IconButton icon="delete" variant="danger" size="sm" label={`Delete report from ${r.department}, ${formatDate(r.date)}`} onClick={() => remove(r)} />
             </span>
           )}
         />

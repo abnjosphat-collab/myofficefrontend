@@ -10,7 +10,7 @@ const EQUIPMENT = [
 const STATS = { totalEquipment: 4, operational: 1, inMaintenance: 1, inBreakdown: 1, overallAvailability: 94.1, avgUptime: 220.5, avgDowntime: 13, totalOperationalHours: 700, totalBreakdownHours: 39, monthAvailability: 94.1, weekAvailability: 98.2 };
 const spec = {
   route: '/availability',
-  h1: 'Equipment availability',
+  h1: 'Availability overview',
   data: {
     '/api/availabilities': EQUIPMENT,
     '/api/availabilities/stats': STATS,
@@ -36,7 +36,7 @@ const spec = {
     check(await table.getByRole('row').count() === 2, 'search narrows the table');
     await page.getByRole('searchbox').fill('');
 
-    check(await page.getByRole('link', { name: 'View breakdowns for Crusher One' }).getAttribute('href') === '/breakdowns?equipment=1', 'a row links to that unit\'s breakdowns');
+    check(await page.getByRole('link', { name: 'View breakdowns for Crusher One' }).getAttribute('href') === '/breakdowns?q=Crusher%20One', 'a row links to that unit\'s breakdowns');
 
     await page.getByRole('tab', { name: 'Detailed analysis' }).click();
     const detail = page.getByRole('table', { name: 'Detailed availability analysis' });

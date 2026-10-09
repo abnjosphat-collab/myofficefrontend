@@ -1,9 +1,9 @@
 'use client';
 
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useEffect, useId, useRef, useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
-import { Spinner } from './Button';
+import { IconButton, Spinner } from './Button';
 
 export interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
   value: string;
@@ -19,6 +19,11 @@ export interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElem
    */
   status?: ReactNode;
   wrapperClassName?: string;
+  /**
+   * Fold to a search icon while empty (the Tools toolbar). It opens on click, takes focus, and folds again
+   * when it loses focus with nothing typed. Use where the toolbar is crowded and search is not the main task.
+   */
+  collapsible?: boolean;
 }
 
 /**
@@ -27,15 +32,26 @@ export interface SearchFieldProps extends Omit<InputHTMLAttributes<HTMLInputElem
  * filtering; <DestinationSearch> wraps it for navigation-style results.
  */
 export const SearchField = forwardRef<HTMLInputElement, SearchFieldProps>(function SearchField(
-  { value, onValueChange, label, loading = false, shortcutHint, status, placeholder = 'Search…', className, wrapperClassName, onKeyDown, ...rest },
+  { value, onValueChange, label, loading = false, shortcutHint, status, placeholder = 'Search…', className, wrapperClassName, onKeyDown, collapsible = false, onBlur, ...rest },
   ref,
 ) {
   const statusId = useId();
+  const inner = useRef<HTMLInputElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const setRefs = (node: HTMLInputElement | null) => {
+    inner.current = node;
+    if (typeof ref === 'function') ref(node); else if (ref) ref.current = node;
+  };
+  useEffect(() => { if (open) inner.current?.focus(); }, [open]);
+  if (collapsible && !open && !value) {
+    return <IconButton icon="search" variant="outline" label={label ?? placeholder} tooltip="Search" onClick={() => setOpen(true)} />;
+  }
   return (
-    <div className={cn('relative w-full min-w-0', wrapperClassName)}>
+    <div className={cn('relative w-full min-w-0', collapsible && 'animate-in fade-in-0 duration-[var(--mo-duration-fast)]', wrapperClassName)}>
       <Icon name="search" size="md" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" />
       <input
-        ref={ref}
+        ref={setRefs}
+        onBlur={event => { onBlur?.(event); if (collapsible && !event.currentTarget.value) setOpen(false); }}
         type="search"
         role={rest.role}
         enterKeyHint="search"

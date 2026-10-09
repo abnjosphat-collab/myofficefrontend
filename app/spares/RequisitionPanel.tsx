@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Combobox, DataRegion, Drawer, Field, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus, useConfirm } from '@/components/ui-system';
+import { Button, Combobox, DataRegion, Drawer, Field, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import type { ApiListState } from '@/lib/useApiList';
@@ -13,6 +13,7 @@ import { apiCreateSavedReq, apiDeleteSavedReq } from './api';
 import { downloadRequisitionPdf } from './requisitionPdf';
 import { filled, lineValue, linesFromSaved, PRIORITY, requisitionText, requisitionTotal, toSaved } from './stock';
 import type { ReqHeader, ReqLine, SavedRequisition, Spare } from './types';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const URGENCY = [{ value: 'routine', label: 'Routine' }, { value: 'urgent', label: 'Urgent' }, { value: 'emergency', label: 'Emergency' }];
 const PRIORITIES = (Object.keys(PRIORITY) as Spare['priority'][]).map(value => ({ value, label: PRIORITY[value].label }));
@@ -22,7 +23,7 @@ export const newLineId = () => `line-${Date.now()}-${counter++}`;
 export function RequisitionPanel({ open, onOpenChange, spares, saved, header, onHeader, lines, onLines }: {
   open: boolean; onOpenChange: (o: boolean) => void; spares: Spare[]; saved: ApiListState<SavedRequisition>; header: ReqHeader; onHeader: (h: ReqHeader) => void; lines: ReqLine[]; onLines: (l: ReqLine[]) => void;
 }) {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const total = requisitionTotal(lines);
@@ -41,9 +42,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
   };
   const load = (r: SavedRequisition) => { onHeader(r.header); onLines(linesFromSaved(r, spares, newLineId)); toast.success(`Loaded ${r.name}.`); };
   const remove = async (r: SavedRequisition) => {
-    if (!await confirm({ title: 'Delete this saved requisition?', message: r.name, confirmLabel: 'Delete', destructive: true })) return;
-    try { await apiDeleteSavedReq(r.id); toast.success('Deleted.'); await saved.refetch(); }
-    catch (e) { toast.error(`${r.name} was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this saved requisition?', message: r.name, what: `${r.name}`, run: async () => { await apiDeleteSavedReq(r.id); }, done: 'Deleted.', after: () => saved.refetch() });
   };
   const copy = async () => { try { await navigator.clipboard.writeText(requisitionText(lines, formatCurrency)); toast.success('Requisition copied.'); } catch { toast.error('The browser would not let this page copy. Download the PDF instead.'); } };
   const pdf = async () => { try { await downloadRequisitionPdf(header, lines); toast.success('PDF downloaded.'); } catch (e) { toast.error(`The PDF failed: ${(e as Error).message}`); } };

@@ -11,7 +11,7 @@ const COMPRESSORS = [
 const readings = (run, load) => ({ success: true, data: [{ date: local(-1), total_running_hours: run, total_loaded_hours: load }] });
 const spec = {
   route: '/compressors',
-  h1: 'Compressor tracking',
+  h1: 'Compressors',
   data: {
     '/api/compressors/compressors': request => (request.method() === 'POST' ? { id: 9 } : COMPRESSORS),
     'PATCH /api/compressors/compressors/2/status': {},

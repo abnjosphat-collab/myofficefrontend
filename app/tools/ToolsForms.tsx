@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { CATEGORIES, DEPARTMENTS, JOBS, PEOPLE, defaultEquipmentKind, departmentOf, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
+import { CATEGORIES, DEPARTMENTS, defaultEquipmentKind, departmentOf, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { AnimatedSelect } from './AnimatedSelect';
 import { ToolsDateInput } from './ToolsDateInput';
@@ -106,7 +106,7 @@ export const TITLES: Record<ActionKind, string> = { issue: 'Issue tool', return:
 // Only called by the submit event, never during rendering.
 function isFuture(value: string) { const time = Date.parse(value); return Number.isFinite(time) && time > Date.now(); }
 
-export function MovementForm({ kind, initialTool, initialEmployee, tools, employees = PEOPLE.map((label,index)=>({id:String(index),employeeNumber:label.split(' · ')[1],name:label.split(' · ')[0],department:'Engineering',active:true})), locationSuggestions=[], equipmentSuggestions=[], issuerDepartment, addFiles, onSave, onCancel }: { kind: ActionKind; initialTool?: Tool; initialEmployee?:Employee; tools: Tool[]; employees?: Employee[]; locationSuggestions?:string[]; equipmentSuggestions?:string[]; issuerDepartment?:string; addFiles: AddEvidence; onSave: (input: Movement) => void; onCancel: () => void }) {
+export function MovementForm({ kind, initialTool, initialEmployee, tools, employees = [], locationSuggestions=[], equipmentSuggestions=[], issuerDepartment, addFiles, onSave, onCancel }: { kind: ActionKind; initialTool?: Tool; initialEmployee?:Employee; tools: Tool[]; employees?: Employee[]; locationSuggestions?:string[]; equipmentSuggestions?:string[]; issuerDepartment?:string; addFiles: AddEvidence; onSave: (input: Movement) => void; onCancel: () => void }) {
   const initialEmployeeIds = new Set(initialEmployee ? [initialEmployee.backendId,initialEmployee.employeeNumber].filter(Boolean) : []);
   const candidates = tools.filter(t => {
     const availableForAction = kind === 'issue' ? t.status === 'available' : ['issued', 'overdue'].includes(t.status);
@@ -174,7 +174,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     <div className={s.formColumns}>
       {['issue', 'transfer'].includes(kind) && <EmployeePicker label="Employee" choices={employeeChoices} value={person} onChange={setPerson} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} hint="Only active employees with current training, qualification and authorization for the selected equipment are listed. Their saved details fill automatically."/>}
       {kind !== 'extend' && <SuggestField label={kind==='return'?'Return location':'Current work location'} options={locationSuggestions} value={location} onChange={setLocation} hint="Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently."/>}
-      {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={JOBS} value={job} onChange={setJob} hint="Select a suggested work order or enter the job reference from the paper record." />}
+      {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={[]} value={job} onChange={setJob} emptyMessage="Type the work order number or job reference." hint="Enter the work order number or the job reference from the paper record." />}
       {['issue', 'extend'].includes(kind) && <div className={s.field}><div className={s.fieldHeading}><label htmlFor="tools-due">Expected return</label><Help label="Expected return">Choose the local date and time. Clicking anywhere in the field opens the picker.</Help></div><ToolsDateInput aria-label="Expected return" id="tools-due" name="due" type="datetime-local" required /></div>}
     </div>
     {['issue','transfer'].includes(kind)&&selectedEmployee&&<div className={s.formContext} aria-label="Selected employee details"><Icon name="user" size={19}/><span><strong>{selectedEmployee.name} · {selectedEmployee.employeeNumber}</strong><small>{[selectedEmployee.jobTitle,selectedEmployee.department,selectedEmployee.supervisorName&&`Supervisor: ${selectedEmployee.supervisorName}`].filter(Boolean).join(' · ')}</small></span></div>}

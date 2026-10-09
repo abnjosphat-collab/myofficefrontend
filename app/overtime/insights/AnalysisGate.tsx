@@ -19,7 +19,7 @@ export function AnalysisGate({ analysis: a, count, children }: { analysis: Retur
         <p role="status" className="font-sans text-caption text-ink-muted">
           {a.updating ? 'Updating for the current filters…' : `${a.result._records_analysed} ${a.result._records_analysed === 1 ? 'record' : 'records'} analysed, ${new Date(a.result.generated_at).toLocaleString('en-GB')}`}
         </p>
-        <IconButton icon="refresh" variant="outline" label="Run the analysis again" pending={a.updating} onClick={() => a.refresh()} />
+        <IconButton icon="refresh" variant="shell" label="Run the analysis again" pending={a.updating} onClick={() => a.refresh()} />
       </div>
       {a.error && <Notice tone="warning" title="The analysis could not be refreshed">Showing the last result. {a.error}</Notice>}
       {children(a.result)}

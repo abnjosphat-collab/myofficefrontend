@@ -3,16 +3,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Fact, FactList } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { typeOf } from './leaveTypes';
 import { daysText, statusMeta } from './leaveMeta';
 import type { Leave } from './types';
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 
 export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
   leave: Leave | null; onClose: () => void; onEdit: (l: Leave) => void; onDelete: (l: Leave) => void;
@@ -47,20 +43,20 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap gap-2"><StatusBadge tone={meta.tone} icon={meta.icon}>{meta.label}</StatusBadge><StatusBadge tone={type.tone} icon={type.icon}>{type.shortName}</StatusBadge></div>
             <section aria-labelledby="lv-emp"><h3 id="lv-emp" className="mb-2 font-sans text-label font-semibold text-ink">Employee</h3>
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+              <FactList columns={3}>
                 <Fact label="Name">{leave.employee_name}</Fact><Fact label="Employee ID">{leave.employee_id}</Fact><Fact label="Position">{leave.position}</Fact>
                 <Fact label="Department">{leave.department}</Fact><Fact label="Contact">{leave.contact_number}</Fact>
                 {leave.emergency_contact && <Fact label="Emergency contact">{leave.emergency_contact}</Fact>}
-              </dl>
+              </FactList>
             </section>
             <section aria-labelledby="lv-det"><h3 id="lv-det" className="mb-2 font-sans text-label font-semibold text-ink">Leave</h3>
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+              <FactList columns={3}>
                 <Fact label="Type">{type.name}</Fact><Fact label="Start date">{fmtDate(leave.start_date)}</Fact><Fact label="End date">{fmtDate(leave.end_date)}</Fact>
                 <Fact label="Duration"><span className="font-semibold tabular">{daysText(leave.total_days)}</span></Fact>
                 <Fact label="Day count">{leave.exclude_weekends_holidays ? 'Working days (no weekends or holidays)' : 'Calendar days'}</Fact>
                 <Fact label="Applied">{fmtDateTime(leave.applied_date)}</Fact>
                 {leave.handover_to && <Fact label="Handover to">{leave.handover_to}</Fact>}
-              </dl>
+              </FactList>
             </section>
             {leave.reason && <section aria-labelledby="lv-why"><h3 id="lv-why" className="mb-2 font-sans text-label font-semibold text-ink">Reason</h3><p className="whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{leave.reason}</p></section>}
           </div>

@@ -8,7 +8,7 @@ const REPORTS = [
 ];
 const spec = {
   route: '/pachedu',
-  h1: 'Pachedu care observations',
+  h1: 'Pachedu',
   data: {
     '/api/pachedu/': request => (request.method() === 'POST' ? { id: 'new' } : REPORTS),
     'PATCH /api/pachedu/c1': {},

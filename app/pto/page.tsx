@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
-  Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
@@ -17,6 +13,8 @@ import { formatDate } from '@/lib/format';
 import type { ActionPlanItem, ActionStatus, ObservationType, PTOReport, Reasons, ReportStatus, RiskAssessment, SectionType, SuggestedRemedies, YesNoType } from './types';
 import { createPTOReport, deletePTOReport, updatePTOReport, usePTOData } from './usePTOData';
 import { exportStatusColor, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const STATUSES: ReportStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
@@ -24,7 +22,6 @@ const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
 const ALL = '__all__';
 const YES_NO = [{ value: 'Yes' as YesNoType, label: 'Yes' }, { value: 'No' as YesNoType, label: 'No' }];
 
-const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
 const STATUS_META: Record<ReportStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
   draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
   reviewed: { tone: statusTone('reviewed'), icon: 'reviewed', label: 'Reviewed' }, closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' },
@@ -40,13 +37,11 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
   retraining: 'Retraining', improvedPPE: 'Improved PPE', placementOfWorker: 'Placement of worker',
 };
 
-const fmtDate = (s: string) => (s ? formatDate(s) : '');
 const newId = () => Math.random().toString(36).slice(2, 11);
 // A legacy or malformed record without a risk assessment must not crash the page.
 const hasRiskFlag = (ra: RiskAssessment | null | undefined) => ra?.made === 'No' || ra?.identified === 'No' || ra?.effective === 'No';
 const overdueCount = (r: PTOReport) => (r.actionPlan || []).filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < new Date().toISOString().slice(0, 10)).length;
 
-const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>; };
 const StatusTag = ({ status }: { status: ReportStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
 const YesNoBadge = ({ value, goodWhen = 'Yes' }: { value?: string; goodWhen?: 'Yes' | 'No' }) => (value ? <StatusBadge tone={value === goodWhen ? 'success' : 'danger'}>{value}</StatusBadge> : <span className="text-ink-muted">Not specified</span>);
@@ -188,10 +183,6 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTORep
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { report: PTOReport | null; onClose: () => void; onEdit: (r: PTOReport) => void; onDelete: (r: PTOReport) => void; onStatusChange: (id: string, s: ReportStatus) => void }) {
   const f = report ? normalise(report) : null;
   const progress = summarizeActions(f?.actionPlan);
@@ -202,7 +193,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       open={!!report}
       onOpenChange={open => { if (!open) onClose(); }}
       title="Planned task observation report"
-      description={report ? `${report.jobTaskObserved}, ${fmtDate(report.date)}` : undefined}
+      description={report ? `${report.jobTaskObserved}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
         <>
@@ -221,7 +212,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
           {progress.total > 0 && (
             <div><p className="mb-1 font-sans text-caption text-ink-muted">Action plan progress: {progress.completed} of {progress.total} completed · {progress.inProgress} in progress · {progress.pending} pending</p><Progress value={progress.pct} label="Action plan progress" /></div>
           )}
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Observer">{report.observerName || 'Not specified'}</Fact>
             <Fact label="Worker">{report.workerName || 'Not specified'}</Fact>
             <Fact label="Occupation">{report.occupation || 'Not specified'}</Fact>
@@ -230,7 +221,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             <Fact label="Time on job">{f.timeOnJob.months || '0'} months, {f.timeOnJob.years || '0'} years</Fact>
             <Fact label="Told in advance"><YesNoBadge value={f.notification.toldInAdvance} /></Fact>
             <Fact label="Job or task observed">{report.jobTaskObserved}</Fact>
-          </dl>
+          </FactList>
           {reasons.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Reasons for observation</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{reasons.map(r => <StatusBadge key={r} tone="neutral">{r}</StatusBadge>)}</p></div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <section aria-labelledby="pto-d-proc" className="rounded-card border border-line p-3">
@@ -247,10 +238,10 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             </section>
           </div>
           {remedies.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Suggested remedies</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{remedies.map(r => <StatusBadge key={r} tone="info">{r}</StatusBadge>)}</p></div>}
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Observation scope"><StatusBadge tone={report.observationScope === 'All' ? 'success' : 'warning'}>{report.observationScope}</StatusBadge></Fact>
             <Fact label="Follow-up needed"><StatusBadge tone={report.followUpNeeded === 'Yes' ? 'warning' : 'success'}>{report.followUpNeeded}</StatusBadge></Fact>
-          </dl>
+          </FactList>
           {f.actionPlan.length > 0 && (
             <section aria-labelledby="pto-d-actions">
               <h3 id="pto-d-actions" className="mb-2 font-sans text-caption text-ink-muted">Action plan ({f.actionPlan.length})</h3>
@@ -258,7 +249,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
                 {f.actionPlan.map((a, i) => (
                   <li key={a.id} className="rounded-card border border-line p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-sans text-body font-medium text-ink">{i + 1}. {a.action}</p><ActionBadge status={a.status} /></div>
-                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWhom} · due {fmtDate(a.byWhen)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWhom} · due {formatDate(a.byWhen)}{a.completedDate ? ` · completed ${formatDate(a.completedDate)}` : ''}</p>
                     {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
                   </li>
                 ))}
@@ -272,7 +263,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
 }
 
 const EXPORT_COLUMNS: DLColumn[] = [
-  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
   { key: 'observerName', label: 'Observer', width: 18 },
   { key: 'workerName', label: 'Worker', width: 18 },
   { key: 'jobTaskObserved', label: 'Task', width: 26 },
@@ -293,7 +284,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function PTOContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePTOData();
   const [view, setView] = useViewPreference('pto', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -331,8 +322,7 @@ function PTOContent() {
 
   const openEditor = (r?: PTOReport) => { setViewingId(null); setEditing(r); setDialogOpen(true); };
   const remove = async (r: PTOReport) => {
-    if (!await confirm({ title: 'Delete this PTO report?', message: `${r.jobTaskObserved}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deletePTOReport(r.id); setViewingId(null); toast.success('PTO report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this PTO report?', message: `${r.jobTaskObserved}, ${formatDate(r.date)}. This cannot be undone.`, what: 'The PTO report', run: async () => { await deletePTOReport(r.id); setViewingId(null); }, done: 'PTO report deleted.', after: () => refetch() });
   };
   const changeStatus = async (id: string, next: ReportStatus) => {
     const before = reports.find(r => r.id === id);
@@ -343,7 +333,7 @@ function PTOContent() {
   };
 
   const COLUMNS: Column<PTOReport>[] = [
-    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{formatDate(r.date)}</span> },
     { id: 'observerName', header: 'Observer', sortable: true, hideBelow: 'lg', cell: r => r.observerName },
     { id: 'workerName', header: 'Worker', sortable: true, cell: r => r.workerName },
     { id: 'jobTaskObserved', header: 'Task', sortable: true, hideBelow: 'md', cell: r => <span className="line-clamp-2 max-w-[18rem]">{r.jobTaskObserved}</span> },
@@ -360,7 +350,7 @@ function PTOContent() {
         description="Complete PTO forms with risk assessment and action tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh PTO reports" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh PTO reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -422,7 +412,7 @@ function PTOContent() {
               return (
                 <RecordCard
                   key={r.id}
-                  eyebrow={fmtDate(r.date)}
+                  eyebrow={formatDate(r.date)}
                   title={r.jobTaskObserved}
                   status={<StatusTag status={r.status} />}
                   facts={[
@@ -435,7 +425,7 @@ function PTOContent() {
                   ]}
                   action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete PTO report ${r.jobTaskObserved}`} onClick={() => remove(r)} />}
                   onOpen={() => setViewingId(r.id)}
-                  openLabel={`View PTO report ${r.jobTaskObserved}, ${fmtDate(r.date)}`}
+                  openLabel={`View PTO report ${r.jobTaskObserved}, ${formatDate(r.date)}`}
                 />
               );
             })}

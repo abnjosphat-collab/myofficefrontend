@@ -167,7 +167,7 @@ if (ONLY.includes('competency')) {
     return json(route, []);
   }, async page => {
     await open(page, '/competency');
-    check(await page.getByRole('heading', { level: 1, name: 'Competency matrix' }).isVisible(), 'h1 Competency matrix');
+    check(await page.getByRole('heading', { level: 1, name: 'Competency' }).isVisible(), 'h1 Competency');
     check(await page.getByRole('table', { name: /Competency matrix/ }).getByRole('row').count() === 3, 'header plus two employee rows');
     const tile = async label => (await page.locator('main').getByText(label, { exact: true }).first().locator('xpath=../..').innerText()).replace(/\s+/g, ' ');
     check(/2/.test(await tile('Total assessed')), 'total assessed is 2', await tile('Total assessed'));
@@ -258,7 +258,7 @@ if (ONLY.includes('compliance')) {
   }, async (page, calls) => {
     await page.addInitScript(() => localStorage.setItem('prd_hist_compliance_inspection_type', JSON.stringify([{ value: 'Pressure test', count: 3, lastUsed: 1 }])));
     await open(page, '/compliance-register');
-    check(await page.getByRole('heading', { level: 1, name: 'Statutory compliance register' }).isVisible(), 'h1 present');
+    check(await page.getByRole('heading', { level: 1, name: 'Compliance register' }).isVisible(), 'h1 present');
     check(await page.getByRole('table', { name: 'Statutory compliance items' }).getByRole('row').count() === 4, 'header plus three rows');
     check(await page.getByText(/5 days overdue/).isVisible() && await page.getByText(/10 days left/).isVisible(), 'time left is stated in words');
     check(await page.getByRole('table').getByText('Overdue', { exact: true }).isVisible(), 'status is a labelled badge');

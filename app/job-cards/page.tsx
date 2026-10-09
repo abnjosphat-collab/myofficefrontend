@@ -180,7 +180,7 @@ function JobCardsContent() {
         description="Work order and job card management."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh job cards" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh job cards" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}

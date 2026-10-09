@@ -16,7 +16,7 @@ let failSave = false;
 
 const spec = {
   route: '/ppe',
-  h1: 'PPE management',
+  h1: 'PPE',
   data: {
     '/api/ppe': request => (request.method() === 'POST' ? (failSave ? { __status: 422, body: { detail: 'Employee ID rejected (fixture)' } } : { id: '99', ...request.postDataJSON() }) : RECS),
     'PATCH /api/ppe/1': request => ({ ...RECS[0], ...request.postDataJSON() }),
@@ -81,7 +81,7 @@ const spec = {
     await shot(page, 'due@1440');
     await due.getByRole('checkbox').nth(1).check();
     await page.getByRole('button', { name: 'Add to the order list' }).click();
-    check(await page.getByRole('tab', { name: /^Order list \(1\)/ }).isVisible(), 'adding to the order list updates the tab count');
+    check(await page.getByRole('tab', { name: /^Order list\s*1$/ }).isVisible(), 'adding to the order list updates the tab count');
     check(calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe-order-list' && c.body.entries.length === 1 && c.body.entries[0].record_id) && ORDER.size === 1, 'the item is added to the shared order list on the server');
 
     // mark not required sends the status

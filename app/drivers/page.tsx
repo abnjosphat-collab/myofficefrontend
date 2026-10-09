@@ -160,11 +160,11 @@ function DriversContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Drivers' }]}
-        title="Authorised drivers"
+        title="Drivers"
         description="Licensed personnel approved to operate mine vehicles."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh drivers" variant="ghost" pending={loading && loaded} onClick={() => loadData()} />
+            <IconButton icon="refresh" label="Refresh drivers" variant="shell" pending={loading && loaded} onClick={() => loadData()} />
             <Menu>
               <MenuTrigger asChild><Button variant="secondary" icon="download" iconAfter="chevron-down" disabled={filtered.length === 0}>Download</Button></MenuTrigger>
               <MenuContent align="end" className="min-w-48">

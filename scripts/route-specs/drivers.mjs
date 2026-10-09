@@ -8,7 +8,7 @@ const DRIVERS = [
 
 export default {
   route: '/drivers',
-  h1: 'Authorised drivers',
+  h1: 'Drivers',
   data: {
     '/api/drivers': request => (request.method() === 'POST' ? { id: 99 } : DRIVERS),
     'PATCH /api/drivers/1': {},

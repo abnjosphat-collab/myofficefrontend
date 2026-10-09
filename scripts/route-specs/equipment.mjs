@@ -8,7 +8,7 @@ const ITEMS = [
 ];
 const spec = {
   route: '/equipment',
-  h1: 'Equipment management',
+  h1: 'Equipment',
   data: {
     '/api/equipment': request => (request.method() === 'POST' ? { id: 99 } : ITEMS),
     'PUT /api/equipment/15': {},

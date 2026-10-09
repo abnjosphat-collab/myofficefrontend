@@ -3,13 +3,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented,
-  Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
-  type Column, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, type Column, FilterField } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { toLocalISODate } from '@/lib/dates';
@@ -17,6 +12,7 @@ import { RecordDialog } from './RecordDialog';
 import { availabilityTone, computePeriodRows, findBestWorstPeriod, type Period } from './calcAvailabilities';
 import type { AvailRecord, EqSummaryRow, Equipment } from './types';
 import { createAvailabilityRecord, deleteAvailabilityRecord, updateAvailabilityRecord, useAvailabilitiesData } from './useAvailabilitiesData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const ALL = '__all__';
 const TONE_TEXT = { success: 'text-success', warning: 'text-warning', danger: 'text-danger' } as const;
@@ -33,7 +29,7 @@ const AvailabilityCell = ({ value, label }: { value: number | null | undefined; 
 );
 
 function AvailabilitiesContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { manual, derived, equipment: eqList, records, refresh } = useAvailabilitiesData();
   const equipment = eqList.items;
   const [search, setSearch] = useState('');
@@ -103,9 +99,7 @@ function AvailabilitiesContent() {
     await refresh();
   };
   const remove = async (r: AvailRecord) => {
-    if (!await confirm({ title: 'Delete this availability record?', message: `${nameOf(r)} on ${r.date}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteAvailabilityRecord(r.id); toast.success('Availability record deleted.'); await refresh(); }
-    catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this availability record?', message: `${nameOf(r)} on ${r.date}. This cannot be undone.`, what: 'The record', run: async () => { await deleteAvailabilityRecord(r.id); }, done: 'Availability record deleted.', after: () => refresh() });
   };
 
   const OVERVIEW: Column<EqSummaryRow>[] = [
@@ -153,7 +147,7 @@ function AvailabilitiesContent() {
         description="Availability = (operational hours − downtime) ÷ operational hours × 100."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh availability records" variant="ghost" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh availability records" variant="shell" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={recordsExport} filename={`Availability_Records_${dateFrom}_to_${dateTo}`} title="Equipment Availability Records" subtitle={`Period: ${dateFrom} to ${dateTo}`} formats={['excel']} />}
             <Button asChild variant="ghost"><Link href="/breakdowns">Breakdowns</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={openNew}>Log record</Button>

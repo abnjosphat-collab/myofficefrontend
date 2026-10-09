@@ -135,7 +135,7 @@ function CompetencyContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Competency matrix' }]}
-        title="Competency matrix"
+        title="Competency"
         description="Employee skills and equipment qualification tracking."
         actions={displayed.length > 0 && (
           <DownloadButton data={displayed as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Competency_Matrix')} title="Competency Matrix" />

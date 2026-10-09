@@ -15,7 +15,7 @@ const EMPLOYEES = [
 let failCreate = false;
 const spec = {
   route: '/leaves',
-  h1: 'Leave management',
+  h1: 'Leaves',
   data: {
     '/api/leaves': request => (request.method() === 'POST' ? (failCreate ? { __status: 422, body: { detail: 'End date rejected (fixture)' } } : { id: 9 }) : LEAVES),
     'PATCH /api/leaves/2': {},

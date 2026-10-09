@@ -127,7 +127,7 @@ function UsageAnalyzerContent() {
         description="How this workspace is being used: most-opened modules, activity over time, busiest hours, dwell time and feedback."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh usage data" variant="ghost" pending={remoteLoading} onClick={() => (dataSource === 'all' ? loadRemote() : refresh())} />
+            <IconButton icon="refresh" label="Refresh usage data" variant="shell" pending={remoteLoading} onClick={() => (dataSource === 'all' ? loadRemote() : refresh())} />
             {dataSource === 'local' && <Button variant="danger-quiet" icon="delete" onClick={clearAll}>Clear</Button>}
           </>
         )}

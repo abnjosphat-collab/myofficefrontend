@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
-  Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -18,6 +14,8 @@ import { formatDate, formatTime } from '@/lib/format';
 import type { ActionItem, ActionStatus, BehaviourCategory, CoachingTechnique, ObservationType, SectionType, VFLReport, VFLStatus } from './types';
 import { createVFLReport, deleteVFLReport, updateVFLReport, useVFLData } from './useVFLData';
 import { exportStatusColor, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const BEHAVIOURS: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
@@ -28,7 +26,6 @@ const STATUSES: VFLStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
 const ALL = '__all__';
 
-const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
 const BEHAVIOUR_META: Record<BehaviourCategory, { tone: Tone; icon: IconMeaning }> = { 'Safe Behaviour': { tone: 'success', icon: 'safe' }, 'Unsafe Behaviour': { tone: 'danger', icon: 'unsafe' } };
 const OBSERVATION_META: Record<ObservationType, Tone> = { 'Safe Behaviour': 'success', 'Safe Condition': 'success', 'At Risk Behaviour': 'warning', 'At Risk Condition': 'danger' };
 const STATUS_META: Record<VFLStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
@@ -37,7 +34,6 @@ const STATUS_META: Record<VFLStatus, { tone: Tone; icon: IconMeaning; label: str
 };
 const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
 
-const fmtDate = (s: string) => (s ? formatDate(s) : '');
 // A malformed but non-empty time is a valid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {
   if (!s) return '';
@@ -48,7 +44,6 @@ const newId = () => Math.random().toString(36).slice(2, 11);
 // A missing or unrecognised technique used to render "undefined — undefined".
 const coachingLabel = (t: CoachingTechnique | null | undefined) => (!t ? 'Not specified' : `${t} · ${COACHING_DESC[t] ?? 'Unknown technique'}`);
 
-const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>; };
 const BehaviourBadge = ({ value }: { value: BehaviourCategory }) => { const m = BEHAVIOUR_META[value]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{value}</StatusBadge>; };
 const StatusTag = ({ status }: { status: VFLStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
@@ -157,10 +152,6 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: VFLRep
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { report: VFLReport | null; onClose: () => void; onEdit: (r: VFLReport) => void; onDelete: (r: VFLReport) => void; onStatusChange: (id: string, status: VFLStatus) => void }) {
   const progress = summarizeActions(report?.actions);
   return (
@@ -168,7 +159,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       open={!!report}
       onOpenChange={open => { if (!open) onClose(); }}
       title="Visible felt leadership observation"
-      description={report ? `${report.observerName}, ${fmtDate(report.date)}` : undefined}
+      description={report ? `${report.observerName}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
         <>
@@ -190,14 +181,14 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
               <Progress value={progress.pct} label="Action progress" />
             </div>
           )}
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Observer">{report.observerName}</Fact>
             <Fact label="Designation">{report.designation || 'Not specified'}</Fact>
-            <Fact label="Date">{fmtDate(report.date)}</Fact>
+            <Fact label="Date">{formatDate(report.date)}</Fact>
             <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
             <Fact label="Department or section">{report.departmentSection || 'Not specified'}</Fact>
             <Fact label="Coaching technique">{coachingLabel(report.coachingTechnique)}</Fact>
-          </dl>
+          </FactList>
           <div>
             <h3 className="font-sans text-caption text-ink-muted">Observation</h3>
             <p className="mt-1.5"><StatusBadge tone={OBSERVATION_META[report.observationType] ?? 'neutral'}>{report.observationType}</StatusBadge></p>
@@ -210,7 +201,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
                 {report.actions.map((a, i) => (
                   <li key={a.id} className="rounded-card border border-line p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2"><p className="font-sans text-body font-medium text-ink">{i + 1}. {a.action}</p><ActionBadge status={a.status} /></div>
-                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.responsible} · target {fmtDate(a.targetDate)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.responsible} · target {formatDate(a.targetDate)}{a.completedDate ? ` · completed ${formatDate(a.completedDate)}` : ''}</p>
                     {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
                   </li>
                 ))}
@@ -224,7 +215,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
 }
 
 const EXPORT_COLUMNS: DLColumn[] = [
-  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
   { key: 'observerName', label: 'Observer', width: 18 },
   { key: 'designation', label: 'Designation', width: 18 },
   { key: 'sectionChoice', label: 'Section', width: 14 },
@@ -236,7 +227,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function VFLContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = useVFLData();
   const [view, setView] = useViewPreference('vfl', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -275,8 +266,7 @@ function VFLContent() {
 
   const openEditor = (r?: VFLReport) => { setViewingId(null); setEditing(r); setDialogOpen(true); };
   const remove = async (r: VFLReport) => {
-    if (!await confirm({ title: 'Delete this VFL observation?', message: `${r.observerName}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteVFLReport(r.id); setViewingId(null); toast.success('VFL observation deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this VFL observation?', message: `${r.observerName}, ${formatDate(r.date)}. This cannot be undone.`, what: 'The VFL observation', run: async () => { await deleteVFLReport(r.id); setViewingId(null); }, done: 'VFL observation deleted.', after: () => refetch() });
   };
   const changeStatus = async (id: string, next: VFLStatus) => {
     const before = reports.find(r => r.id === id);
@@ -287,7 +277,7 @@ function VFLContent() {
   };
 
   const COLUMNS: Column<VFLReport>[] = [
-    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{formatDate(r.date)}</span> },
     { id: 'observerName', header: 'Observer', sortable: true, cell: r => r.observerName },
     { id: 'designation', header: 'Designation', sortable: true, hideBelow: 'lg', cell: r => r.designation || <span className="text-ink-muted">Not specified</span> },
     { id: 'sectionChoice', header: 'Section', sortable: true, hideBelow: 'md', cell: r => <SectionBadge section={r.sectionChoice} /> },
@@ -304,7 +294,7 @@ function VFLContent() {
         description="Safety observations and coaching tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh observations" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh observations" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -364,7 +354,7 @@ function VFLContent() {
               return (
                 <RecordCard
                   key={r.id}
-                  eyebrow={`${fmtDate(r.date)}${fmtTime(r.time) ? ` · ${fmtTime(r.time)}` : ''}`}
+                  eyebrow={`${formatDate(r.date)}${fmtTime(r.time) ? ` · ${fmtTime(r.time)}` : ''}`}
                   title={r.observerName}
                   subtitle={r.designation || undefined}
                   status={<StatusTag status={r.status} />}
@@ -378,7 +368,7 @@ function VFLContent() {
                   ]}
                   action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete VFL observation for ${r.observerName}`} onClick={() => remove(r)} />}
                   onOpen={() => setViewingId(r.id)}
-                  openLabel={`View VFL observation for ${r.observerName}, ${fmtDate(r.date)}`}
+                  openLabel={`View VFL observation for ${r.observerName}, ${formatDate(r.date)}`}
                 />
               );
             })}

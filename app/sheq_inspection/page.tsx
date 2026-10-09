@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField,
-  Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -18,6 +14,8 @@ import { formatDate, formatTime } from '@/lib/format';
 import type { FindingStatus, InspectionFinding, InspectionStatus, PriorityType, SectionType, SHEQFormData } from './types';
 import { createInspection, deleteInspection, updateInspection, useSheqInspectionData } from './useSheqInspectionData';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const SECTIONS: SectionType[] = ['mechanical', 'electrical'];
 const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
@@ -27,7 +25,6 @@ const INSPECTION_STATUSES: InspectionStatus[] = ['draft', 'submitted', 'approved
 const ALL = '__all__';
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { mechanical: { tone: 'info', icon: 'mechanical' }, electrical: { tone: 'warning', icon: 'electrical' } };
 const PRIORITY_META: Record<PriorityType, { tone: Tone; icon: IconMeaning }> = {
   low: { tone: priorityTone('low'), icon: 'flag' }, medium: { tone: priorityTone('medium'), icon: 'info' }, high: { tone: priorityTone('high'), icon: 'warning' }, critical: { tone: priorityTone('critical'), icon: 'critical' },
 };
@@ -41,10 +38,9 @@ const INSPECTION_META: Record<InspectionStatus, { tone: Tone; icon: IconMeaning;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 11);
-const fmtDate = (d: string) => (d ? formatDate(d) : '');
 const newFinding = (section: SectionType): InspectionFinding => ({ id: uid(), finding: '', requiredAction: '', byWho: '', byWhen: '', status: 'open', priority: 'medium', section });
 
-const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{SECTION_LABELS[section] ?? section}</StatusBadge>; };
+const SectionBadgeFor = ({ section }: { section: SectionType }) => <SectionBadge section={section} label={SECTION_LABELS[section]} />;
 const PriorityBadge = ({ priority }: { priority: PriorityType }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{cap(priority)}</StatusBadge>; };
 const FindingBadge = ({ status }: { status: FindingStatus }) => { const m = FINDING_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const InspectionBadge = ({ status }: { status: InspectionStatus }) => { const m = INSPECTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
@@ -158,17 +154,13 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: SHEQFormData | null; onClose: () => void; onEdit: (i: SHEQFormData) => void; onDelete: (i: SHEQFormData) => void }) {
   return (
     <Dialog
       open={!!inspection}
       onOpenChange={open => { if (!open) onClose(); }}
       title="Inspection report"
-      description={inspection ? `${inspection.title}, ${fmtDate(inspection.date)}` : undefined}
+      description={inspection ? `${inspection.title}, ${formatDate(inspection.date)}` : undefined}
       size="lg"
       footer={inspection && (
         <>
@@ -180,14 +172,14 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
     >
       {inspection && (
         <div className="flex flex-col gap-5">
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Inspectors">{inspection.inspectors}</Fact>
             <Fact label="Department">{inspection.department || 'Not specified'}</Fact>
             <Fact label="Location">{inspection.place}</Fact>
-            <Fact label="Date and time">{fmtDate(inspection.date)}{inspection.time ? ` at ${inspection.time}` : ''}</Fact>
-            <Fact label="Section"><SectionBadge section={inspection.section} /></Fact>
+            <Fact label="Date and time">{formatDate(inspection.date)}{inspection.time ? ` at ${inspection.time}` : ''}</Fact>
+            <Fact label="Section"><SectionBadgeFor section={inspection.section} /></Fact>
             <Fact label="Status"><InspectionBadge status={inspection.status} /></Fact>
-          </dl>
+          </FactList>
           <section aria-labelledby="si-detail-findings">
             <h3 id="si-detail-findings" className="mb-2 font-sans text-caption text-ink-muted">Findings and actions ({inspection.findings?.length || 0})</h3>
             {inspection.findings?.length ? (
@@ -199,7 +191,7 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
                       <span className="inline-flex gap-1.5"><PriorityBadge priority={f.priority} /><FindingBadge status={f.status} /></span>
                     </div>
                     <p className="mt-1 font-sans text-body-sm text-ink-muted">{f.requiredAction}</p>
-                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {f.byWho} · due {fmtDate(f.byWhen)}{f.completedDate ? ` · done ${fmtDate(f.completedDate)}` : ''}</p>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {f.byWho} · due {formatDate(f.byWhen)}{f.completedDate ? ` · done ${formatDate(f.completedDate)}` : ''}</p>
                     {f.remarks && <p className="mt-1 font-sans text-caption text-ink-muted">{f.remarks}</p>}
                   </li>
                 ))}
@@ -215,13 +207,13 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
               </div>
             </section>
           )}
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             {[{ label: 'Head of department', name: inspection.hodName, sig: inspection.hodSignature }, { label: 'SHEQ official', name: inspection.sheqOfficialName, sig: inspection.sheqSignature }].map(({ label, name, sig }) => (
               <Fact key={label} label={label}>
                 {sig ? <img src={sig} alt={`${label} signature`} className="max-h-10" /> : <span className="text-ink-muted">{name ? `${name} (not yet signed)` : 'Not signed'}</span>}
               </Fact>
             ))}
-          </dl>
+          </FactList>
         </div>
       )}
     </Dialog>
@@ -245,7 +237,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function InspectionContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { inspections, loading, loaded, error, errorStatus, refetch } = useSheqInspectionData();
   const [view, setView] = useViewPreference('sheq-inspection', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -281,16 +273,15 @@ function InspectionContent() {
 
   const openEditor = (i?: SHEQFormData) => { setViewing(null); setEditing(i); setDialogOpen(true); };
   const remove = async (i: SHEQFormData) => {
-    if (!await confirm({ title: 'Delete this inspection?', message: `${i.title}, ${fmtDate(i.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteInspection(i.id); setViewing(null); toast.success('Inspection deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this inspection?', message: `${i.title}, ${formatDate(i.date)}. This cannot be undone.`, what: 'The inspection', run: async () => { await deleteInspection(i.id); setViewing(null); }, done: 'Inspection deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<SHEQFormData>[] = [
     { id: 'title', header: 'Title', sortable: true, sticky: true, cell: i => i.title },
     { id: 'inspectors', header: 'Inspector(s)', sortable: true, hideBelow: 'lg', cell: i => i.inspectors },
-    { id: 'section', header: 'Section', sortable: true, hideBelow: 'md', cell: i => <SectionBadge section={i.section} /> },
+    { id: 'section', header: 'Section', sortable: true, hideBelow: 'md', cell: i => <SectionBadgeFor section={i.section} /> },
     { id: 'place', header: 'Location', sortable: true, hideBelow: 'md', cell: i => i.place },
-    { id: 'date', header: 'Date', sortable: true, cell: i => <span className="whitespace-nowrap tabular">{fmtDate(i.date)}</span> },
+    { id: 'date', header: 'Date', sortable: true, cell: i => <span className="whitespace-nowrap tabular">{formatDate(i.date)}</span> },
     { id: 'findings', header: 'Findings', sortable: true, hideBelow: 'md', cell: i => <span className="tabular">{i.findings?.length || 0} ({i.findings?.filter(f => f.status === 'closed').length || 0} closed)</span> },
     { id: 'status', header: 'Status', sortable: true, cell: i => <InspectionBadge status={i.status} /> },
   ];
@@ -303,7 +294,7 @@ function InspectionContent() {
         description="Safety, health, environment and quality compliance tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh inspections" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh inspections" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -366,11 +357,11 @@ function InspectionContent() {
               return (
                 <RecordCard
                   key={i.id}
-                  eyebrow={`${fmtDate(i.date)}${i.time ? ` at ${i.time}` : ''}`}
+                  eyebrow={`${formatDate(i.date)}${i.time ? ` at ${i.time}` : ''}`}
                   title={i.title}
                   status={<InspectionBadge status={i.status} />}
                   facts={[
-                    { label: 'Section', value: <SectionBadge section={i.section} /> },
+                    { label: 'Section', value: <SectionBadgeFor section={i.section} /> },
                     { label: 'Inspectors', value: i.inspectors },
                     { label: 'Location', value: i.place },
                     { label: 'Findings', value: findings.length ? `${findings.length} (${closed} closed${critical ? `, ${critical} critical` : ''})` : 'None recorded' },

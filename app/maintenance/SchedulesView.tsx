@@ -5,16 +5,17 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, DataRegion, EmptyState, IconButton, RecordCard, SearchField, StatusBadge, deriveDataStatus, isTransientStatus, useConfirm } from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, IconButton, RecordCard, SearchField, StatusBadge, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
 import type { ApiListState } from '@/lib/useApiList';
 import { createWorkOrder, deleteSchedule, updateSchedule } from './api';
 import { blankWorkOrderBody, machinesOf, nextWONumber, recurrenceLabel } from './helpers';
 import type { MaintenanceSchedule, WorkOrder } from './types';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list: ApiListState<MaintenanceSchedule>; orders: WorkOrder[]; onEdit: (s: MaintenanceSchedule) => void; onNew: () => void; onRaised: () => void }) {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const [search, setSearch] = useState('');
   const [raising, setRaising] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
@@ -28,9 +29,7 @@ export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list:
     catch (e) { list.setItems(prev => prev.map(x => (x.id === s.id ? { ...x, active: !next } : x))); toast.error(`${s.name} was not ${next ? 'resumed' : 'paused'}: ${(e as Error).message}`); }
   };
   const remove = async (s: MaintenanceSchedule) => {
-    if (!await confirm({ title: 'Delete this schedule?', message: `${s.name}. Work orders already raised from it stay. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteSchedule(s.id); toast.success('Schedule deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`${s.name} was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this schedule?', message: `${s.name}. Work orders already raised from it stay. This cannot be undone.`, what: `${s.name}`, run: async () => { await deleteSchedule(s.id); }, done: 'Schedule deleted.', after: () => list.refetch() });
   };
   const raiseNow = async (s: MaintenanceSchedule) => {
     const machines = machinesOf(s.equipment_info);

@@ -24,7 +24,7 @@ const patchOf = id => request => (failSave ? { __status: 422, body: { detail: 'S
 
 const spec = {
   route: '/maintenance',
-  h1: 'Work orders',
+  h1: 'Maintenance',
   data: {
     '/api/maintenance/work-orders': request => (request.method() === 'POST'
       ? (refuseMachine && request.postData()?.includes(refuseMachine) ? { __status: 422, body: { detail: 'Asset is locked (fixture)' } } : { id: 99, ...request.postDataJSON() })

@@ -5,10 +5,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge,
-  Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column, FilterField, MoreMenu
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { ImportDialog } from './ImportDialog';
@@ -18,6 +15,7 @@ import { CATEGORIES, STAGES, STAGE_COUNT, STATUS, type StageKey } from './meta';
 import { NO_FILTERS, filterRecords, isFiltered, references, sortRecords, statusOf, summarise, isStageDone, withStage, type ServiceFilters, type SortKey, type StageDraft } from './serviceLogic';
 import { createService, deleteService, saveStageSignature, updateService, useServices } from './useServicesData';
 import type { ServiceRecord } from './types';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const VIEWS = [
   { value: 'cards', label: 'Card view', icon: 'grid-view' }, { value: 'table', label: 'Table view', icon: 'table-view' }, { value: 'sheet', label: 'Sheet view', icon: 'sheet-view' },
@@ -32,7 +30,7 @@ const PAGE_SIZE = 24;
 const Tick = ({ done }: { done: boolean }) => (done ? <span className="text-success" role="img" aria-label="Complete">✓</span> : <span className="text-ink-muted" role="img" aria-label="Not complete">–</span>);
 
 function ServicesContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { profile } = useAuth();
   const list = useServices();
   const records = list.items;
@@ -69,9 +67,7 @@ function ServicesContent() {
     toast.success(d.done ? `${STAGES.find(s => s.key === key)!.label} marked complete.` : 'Stage reopened.');
   };
   const remove = async (r: ServiceRecord) => {
-    if (!await confirm({ title: 'Delete this job?', message: `${r.description || 'This job'} and its record are removed. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteService(r.id); setViewingId(null); toast.success('Job deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`The job was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this job?', message: `${r.description || 'This job'} and its record are removed. This cannot be undone.`, what: 'The job', run: async () => { await deleteService(r.id); setViewingId(null); }, done: 'Job deleted.', after: () => list.refetch() });
   };
 
   const rowActions = (r: ServiceRecord) => (
@@ -106,7 +102,7 @@ function ServicesContent() {
         description="Contractor jobs, and where each one is in the approval circuit from planning to payment."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh services" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh services" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu items={[{ label: 'Import or scan', icon: 'upload', disabled: !list.loaded, onSelect: () => setImporting(true) }]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button>
           </>

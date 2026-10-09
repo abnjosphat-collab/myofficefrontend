@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField,
-  Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -17,13 +13,12 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { ActionStatus, CorrectiveAction, SectionType, WorkStoppageReport } from './types';
 import { createReport, deleteReport, updateReport, useWorkStoppageData } from './useWorkStoppageData';
-import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
+import { statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
-const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = {
-  Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' }, General: { tone: 'neutral', icon: 'general' },
-};
 const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = {
   Pending: { tone: statusTone('Pending'), icon: 'pending' }, 'In Progress': { tone: statusTone('In Progress'), icon: 'clock' }, Completed: { tone: statusTone('Completed'), icon: 'closed' },
 };
@@ -31,16 +26,10 @@ const ALL = '__all__';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const uid = () => Math.random().toString(36).slice(2, 11);
-const fmtDate = (d: string) => (d ? formatDate(d) : '');
 const newAction = (): CorrectiveAction => ({ id: uid(), finding: '', action: '', byWho: '', byWhen: '', status: 'Pending' });
 const isOverdue = (a: CorrectiveAction) => a.status !== 'Completed' && !!a.byWhen && a.byWhen < today();
 const overdueCount = (r: WorkStoppageReport) => (r.correctiveActions || []).filter(isOverdue).length;
 
-// An unrecognised section (legacy or malformed data) must not crash the page.
-const SectionBadge = ({ section }: { section: SectionType }) => {
-  const m = SECTION_META[section];
-  return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>;
-};
 const ActionBadge = ({ status }: { status: ActionStatus }) => {
   const m = ACTION_META[status];
   return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>;
@@ -155,10 +144,6 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkSt
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStoppageReport | null; onClose: () => void; onEdit: (r: WorkStoppageReport) => void; onDelete: (r: WorkStoppageReport) => void }) {
   const actions = report?.correctiveActions || [];
   const progress = summarizeActions(actions);
@@ -167,7 +152,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
       open={!!report}
       onOpenChange={open => { if (!open) onClose(); }}
       title="Work stoppage report"
-      description={report ? `${report.department}, ${fmtDate(report.date)}` : undefined}
+      description={report ? `${report.department}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
         <>
@@ -185,14 +170,14 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
               <Progress value={progress.pct} label="Corrective action progress" />
             </div>
           )}
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Department">{report.department}</Fact>
             <Fact label="Section"><SectionBadge section={report.section} /></Fact>
             <Fact label="Issued by">{report.stoppageBy}</Fact>
             <Fact label="Position">{report.stoppagePosition || 'Not specified'}</Fact>
             <Fact label="Accepted by">{report.acceptedBy || 'Not specified'}</Fact>
             <Fact label="SHEQ checked by">{report.sheqCheckedBy || 'Not specified'}</Fact>
-          </dl>
+          </FactList>
           <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.description}</p></div>
           {report.investigationFindings && <div><h3 className="font-sans text-caption text-ink-muted">Investigation findings</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.investigationFindings}</p></div>}
           {actions.length > 0 && (
@@ -206,7 +191,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
                       <span className="inline-flex gap-1.5">{isOverdue(a) && <StatusBadge tone="danger" icon="overdue">Overdue</StatusBadge>}<ActionBadge status={a.status} /></span>
                     </div>
                     <p className="mt-1 font-sans text-body-sm text-ink-muted">{a.action}</p>
-                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWho} · due {fmtDate(a.byWhen)}{a.completedDate ? ` · completed ${fmtDate(a.completedDate)}` : ''}</p>
+                    <p className="mt-1.5 font-sans text-caption text-ink-muted">By {a.byWho} · due {formatDate(a.byWhen)}{a.completedDate ? ` · completed ${formatDate(a.completedDate)}` : ''}</p>
                     {a.remarks && <p className="mt-1 font-sans text-caption italic text-ink-muted">“{a.remarks}”</p>}
                   </li>
                 ))}
@@ -220,7 +205,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
 }
 
 const EXPORT_COLUMNS: DLColumn[] = [
-  { key: 'date', label: 'Date', width: 14, format: v => (v ? fmtDate(v as string) : '') },
+  { key: 'date', label: 'Date', width: 14, format: v => (v ? formatDate(v as string) : '') },
   { key: 'department', label: 'Department', width: 18 },
   { key: 'section', label: 'Section', width: 14 },
   { key: 'stoppageBy', label: 'Issued By', width: 18 },
@@ -244,7 +229,7 @@ const STATUS_FILTERS = [
 ];
 
 function WorkStoppageContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reports, loading, loaded, error, errorStatus, refetch } = useWorkStoppageData();
   const [view, setView] = useViewPreference('work-stoppage', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -294,12 +279,11 @@ function WorkStoppageContent() {
 
   const openEditor = (r?: WorkStoppageReport) => { setViewing(null); setEditing(r); setDialogOpen(true); };
   const remove = async (r: WorkStoppageReport) => {
-    if (!await confirm({ title: 'Delete this work stoppage report?', message: `${r.department}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteReport(r.id); setViewing(null); toast.success('Report deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this work stoppage report?', message: `${r.department}, ${formatDate(r.date)}. This cannot be undone.`, what: 'The report', run: async () => { await deleteReport(r.id); setViewing(null); }, done: 'Report deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<WorkStoppageReport>[] = [
-    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'date', header: 'Date', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{formatDate(r.date)}</span> },
     { id: 'department', header: 'Department', sortable: true, cell: r => r.department },
     { id: 'section', header: 'Section', sortable: true, cell: r => <SectionBadge section={r.section} /> },
     { id: 'stoppageBy', header: 'Issued by', sortable: true, hideBelow: 'md', cell: r => r.stoppageBy },
@@ -317,15 +301,13 @@ function WorkStoppageContent() {
         description="Document and track unsafe acts, unsafe practices and SHEQ compliance issues."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh work stoppages" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh work stoppages" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
                 columns={EXPORT_COLUMNS}
                 filename={exportFilename('Work_Stoppage_Reports')}
                 title="Work Stoppages"
-                statusColumn="section"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.section as SectionType]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>
@@ -378,7 +360,7 @@ function WorkStoppageContent() {
               return (
                 <RecordCard
                   key={r.id}
-                  eyebrow={fmtDate(r.date)}
+                  eyebrow={formatDate(r.date)}
                   title={r.department}
                   status={<span className="inline-flex flex-wrap gap-1.5"><SectionBadge section={r.section} />{o > 0 && <StatusBadge tone="danger" icon="overdue">{o} overdue</StatusBadge>}</span>}
                   facts={[
@@ -386,9 +368,9 @@ function WorkStoppageContent() {
                     { label: 'What happened', value: <span className="line-clamp-2">{r.description}</span> },
                     { label: 'Corrective actions', value: p.total ? <><span className="tabular">{p.completed} of {p.total} completed</span><Progress value={p.pct} label={`${r.department} corrective action progress`} className="mt-1" /></> : 'None added' },
                   ]}
-                  action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${fmtDate(r.date)}`} onClick={() => remove(r)} />}
+                  action={<IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${formatDate(r.date)}`} onClick={() => remove(r)} />}
                   onOpen={() => setViewing(r)}
-                  openLabel={`View ${r.department} report of ${fmtDate(r.date)}`}
+                  openLabel={`View ${r.department} report of ${formatDate(r.date)}`}
                 />
               );
             })}
@@ -404,8 +386,8 @@ function WorkStoppageContent() {
             onRowActivate={setViewing}
             rowActions={r => (
               <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit ${r.department} report of ${fmtDate(r.date)}`} onClick={() => openEditor(r)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${fmtDate(r.date)}`} onClick={() => remove(r)} />
+                <IconButton icon="edit" size="sm" label={`Edit ${r.department} report of ${formatDate(r.date)}`} onClick={() => openEditor(r)} />
+                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${formatDate(r.date)}`} onClick={() => remove(r)} />
               </span>
             )}
           />

@@ -6,10 +6,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
-  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { apiCreate, apiDelete, apiUpdate } from './api';
 import { CategoryPanel } from './CategoryPanel';
@@ -19,6 +16,7 @@ import { SpareForm } from './SpareForm';
 import { DEFAULT_HEADER, NO_FILTERS, PRIORITY, STOCK, categoriesOf, categoryBreakdown, filterSpares, filled, isFiltered, priorityMeta, sortSpares, stockOf, summarise, type SortKey, type SpareFilters, type StockFilter } from './stock';
 import type { ReqHeader, ReqLine, Spare, SpareFormData } from './types';
 import { useSavedRequisitions, useSparesRegister } from './useSparesData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const ALL = 'all';
 const SORTS: { value: SortKey; label: string }[] = [
@@ -31,7 +29,7 @@ const validIds = (raw: unknown): number[] | undefined => (Array.isArray(raw) ? r
 
 function SparesContent() {
   const router = useRouter();
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const list = useSparesRegister();
   const saved = useSavedRequisitions();
   const spares = list.items;
@@ -64,9 +62,7 @@ function SparesContent() {
 
   const save = async (data: SpareFormData, id?: number) => { if (id) await apiUpdate(id, data); else await apiCreate(data); await list.refetch(); };
   const remove = async (s: Spare) => {
-    if (!await confirm({ title: 'Delete this spare part?', message: `${s.stock_code}, ${s.description}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await apiDelete(s.id); setViewingId(null); toast.success(`${s.stock_code} deleted.`); await list.refetch(); }
-    catch (e) { toast.error(`${s.stock_code} was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this spare part?', message: `${s.stock_code}, ${s.description}. This cannot be undone.`, what: `${s.stock_code}`, run: async () => { await apiDelete(s.id); setViewingId(null); }, done: `${s.stock_code} deleted.`, after: () => list.refetch() });
   };
   const addToRequisition = (s: Spare) => {
     setLines(prev => [...prev, { id: newLineId(), spare: s, searchValue: s.stock_code, qty: 1, dropdownOpen: false }]);
@@ -98,11 +94,11 @@ function SparesContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Spares' }]}
-        title="Spare parts"
+        title="Spares"
         description="What is in stock against its minimum, and the requisitions to restock it."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh spares" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh spares" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu items={[
               { label: `Requisition${filled(lines).length ? ` (${filled(lines).length})` : ''}`, icon: 'cart', onSelect: () => setReqOpen(true) },
               { label: 'Import Excel', icon: 'upload', onSelect: () => router.push('/spares/import') },

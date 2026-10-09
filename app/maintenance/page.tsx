@@ -2,7 +2,8 @@
 // recurring ones as schedules, and look back over the numbers.
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -25,6 +26,7 @@ import { WorkOrderDetail } from './WorkOrderDetail';
 import { WorkOrderForm } from './WorkOrderForm';
 import type { MaintenanceSchedule, WorkOrder, WorkOrderPriority } from './types';
 import { exportStatusColor } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const SORTS: { value: SortKey; label: string }[] = [
   { value: 'date-desc', label: 'Newest first' }, { value: 'date-asc', label: 'Oldest first' }, { value: 'priority', label: 'Priority' }, { value: 'status', label: 'Status' }, { value: 'machine', label: 'Machine, A to Z' },
@@ -41,12 +43,15 @@ const PAGE_SIZE = 25;
 
 function MaintenanceContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const orders = useWorkOrders();
   const schedules = useSchedules();
   const items = orders.items;
   const [tab, setTab] = useState('orders');
   const [view, setView] = useViewPreference('maintenance', VIEW_CARDS_TABLE);
-  const [f, setF] = useState<OrderFilters>(NO_FILTERS);
+  // A link from another page (Availability's "Maintenance" on a machine row) arrives as ?q=<machine> and starts searched.
+  const params = useSearchParams();
+  const [f, setF] = useState<OrderFilters>(() => ({ ...NO_FILTERS, search: params?.get('q')?.trim() ?? '' }));
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [formFor, setFormFor] = useState<{ order: WorkOrder | null } | null>(null);
@@ -79,9 +84,7 @@ function MaintenanceContent() {
   const merge = (updated?: WorkOrder) => { if (updated) orders.setItems(prev => prev.map(w => (String(w.id) === String(updated.id) ? { ...w, ...updated } : w))); else void orders.refetch(); };
 
   const remove = async (w: WorkOrder) => {
-    if (!await confirm({ title: 'Delete this work order?', message: `${w.work_order_number}, ${w.equipment_info}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteWorkOrder(w.id); setViewingId(null); toast.success('Work order deleted.'); await orders.refetch(); }
-    catch (e) { toast.error(`The work order was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this work order?', message: `${w.work_order_number}, ${w.equipment_info}. This cannot be undone.`, what: 'The work order', run: async () => { await deleteWorkOrder(w.id); setViewingId(null); }, done: 'Work order deleted.', after: () => orders.refetch() });
   };
   const removeMany = async () => {
     if (!await confirm({ title: `Delete ${chosen.length} work ${chosen.length === 1 ? 'order' : 'orders'}?`, message: 'This cannot be undone.', confirmLabel: `Delete ${chosen.length}`, destructive: true })) return;
@@ -114,11 +117,11 @@ function MaintenanceContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Work orders' }]}
-        title="Work orders"
+        title="Maintenance"
         description="Raise a job, follow it to completion, and plan the recurring ones."
         actions={(
           <>
-            <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="ghost" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
+            <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="shell" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
             {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} />}
             {headerAction}
           </>
@@ -136,7 +139,7 @@ function MaintenanceContent() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Maintenance sections">
           <TabsTrigger value="orders" icon="wrench">Work orders</TabsTrigger>
-          <TabsTrigger value="schedules" icon="clock">Schedules{schedules.loaded && schedules.items.some(s => s.active) ? ` (${schedules.items.filter(s => s.active).length})` : ''}</TabsTrigger>
+          <TabsTrigger value="schedules" icon="clock" count={schedules.loaded ? schedules.items.filter(s => s.active).length : undefined}>Schedules</TabsTrigger>
           <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -212,5 +215,5 @@ function MaintenanceContent() {
 }
 
 export default function MaintenancePage() {
-  return <AppShell migrated><MaintenanceContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><MaintenanceContent /></Suspense></AppShell>;
 }

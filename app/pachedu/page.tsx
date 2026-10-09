@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField,
-  Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -16,14 +12,15 @@ import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { BehaviourType, PacheduReport, PacheduStatus, SectionType } from './types';
 import { createPacheduReport, deletePacheduReport, updatePacheduReport, usePacheduData } from './usePacheduData';
-import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
+import { statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const BEHAVIOURS: BehaviourType[] = ['Intentional', 'Unintentional'];
 const STATUSES: PacheduStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
 const ALL = '__all__';
 
-const SECTION_META: Record<SectionType, { tone: Tone; icon: IconMeaning }> = { Mechanical: { tone: 'info', icon: 'mechanical' }, Electrical: { tone: 'warning', icon: 'electrical' } };
 const BEHAVIOUR_META: Record<BehaviourType, { tone: Tone; icon: IconMeaning }> = { Intentional: { tone: 'warning', icon: 'flag' }, Unintentional: { tone: 'info', icon: 'info' } };
 const STATUS_META: Record<PacheduStatus, { tone: Tone; icon: IconMeaning; label: string }> = {
   draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
@@ -42,7 +39,6 @@ const CHECKLIST_CATEGORIES = [
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const hasSeriousImpact = (r: PacheduReport) => SERIOUS_IMPACTS.some(i => r.impacts?.includes(i));
 // An unrecognised section or behaviour (legacy or malformed data) must not crash the page.
-const SectionBadge = ({ section }: { section: SectionType }) => { const m = SECTION_META[section]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{section}</StatusBadge>; };
 const BehaviourBadge = ({ value }: { value: BehaviourType }) => { const m = BEHAVIOUR_META[value]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{value}</StatusBadge>; };
 const StatusTag = ({ status }: { status: PacheduStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const RiskBadge = () => <StatusBadge tone="danger" icon="warning">High risk</StatusBadge>;
@@ -137,10 +133,6 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: Pached
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { report: PacheduReport | null; onClose: () => void; onEdit: (r: PacheduReport) => void; onDelete: (r: PacheduReport) => void; onStatusChange: (id: string, s: PacheduStatus) => void }) {
   return (
     <Dialog
@@ -163,14 +155,14 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             <div className="flex flex-wrap gap-2"><SectionBadge section={report.sectionChoice} /><BehaviourBadge value={report.behaviourType} /><StatusTag status={report.status} />{hasSeriousImpact(report) && <RiskBadge />}</div>
             <div className="w-44"><Field label="Change status"><Select aria-label="Change status" value={report.status} onValueChange={v => onStatusChange(report.id, v as PacheduStatus)} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field></div>
           </div>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Location">{report.location || 'Not specified'}</Fact>
             <Fact label="Date">{formatDate(report.date)}</Fact>
             <Fact label="Observer">{report.observerName || 'Anonymous'}</Fact>
             <Fact label="Department">{report.dept || 'Not specified'}</Fact>
             <Fact label="SDWT">{report.sdwt || 'Not specified'}</Fact>
             <Fact label="Activity observed">{report.activityObserved || 'Not specified'}</Fact>
-          </dl>
+          </FactList>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div><h3 className="font-sans text-caption text-ink-muted">What did you see? <span className="italic">(Waonei? / Uboneni?)</span></h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.whatDidYouSee || 'Not specified'}</p></div>
             <div><h3 className="font-sans text-caption text-ink-muted">Reasons <span className="italic">(Zvikonzero / Isizatho)</span></h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.reasons || 'Not specified'}</p></div>
@@ -199,7 +191,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function PacheduContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePacheduData();
   const [view, setView] = useViewPreference('pachedu', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -239,8 +231,7 @@ function PacheduContent() {
   const openEditor = (r?: PacheduReport) => { setViewingId(null); setEditing(r); setDialogOpen(true); };
   const label = (r: PacheduReport) => `${r.observerName || 'Anonymous'}, ${formatDate(r.date)}`;
   const remove = async (r: PacheduReport) => {
-    if (!await confirm({ title: 'Delete this care observation?', message: `${label(r)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deletePacheduReport(r.id); setViewingId(null); toast.success('Care observation deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this care observation?', message: `${label(r)}. This cannot be undone.`, what: 'The care observation', run: async () => { await deletePacheduReport(r.id); setViewingId(null); }, done: 'Care observation deleted.', after: () => refetch() });
   };
   const changeStatus = async (id: string, next: PacheduStatus) => {
     const before = reports.find(r => r.id === id);
@@ -264,19 +255,17 @@ function PacheduContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Pachedu' }]}
-        title="Pachedu care observations"
+        title="Pachedu"
         description="Be your brother's keeper: track care observations and supportive actions."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh Pachedu reports" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh Pachedu reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
                 columns={EXPORT_COLUMNS}
                 filename={exportFilename('Pachedu_Care_Observations')}
                 title="Pachedu Care Observations"
-                statusColumn="sectionChoice"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[SECTION_META[row.sectionChoice as SectionType]?.tone ?? 'neutral']}
               />
             )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button>

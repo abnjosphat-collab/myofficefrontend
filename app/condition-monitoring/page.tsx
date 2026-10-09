@@ -118,7 +118,7 @@ function ConditionMonitoringContent() {
         description="Oil analysis, vibration and thermography records."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh readings" variant="ghost" pending={loading && loaded} onClick={() => fetchReadings()} />
+            <IconButton icon="refresh" label="Refresh readings" variant="shell" pending={loading && loaded} onClick={() => fetchReadings()} />
             {displayed.length > 0 && (
               <DownloadButton
                 data={displayed as unknown as Record<string, unknown>[]}

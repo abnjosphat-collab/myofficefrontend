@@ -2,13 +2,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
-  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -19,6 +14,7 @@ import { createEquipment, deleteEquipment, updateEquipment } from './api';
 import { NO_EQUIPMENT_FILTERS, STATUSES, STATUS_LABELS, calcAge, countByStatus, filterEquipment, type EquipmentFilters } from './equipmentLogic';
 import type { EquipmentItem } from './types';
 import { priorityTone, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const ALL = 'all';
 const STATUS_META: Record<string, { tone: Tone; icon: IconMeaning }> = {
@@ -41,12 +37,8 @@ const EXPORT_PDF: DLColumn[] = [
   { key: 'department', label: 'Department' }, { key: 'model', label: 'Model' }, { key: 'serial_number', label: 'Serial No.' }, { key: 'commission_date', label: 'Commissioned', format: v => dateText(v as string) },
 ];
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
-
 function EquipmentContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const list = useApiList<EquipmentItem>('/api/equipment');
   const items = list.items;
   const lookupLocations = useLookupList('location');
@@ -84,9 +76,7 @@ function EquipmentContent() {
     await list.refetch();
   };
   const remove = async (i: EquipmentItem) => {
-    if (!await confirm({ title: `Delete ${i.name}?`, message: 'The asset is removed from the register. This cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteEquipment(i.id); setViewingId(null); toast.success('Equipment deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`${i.name} was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: `Delete ${i.name}?`, message: 'The asset is removed from the register. This cannot be undone.', what: `${i.name}`, run: async () => { await deleteEquipment(i.id); setViewingId(null); }, done: 'Equipment deleted.', after: () => list.refetch() });
   };
 
   const COLUMNS: Column<EquipmentItem>[] = [
@@ -103,11 +93,11 @@ function EquipmentContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Equipment' }]}
-        title="Equipment management"
+        title="Equipment"
         description="Every asset with its status, location and details."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh equipment" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh equipment" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {items.length > 0 && <DownloadButton data={items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
           </>
@@ -186,13 +176,13 @@ function EquipmentContent() {
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap gap-2"><StatusTag item={viewing} />{viewing.criticality && <StatusBadge tone={CRIT_TONE[viewing.criticality] ?? 'neutral'}>{viewing.criticality} criticality</StatusBadge>}</div>
             {viewing.description && <p className="whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.description}</p>}
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+            <FactList columns={3}>
               <Fact label="Category">{viewing.category}</Fact><Fact label="Location">{viewing.location}</Fact><Fact label="Department">{viewing.department}</Fact>
               <Fact label="Manufacturer">{viewing.manufacturer}</Fact><Fact label="Model">{viewing.model}</Fact><Fact label="Serial number">{viewing.serial_number}</Fact>
               <Fact label="Power rating">{viewing.power_rating}</Fact><Fact label="Commissioned">{dateText(viewing.commission_date)}</Fact><Fact label="Age">{calcAge(viewing.commission_date)}</Fact>
               <Fact label="Supplier">{viewing.supplier}</Fact><Fact label="Supplier contact">{viewing.supplier_contact}</Fact><Fact label="Supplier phone">{viewing.supplier_phone}</Fact>
               <Fact label="Warranty">{viewing.warranty_info}</Fact><Fact label="Maintenance interval">{viewing.maintenance_interval != null ? `${viewing.maintenance_interval} months` : ''}</Fact><Fact label="Purchase cost">{viewing.purchase_cost != null ? `$${viewing.purchase_cost}` : ''}</Fact>
-            </dl>
+            </FactList>
             {viewing.specifications && <section><h3 className="font-sans text-label font-semibold text-ink">Specifications</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.specifications}</p></section>}
             {viewing.maintenance_notes && <section><h3 className="font-sans text-label font-semibold text-ink">Maintenance notes</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.maintenance_notes}</p></section>}
           </div>

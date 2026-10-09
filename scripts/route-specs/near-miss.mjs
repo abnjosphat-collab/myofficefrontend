@@ -7,7 +7,7 @@ const REPORTS = [
 ];
 const spec = {
   route: '/near_miss',
-  h1: 'Near miss reporting',
+  h1: 'Near miss',
   data: {
     '/api/nearmiss/': request => (request.method() === 'POST' ? { id: 'new' } : REPORTS),
     'PATCH /api/nearmiss/a1': {},

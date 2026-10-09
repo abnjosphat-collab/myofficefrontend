@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -17,6 +17,7 @@ import { ItemDetailsDialog, ItemFormDialog } from './dialogs';
 import { PRIORITY_TONE, TYPE_TONE, isOverdue } from './meta';
 import { PRIORITIES, TASK_TYPES, type TaskEvent, type TaskEventFormData } from './types';
 import { completeTaskEvent, createTaskEvent, deleteTaskEvent, reopenTaskEvent, updateTaskEvent, useTasksEvents } from './useTasksEventsData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const ALL = '__all__';
 const EXPORT_COLUMNS: DLColumn[] = [
@@ -26,7 +27,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function Board({ completedBy }: { completedBy: string }) {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { items, setItems, loading, loaded, error, errorStatus, refetch } = useTasksEvents();
   const [statusF, setStatusF] = useState(ALL);
   const [typeF, setTypeF] = useState(ALL);
@@ -76,9 +77,7 @@ function Board({ completedBy }: { completedBy: string }) {
     catch (e) { setItems(p => p.map(i => (i.id === item.id ? item : i))); toast.error(`"${item.title}" was not updated: ${(e as Error).message}`); }
   };
   const remove = async (item: TaskEvent) => {
-    if (!await confirm({ title: `Delete "${item.title}"?`, message: 'This cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteTaskEvent(item.id); setViewingId(null); toast.success('Deleted.'); await refetch(); }
-    catch (e) { toast.error(`"${item.title}" was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: `Delete "${item.title}"?`, message: 'This cannot be undone.', what: `"${item.title}"`, run: async () => { await deleteTaskEvent(item.id); setViewingId(null); }, done: 'Deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<TaskEvent>[] = [
@@ -97,7 +96,7 @@ function Board({ completedBy }: { completedBy: string }) {
         description="Upcoming events and to-dos in one list, checked off when done."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh events and tasks" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh events and tasks" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
           </>

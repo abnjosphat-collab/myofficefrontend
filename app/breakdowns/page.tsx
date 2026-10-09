@@ -2,14 +2,11 @@
 // cards or a table with filters that also scope the Analytics tab (the full analytics page is linked from it).
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select,
-  StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column, FilterField
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -21,6 +18,7 @@ import { PRIORITIES, STATUSES, TYPES, priorityMeta, statusMeta, typeMeta } from 
 import { InsightsPanel } from './insights/InsightsPanel';
 import type { Breakdown, BreakdownFormData } from './types';
 import { createBreakdown, deleteBreakdown, insightQuery, updateBreakdown, useBreakdowns } from './useBreakdownsData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const PAGE_SIZE = 24;
 const SORTS: { value: SortKey; label: string }[] = [{ value: 'date', label: 'Date' }, { value: 'machine', label: 'Machine' }, { value: 'priority', label: 'Priority' }, { value: 'status', label: 'Status' }, { value: 'downtime', label: 'Downtime' }, { value: 'cost', label: 'Parts cost' }];
@@ -34,12 +32,14 @@ const EXPORT: DLColumn[] = [
 ];
 
 function BreakdownsContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const list = useBreakdowns();
   const rows = list.items;
   const [view, setView] = useViewPreference('breakdowns', VIEW_CARDS_TABLE);
   const [tab, setTab] = useState('records');
-  const [f, setF] = useState<Filters>(NO_FILTERS);
+  // A link from another page (Availability's "Breakdowns" on a machine row) arrives as ?q=<machine> and starts searched.
+  const params = useSearchParams();
+  const [f, setF] = useState<Filters>(() => ({ ...NO_FILTERS, search: params?.get('q')?.trim() ?? '' }));
   const [sort, setSort] = useState<SortKey>('date');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
@@ -61,9 +61,7 @@ function BreakdownsContent() {
 
   const save = async (form: BreakdownFormData, id?: number) => { if (id) await updateBreakdown(id, form); else await createBreakdown(form); await list.refetch(); };
   const remove = async (b: Breakdown) => {
-    if (!await confirm({ title: 'Delete this breakdown?', message: `${b.machine_name}, ${b.breakdown_date ? fmtDate(b.breakdown_date) : 'no date'}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteBreakdown(b.id); setViewingId(null); toast.success('Breakdown deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`The breakdown was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this breakdown?', message: `${b.machine_name}, ${b.breakdown_date ? fmtDate(b.breakdown_date) : 'no date'}. This cannot be undone.`, what: 'The breakdown', run: async () => { await deleteBreakdown(b.id); setViewingId(null); }, done: 'Breakdown deleted.', after: () => list.refetch() });
   };
 
   const actionsOf = (b: Breakdown) => (
@@ -89,11 +87,11 @@ function BreakdownsContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Breakdowns' }]}
-        title="Equipment breakdowns"
+        title="Breakdowns"
         description="Log, track and resolve equipment failures."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh breakdowns" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh breakdowns" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {list.loaded && matches.length > 0 && <DownloadButton data={matches as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('breakdowns')} title="Equipment Breakdowns" formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button>
           </>
@@ -184,5 +182,5 @@ function BreakdownsContent() {
 }
 
 export default function BreakdownsPage() {
-  return <AppShell migrated><BreakdownsContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><BreakdownsContent /></Suspense></AppShell>;
 }

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-system';
+import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { AttachmentsPanel } from './AttachmentsPanel';
 import { PipelineEditor } from './PipelineEditor';
@@ -10,10 +10,6 @@ import { STAGE_COUNT } from './meta';
 import { references, statusOf, type StageDraft } from './serviceLogic';
 import type { StageKey } from './meta';
 import type { ServiceRecord } from './types';
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 
 export function ServiceDetail({ record, who, onClose, onEdit, onDelete, onSaveStage }: {
   record: ServiceRecord | null; who: string; onClose: () => void; onEdit: (r: ServiceRecord) => void; onDelete: (r: ServiceRecord) => void; onSaveStage: (id: string, key: StageKey, d: StageDraft, signature?: string) => Promise<void>;
@@ -36,9 +32,9 @@ export function ServiceDetail({ record, who, onClose, onEdit, onDelete, onSaveSt
             {references(record).map(r => <StatusBadge key={r} tone="neutral">{r}</StatusBadge>)}
           </div>
           <Progress value={(status.done / STAGE_COUNT) * 100} label={`${status.done} of ${STAGE_COUNT} approvals complete`} />
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <FactList columns={3}>
             <Fact label="Supplier">{record.supplier}</Fact><Fact label="Contact person">{record.contact_person}</Fact><Fact label="Amount">{record.amount}</Fact>
-          </dl>
+          </FactList>
           {record.general_comments && <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">General comments</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{record.general_comments}</p></div>}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList aria-label="Job sections">

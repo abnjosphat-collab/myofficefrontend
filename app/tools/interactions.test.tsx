@@ -30,16 +30,18 @@ function SelectHarness() {
   const [sort,setSort]=useState('register');
   return <><AnimatedSelect ariaLabel="Status" value={status} onChange={setStatus} options={[{value:'all',label:'All tools'},{value:'ready',label:'Ready'}]}/><AnimatedSelect ariaLabel="Sort" value={sort} onChange={setSort} options={[{value:'register',label:'Register order'},{value:'name',label:'Name'}]}/></>;
 }
+const placeholderPeople=PEOPLE.map((label,index)=>({id:String(index),employeeNumber:label.split(' · ')[1],name:label.split(' · ')[0],department:'Engineering',active:true}));
 describe('Tools interaction controls', () => {
-  it('keeps only one animated dropdown open and supports keyboard selection', async () => {
+  it('opens one dropdown at a time and supports keyboard selection', async () => {
     const user=userEvent.setup(); render(<SelectHarness/>);
-    const status=screen.getByRole('button',{name:'Status'});
-    const sort=screen.getByRole('button',{name:'Sort'});
+    const status=screen.getByRole('combobox',{name:'Status'});
+    const sort=screen.getByRole('combobox',{name:'Sort'});
     await user.click(status);
     await waitFor(()=>expect(screen.getByRole('listbox',{name:'Status options'})).toBeVisible());
-    expect(screen.getByRole('listbox',{name:'Status options'}).parentElement).toBe(document.body);
-    await user.click(sort);
+    expect(screen.getByRole('listbox',{name:'Status options'}).closest('[data-tools-workspace]')).toBeNull();
+    await user.keyboard('{Escape}');
     await waitFor(()=>expect(screen.queryByRole('listbox',{name:'Status options'})).not.toBeInTheDocument());
+    await user.click(sort);
     await waitFor(()=>expect(screen.getByRole('listbox',{name:'Sort options'})).toBeVisible());
     await user.keyboard('{ArrowDown}{Enter}');
     expect(sort).toHaveTextContent('Name');
@@ -79,7 +81,7 @@ describe('Tools interaction controls', () => {
     expect(input).toHaveValue('Alex'); await waitFor(()=>expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
   });
   it('reads the chosen native return date when issuing a tool', async () => {
-    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
@@ -166,11 +168,11 @@ describe('Tools interaction controls', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({overrideDueChecks:true,overrideReason:'Breakdown repair, inspection booked'});
   });
   it('shows no override when nothing is overdue', () => {
-    render(<MovementForm kind="issue" initialTool={{...SEED_TOOLS[0],inspectionDue:[]}} tools={SEED_TOOLS} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
+    render(<MovementForm kind="issue" initialTool={{...SEED_TOOLS[0],inspectionDue:[]}} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     expect(screen.queryByRole('checkbox',{name:/Go ahead anyway/})).not.toBeInTheDocument();
   });
   it('rejects an old return date without discarding form values', () => {
-    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
     fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
@@ -194,14 +196,16 @@ describe('Tools interaction controls', () => {
     await user.click(screen.getByRole('button',{name:'Close image viewer'}));
     await waitFor(()=>expect(screen.queryByRole('dialog',{name:'clamp-meter.jpg'})).not.toBeInTheDocument());
   });
-  it('keeps the equipment pictogram type compatible with its category', () => {
+  it('keeps the equipment pictogram type compatible with its category', async () => {
+    const user=userEvent.setup();
     render(<ToolForm defaultDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
-    const category=screen.getByRole('button',{name:'Category'});
-    const equipmentType=screen.getByRole('button',{name:'Equipment type'});
+    const category=screen.getByRole('combobox',{name:'Category'});
+    const equipmentType=screen.getByRole('combobox',{name:'Equipment type'});
     expect(equipmentType).toHaveTextContent('Cordless drill / driver');
-    fireEvent.click(category); fireEvent.click(screen.getByRole('option',{name:'Welding'}));
+    await user.click(category); await user.click(await screen.findByRole('option',{name:'Welding'}));
     expect(equipmentType).toHaveTextContent('Inverter welder');
-    fireEvent.click(equipmentType);
+    await user.click(equipmentType);
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
     expect(screen.queryByRole('option',{name:'Cordless drill / driver'})).not.toBeInTheDocument();
   });
   it('requires a repair or inspection note before returning equipment to service', () => {

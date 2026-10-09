@@ -146,7 +146,45 @@ The owner asked whether the app defines things once and reuses them, whether it 
   - The text-size guard had been silently disabled. The auth block's `no-restricted-syntax` replaced its list, because flat config replaces a rule's options rather than merging them.
   - It is now the local rule `local/no-raw-text-size`, beside the new `local/no-hex-colour` and `local/no-locale-date` (app code, Tools exempt).
 
-**Next:** Phase 2 (icon-only `MoreMenu`/`DownloadButton`/Filters, a collapsible `SearchField`, the `ReportModule` scaffold for the SHEQ pages), then Phase 3 (the clean header standard through `PageHeader`). Database phases need the owner's go-ahead for each migration.
+**Phases 2–5 done 9 Oct 2026, after Phase 1 was pushed as `58d37b5` (uncommitted at the time of writing; the owner is asked before any commit, push or migration):**
+- **Shared controls.**
+  - `MoreMenu`, `DownloadButton` and the Toolbar Filters button are icon-only by default, using the Tools `shell` square with a tooltip. `IconButton` gained `badge`, and `SearchField` gained `collapsible`.
+  - `DataTable` gained expandable rows (`renderExpanded`), which replaced the hand-built Overtime "Recurring reasons" table.
+  - Tooltips open on keyboard focus only, so a tooltip no longer pops up when a menu closes.
+  - Toasts moved to bottom centre, because at the top right they covered every header's primary button.
+- **Define once.**
+  - `lib/useConfirmDelete.ts` runs the delete flow for 25 pages. A failure now always names what was not deleted.
+  - `Fact`/`FactList` replace 22 hand-made detail lists in two looks with one plain look.
+  - `components/shared/SectionBadge.tsx` (neutral, with icon) replaces seven local section badges. "Electrical" is no longer amber, since amber means waiting.
+- **Clean header** (in `PageHeader`):
+  - A breadcrumb trail shows only when it links somewhere; 45 of 47 trails had no links.
+  - The description sits behind a hint icon.
+  - `meta` stays visible for live facts.
+  - A development warning fires on more than one primary button.
+  - Refresh buttons are the shared `shell` square.
+  - Tab counts use `count`.
+  - Compressors uses compact tiles.
+  - Titles match their sidebar names ("Leaves", "PPE", "Documents" and so on); PTO and VFL keep their full names.
+  - The Quotations notice moved into the hint.
+- **Bugs fixed.**
+  - Availability's footer linked to two pages that do not exist (`/breakdowns/new`, `/reports/availability`).
+  - Its per-machine Breakdowns and Maintenance links ignored the machine; both pages now read `?q=`.
+  - The shared `Select` lost its value when options changed inside a form (Radix's hidden select emitted "").
+- **Tools onto the shared system (first tranche).**
+  - `ActionHint`/`Help`, `ToolsDialog` and `AnimatedSelect` are now wrappers over the shared `Tooltip`/`HelpHint`, `Dialog` and `Select`. Each takes a `skin`, so Tools keeps its look, typeface and text size.
+  - Remaining: about 250 raw `<button>` elements to `Button`, then shrinking `tools.module.css`.
+  - `scripts/verify-tools.mjs` passes through the issue form. Its employee-dialog steps describe the pre-eligibility Employees screen and need rewriting.
+- **Database (code and draft migrations; nothing applied).**
+  - `training.py` now uses a `training_certifications` table (`supabase_migration_training_certifications.sql`, needs approval to apply) and really stores certificate files in `ams-documents/training/`. The mock people are gone.
+  - The mock `/api/reports` router was deleted.
+  - The fake work orders and placeholder people no longer appear in the Tools forms.
+  - `supabase_migration_record_links.sql` (a draft) adds `employee_ref`/`equipment_ref` foreign keys and fills them by mine number, then row id, then a unique name. On 9 Oct the records that would still match nobody were: leaves 9, overtime 12, PPE 16, breakdowns 10 (machines missing from the Equipment register).
+- **Owner decisions still open.**
+  - Inventory: its own table, or merge into Spares? Its backend is still in-memory.
+  - The Tools login and employee/equipment copies: link them to the main tables or retire them.
+  - Timesheet roster exceptions to the database (the other session is active in Timesheets).
+- **Left for the other session:** refresh buttons in Artisan timesheets, Shifts and Standby still use `ghost`.
+- **Verification:** frontend 1,205 tests pass; backend 1,757 pass. Run pytest with a short `--basetemp`, because a long temp path breaks the NEC import tests on Windows.
 
 ## 8. Next bounded item
 

@@ -13,7 +13,7 @@ let failSave = false;
 
 const spec = {
   route: '/spares',
-  h1: 'Spare parts',
+  h1: 'Spares',
   data: {
     '/api/spares': request => (request.method() === 'POST' ? (failSave ? { __status: 422, body: { detail: 'Stock code exists (fixture)' } } : { id: 99, ...request.postDataJSON() }) : SPARES),
     'PUT /api/spares/1': request => ({ ...SPARES[0], ...request.postDataJSON() }),

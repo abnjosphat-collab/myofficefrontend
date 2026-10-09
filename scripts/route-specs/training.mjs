@@ -7,7 +7,7 @@ const CERTS = [
 ];
 export default {
   route: '/training',
-  h1: 'Training and certification',
+  h1: 'Training',
   data: {
     '/api/training': CERTS,
     '/api/training/reports/compliance_rate': { compliance_rate: 67, total_tracked: 3, non_compliant: 1 },

@@ -6,7 +6,7 @@ const shape = (id, draft, savedAt) => ({ id, savedAt, savedBy: 'fixture@x.com', 
 let failSave = false;
 const spec = {
   route: '/quotations',
-  h1: 'Quotation generator',
+  h1: 'Quotations',
   data: {
     '/api/quotations': () => [...STORE.values()],
     'PUT /api/quotations/QT-TEST-1': request => { if (failSave) return { __status: 422, body: { detail: 'Save rejected (fixture)' } }; const b = request.postDataJSON(); const row = shape('QT-TEST-1', b.draft, b.saved_at); STORE.set('QT-TEST-1', row); return row; },

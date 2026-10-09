@@ -107,8 +107,9 @@ export default function RootLayout({
         <Providers>
           <MyOfficeAccessBoundary>{children}</MyOfficeAccessBoundary>
         </Providers>
+        {/* Bottom centre: top-right sat on every page header's primary action for the few seconds after a save. */}
         <Toaster
-          position="top-right"
+          position="bottom-center"
           richColors
           toastOptions={{
             style: {

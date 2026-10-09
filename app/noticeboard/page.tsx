@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader,
-  RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
@@ -16,6 +12,7 @@ import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types'
 import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
 import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, type AttachmentKind } from './attachments';
 import { exportPriorityColor, priorityTone, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const CATEGORIES = ['HR', 'Safety', 'IT', 'General', 'Operations', 'Finance'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -140,10 +137,6 @@ function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: { notice: Notice | null; now: number; onClose: () => void; onEdit: (n: Notice) => void; onDelete: (n: Notice) => void; onTogglePin: (n: Notice) => void }) {
   const ex = notice ? expiry(notice, now) : { expired: false, soon: false };
   const share = async () => {
@@ -174,7 +167,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2">{notice.is_pinned && <StatusBadge tone="warning" icon="pinned">Pinned</StatusBadge>}<PriorityTag priority={notice.priority} /><StatusTag status={notice.status} />{ex.expired && <StatusBadge tone="danger" icon="expired">Expired</StatusBadge>}{ex.soon && <StatusBadge tone="warning" icon="due-soon">Expires soon</StatusBadge>}</div>
           <p className="whitespace-pre-wrap rounded-card bg-surface-muted p-4 font-sans text-body text-ink">{notice.content}</p>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <FactList columns={3}>
             <Fact label="Department">{notice.department || 'Not specified'}</Fact>
             <Fact label="Target audience">{notice.target_audience || 'All Employees'}</Fact>
             <Fact label="Notification type">{notice.notification_type || 'General'}</Fact>
@@ -182,7 +175,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
             <Fact label="Expires">{notice.expires_at ? formatDate(notice.expires_at) : 'Never'}</Fact>
             {notice.created_at && <Fact label="Created">{formatDateTime(notice.created_at)}</Fact>}
             {notice.updated_at && <Fact label="Last updated">{formatDateTime(notice.updated_at)}</Fact>}
-          </dl>
+          </FactList>
           {!!notice.attachments?.length && (
             <section aria-labelledby="nb-attachments">
               <h3 id="nb-attachments" className="mb-2 font-sans text-caption text-ink-muted">Attachments ({notice.attachments.length})</h3>
@@ -221,6 +214,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function NoticeboardContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const [view, setView] = useViewPreference('noticeboard', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<NoticeFilters>(NO_FILTERS);
@@ -250,8 +244,7 @@ function NoticeboardContent() {
 
   const openEditor = (n?: Notice) => { setViewingId(null); setEditing(n); setDialogOpen(true); };
   const remove = async (n: Notice) => {
-    if (!await confirm({ title: 'Delete this notice?', message: `“${truncate(n.title, 60)}” will be removed for everyone. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteNotice(n.id); setViewingId(null); toast.success('Notice deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this notice?', message: `“${truncate(n.title, 60)}” will be removed for everyone. This cannot be undone.`, what: 'The notice', run: async () => { await deleteNotice(n.id); setViewingId(null); }, done: 'Notice deleted.', after: () => refetch() });
   };
   const pin = async (n: Notice) => {
     const before = n.is_pinned;
@@ -314,7 +307,7 @@ function NoticeboardContent() {
         description="Create, manage and monitor company notices and announcements."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh notices" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh notices" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {notices.length > 0 && (
               <DownloadButton
                 data={notices as unknown as Record<string, unknown>[]}

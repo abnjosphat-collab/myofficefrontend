@@ -122,13 +122,15 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   /** Longer hint than the label, or `false` when the control already sits inside its own tooltip. */
   tooltip?: ReactNode | false;
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
+  /** A small count over the icon's corner (active filters, unread items); '' shows a dot. Name it in `label` too. */
+  badge?: ReactNode;
   pending?: boolean;
   pressed?: boolean;
 }
 
 /** Icon-only action. The label is mandatory so the control is never unnamed, and it shows as a tooltip on hover and focus. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon, label, tooltip, tooltipSide = 'bottom', variant, size, pending = false, pressed, className, disabled, type, ...rest },
+  { icon, label, tooltip, tooltipSide = 'bottom', badge, variant, size, pending = false, pressed, className, disabled, type, ...rest },
   ref,
 ) {
   const button = (
@@ -139,10 +141,15 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-pressed={pressed}
       aria-busy={pending || undefined}
       disabled={disabled || pending}
-      className={cn(iconButtonVariants({ variant, size }), pressed && 'bg-action-soft text-action', className)}
+      className={cn(iconButtonVariants({ variant, size }), badge != null && 'relative', pressed && 'bg-action-soft text-action', className)}
       {...rest}
     >
       {pending ? <Spinner /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
+      {badge === '' ? (
+        <span aria-hidden="true" className="absolute right-1 top-1 size-2 rounded-full bg-action" />
+      ) : badge != null && (
+        <span aria-hidden="true" className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-action px-1 font-sans text-tip font-semibold leading-4 text-action-ink tabular">{badge}</span>
+      )}
     </button>
   );
   return tooltip === false ? button : <Tooltip content={tooltip ?? label} side={tooltipSide}>{button}</Tooltip>;

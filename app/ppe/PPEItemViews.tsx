@@ -2,7 +2,7 @@
 // offers its actions in a menu: view, edit, mark not required (or active again), add to the order list, delete.
 'use client';
 
-import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeSection } from '@/lib/sections';
 import { STANDING_LABEL, standing, type Standing } from './ppeLogic';
@@ -61,9 +61,6 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions }: { emp
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 export function PPEItemDetail({ item: r, onClose, onEdit }: { item: PPERecord | null; onClose: () => void; onEdit: (r: PPERecord) => void }) {
   const cond = r ? conditionMeta(r.condition) : null;
   return (
@@ -72,13 +69,13 @@ export function PPEItemDetail({ item: r, onClose, onEdit }: { item: PPERecord | 
       {r && cond && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2"><StandingBadge r={r} /><StatusBadge tone={cond.tone}>{cond.label}</StatusBadge></div>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FactList>
             <Fact label="Item or brand">{r.item_name}</Fact><Fact label="Size">{r.size}</Fact>
             <Fact label="Issued">{fmtDate(r.issue_date)}</Fact><Fact label="Expires">{r.expiry_date ? fmtDate(r.expiry_date) : 'Does not expire'}</Fact>
             <Fact label="Position">{r.position}</Fact><Fact label="Section">{r.mine_section}</Fact>
             <Fact label="Issued by">{r.issued_by}</Fact><Fact label="Location">{r.location}</Fact>
             {r.notes && <div className="sm:col-span-2"><Fact label="Notes">{r.notes}</Fact></div>}
-          </dl>
+          </FactList>
         </div>
       )}
     </Dialog>

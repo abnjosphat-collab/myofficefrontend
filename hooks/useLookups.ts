@@ -108,6 +108,23 @@ export function useEmployees(): EmployeeLookup[] {
   return all.filter(e => e.archived !== true);
 }
 
+/**
+ * The whole employee register, archived people included, and whether it has loaded. For checking that a
+ * record belongs to someone on the register: an archived person is still on it, and nothing may be judged
+ * "not on the register" while the register itself is unknown.
+ */
+export function useEmployeeRegister(): { employees: EmployeeLookup[]; loaded: boolean } {
+  const all = useLookup<EmployeeLookup>(
+    () => _emp, (v) => { _emp = v; },
+    async () => {
+      const d = await read<unknown>('/api/employees');
+      return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
+    },
+    'employees',
+  );
+  return { employees: all, loaded: _emp !== null };
+}
+
 // This cache has no TTL — it's fetched once per browser session and never expires on
 // its own. An edit on the Employees page (new hire, changed phone/section/etc.) would
 // otherwise stay invisible to every other page's employee picker (leaves, overtime,

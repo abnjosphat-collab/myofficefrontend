@@ -9,7 +9,7 @@ const LUBE = [{ id: 1, status: 'due_soon' }];
 
 export default {
   route: '/engineering_report',
-  h1: 'Engineering monthly report',
+  h1: 'Engineering report',
   data: {
     '/api/breakdowns': { message: 'Breakdowns Management API', status: 'operational', endpoints: {} }, // what the real root route returns: a page that reads this instead of /get-breakdowns must fail
     '/api/breakdowns/get-breakdowns': { data: BREAKDOWNS, count: BREAKDOWNS.length, success: true }, '/api/job-cards': JOB_CARDS, '/api/production': PRODUCTION, '/api/compliance': COMPLIANCE, '/api/lubrication': LUBE },

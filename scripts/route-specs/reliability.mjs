@@ -8,7 +8,7 @@ const BREAKDOWNS = [
 
 export default {
   route: '/reliability',
-  h1: 'MTBF and MTTR analytics',
+  h1: 'Reliability',
   data: {
     '/api/breakdowns': { message: 'Breakdowns Management API', status: 'operational', endpoints: {} }, // what the real root route returns: a page that reads this instead of /get-breakdowns must fail
     '/api/breakdowns/get-breakdowns': { data: BREAKDOWNS, count: BREAKDOWNS.length, success: true } },

@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse } from '@/components/ui-system';
+import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse, Fact, FactList } from '@/components/ui-system';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { PeoplePicker } from './PeoplePicker';
 import { addComment, listComments } from './useTasksEventsData';
@@ -47,10 +47,6 @@ export function ItemFormDialog({ open, item, onOpenChange, onSave }: {
       </div>
     </FormDialog>
   );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink [overflow-wrap:anywhere]">{children}</dd></div>;
 }
 
 export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onToggle }: {
@@ -100,12 +96,12 @@ export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onT
             <StatusBadge tone={PRIORITY_TONE[item.priority] ?? 'neutral'}>{item.priority}</StatusBadge>
             {isOverdue(item) && <StatusBadge tone="danger" icon="warning">Overdue</StatusBadge>}
           </div>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FactList>
             <Fact label="Date">{item.event_date ? fmtDate(item.event_date) : 'Not set'}</Fact>
             <Fact label="Due date">{item.due_date ? fmtDate(item.due_date) : 'Not set'}</Fact>
             <Fact label="Responsible">{item.responsible_people?.length ? item.responsible_people.join(', ') : 'Unassigned'}</Fact>
             <Fact label="Completed by">{item.completed_by || 'Not completed'}</Fact>
-          </dl>
+          </FactList>
           {item.description && <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{item.description}</p></div>}
           <section aria-labelledby="te-comments" className="flex flex-col gap-3">
             <h3 id="te-comments" className="font-sans text-label font-semibold text-ink">Progress comments</h3>

@@ -18,7 +18,7 @@ describe('ToolsCompliance',()=>{
     render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
     await user.click(screen.getByRole('button',{name:'Record'}));
     await user.click(screen.getByText('Record inspection or maintenance'));
-    await user.click(screen.getByRole('button',{name:'Inspection type'}));
+    await user.click(screen.getByRole('combobox',{name:'Inspection type'}));
     await user.click(await screen.findByRole('option',{name:'Repair verification'}));
     fireEvent.change(screen.getByLabelText('Repair quotation'),{target:{value:'600'}});
     fireEvent.change(screen.getByLabelText('New equipment price'),{target:{value:'1000'}});
@@ -34,7 +34,7 @@ describe('ToolsCompliance',()=>{
     await user.click(screen.getByRole('button',{name:'Record'}));
     await user.click(screen.getByText('Report loss, damage or theft'));
     fireEvent.change(screen.getByLabelText('Occurred at'),{target:{value:'2030-02-01T10:30'}});
-    await user.click(screen.getByRole('button',{name:'Employee involved'}));
+    await user.click(screen.getByRole('combobox',{name:'Employee involved'}));
     await user.click(await screen.findByRole('option',{name:'Tariro Moyo · E-1'}));
     fireEvent.change(screen.getByLabelText('Immediate report'),{target:{value:'Guard damaged during use and equipment isolated.'}});
     await user.click(screen.getByRole('button',{name:'Report incident'}));
@@ -96,7 +96,7 @@ describe('ToolsCompliance',()=>{
     const table=screen.getByRole('table',{name:'Open incidents'});
     expect(within(table).getByText('Guard cracked')).toBeVisible();
     await user.click(within(table).getByRole('button',{name:/Close the investigation/}));
-    expect(screen.getByRole('button',{name:'Open incident'})).toBeVisible();
+    expect(screen.getByRole('combobox',{name:'Open incident'})).toBeVisible();
   });
 
   it('says plainly when there are no open incidents',async()=>{

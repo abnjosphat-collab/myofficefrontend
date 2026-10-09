@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField,
-  Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm,
-  type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -20,6 +16,8 @@ import type { Requisition, RequisitionItem } from './types';
 import { apiCreate, apiDelete, apiUpdate, useRequisitionsData } from './useRequisitionsData';
 import { itemTotal } from './calcRequisitions';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { SectionBadge } from '@/components/shared/SectionBadge';
 
 const STATUSES: Requisition['status'][] = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
 const PRIORITIES: Requisition['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
@@ -34,11 +32,9 @@ const PRIORITY_META: Record<Requisition['priority'], { tone: Tone; icon: IconMea
   Critical: { tone: priorityTone('Critical'), icon: 'critical' }, High: { tone: priorityTone('High'), icon: 'warning' }, Medium: { tone: priorityTone('Medium'), icon: 'info' }, Low: { tone: priorityTone('Low'), icon: 'flag' },
 };
 
-const fmtDate = (d?: string) => formatDate(d);
 // An unrecognised status or priority (legacy or malformed data) must not crash the page.
 const StatusTag = ({ status }: { status: Requisition['status'] }) => { const m = STATUS_META[status] ?? STATUS_META.Draft; return <StatusBadge tone={m.tone} icon={m.icon}>{status}</StatusBadge>; };
 const PriorityTag = ({ priority }: { priority: Requisition['priority'] }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{priority}</StatusBadge>; };
-const SectionTag = ({ section }: { section: Requisition['section'] }) => <StatusBadge tone={section === 'Electrical' ? 'warning' : 'info'} icon={section === 'Electrical' ? 'electrical' : 'mechanical'}>{section}</StatusBadge>;
 
 const newItem = (): RequisitionItem => ({ description: '', costPerUnit: 0, quantity: 1, reason: '' });
 type Form = { date: string; requester: string; section: Requisition['section']; required_for: string; priority: Requisition['priority']; status: Requisition['status']; requisitionNumber: string; items: RequisitionItem[]; notes: string };
@@ -152,7 +148,7 @@ function DetailDialog({ req, onClose, onEdit, onDelete }: { req: Requisition | n
       open={!!req}
       onOpenChange={open => { if (!open) onClose(); }}
       title={req ? `Requisition ${req.requisitionNumber}` : 'Requisition'}
-      description={req ? `${req.requester}, ${fmtDate(req.date)}` : undefined}
+      description={req ? `${req.requester}, ${formatDate(req.date)}` : undefined}
       size="lg"
       footer={req && (
         <>
@@ -164,13 +160,13 @@ function DetailDialog({ req, onClose, onEdit, onDelete }: { req: Requisition | n
     >
       {req && (
         <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2"><StatusTag status={req.status} /><PriorityTag priority={req.priority} /><SectionTag section={req.section} /><StatusBadge tone="success">{formatCurrency(total)}</StatusBadge></div>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div><dt className="font-sans text-caption text-ink-muted">Requester</dt><dd className="mt-0.5 font-sans text-body text-ink">{req.requester}</dd></div>
-            <div><dt className="font-sans text-caption text-ink-muted">Date</dt><dd className="mt-0.5 font-sans text-body text-ink">{fmtDate(req.date)}</dd></div>
-            <div><dt className="font-sans text-caption text-ink-muted">Required for</dt><dd className="mt-0.5 font-sans text-body text-ink">{req.required_for || 'Not specified'}</dd></div>
-            <div><dt className="font-sans text-caption text-ink-muted">Reference</dt><dd className="mt-0.5 font-sans text-body text-ink tabular">#{req.lineNumber}</dd></div>
-          </dl>
+          <div className="flex flex-wrap gap-2"><StatusTag status={req.status} /><PriorityTag priority={req.priority} /><SectionBadge section={req.section} /><StatusBadge tone="success">{formatCurrency(total)}</StatusBadge></div>
+          <FactList>
+            <Fact label="Requester">{req.requester}</Fact>
+            <Fact label="Date">{formatDate(req.date)}</Fact>
+            <Fact label="Required for">{req.required_for || 'Not specified'}</Fact>
+            <Fact label="Reference">#{req.lineNumber}</Fact>
+          </FactList>
           <DataTable caption="Requisition items" rows={req.items.map((i, n) => ({ ...i, id: String(n) }))} columns={itemColumns} getRowId={i => i.id} density="compact" />
           <p className="text-right font-sans text-body text-ink">Total: <span className="font-semibold tabular">{formatCurrency(total)}</span></p>
           {req.notes && <div><h3 className="font-sans text-caption text-ink-muted">Notes</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{req.notes}</p></div>}
@@ -193,7 +189,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function RequisitionsContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { reqs, loading, loaded, error, errorStatus, refetch } = useRequisitionsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
@@ -229,15 +225,14 @@ function RequisitionsContent() {
 
   const openEditor = (r?: Requisition) => { setViewing(null); setEditing(r); setDialogOpen(true); };
   const remove = async (r: Requisition) => {
-    if (!await confirm({ title: `Delete requisition ${r.requisitionNumber}?`, message: 'This cannot be undone. Only managers can delete requisitions.', confirmLabel: 'Delete', destructive: true })) return;
-    try { await apiDelete(r.id); setViewing(null); toast.success('Requisition deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: `Delete requisition ${r.requisitionNumber}?`, message: 'This cannot be undone. Only managers can delete requisitions.', what: 'The requisition', run: async () => { await apiDelete(r.id); setViewing(null); }, done: 'Requisition deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<Requisition>[] = [
     { id: 'requisitionNumber', header: 'Req #', sortable: true, sticky: true, cell: r => <span className="whitespace-nowrap tabular">{r.requisitionNumber}<span className="ml-2 text-ink-muted">#{r.lineNumber}</span></span> },
-    { id: 'date', header: 'Date', sortable: true, hideBelow: 'md', cell: r => <span className="whitespace-nowrap tabular">{fmtDate(r.date)}</span> },
+    { id: 'date', header: 'Date', sortable: true, hideBelow: 'md', cell: r => <span className="whitespace-nowrap tabular">{formatDate(r.date)}</span> },
     { id: 'requester', header: 'Requester', sortable: true, cell: r => r.requester },
-    { id: 'section', header: 'Section', sortable: true, hideBelow: 'lg', cell: r => <SectionTag section={r.section} /> },
+    { id: 'section', header: 'Section', sortable: true, hideBelow: 'lg', cell: r => <SectionBadge section={r.section} /> },
     { id: 'priority', header: 'Priority', sortable: true, hideBelow: 'md', cell: r => <PriorityTag priority={r.priority} /> },
     { id: 'status', header: 'Status', sortable: true, cell: r => <StatusTag status={r.status} /> },
     { id: 'cost', header: 'Cost', sortable: true, numeric: true, cell: r => formatCurrency(itemTotal(r.items)) },
@@ -247,11 +242,11 @@ function RequisitionsContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Requisitions' }]}
-        title="Purchase requisitions"
+        title="Requisitions"
         description="Raise, track and approve purchase requests."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh requisitions" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh requisitions" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -331,7 +326,7 @@ function RequisitionsContent() {
             </ChartPanel>
             <ChartPanel title="By priority" summary={`By priority: ${byPriority.map(r => `${r.name} ${r.value}`).join(', ') || 'no data'}.`}><Distribution rows={byPriority} /></ChartPanel>
             <ChartPanel title="Section split" summary={`By section: ${bySection.map(r => `${r.name} ${r.value} worth ${formatCurrency(r.cost)}`).join('; ')}.`}>
-              <ul className="flex flex-col gap-2">{bySection.map(r => <li key={r.name} className="flex items-center justify-between gap-3"><SectionTag section={r.name} /><span className="font-sans text-body-sm tabular text-ink">{r.value} · {formatCurrency(r.cost)}</span></li>)}</ul>
+              <ul className="flex flex-col gap-2">{bySection.map(r => <li key={r.name} className="flex items-center justify-between gap-3"><SectionBadge section={r.name} /><span className="font-sans text-body-sm tabular text-ink">{r.value} · {formatCurrency(r.cost)}</span></li>)}</ul>
             </ChartPanel>
             <ChartPanel title="Value summary" summary={`Total ${formatCurrency(stats.value)}, average ${formatCurrency(stats.total ? stats.value / stats.total : 0)}, pending ${formatCurrency(sum(filtered.filter(r => r.status === 'Pending')))}, approved ${formatCurrency(sum(filtered.filter(r => r.status === 'Approved')))}.`}>
               <dl className="flex flex-col gap-2 font-sans text-body-sm">

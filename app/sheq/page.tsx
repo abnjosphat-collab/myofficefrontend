@@ -190,12 +190,12 @@ function SheqContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ dashboard' }]}
-        title="SHEQ safety dashboard"
+        title="SHEQ"
         description="Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu."
         actions={(
           <>
             <Button variant={autoRefresh ? "secondary" : "ghost"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
-            <IconButton icon="refresh" label="Refresh dashboard" variant="ghost" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
+            <IconButton icon="refresh" label="Refresh dashboard" variant="shell" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
           </>
         )}
       />

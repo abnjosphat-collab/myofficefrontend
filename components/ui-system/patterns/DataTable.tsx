@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
+import { IconButton } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { nextSort, selectionState, toggleAllVisible, toggleOne, type SortState } from './tableLogic';
 
@@ -37,6 +38,12 @@ export interface DataTableProps<T> {
   rowActions?: (row: T) => ReactNode;
   density?: 'comfortable' | 'compact';
   className?: string;
+  /**
+   * The records behind a row, shown beneath it when the row is opened (one open at a time). Adds a trailing
+   * toggle column; `expandLabel` names that toggle, e.g. "Show the records for Pump failure".
+   */
+  renderExpanded?: (row: T) => ReactNode;
+  expandLabel?: (row: T, open: boolean) => string;
 }
 
 /**
@@ -47,8 +54,11 @@ export interface DataTableProps<T> {
  */
 export function DataTable<T>({
   rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, onRowActivate, rowActions, density = 'comfortable', className,
+  renderExpanded, expandLabel,
 }: DataTableProps<T>) {
   const ids = useMemo(() => rows.map(getRowId), [rows, getRowId]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const span = columns.length + (selected && onSelectedChange ? 1 : 0) + (rowActions ? 1 : 0) + (renderExpanded ? 1 : 0);
   const selectable = Boolean(selected && onSelectedChange);
   const state = selected ? selectionState(ids, selected) : 'none';
   const pad = density === 'compact' ? 'px-3 py-1.5' : 'px-3.5 py-2.5';
@@ -100,6 +110,7 @@ export function DataTable<T>({
               );
             })}
             {rowActions && <th scope="col" className="sticky top-0 z-[var(--mo-z-sticky)] w-px border-b border-line bg-surface-subtle px-3.5 py-2"><span className="sr-only">Actions</span></th>}
+            {renderExpanded && <th scope="col" className="sticky top-0 z-[var(--mo-z-sticky)] w-px border-b border-line bg-surface-subtle px-2 py-2"><span className="sr-only">Details</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -107,9 +118,10 @@ export function DataTable<T>({
             const id = ids[index];
             const isSelected = selected?.has(id) ?? false;
             const cell = cn('border-b border-line-subtle', pad, isSelected ? 'bg-action-soft/60' : 'bg-surface group-hover:bg-surface-subtle');
+            const open = openId === id;
             return (
+              <Fragment key={id}>
               <tr
-                key={id}
                 data-selected={isSelected || undefined}
                 onClick={onRowActivate ? () => onRowActivate(row) : undefined}
                 className={cn('group', onRowActivate && 'cursor-pointer')}
@@ -125,7 +137,23 @@ export function DataTable<T>({
                   </td>
                 ))}
                 {rowActions && <td className={cn(cell, 'w-px whitespace-nowrap')} onClick={event => event.stopPropagation()}>{rowActions(row)}</td>}
+                {renderExpanded && (
+                  <td className={cn(cell, 'w-px px-2')} onClick={event => event.stopPropagation()}>
+                    <IconButton
+                      icon={open ? 'chevron-up' : 'chevron-down'}
+                      size="sm"
+                      label={expandLabel?.(row, open) ?? `${open ? 'Hide' : 'Show'} details for row ${index + 1}`}
+                      tooltip={false}
+                      aria-expanded={open}
+                      onClick={() => setOpenId(open ? null : id)}
+                    />
+                  </td>
+                )}
               </tr>
+              {renderExpanded && open && (
+                <tr><td colSpan={span} className="border-b border-line-subtle bg-surface-subtle px-4 py-3">{renderExpanded(row)}</td></tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

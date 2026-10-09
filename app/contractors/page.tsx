@@ -4,11 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Progress, Rating,
-  RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows,
-  useViewPreference, type Column, type SortState,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Contractor, CStatus, Job } from './types';
@@ -55,14 +51,14 @@ function ContractorDetails({ contractor, onClose }: { contractor: Contractor | n
     <Dialog open={contractor !== null} onOpenChange={open => { if (!open) onClose(); }} title={contractor?.company ?? 'Contractor'} description={contractor ? [contractor.trade, contractor.contact].filter(Boolean).join(' · ') : undefined} size="md">
       {contractor && (
         <div className="flex flex-col gap-5">
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 font-sans text-body sm:grid-cols-2">
-            <div><dt className="text-caption text-ink-muted">Status</dt><dd className="mt-1"><StatusTag status={contractor.status} /></dd></div>
-            <div><dt className="text-caption text-ink-muted">Rating</dt><dd className="mt-1 flex items-center gap-2"><Rating value={contractor.rating} /><span className="text-ink-muted">{contractor.rating} of 5</span></dd></div>
-            <div><dt className="text-caption text-ink-muted">Phone</dt><dd className="mt-1 text-ink">{contractor.phone || 'Not set'}</dd></div>
-            <div><dt className="text-caption text-ink-muted">Trade</dt><dd className="mt-1 text-ink">{contractor.trade || 'Unspecified'}</dd></div>
-            <div><dt className="text-caption text-ink-muted">Contract expiry</dt><dd className="mt-1 text-ink"><Expiry date={contractor.contractExpiry} /></dd></div>
-            <div><dt className="text-caption text-ink-muted">Insurance expiry</dt><dd className="mt-1 text-ink"><Expiry date={contractor.insuranceExpiry} /></dd></div>
-          </dl>
+          <FactList>
+            <Fact label="Status"><StatusTag status={contractor.status} /></Fact>
+            <Fact label="Rating"><Rating value={contractor.rating} /><span className="text-ink-muted">{contractor.rating} of 5</span></Fact>
+            <Fact label="Phone">{contractor.phone || 'Not set'}</Fact>
+            <Fact label="Trade">{contractor.trade || 'Unspecified'}</Fact>
+            <Fact label="Contract expiry"><Expiry date={contractor.contractExpiry} /></Fact>
+            <Fact label="Insurance expiry"><Expiry date={contractor.insuranceExpiry} /></Fact>
+          </FactList>
           <section>
             <h3 className="mb-2 font-display text-title font-semibold text-ink">Active jobs</h3>
             <JobsList jobs={contractor.jobs} />

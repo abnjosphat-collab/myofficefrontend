@@ -126,11 +126,11 @@ function ComplianceRegisterContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Compliance register' }]}
-        title="Statutory compliance register"
+        title="Compliance register"
         description="Regulatory certificates and inspection tracking."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh register" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh register" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {displayed.length > 0 && (
               <DownloadButton
                 data={displayed as unknown as Record<string, unknown>[]}

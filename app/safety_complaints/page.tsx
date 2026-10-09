@@ -5,11 +5,7 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
-  SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus,
-  sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, FilterField
-} from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
@@ -18,6 +14,7 @@ import { formatDate } from '@/lib/format';
 import type { Complaint } from './types';
 import { api, useSafetyComplaintsData } from './useSafetyComplaintsData';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const CATEGORIES = ['Safety', 'Health', 'Environment', 'Quality', 'General', 'Other'];
 const SECTIONS = ['Mechanical', 'Electrical', 'General'];
@@ -96,10 +93,6 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-sans text-body text-ink">{children}</dd></div>;
-}
-
 function DetailDialog({ complaint, onClose, onEdit, onDelete }: { complaint: Complaint | null; onClose: () => void; onEdit: (c: Complaint) => void; onDelete: (c: Complaint) => void }) {
   return (
     <Dialog
@@ -119,7 +112,7 @@ function DetailDialog({ complaint, onClose, onEdit, onDelete }: { complaint: Com
       {complaint && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2"><StatusTag status={complaint.status} /><PriorityTag priority={complaint.priority} /></div>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FactList>
             <Fact label="Date">{formatDate(complaint.date)}</Fact>
             <Fact label="Raised by">{complaint.raisedBy || 'Anonymous'}</Fact>
             <Fact label="Category">{complaint.category}</Fact>
@@ -129,7 +122,7 @@ function DetailDialog({ complaint, onClose, onEdit, onDelete }: { complaint: Com
             <Fact label="Due date">{complaint.byWhen ? formatDate(complaint.byWhen) : 'Not set'}</Fact>
             <Fact label="Supervisor">{complaint.supervisorName || 'Not set'}{complaint.supervisorSignature ? ` (${complaint.supervisorSignature})` : ''}</Fact>
             {complaint.dateClosed && <Fact label="Date closed">{formatDate(complaint.dateClosed)}</Fact>}
-          </dl>
+          </FactList>
           <div><h3 className="font-sans text-caption text-ink-muted">Issue raised</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{complaint.issueRaised}</p></div>
           {complaint.actionPlan && <div><h3 className="font-sans text-caption text-ink-muted">Action plan</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{complaint.actionPlan}</p></div>}
         </div>
@@ -212,7 +205,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function SafetyComplaintsContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { complaints, loading, loaded, error, errorStatus, refetch } = useSafetyComplaintsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
@@ -257,8 +250,7 @@ function SafetyComplaintsContent() {
 
   const openEditor = (c?: Complaint) => { setViewing(null); setEditing(c); setDialogOpen(true); };
   const remove = async (c: Complaint) => {
-    if (!await confirm({ title: 'Delete this complaint?', message: `${c.category}, ${formatDate(c.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await api.remove(c.id); setViewing(null); toast.success('Complaint deleted.'); await refetch(); } catch (e) { toast.error((e as Error).message); }
+    await confirmDelete({ title: 'Delete this complaint?', message: `${c.category}, ${formatDate(c.date)}. This cannot be undone.`, what: 'The complaint', run: async () => { await api.remove(c.id); setViewing(null); }, done: 'Complaint deleted.', after: () => refetch() });
   };
 
   const COLUMNS: Column<Complaint>[] = [
@@ -283,7 +275,7 @@ function SafetyComplaintsContent() {
         description="Register, track and resolve safety complaints with full accountability."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh complaints" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh complaints" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}

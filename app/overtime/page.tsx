@@ -5,12 +5,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge,
-  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useConfirm, useViewPreference,
-  type Column, type SortState, FilterField, MoreMenu,
-  LoadingPulse,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, MoreMenu, LoadingPulse } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -27,6 +22,8 @@ import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeM
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { WeeklySummary } from './WeeklySummary';
 import { bulkUpdateOTStatus, createOT, deleteOT, updateOT, useOvertime } from './useOvertimeData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'employee_name', label: 'Employee', width: 20 }, { key: 'employee_id', label: 'ID', width: 20 }, { key: 'position', label: 'Position', width: 20 },
@@ -47,7 +44,7 @@ function Badges({ r }: { r: OTRecord }) {
 }
 
 function OvertimeContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const employees = useEmployees();
   const list = useOvertime();
   const records = list.items;
@@ -64,13 +61,16 @@ function OvertimeContent() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [gate, setGate] = useState<{ kind: 'approve' | 'reject'; ids: string[] } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const register = useRegisterCheck();
+  const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const set = (patch: Partial<OTFilters>) => { setFilters(f => ({ ...f, ...patch })); setPage(1); };
   const employeeIds = useMemo(() => people.map(p => p.employee_id), [people]);
   const effective = useMemo<OTFilters>(() => ({ ...filters, employeeIds }), [filters, employeeIds]);
-  const filtered = isFiltered(effective);
+  const filtered = unmatchedOnly || isFiltered(effective);
 
   const viewing = useMemo(() => records.find(r => String(r.id) === viewingId) ?? null, [records, viewingId]);
-  const matches = useMemo(() => filterRecords(records, effective, order), [records, effective, order]);
+  const unmatched = useMemo(() => records.filter(r => register.matchOf(r) !== 'linked'), [records, register]);
+  const matches = useMemo(() => filterRecords(unmatchedOnly ? unmatched : records, effective, order), [records, unmatched, unmatchedOnly, effective, order]);
   const rows = useMemo(() => sortRows(matches, sort, (r, id) => (id === 'hours' ? recordHours(r) : id === 'date' ? r.date : id === 'employee' ? r.employee_name.toLowerCase() : String(r[id as keyof OTRecord] ?? '').toLowerCase())), [matches, sort]);
   const visible = pageSlice(rows, page, pageSize);
   const stats = useMemo(() => summarise(records), [records]);
@@ -81,7 +81,7 @@ function OvertimeContent() {
   const gateRecords = useMemo(() => (gate ? records.filter(r => gate.ids.includes(String(r.id))) : []), [gate, records]);
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: matches.length, transient: isTransientStatus(list.errorStatus) });
   const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
-  const clear = () => { setFilters(NO_FILTERS); setPeople([]); setPage(1); };
+  const clear = () => { setFilters(NO_FILTERS); setPeople([]); setUnmatchedOnly(false); setPage(1); };
   const toggleMonth = (m: (typeof months)[number]) => (activeMonth === m.key ? set({ from: '', to: '' }) : set({ from: m.from, to: m.to }));
   const togglePerson = (id: string, name: string) => { if (!id) return; setPeople(p => (p.some(x => x.employee_id === id) ? p.filter(x => x.employee_id !== id) : [...p, { employee_id: id, name }])); setPage(1); };
 
@@ -91,9 +91,7 @@ function OvertimeContent() {
     else { await createOT(payload); toast.success('Overtime request submitted.'); await list.refetch(); }
   };
   const remove = async (r: OTRecord) => {
-    if (!await confirm({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteOT(r.id); setViewingId(null); toast.success('Request deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`The request was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteOT(r.id); setViewingId(null); }, done: 'Request deleted.', after: () => list.refetch() });
   };
   const decide = async (sig: SignatureResult) => {
     if (!gate) return;
@@ -124,7 +122,7 @@ function OvertimeContent() {
     </span>
   );
   const COLUMNS: Column<OTRecord>[] = [
-    { id: 'employee', header: 'Employee', sortable: true, sticky: true, cell: r => <div className="min-w-0"><p className="font-medium text-ink">{r.employee_name}</p><p className="text-caption text-ink-muted">{[r.employee_id, r.position].filter(Boolean).join(', ')}</p></div> },
+    { id: 'employee', header: 'Employee', sortable: true, sticky: true, cell: r => <div className="min-w-0"><p className="font-medium text-ink">{r.employee_name}</p><p className="text-caption text-ink-muted">{[r.employee_id, r.position].filter(Boolean).join(', ')}</p><RegisterFlag match={register.matchOf(r)} /></div> },
     { id: 'type', header: 'Type', cell: r => <div className="flex flex-wrap gap-1"><Badges r={r} /></div> },
     { id: 'cost', header: 'Cost centre', hideBelow: 'lg', cell: r => <span className="text-ink-muted">{overtimeCostCentre(r)}</span> },
     { id: 'date', header: 'Date', sortable: true, cell: r => <div className="whitespace-nowrap"><p className="tabular">{fmtDate(r.date)}</p><p className="text-caption text-ink-muted tabular">{timeSpan(r)}</p></div> },
@@ -141,7 +139,7 @@ function OvertimeContent() {
         description="Submit overtime, approve it with a signature, and see where the hours go."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh overtime" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
             <MoreMenu items={[{ label: 'Bulk entry', icon: 'employees', disabled: !list.loaded, onSelect: () => setBulkOpen(true) }]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
@@ -199,6 +197,8 @@ function OvertimeContent() {
             </div>
           )}
 
+          <RegisterNotice count={unmatched.length} noun="overtime request" only={unmatchedOnly} onToggle={() => { setUnmatchedOnly(v => !v); setPage(1); }} />
+
           <DataRegion
             status={status} subject="overtime requests" error={list.error} onRetry={() => list.refetch()}
             empty={filtered
@@ -214,7 +214,7 @@ function OvertimeContent() {
                     <li key={String(r.id)} className="relative">
                       <RecordCard
                         eyebrow={fmtDate(r.date)} title={r.employee_name} subtitle={[r.employee_id, r.position].filter(Boolean).join(', ')} openLabel={`Open the request from ${r.employee_name}, ${fmtDate(r.date)}`} onOpen={() => setViewingId(String(r.id))}
-                        status={<StatusBadge tone={s.tone}>{s.label}</StatusBadge>}
+                        status={<><StatusBadge tone={s.tone}>{s.label}</StatusBadge><RegisterFlag match={register.matchOf(r)} /></>}
                         facts={[{ label: 'Type', value: <span className="flex flex-wrap gap-1"><Badges r={r} /></span> }, { label: 'Time', value: <span className="tabular">{timeSpan(r)}{h > 0 && <span className="font-semibold">, {h.toFixed(1)}h</span>}</span> }, { label: 'Cost centre', value: overtimeCostCentre(r) }, ...(r.reason ? [{ label: 'Reason', value: <span className="line-clamp-2">{r.reason}</span> }] : [])]}
                         action={actionsOf(r)}
                       />

@@ -132,7 +132,7 @@ try{
   phase('checking progressive equipment delivery');
   slowHistory=true;
   await page.reload({waitUntil:'domcontentloaded',timeout:120_000});
-  await waitForText('Loading overview');
+  await waitForText('Available now'); // the overview no longer waits for history: it shows while history is still held back
   await page.getByRole('button',{name:'Equipment',exact:true}).first().click();
   await page.getByRole('button',{name:'View Torque wrench',exact:true}).first().waitFor({state:'visible',timeout:4000});
   await page.getByRole('button',{name:'History',exact:true}).first().click();
@@ -201,7 +201,7 @@ try{
     return {outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,boxShadow:style.boxShadow,borderColor:style.borderColor};
   });
   const measureRow=async locators=>{const boxes=[];for(const locator of locators)boxes.push(await locator.boundingBox());return boxes;};
-  const headerBoxes=await measureRow([page.getByRole('button',{name:/tool notifications/i}).first(),page.getByRole('button',{name:'Open settings',exact:true}).first(),page.getByRole('button',{name:/Account:/}).first(),page.getByRole('button',{name:'Department'}).first()]);
+  const headerBoxes=await measureRow([page.getByRole('button',{name:/tool notifications/i}).first(),page.getByRole('button',{name:'Open settings',exact:true}).first(),page.getByRole('button',{name:/Account:/}).first(),page.getByRole('combobox',{name:'Department'}).first()]);
   const headerAligned=headerBoxes.every(box=>box&&Math.round(box.height)===36)&&new Set(headerBoxes.map(box=>Math.round(box.y))).size===1;
   const toolbarSearchBox=await page.getByRole('button',{name:'Expand search',exact:true}).locator('xpath=following-sibling::div').boundingBox();
   const toolbarBoxes=[toolbarSearchBox,await page.getByRole('button',{name:'Open filter and sort controls'}).boundingBox(),await page.locator('div[aria-label="View options"]').boundingBox()];
@@ -264,7 +264,7 @@ try{
   const issueDialog=page.getByRole('dialog');
   const employeeInput=issueDialog.getByRole('combobox',{name:'Employee'});
   await employeeInput.click();
-  const employeeOption=page.getByRole('option',{name:'Tariro Moyo · E-001',exact:true});
+  const employeeOption=page.getByRole('option',{name:/^Tariro Moyo\b/});
   await employeeOption.waitFor({state:'visible'});
   const suggestionPointerEvents=await employeeOption.evaluate(element=>getComputedStyle(element).pointerEvents);
   await employeeOption.click();

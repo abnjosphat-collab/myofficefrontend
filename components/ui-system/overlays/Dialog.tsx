@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, type ReactNode } from 'react';
+import { useRef, type HTMLAttributes, type ReactNode } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
@@ -51,7 +51,21 @@ export interface DialogProps extends VariantProps<typeof panelVariants> {
   /** Intercept every close attempt (Escape, outside, ✕). Call onOpenChange(false) yourself to proceed. */
   onRequestClose?: () => void;
   className?: string;
+  /** Start with focus on the title, so a long form is announced from its name before its first field. */
+  focusTitle?: boolean;
+  /** A surface that dresses dialogs its own way (the Tools workspace). See DialogSkin. */
+  skin?: DialogSkin;
 }
+
+/**
+ * Class names that replace the default look, slot by slot, while the behaviour (focus trap, focus return,
+ * dismissal rules, scroll lock, aria wiring) stays this component's. `attrs` reach the panel element.
+ */
+export type DialogSkin = {
+  overlay: string; panel: string; header: string; title: string; description: string; body: string; close: string;
+  closeIcon: ReactNode;
+  attrs?: HTMLAttributes<HTMLDivElement> & { [key: `data-${string}`]: string | undefined };
+};
 
 /**
  * The one dialog. Replaces CenterModal / ToolsDialog / ui/dialog usage.
@@ -60,9 +74,10 @@ export interface DialogProps extends VariantProps<typeof panelVariants> {
  * body between a fixed header and footer, and responsive sizing.
  */
 export function Dialog({
-  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className,
+  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className, focusTitle = false, skin,
 }: DialogProps) {
   const opener = useRef<HTMLElement | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const attemptClose = (next: boolean) => {
     if (next) { onOpenChange(true); return; }
     if (!dismissible) return;
@@ -72,10 +87,14 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={attemptClose}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--mo-z-overlay)] bg-[var(--mo-overlay)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]" />
+        <DialogPrimitive.Overlay className={skin?.overlay ?? 'fixed inset-0 z-[var(--mo-z-overlay)] bg-[var(--mo-overlay)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]'} />
         <DialogPrimitive.Content
-          className={cn(panelVariants({ placement, size }), className)}
-          onOpenAutoFocus={() => { opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
+          className={skin ? cn(skin.panel, className) : cn(panelVariants({ placement, size }), className)}
+          {...skin?.attrs}
+          onOpenAutoFocus={event => {
+            opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            if (focusTitle) { event.preventDefault(); titleRef.current?.focus(); }
+          }}
           onCloseAutoFocus={event => {
             const target = opener.current;
             if (target?.isConnected) { event.preventDefault(); target.focus(); }
@@ -88,22 +107,24 @@ export function Dialog({
             if (target?.closest('[data-radix-popper-content-wrapper], [data-radix-select-content], [role="listbox"], [role="menu"], [cmdk-root]')) event.preventDefault();
           }}
         >
-          <header className="flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6">
-            <div className="min-w-0 flex-1">
-              <DialogPrimitive.Title className={cn(type.sectionTitle, 'tracking-tight')}>{title}</DialogPrimitive.Title>
+          <header className={skin?.header ?? 'flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6'}>
+            <div className={skin ? undefined : 'min-w-0 flex-1'}>
+              <DialogPrimitive.Title ref={titleRef} tabIndex={focusTitle ? -1 : undefined} className={skin?.title ?? cn(type.sectionTitle, 'tracking-tight outline-none')}>{title}</DialogPrimitive.Title>
               {description ? (
-                <DialogPrimitive.Description className="mt-1 font-sans text-body-sm text-ink-muted">{description}</DialogPrimitive.Description>
+                <DialogPrimitive.Description className={skin?.description ?? 'mt-1 font-sans text-body-sm text-ink-muted'}>{description}</DialogPrimitive.Description>
               ) : (
                 <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>
               )}
             </div>
             {dismissible && (
               <DialogPrimitive.Close asChild>
-                <IconButton icon="close" label="Close dialog" size="md" className="-mr-2 -mt-1" />
+                {skin
+                  ? <button type="button" className={skin.close} aria-label="Close dialog">{skin.closeIcon}</button>
+                  : <IconButton icon="close" label="Close dialog" size="md" className="-mr-2 -mt-1" tooltip={false} />}
               </DialogPrimitive.Close>
             )}
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">{children}</div>
+          <div className={skin?.body ?? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6'}>{children}</div>
           {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line-subtle px-5 py-3.5 sm:px-6">{footer}</footer>}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

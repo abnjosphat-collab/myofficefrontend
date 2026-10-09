@@ -39,15 +39,15 @@ export { Rating } from './primitives/Rating';
 export { Progress } from './primitives/Progress';
 
 // Overlays
-export { Dialog } from './overlays/Dialog';
+export { Dialog, type DialogSkin } from './overlays/Dialog';
 export type { DialogProps } from './overlays/Dialog';
 export { Drawer } from './overlays/Drawer';
 export { ConfirmProvider, useConfirm } from './overlays/Confirm';
 export type { ConfirmOptions, ConfirmFn } from './overlays/Confirm';
 export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose } from './overlays/Popover';
-export { Tooltip, TooltipProvider, HelpHint } from './overlays/Tooltip';
+export { Tooltip, TooltipProvider, HelpHint, type TooltipSkin } from './overlays/Tooltip';
 export { Select } from './overlays/Select';
-export type { SelectOption, SelectProps } from './overlays/Select';
+export type { SelectOption, SelectProps, SelectSkin } from './overlays/Select';
 export { Combobox } from './overlays/Combobox';
 export type { ComboboxOption, ComboboxProps } from './overlays/Combobox';
 export { floatingSurface, optionRow } from './overlays/surfaces';
@@ -60,6 +60,7 @@ export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';
+export { Fact, FactList } from './patterns/Fact';
 export { DataTable } from './patterns/DataTable';
 export type { Column, DataTableProps } from './patterns/DataTable';
 export { Pagination } from './patterns/Pagination';

@@ -155,7 +155,7 @@ function Directory({ caller }: { caller: UserProfile }) {
         description="User roles. Permissions are determined entirely by role."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh users" variant="ghost" pending={loading && loaded} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh users" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button asChild variant="ghost"><Link href="/admin/lists">Manage shared lists</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setInviteOpen(true)}>Invite user</Button>
           </>

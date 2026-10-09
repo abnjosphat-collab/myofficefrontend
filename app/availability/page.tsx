@@ -104,13 +104,13 @@ function AvailabilityContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Availability' }]}
-        title="Equipment availability"
+        title="Availability overview"
         description="Availability = (operating hours − breakdown hours) ÷ operating hours × 100."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh availability" variant="ghost" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
+            <IconButton icon="refresh" label="Refresh availability" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[meta(row.status as Equipment['status']).tone]} />}
-            <Button asChild><Link href="/breakdowns">Breakdowns</Link></Button>
+            <Button asChild variant="primary"><Link href="/breakdowns">Report breakdown</Link></Button>
           </>
         )}
       />
@@ -158,8 +158,8 @@ function AvailabilityContent() {
             <DataTable caption="Equipment availability" rows={rows} columns={OVERVIEW} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort}
               rowActions={e => (
                 <span className="inline-flex gap-1">
-                  <Button asChild size="sm"><Link href={`/breakdowns?equipment=${e.id}`} aria-label={`View breakdowns for ${e.name}`}>Breakdowns</Link></Button>
-                  <Button asChild size="sm"><Link href={`/maintenance?equipment=${e.id}`} aria-label={`View maintenance for ${e.name}`}>Maintenance</Link></Button>
+                  <Button asChild size="sm"><Link href={`/breakdowns?q=${encodeURIComponent(e.name)}`} aria-label={`View breakdowns for ${e.name}`}>Breakdowns</Link></Button>
+                  <Button asChild size="sm"><Link href={`/maintenance?q=${encodeURIComponent(e.name)}`} aria-label={`View maintenance for ${e.name}`}>Maintenance</Link></Button>
                 </span>
               )} />
           </TabsContent>
@@ -203,11 +203,6 @@ function AvailabilityContent() {
         </DataRegion>
       </Tabs>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button asChild><Link href="/equipment">Manage equipment</Link></Button>
-        <Button asChild variant="primary"><Link href="/breakdowns/new">Report breakdown</Link></Button>
-        <Button asChild><Link href="/reports/availability">Generate report</Link></Button>
-      </div>
     </div>
   );
 }

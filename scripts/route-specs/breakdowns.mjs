@@ -28,7 +28,7 @@ let failSave = false;
 
 const spec = {
   route: '/breakdowns',
-  h1: 'Equipment breakdowns',
+  h1: 'Breakdowns',
   data: {
     '/api/breakdowns/get-breakdowns': { data: RECS, count: RECS.length, success: true },
     '/api/breakdowns/': request => (failSave ? { __status: 422, body: { detail: 'Machine ID rejected (fixture)' } } : { id: 99, ...request.postDataJSON() }),

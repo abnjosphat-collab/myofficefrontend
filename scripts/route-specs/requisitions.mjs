@@ -10,7 +10,7 @@ const REQS = [
 ];
 const spec = {
   route: '/requisitions',
-  h1: 'Purchase requisitions',
+  h1: 'Requisitions',
   data: {
     '/api/requisitions': request => (request.method() === 'POST' ? { id: 9, requisition_items: [] } : REQS),
     'PATCH /api/requisitions/1': { id: 1, requisition_items: [] },

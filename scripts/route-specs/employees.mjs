@@ -15,7 +15,7 @@ let failNormalise = false;
 
 const spec = {
   route: '/employees',
-  h1: 'Personnel register',
+  h1: 'Personnel',
   data: {
     '/api/employees': request => (request.method() === 'POST' ? { id: 99, ...request.postDataJSON() } : EMPLOYEES),
     'PUT /api/employees/1': request => ({ ...EMPLOYEES[0], ...request.postDataJSON() }),
@@ -100,7 +100,7 @@ const spec = {
     await ro.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
 
     // registry download
-    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'More' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)' }).click(); })()]);
+    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'More' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)', exact: true }).click(); })()]);
     check(!!dl2 && /Personnel_Registry/.test(dl2.suggestedFilename()), 'the registry download produces a workbook', dl2?.suggestedFilename());
 
     // normalise: shows what it will change; a refused batch says so

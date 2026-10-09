@@ -22,6 +22,8 @@ import { LEAVE_TYPES, typeOf } from './leaveTypes';
 import type { Leave } from './types';
 import { bulkSetLeaveStatus, createLeave, deleteLeave, setLeaveStatus, updateLeave, useLeaves } from './useLeavesData';
 import { formatDate } from '@/lib/format';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
 const SORTS = [
   { value: 'date-desc', label: 'Newest first' }, { value: 'date-asc', label: 'Oldest first' }, { value: 'days-desc', label: 'Most days' },
@@ -40,6 +42,7 @@ const TypeTag = ({ type }: { type: string }) => { const t = typeOf(type); return
 
 function LeavesContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const list = useLeaves();
   const leaves = list.items;
   const [view, setView] = useViewPreference('leaves', VIEW_CARDS_TABLE);
@@ -50,10 +53,13 @@ function LeavesContent() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulk, setBulk] = useState<'approved' | 'rejected' | null>(null);
+  const register = useRegisterCheck();
+  const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const set = (patch: Partial<LeaveFilters>) => setF(p => ({ ...p, ...patch }));
 
   const viewing = useMemo(() => leaves.find(l => l.id === viewingId) ?? null, [leaves, viewingId]);
-  const filtered = useMemo(() => filterLeaves(leaves, f), [leaves, f]);
+  const unmatched = useMemo(() => leaves.filter(l => register.matchOf(l) !== 'linked'), [leaves, register]);
+  const filtered = useMemo(() => filterLeaves(unmatchedOnly ? unmatched : leaves, f), [leaves, unmatched, unmatchedOnly, f]);
   const stats = useMemo(() => statsFromLeaves(leaves, todayLocal()), [leaves]);
   const byType = useMemo(() => summariseByType(leaves, Object.keys(LEAVE_TYPES)), [leaves]);
   const byEmployee = useMemo(() => summariseByEmployee(leaves), [leaves]);
@@ -64,8 +70,8 @@ function LeavesContent() {
   const pending = list.loading && !list.loaded;
   const unavailable = !list.loaded && !list.loading;
   const tile = { loading: pending, unavailable };
-  const hasFilters = JSON.stringify({ ...f, sort: '' }) !== JSON.stringify({ ...NO_FILTERS, sort: '' });
-  const clear = () => setF(NO_FILTERS);
+  const hasFilters = unmatchedOnly || JSON.stringify({ ...f, sort: '' }) !== JSON.stringify({ ...NO_FILTERS, sort: '' });
+  const clear = () => { setF(NO_FILTERS); setUnmatchedOnly(false); };
 
   const openForm = (l: Leave | null) => { setViewingId(null); setEditing(l); setFormOpen(true); };
   const save = async (id: string | null, data: Partial<Leave>) => {
@@ -79,9 +85,7 @@ function LeavesContent() {
     catch (e) { toast.error(`The status was not changed: ${(e as Error).message}`); throw e; }
   };
   const remove = async (l: Leave) => {
-    if (!await confirm({ title: 'Delete this leave request?', message: `${l.employee_name}, ${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteLeave(l.id); setViewingId(null); toast.success('Leave request deleted.'); await list.refetch(); }
-    catch (e) { toast.error(`The request was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this leave request?', message: `${l.employee_name}, ${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteLeave(l.id); setViewingId(null); }, done: 'Leave request deleted.', after: () => list.refetch() });
   };
   const runBulk = async () => {
     if (!bulk) return;
@@ -94,7 +98,7 @@ function LeavesContent() {
   };
 
   const COLUMNS: Column<Leave>[] = [
-    { id: 'employee_name', header: 'Employee', sticky: true, cell: l => <div><p className="font-medium text-ink">{l.employee_name}</p><p className="text-caption text-ink-muted">{l.employee_id}</p></div> },
+    { id: 'employee_name', header: 'Employee', sticky: true, cell: l => <div><p className="font-medium text-ink">{l.employee_name}</p><p className="text-caption text-ink-muted">{l.employee_id}</p><RegisterFlag match={register.matchOf(l)} /></div> },
     { id: 'type', header: 'Type', hideBelow: 'md', cell: l => <TypeTag type={l.leave_type} /> },
     { id: 'dates', header: 'Dates', cell: l => <span className="whitespace-nowrap tabular">{fmtDate(l.start_date)} to {fmtDate(l.end_date)}</span> },
     { id: 'days', header: 'Days', numeric: true, hideBelow: 'md', cell: l => <span className="tabular">{daysText(l.total_days)}</span> },
@@ -106,11 +110,11 @@ function LeavesContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Time and attendance' }, { label: 'Leaves' }]}
-        title="Leave management"
+        title="Leaves"
         description="Apply for leave, review requests and record decisions."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh leave requests" variant="ghost" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
+            <IconButton icon="refresh" label="Refresh leave requests" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={['Leaves', f.search || null, f.status !== 'all' ? f.status : null, f.type !== 'all' ? f.type : null].filter(Boolean).join('_')} title="Leave Records" subtitle={[f.search && `Employee: ${f.search}`, f.status !== 'all' && `Status: ${f.status}`].filter(Boolean).join(' | ') || 'All records'} formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button>
           </>
@@ -161,6 +165,8 @@ function LeavesContent() {
             </div>
           )}
 
+          <RegisterNotice count={unmatched.length} noun="leave request" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} />
+
           <DataRegion
             status={status} subject="leave requests" error={list.error} onRetry={() => list.refetch()}
             empty={hasFilters
@@ -176,7 +182,7 @@ function LeavesContent() {
                     eyebrow={`${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}`}
                     title={l.employee_name}
                     subtitle={[l.position, l.employee_id].filter(Boolean).join(' · ')}
-                    status={<StatusTag status={l.status} />}
+                    status={<><StatusTag status={l.status} /><RegisterFlag match={register.matchOf(l)} /></>}
                     facts={[
                       { label: 'Type', value: <TypeTag type={l.leave_type} /> },
                       { label: 'Duration', value: <span className="font-semibold tabular">{daysText(l.total_days)}</span> },

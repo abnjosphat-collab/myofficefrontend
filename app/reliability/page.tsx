@@ -43,10 +43,10 @@ function ReliabilityContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Reliability' }]}
-        title="MTBF and MTTR analytics"
+        title="Reliability"
         description="Fleet reliability and availability, calculated from the breakdowns recorded in MyOffice."
         meta={loaded ? `Based on ${recordCount} recorded ${recordCount === 1 ? 'breakdown' : 'breakdowns'}.` : undefined}
-        actions={<IconButton icon="refresh" label="Refresh analytics" variant="ghost" pending={loading && loaded} onClick={refresh} />}
+        actions={<IconButton icon="refresh" label="Refresh analytics" variant="shell" pending={loading && loaded} onClick={refresh} />}
       />
 
       <DataRegion

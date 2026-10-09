@@ -21,6 +21,7 @@ import {
   countFolderFiles, createFolder, deleteDocument, deleteFolder, renameFolder, updateDocument, uploadDocument, useDocuments, useFolders,
 } from './useDocumentsData';
 import type { DocumentFile, FolderEntry } from './types';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const EXPORT_COLUMNS: DLColumn[] = [
@@ -31,6 +32,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function DocumentsContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [folder, setFolder] = useState<string | null>(null);
   const category = categoryId ? categoryById(categoryId) ?? null : null;
@@ -65,9 +67,7 @@ function DocumentsContent() {
     catch (e) { files.setItems(prev => prev.map(x => (x.id === d.id ? { ...x, starred: d.starred } : x))); toast.error(`The star was not saved: ${reason(e)}`); }
   };
   const remove = async (d: DocumentFile) => {
-    if (!await confirm({ title: 'Delete this file?', message: `${d.name} is removed from storage and cannot be recovered.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteDocument(d.id); setPreviewId(null); toast.success(`${d.name} deleted.`); await files.refetch(); }
-    catch (e) { toast.error(`${d.name} was not deleted: ${reason(e)}`); }
+    await confirmDelete({ title: 'Delete this file?', message: `${d.name} is removed from storage and cannot be recovered.`, what: `${d.name}`, run: async () => { await deleteDocument(d.id); setPreviewId(null); }, done: `${d.name} deleted.`, after: () => files.refetch() });
   };
   const removeMany = async (ds: DocumentFile[]) => {
     if (!await confirm({ title: `Delete ${ds.length} ${ds.length === 1 ? 'file' : 'files'}?`, message: `They are removed from storage and cannot be recovered. ${ds.slice(0, 3).map(d => d.name).join(', ')}${ds.length > 3 ? ` and ${ds.length - 3} more` : ''}.`, confirmLabel: `Delete ${ds.length}`, destructive: true })) return;
@@ -126,11 +126,11 @@ function DocumentsContent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Documents' }]}
-        title="Document hub"
+        title="Documents"
         description="ISO 55001 document management: find a document, or open a category and its folders."
         actions={category ? (
           <>
-            <IconButton icon="refresh" label="Refresh documents" variant="outline" pending={(files.loading && files.loaded) || (folders.loading && folders.loaded)} onClick={() => { files.refetch(); folders.refetch(); }} />
+            <IconButton icon="refresh" label="Refresh documents" variant="shell" pending={(files.loading && files.loaded) || (folders.loading && folders.loaded)} onClick={() => { files.refetch(); folders.refetch(); }} />
             {files.items.length > 0 && <DownloadButton data={files.items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Documents')} title="Document Hub" formats={['excel']} />}
             {!folder && <Button icon="plus" onClick={() => openName({ key: 'new-folder', title: 'New folder', description: `In ${category.name}`, label: 'Folder name', name: '', submitLabel: 'Create folder' }, { kind: 'new-folder' })} disabled={!folders.loaded && !folders.error}>New folder</Button>}
             <Button variant="primary" icon="upload" onClick={() => setUploading(true)}>Upload</Button>

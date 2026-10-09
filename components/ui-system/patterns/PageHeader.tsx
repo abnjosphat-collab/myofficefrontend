@@ -5,46 +5,69 @@ import Link from 'next/link';
 import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { Icon } from '../foundations/Icon';
-import { Button } from '../primitives/Button';
-import { CountBadge } from '../primitives/Badge';
+import { Button, IconButton } from '../primitives/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '../overlays/Popover';
+import { HelpHint } from '../overlays/Tooltip';
 
 export type Crumb = { label: string; href?: string };
 
 /**
- * Page title block: breadcrumbs, the single <h1>, an optional description and the
- * page's primary action(s). One primary action per view; secondary actions follow it.
+ * The trail worth showing: from the first crumb that links somewhere to the current page. Group names with no
+ * link only repeat the sidebar, and a final crumb that repeats the title says nothing new, so both are dropped.
+ */
+export function visibleCrumbs(breadcrumbs: Crumb[] | undefined, title: string): Crumb[] {
+  if (!breadcrumbs?.length) return [];
+  const first = breadcrumbs.findIndex(c => c.href);
+  if (first < 0) return [];
+  const trail = breadcrumbs.slice(first);
+  const last = trail[trail.length - 1];
+  return trail.length > 1 && !last.href && last.label.trim().toLowerCase() === title.trim().toLowerCase() ? trail.slice(0, -1) : trail;
+}
+
+/**
+ * Page title block, kept to one quiet row like the Tools top bar: the single <h1>, a hint icon holding the page's
+ * description (hidden with the "Helpful hints" preference), an optional small `meta` line for live facts, and the
+ * actions. Actions follow one rule: one primary button with a verb ("Add employee"), every other action an
+ * icon with a tooltip (refresh, download, more). A breadcrumb trail shows only when it links somewhere.
  */
 export function PageHeader({ title, description, breadcrumbs, actions, meta, className }: {
   title: string;
+  /** What the page is for. Shown behind the hint icon beside the title, not as a paragraph. */
   description?: ReactNode;
   breadcrumbs?: Crumb[];
   actions?: ReactNode;
-  /** Small supporting line: scope, last updated, record count. */
+  /** Small supporting line that stays visible: scope, period, last updated, record count. */
   meta?: ReactNode;
   className?: string;
 }) {
+  const crumbs = visibleCrumbs(breadcrumbs, title);
+  if (process.env.NODE_ENV !== 'production' && actions) {
+    const primaries = flatten(actions).filter(a => isValidElement<{ variant?: string }>(a) && a.props.variant === 'primary').length;
+    if (primaries > 1) console.warn(`PageHeader "${title}": ${primaries} primary actions. Keep one; make the rest icons or move them into More.`);
+  }
   return (
-    <header className={cn('flex flex-col gap-2 pb-1', className)}>
-      {breadcrumbs && breadcrumbs.length > 0 && (
+    <header className={cn('flex flex-col gap-1.5 pb-1', className)}>
+      {crumbs.length > 0 && (
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-1 font-sans text-caption text-ink-muted">
-            {breadcrumbs.map((crumb, index) => (
+            {crumbs.map((crumb, index) => (
               <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
                 {index > 0 && <Icon name="chevron-right" size="xs" />}
-                {crumb.href && index < breadcrumbs.length - 1
+                {crumb.href
                   ? <Link href={crumb.href} className="focus-ring rounded-xs hover:text-ink">{crumb.label}</Link>
-                  : <span aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{crumb.label}</span>}
+                  : <span>{crumb.label}</span>}
               </li>
             ))}
           </ol>
         </nav>
       )}
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 max-w-3xl">
-          <h1 className={type.pageTitle}>{title}</h1>
-          {description && <p className="mt-1 font-sans text-body text-ink-muted">{description}</p>}
-          {meta && <p className="mt-1 font-sans text-caption text-ink-muted">{meta}</p>}
+          <div className="flex items-center gap-1.5">
+            <h1 className={type.pageTitle}>{title}</h1>
+            {description && <HelpHint label={title}>{description}</HelpHint>}
+          </div>
+          {meta && <p className="mt-0.5 font-sans text-caption text-ink-muted">{meta}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -103,9 +126,13 @@ export function Toolbar({ children, trailing, className, inline = 1, filtered = 
           {rest.length > 0 && <div className="contents max-md:hidden">{rest}</div>}
           <Popover>
             <PopoverTrigger asChild>
-              <Button icon="filter" aria-label={activeCount > 0 ? `Filters, ${activeCount} active` : 'Filters'}>
-                Filters{activeCount > 0 && <CountBadge value={activeCount} tone="brand" />}
-              </Button>
+              <IconButton
+                icon="filter"
+                variant="outline"
+                label={activeCount > 0 ? `Filters, ${activeCount} active` : 'Filters'}
+                tooltip="Filters"
+                badge={activeCount > 0 ? activeCount : undefined}
+              />
             </PopoverTrigger>
             <PopoverContent className="flex w-80 flex-col gap-3 [&_button[role=combobox]]:w-full">
               {rest.length > 0 && <div className="flex flex-col gap-3 md:hidden">{rest}</div>}
@@ -124,9 +151,17 @@ export function Toolbar({ children, trailing, className, inline = 1, filtered = 
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         {visible}
         {rest.length > 0 && (
-          <Button className="sm:hidden" icon="filter" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(o => !o)}>
-            Filters{filtered && <span aria-label="applied" className="ml-0.5 size-1.5 rounded-full bg-action" />}
-          </Button>
+          <IconButton
+            className="sm:hidden"
+            icon="filter"
+            variant="outline"
+            label={filtered ? 'Filters, applied' : 'Filters'}
+            tooltip="Filters"
+            badge={filtered ? '' : undefined}
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen(o => !o)}
+          />
         )}
         <div id={panelId} className={cn(open ? 'max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:gap-2 max-sm:[&>*]:!w-full' : 'max-sm:hidden', 'sm:contents')}>{rest}</div>
         {clear}

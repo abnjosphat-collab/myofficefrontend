@@ -1,9 +1,9 @@
 'use client';
 
-import { createContext, useContext, useId, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
+import { createContext, useContext, useId, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import * as Tooltip from '@radix-ui/react-tooltip';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Dialog as SharedDialog, HelpHint, Tooltip as SharedTooltip, type DialogSkin, type TooltipSkin } from '@/components/ui-system';
 import { ToolsIcon as Icon } from './ToolsIcon';
 import { attachmentError, type Evidence } from './prototype';
 import s from './tools.module.css';
@@ -12,17 +12,24 @@ export type FontChoice = 'inter' | 'manrope' | 'jakarta';
 export type FontSizeChoice = number;
 export const ToolsPreferences = createContext({ font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, guidance: true });
 const scaleStyle = (fontSize: number) => ({ '--font-scale': fontSize / 100 } as CSSProperties);
+// Hints use the shared tooltip behaviour (ui-system) dressed in the workspace's own typeface and text size.
+const useHintSkin = (extra = ''): TooltipSkin => {
+  const prefs = useContext(ToolsPreferences);
+  return { className: `${s.surface} ${s.helpTip} ${extra}`.trim(), arrowClassName: s.helpArrow, attrs: { 'data-font': prefs.font, style: scaleStyle(prefs.fontSize) } };
+};
+
 export function Help({ label, children }: { label: string; children: ReactNode }) {
   const prefs = useContext(ToolsPreferences);
-  const [open, setOpen] = useState(false);
+  const skin = useHintSkin();
   if (!prefs.guidance) return null;
-  return <Tooltip.Provider delayDuration={250}><Tooltip.Root open={open} onOpenChange={setOpen}><Tooltip.Trigger asChild><button type="button" className={s.helpButton} aria-label={`Help: ${label}`} onClick={() => setOpen(v => !v)}><Icon name="info" size={16} /></button></Tooltip.Trigger><Tooltip.Portal><Tooltip.Content sideOffset={8} className={`${s.surface} ${s.helpTip}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{children}<Tooltip.Arrow className={s.helpArrow} /></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
+  return <HelpHint label={label} skin={skin} trigger={{ className: s.helpButton, icon: <Icon name="info" size={16} /> }}>{children}</HelpHint>;
 }
 
 export function ActionHint({ label, children }: { label: ReactNode; children: ReactElement }) {
   const prefs = useContext(ToolsPreferences);
+  const skin = useHintSkin(s.actionHelpTip);
   if (!prefs.guidance) return children;
-  return <Tooltip.Provider delayDuration={350}><Tooltip.Root><Tooltip.Trigger asChild>{children}</Tooltip.Trigger><Tooltip.Portal><Tooltip.Content side="bottom" align="center" sideOffset={9} className={`${s.surface} ${s.helpTip} ${s.actionHelpTip}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>{label}<Tooltip.Arrow className={s.helpArrow}/></Tooltip.Content></Tooltip.Portal></Tooltip.Root></Tooltip.Provider>;
+  return <SharedTooltip side="bottom" content={label} skin={skin}>{children}</SharedTooltip>;
 }
 
 export function AnimatedText({ children, value }: { children: ReactNode; value: string | number }) {
@@ -40,19 +47,15 @@ export function tileEmergeProps(index = 0, reduced: boolean | null = false) {
   };
 }
 
+/** The shared Dialog (focus trap, focus return, dismissal rules) dressed in the workspace's look, typeface and text size. */
 export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {
   const prefs = useContext(ToolsPreferences);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const returnFocus = useRef<HTMLElement | null>(null);
-  return <Dialog.Root open={open} onOpenChange={value => { if (!value && dismissible) onClose(); }}><Dialog.Portal><Dialog.Overlay className={s.dialogOverlay} /><Dialog.Content className={`${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}
-    onEscapeKeyDown={event => { if (!dismissible) event.preventDefault(); }}
-    onPointerDownOutside={event => { if (!dismissible) event.preventDefault(); }}
-    onInteractOutside={event => { if (!dismissible) event.preventDefault(); }}
-    onOpenAutoFocus={event => { event.preventDefault(); returnFocus.current = document.activeElement as HTMLElement; titleRef.current?.focus(); }}
-    onCloseAutoFocus={event => { event.preventDefault(); const target = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[aria-label="Tools design prototype"] button'); target?.focus(); }}>
-    <div className={s.dialogHeader}><div className={s.eyebrow}>TOOLS &amp; EQUIPMENT</div><Dialog.Title ref={titleRef} tabIndex={-1} className={s.modalTitle}>{title}</Dialog.Title><Dialog.Description className={s.drawerSubtitle}>{description}</Dialog.Description>{dismissible&&<Dialog.Close asChild><button type="button" className={s.closeButton} aria-label="Close dialog"><Icon name="close" size={20} /></button></Dialog.Close>}</div>
-    <div className={s.dialogBody}>{children}</div>
-  </Dialog.Content></Dialog.Portal></Dialog.Root>;
+  const skin: DialogSkin = {
+    overlay: s.dialogOverlay, panel: `${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`, header: s.dialogHeader,
+    title: s.modalTitle, description: s.drawerSubtitle, body: s.dialogBody, close: s.closeButton, closeIcon: <Icon name="close" size={20} />,
+    attrs: { 'data-font': prefs.font, style: scaleStyle(prefs.fontSize) },
+  };
+  return <SharedDialog open={open} onOpenChange={value => { if (!value) onClose(); }} dismissible={dismissible} title={title} description={description} focusTitle skin={skin}>{children}</SharedDialog>;
 }
 
 export type AddEvidence = (files: File[]) => Evidence[];

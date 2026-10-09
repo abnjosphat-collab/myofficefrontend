@@ -24,11 +24,14 @@ import { SummaryView } from './SummaryView';
 import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
 const ALL = 'all';
 
 function PPEContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const recs = usePPERecords();
   const roster = useRosterRows();
   const matrix = usePPEMatrix();
@@ -39,6 +42,8 @@ function PPEContent() {
   const [holderId, setHolderId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const register = useRegisterCheck();
+  const [unmatchedOnly, setUnmatchedOnly] = useState(false);
 
   const records = useMemo(() => enrichPPERecords(recs.items, roster.items), [recs.items, roster.items]);
   const holders = useMemo(() => groupByEmployee(records, roster.items), [records, roster.items]);
@@ -46,7 +51,8 @@ function PPEContent() {
   const sections = useMemo(() => sectionCounts(holders), [holders]);
   const inSection = useMemo(() => (f.section === ALL ? holders : holders.filter(h => normalizeSection(h.section) === f.section)), [holders, f.section]);
   const sectionRecords = useMemo(() => inSection.flatMap(h => h.records), [inSection]);
-  const shown = useMemo(() => filterEmployees(holders, f), [holders, f]);
+  const unmatched = useMemo(() => holders.filter(h => register.matchOf(h) !== 'linked'), [holders, register]);
+  const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : holders, f), [holders, unmatched, unmatchedOnly, f]);
   const stats = useMemo(() => summarise(records, holders), [records, holders]);
   const scoped = useMemo(() => summarise(sectionRecords, inSection), [sectionRecords, inSection]);
   const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
@@ -54,7 +60,7 @@ function PPEContent() {
   const status = deriveDataStatus({ loaded: recs.loaded, loading: recs.loading, error: recs.error, errorStatus: recs.errorStatus, count: shown.length, transient: isTransientStatus(recs.errorStatus) });
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
-  const filtered = f.view !== 'all' || f.section !== ALL || f.search !== '';
+  const filtered = unmatchedOnly || f.view !== 'all' || f.section !== ALL || f.search !== '';
   const reload = () => { void recs.refetch(); };
 
   const openIssue = (employee: EmployeeWithPPE | null = null) => { setHolderId(null); setForm({ record: null, prefill: null, employee, fulfils: null }); };
@@ -76,9 +82,7 @@ function PPEContent() {
     reload();
   };
   const remove = async (r: PPERecord) => {
-    if (!await confirm({ title: 'Delete this PPE record?', message: `${typeName(r.ppe_type)} for ${r.employee_name}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deletePPERecord(r.id); setItemId(null); toast.success('Record deleted.'); await recs.refetch(); }
-    catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
+    await confirmDelete({ title: 'Delete this PPE record?', message: `${typeName(r.ppe_type)} for ${r.employee_name}. This cannot be undone.`, what: 'The record', run: async () => { await deletePPERecord(r.id); setItemId(null); }, done: 'Record deleted.', after: () => recs.refetch() });
   };
   const toggleNotRequired = async (r: PPERecord) => {
     const next = r.status === 'not_required' ? 'active' : 'not_required';
@@ -134,11 +138,11 @@ function PPEContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
-        title="PPE management"
+        title="PPE"
         description="Who holds what, what is due, and what to order."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh PPE" variant="ghost" pending={recs.loading && recs.loaded} onClick={reload} />
+            <IconButton icon="refresh" label="Refresh PPE" variant="shell" pending={recs.loading && recs.loaded} onClick={reload} />
             <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
             <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
           </>
@@ -158,7 +162,7 @@ function PPEContent() {
         <TabsList aria-label="PPE sections">
           <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
-          <TabsTrigger value="order" icon="cart">{`Order list${order.loaded && order.entries.length ? ` (${order.entries.length})` : ''}`}</TabsTrigger>
+          <TabsTrigger value="order" icon="cart" count={order.loaded ? order.entries.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
         </TabsList>
 
@@ -166,13 +170,14 @@ function PPEContent() {
           <div className="flex flex-wrap items-center gap-3">
             <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search name, ID or position" wrapperClassName="min-w-48 max-w-sm flex-1" />
             <Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
-            {filtered && <Button variant="ghost" icon="close" onClick={() => setF(NO_EMPLOYEE_FILTERS)}>Clear filters</Button>}
+            {filtered && <Button variant="ghost" icon="close" onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>}
           </div>
           <Segmented label="Show" value={f.view} onValueChange={v => set({ view: v as EmployeeView })} options={VIEWS} />
+          <RegisterNotice count={unmatched.reduce((n, h) => n + h.records.length, 0)} noun="PPE record" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} />
           <DataRegion
             status={status} subject="PPE records" error={recs.error} onRetry={reload}
             empty={filtered
-              ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => setF(NO_EMPLOYEE_FILTERS)}>Clear filters</Button>} />
+              ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>} />
               : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== holders.length ? ` of ${holders.length}` : ''}</p>
@@ -180,7 +185,7 @@ function PPEContent() {
               {shown.map(h => (
                 <li key={h.employee_id} className="relative">
                   <RecordCard
-                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={badges(h)}
+                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} /></>}
                     facts={[{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }, ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
                     action={<IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}
                   />

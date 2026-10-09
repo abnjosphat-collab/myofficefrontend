@@ -106,11 +106,11 @@ function CompressorsContent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Compressors' }]}
-        title="Compressor tracking"
+        title="Compressors"
         description="Daily readings, service scheduling and efficiency."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh compressors" variant="outline" pending={register.loading && register.loaded} onClick={() => d.refresh()} />
+            <IconButton icon="refresh" label="Refresh compressors" variant="shell" pending={register.loading && register.loaded} onClick={() => d.refresh()} />
             {compressors.length > 0 && <DownloadButton data={compressors as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('compressors')} title="Compressor Tracking" formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setAdding(true)}>Add compressor</Button>
           </>
@@ -118,13 +118,13 @@ function CompressorsContent() {
       />
 
       <div className="flex flex-col gap-3">
-        <MetricGrid columns={3}>
-          <MetricTile label="Total units" icon="compressor" value={s?.total_compressors} {...tileState} />
-          <MetricTile label="Running hours" icon="clock" value={s ? hours(s.total_running_hours) : undefined} {...tileState} />
-          <MetricTile label="Avg efficiency" icon="efficiency" value={s ? `${s.avg_efficiency ?? 0}%` : undefined} {...tileState} />
-          <MetricTile label="Upcoming services" icon="service" value={s?.upcoming_services} tone={s?.upcoming_services ? 'warning' : 'default'} {...tileState} />
-          <MetricTile label="Urgent alerts" icon="warning" value={s?.urgent_alerts} tone={s?.urgent_alerts ? 'danger' : 'default'} {...tileState} />
-          <MetricTile label="Active" icon="active" value={s?.active_compressors} {...tileState} />
+        <MetricGrid compact>
+          <MetricTile compact label="Total units" value={s?.total_compressors} {...tileState} />
+          <MetricTile compact label="Running hours" value={s ? hours(s.total_running_hours) : undefined} {...tileState} />
+          <MetricTile compact label="Avg efficiency" value={s ? `${s.avg_efficiency ?? 0}%` : undefined} {...tileState} />
+          <MetricTile compact label="Upcoming services" value={s?.upcoming_services} tone={s?.upcoming_services ? 'warning' : 'default'} {...tileState} />
+          <MetricTile compact label="Urgent alerts" value={s?.urgent_alerts} tone={s?.urgent_alerts ? 'danger' : 'default'} {...tileState} />
+          <MetricTile compact label="Active" value={s?.active_compressors} {...tileState} />
         </MetricGrid>
         {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => d.refresh()}>Try again</Button>}>{stats.error}</Notice>}
       </div>

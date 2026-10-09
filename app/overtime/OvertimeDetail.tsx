@@ -2,16 +2,12 @@
 // apply to it (approve or reject while it is pending, edit, delete).
 'use client';
 
-import { Button, Dialog, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, StatusBadge, Fact, FactList } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { overtimeCostCentre } from './calcOvertime';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { recordHours, timeSpan } from './overtimeLogic';
 import type { OTRecord } from './types';
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 
 export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, onReject }: {
   record: OTRecord | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void;
@@ -43,7 +39,7 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
             {planning && <StatusBadge tone={planning.tone}>{planning.label}</StatusBadge>}
             {payout && <StatusBadge tone={payout.tone}>{payout.label}</StatusBadge>}
           </div>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FactList>
             <Fact label="Date">{fmtDate(r.date)}</Fact>
             <Fact label="Time">{timeSpan(r)}</Fact>
             <Fact label="Duration">{hours > 0 ? `${hours.toFixed(1)} hours` : ''}</Fact>
@@ -51,7 +47,7 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
             <Fact label="Department">{r.department}</Fact>
             <Fact label="Contact">{r.contact_number}</Fact>
             <Fact label="Applied">{r.created_at ? fmtDate(r.created_at) : ''}</Fact>
-          </dl>
+          </FactList>
           <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">Reason</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{r.reason || 'No reason given'}</p></div>
           {!!r.spares_used?.length && (
             <div className="rounded-control bg-surface-subtle p-3">

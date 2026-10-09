@@ -2,7 +2,7 @@
 // the actions on it. Where there is no stored link the dialog says so instead of offering a dead download.
 'use client';
 
-import { Button, Dialog, Icon, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, Fact, FactList, Icon, StatusBadge } from '@/components/ui-system';
 import { fmtDateTime } from '@/components/shared/utils';
 import { formatSize, typeMeta } from './documentLogic';
 import type { DocumentFile } from './types';
@@ -33,10 +33,10 @@ export function PreviewDialog({ doc, where, onClose, onDownload, onRename, onDel
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2"><StatusBadge tone={m.tone}>{m.label}</StatusBadge>{doc.starred && <StatusBadge tone="warning">Starred</StatusBadge>}</div>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {facts.map(f => <div key={f.label} className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{f.label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{f.value || 'Not recorded'}</dd></div>)}
-          </dl>
-          {doc.description && <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">Comment</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{doc.description}</p></div>}
+          <FactList>
+            {facts.map(f => <Fact key={f.label} label={f.label}>{f.value}</Fact>)}
+            {doc.description && <Fact label="Comment" wide>{doc.description}</Fact>}
+          </FactList>
         </div>
       )}
     </Dialog>

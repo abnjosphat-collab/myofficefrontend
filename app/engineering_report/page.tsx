@@ -76,12 +76,12 @@ function EngineeringReportContent() {
     <div className="flex flex-col gap-8">
       <PageHeader
         breadcrumbs={[{ label: 'Engineering' }, { label: 'Monthly report' }]}
-        title="Engineering monthly report"
+        title="Engineering report"
         description={`${label}. Calculated from the breakdown, job card, production, compliance and lubrication records in MyOffice.`}
         actions={(
           <>
             <Select className="w-40" aria-label="Report period" value={period} onValueChange={setPeriod} options={options} />
-            <IconButton icon="refresh" label="Refresh report" variant="ghost" pending={refreshing} onClick={() => refetchAll()} />
+            <IconButton icon="refresh" label="Refresh report" variant="shell" pending={refreshing} onClick={() => refetchAll()} />
             <Button variant="primary" icon="print" onClick={() => window.print()}>Print or save as PDF</Button>
           </>
         )}

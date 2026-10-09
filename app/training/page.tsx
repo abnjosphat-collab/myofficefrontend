@@ -6,13 +6,11 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import {
-  Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField,
-  Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, sortRows, useConfirm, type Column, type SortState, type Tone,
-} from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, sortRows, type Column, type SortState, type Tone } from '@/components/ui-system';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const STATUS_ORDER: Record<string, number> = { Expired: 3, 'Due Soon': 2, Valid: 1 };
 const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-soon' | 'expired' }> = {
@@ -104,7 +102,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function TrainingContent() {
-  const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const { certs, refreshers, compliance, loading, refreshing, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, fetchAll } = useTrainingData();
   const [tab, setTab] = useState('register');
   const [search, setSearch] = useState('');
@@ -134,9 +132,7 @@ function TrainingContent() {
 
   const openEditor = (cert: Certification | null) => { setEditing(cert); setDialogOpen(true); };
   const remove = async (cert: Certification) => {
-    if (!await confirm({ title: `Delete ${cert.certification_name}?`, message: `This removes the certification for ${cert.employee_name}. It cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await deleteCertification(cert.id); toast.success('The certification was deleted.'); fetchAll(true); }
-    catch (e) { toast.error(`Delete failed: ${(e as Error).message}`); }
+    await confirmDelete({ title: `Delete ${cert.certification_name}?`, message: `This removes the certification for ${cert.employee_name}. It cannot be undone.`, what: 'The the certification', run: async () => { await deleteCertification(cert.id); }, done: 'The certification was deleted.', after: () => fetchAll(true) });
   };
 
   const registerStatus: DataStatus = loading ? 'loading' : registerUnavailable ? 'error' : filtered.length === 0 ? 'empty' : 'ready';
@@ -155,11 +151,11 @@ function TrainingContent() {
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Training' }]}
-        title="Training and certification"
+        title="Training"
         description="Employee qualifications, expiry dates and compliance."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh training records" variant="ghost" pending={refreshing} onClick={() => fetchAll(true)} />
+            <IconButton icon="refresh" label="Refresh training records" variant="shell" pending={refreshing} onClick={() => fetchAll(true)} />
             <DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${new Date().toISOString().slice(0, 10)}`} title="Training & Certification Register" />
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
           </>

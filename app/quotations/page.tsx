@@ -15,6 +15,7 @@ import { exportPdf, exportWord } from './exportQuotation';
 import { QuotationPreview } from './QuotationPreview';
 import { ClientPanel, CompanyPanel, DetailsPanel, LineItems, Section, TextPanels } from './QuotationPanels';
 import { blankCompany, blankDraft, clientLabel, money, problems, readCompany, readDraft, readSaved, totalsOf, usedLines, type Company, type Draft, type Saved } from './quotationLogic';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const PATH = '/api/quotations';
 const LOCAL_SAVED_KEY = 'myoffice_quotations_saved';
@@ -24,6 +25,7 @@ const clearLocalSaved = () => { try { localStorage.removeItem(LOCAL_SAVED_KEY); 
 
 function QuotationsContent() {
   const confirm = useConfirm();
+  const confirmDelete = useConfirmDelete();
   const [stored, setStored, ready] = usePersistentState<Draft | null>('myoffice_quotation_draft', null, raw => (raw === null ? null : readDraft(raw)));
   const [company, setCompany] = usePersistentState<Company>('myoffice_quotation_company', blankCompany(), readCompany);
   const list = useApiList<Saved>(PATH, undefined, { fetcher: fetchSaved });
@@ -80,9 +82,7 @@ function QuotationsContent() {
   };
   const load = (s: Saved) => { setStored(s.draft); setBlocked([]); setTab('edit'); toast.success(`${s.id} loaded.`); };
   const remove = async (s: Saved) => {
-    if (!await confirm({ title: 'Delete this saved quotation?', message: `${s.id}, ${clientLabel(s.draft.client)}. It is removed for everyone, not only on this computer.`, confirmLabel: 'Delete', destructive: true })) return;
-    try { await api.delete(`${PATH}/${encodeURIComponent(s.id)}`); list.setItems(prev => prev.filter(x => x.id !== s.id)); toast.success(`${s.id} deleted.`); }
-    catch (e) { toast.error(`${s.id} was not deleted: ${e instanceof Error ? e.message : 'the server did not accept it.'}`); }
+    await confirmDelete({ title: 'Delete this saved quotation?', message: `${s.id}, ${clientLabel(s.draft.client)}. It is removed for everyone, not only on this computer.`, what: `${s.id}`, run: async () => { await api.delete(`${PATH}/${encodeURIComponent(s.id)}`); list.setItems(prev => prev.filter(x => x.id !== s.id)); }, done: `${s.id} deleted.` });
   };
 
   if (!ready) return <LoadingPulse label="Loading quotations" />;
@@ -90,8 +90,8 @@ function QuotationsContent() {
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Quotations' }]}
-        title="Quotation generator"
-        description="Write a quotation and export it as a PDF or Word file."
+        title="Quotations"
+        description="Write a quotation and export it as a PDF or Word file. The draft and your company details stay in this browser; saved quotations are kept on the server for everyone. The page cannot email a quotation: export it and send the file."
         actions={(
           <>
             <Button icon="save" onClick={save}>Save</Button>
@@ -103,7 +103,6 @@ function QuotationsContent() {
           </>
         )}
       />
-      <Notice tone="info" title="What is kept where">The draft you are typing and your company details stay in this browser. Quotations you Save are kept on the server, so everyone who signs in can open them. The page cannot email a quotation: export it and send the file yourself.</Notice>
       {blocked.length > 0 && <Notice tone="danger" title="Fix these before exporting"><span className="flex flex-col gap-0.5">{blocked.map(b => <span key={b}>{b}</span>)}</span></Notice>}
 
       <MetricGrid compact>

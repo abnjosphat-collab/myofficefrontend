@@ -14,7 +14,7 @@ let failFiles = false;
 
 const spec = {
   route: '/documents',
-  h1: 'Document hub',
+  h1: 'Documents',
   data: {
     '/api/documents': request => {
       const q = new URL(request.url()).searchParams;

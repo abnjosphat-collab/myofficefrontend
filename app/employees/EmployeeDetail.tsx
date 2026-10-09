@@ -2,7 +2,7 @@
 // Offence records are held on the person and edited in the form, but are not displayed here.
 'use client';
 
-import { Button, Dialog, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, StatusBadge, Fact, FactList } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeDesignation, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay, telHref } from '@/lib/phone';
@@ -10,9 +10,6 @@ import { normalizeSection } from '@/lib/sections';
 import { CLASS_TONE, ETYPE_LABEL, ETYPE_TONE, fullName, tenure } from './roster';
 import type { Employee } from './types';
 
-function Fact({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return <div className={`rounded-control bg-surface-subtle p-3 ${wide ? 'sm:col-span-2' : ''}`}><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 function Chips({ title, items }: { title: string; items?: string[] }) {
   if (!items?.length) return null;
   return <section aria-label={title} className="flex flex-col gap-1.5"><h3 className="font-sans text-label font-semibold text-ink">{title}</h3><ul className="flex flex-wrap gap-1.5">{items.map((q, i) => <li key={`${q}-${i}`}><StatusBadge tone="neutral">{q}</StatusBadge></li>)}</ul></section>;
@@ -37,7 +34,7 @@ export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { emp
             {e.employment_type && <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge>}
             {e.employee_class && <StatusBadge tone={CLASS_TONE[e.employee_class] ?? 'neutral'}>{e.employee_class}</StatusBadge>}
           </div>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FactList>
             <Fact label="ID number">{e.id_number}</Fact>
             <Fact label="Phone">{phone && (tel ? <a href={tel} className="text-action hover:underline">{phone}</a> : phone)}</Fact>
             <Fact label="Email" wide>{e.email && <a href={`mailto:${e.email}`} className="text-action hover:underline">{e.email}</a>}</Fact>
@@ -50,7 +47,7 @@ export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { emp
             <Fact label="Supervisor">{e.supervisor}</Fact>
             {licence && <Fact label="Driver's licence">{licence}</Fact>}
             <Fact label="Previous employer">{e.previous_employer}</Fact>
-          </dl>
+          </FactList>
           <Chips title="Qualifications" items={e.qualifications} />
           <Chips title="Awards and recognition" items={e.awards_recognition} />
           <Chips title="Other positions" items={e.other_positions} />

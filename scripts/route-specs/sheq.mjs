@@ -31,7 +31,7 @@ const data = {
 };
 const spec = {
   route: '/sheq',
-  h1: 'SHEQ safety dashboard',
+  h1: 'SHEQ',
   data,
   async ready(page, calls, { check, shot }) {
     const body = async () => page.locator('main').innerText();

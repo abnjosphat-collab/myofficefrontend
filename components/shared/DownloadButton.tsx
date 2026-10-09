@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
+import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
@@ -37,6 +37,8 @@ interface DownloadButtonProps {
    *  6-digit hex color (no '#'), or undefined for no override. Applied to
    *  both the Excel cell font and the PDF table cell text color. */
   statusColor?: (value: string, row: Record<string, unknown>) => string | undefined;
+  /** An icon with a tooltip (the default, beside a page's one primary action). False shows the word. */
+  iconOnly?: boolean;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -54,7 +56,7 @@ function getVal(row: Record<string, unknown>, col: DLColumn): string {
 
 export function DownloadButton({
   data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'], pdfColumns,
-  statusColumn, statusColor,
+  statusColumn, statusColor, iconOnly = true,
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
   const [open, setOpen] = useState(false);
@@ -233,17 +235,18 @@ export function DownloadButton({
   // One offered format needs no menu: a single direct button. Two formats: the shared Menu.
   if (formats.length === 1) {
     const onlyFormat = formats[0];
-    return (
-      <Button variant="secondary" icon="download" onClick={onlyFormat === 'excel' ? downloadExcel : downloadPDF} className={className}>
-        Download
-      </Button>
-    );
+    const run = onlyFormat === 'excel' ? downloadExcel : downloadPDF;
+    return iconOnly
+      ? <IconButton icon="download" label="Download" tooltip={onlyFormat === 'excel' ? 'Download Excel' : 'Download PDF'} variant="shell" onClick={run} className={className || undefined} />
+      : <Button variant="secondary" icon="download" onClick={run} className={className}>Download</Button>;
   }
 
   return (
     <Menu open={open} onOpenChange={setOpen}>
       <MenuTrigger asChild>
-        <Button variant="secondary" icon="download" iconAfter="chevron-down" className={className}>Download</Button>
+        {iconOnly
+          ? <IconButton icon="download" label="Download" tooltip="Download Excel or PDF" variant="shell" className={className || undefined} />
+          : <Button variant="secondary" icon="download" iconAfter="chevron-down" className={className}>Download</Button>}
       </MenuTrigger>
       <MenuContent align="end" className="min-w-48">
         <MenuItem icon="table-view" onSelect={downloadExcel}>Export Excel</MenuItem>

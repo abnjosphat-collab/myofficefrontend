@@ -138,7 +138,7 @@ function TimesheetsContent() {
         description={`NEC roster, ${fmtPeriod(activePeriod)}.`}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh timesheets" variant="ghost" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
+            <IconButton icon="refresh" label="Refresh timesheets" variant="shell" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
             <MoreMenu items={[
               { label: 'Import scans', icon: 'documents' as const, disabled: unavailable, onSelect: () => setShowImport(true) },
               { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => openDownload(null) },

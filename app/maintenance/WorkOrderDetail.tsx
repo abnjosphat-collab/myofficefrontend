@@ -4,17 +4,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-system';
+import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanReportForm } from './ArtisanReportForm';
 import { ForemanSignoff } from './ForemanSignoff';
 import { isOverdue } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
 import type { WorkOrder } from './types';
-
-function Fact({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
-  return <div className={`rounded-control bg-surface-subtle p-3 ${wide ? 'sm:col-span-2' : ''}`}><dt className="font-sans text-caption text-ink-muted">{label}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{children || 'Not recorded'}</dd></div>;
-}
 
 export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
   order: WorkOrder | null; onClose: () => void; onEdit: (w: WorkOrder) => void; onDelete: (w: WorkOrder) => void; onSaved: (w: WorkOrder) => void;
@@ -47,7 +43,7 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
               <TabsTrigger value="foreman" icon="success">Foreman sign-off</TabsTrigger>
             </TabsList>
             <TabsContent value="request" className="mt-4">
-              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FactList>
                 <Fact label="Machine">{w.equipment_info}</Fact>
                 <Fact label="Allocated to">{w.allocated_to || w.artisan_name}</Fact>
                 <Fact label="Date raised">{w.date_raised && fmtDate(w.date_raised)}</Fact>
@@ -58,7 +54,7 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
                 <Fact label="Authorising foreman">{w.authorising_foreman}</Fact>
                 <Fact label="Job request" wide>{w.job_request_details}</Fact>
                 {w.job_instructions && <Fact label="Special instructions" wide>{w.job_instructions}</Fact>}
-              </dl>
+              </FactList>
             </TabsContent>
             {/* The forms start from the saved work order, so they restart after every save. */}
             <TabsContent value="artisan" className="mt-4"><ArtisanReportForm key={`${w.id}-${w.updated_at}`} order={w} onSaved={onSaved} /></TabsContent>
