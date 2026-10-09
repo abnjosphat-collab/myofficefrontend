@@ -5,15 +5,16 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
-  Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, sortRows, useConfirm, useViewPreference,
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
+  Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference,
   type Column, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { InventoryItem } from './types';
-import { stockStatus, useInventoryData } from './useInventoryData';
+import { stockStatus, useInventoryData, type InventoryDraft } from './useInventoryData';
+import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { EXPORT_TONE_HEX } from '@/lib/status';
 
 type StockStatus = ReturnType<typeof stockStatus>;
@@ -39,7 +40,7 @@ const exportColumns: DLColumn[] = [
   { key: 'lastRestocked', label: 'Last Restocked', width: 16, format: v => (v ? formatDate(v as string) : '') },
 ];
 
-function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: InventoryItem | null; existing: readonly InventoryItem[]; open: boolean; onOpenChange: (open: boolean) => void; onSave: (item: InventoryItem) => void }) {
+function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: InventoryItem | null; existing: readonly InventoryItem[]; open: boolean; onOpenChange: (open: boolean) => void; onSave: (draft: InventoryDraft, id?: string) => Promise<void> }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
@@ -68,17 +69,12 @@ function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: Inve
   const submit = async () => {
     setTouched(true);
     if (Object.values(errors).some(Boolean)) return false;
-    const currentStock = Number(form.currentStock);
-    const restocked = !item || currentStock > item.currentStock;
-    onSave({
-      ...(item ?? { id: `inv-${Date.now()}`, status: 'in-stock', lastRestocked: new Date().toISOString() }),
+    // The server records a restock when the stock goes up, and works out the stock status.
+    await onSave({
       name: form.name.trim(), sku: form.sku.trim(), category: form.category.trim(), description: form.description.trim(),
-      currentStock, minStock: Number(form.minStock), maxStock: Number(form.maxStock), unit: form.unit.trim() || 'pcs',
+      currentStock: Number(form.currentStock), minStock: Number(form.minStock), maxStock: Number(form.maxStock), unit: form.unit.trim() || 'pcs',
       cost: Number(form.cost), supplier: form.supplier.trim(), location: form.location.trim(),
-      status: stockStatus({ currentStock, minStock: Number(form.minStock) }),
-      // A higher stock level than before counts as a restock.
-      lastRestocked: restocked ? new Date().toISOString() : item!.lastRestocked,
-    });
+    }, item?.id);
     toast.success(`${form.name.trim()} was saved.`);
   };
 
@@ -102,8 +98,8 @@ function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: Inve
 }
 
 function InventoryPageContent() {
-  const confirm = useConfirm();
-  const { inventory, upsertItem, deleteItem } = useInventoryData();
+  const confirmDelete = useConfirmDelete();
+  const { list, inventory, moving, saveItem, deleteItem } = useInventoryData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | StockStatus>('all');
   const [category, setCategory] = useState(ALL);
@@ -136,10 +132,11 @@ function InventoryPageContent() {
 
   const openEditor = (item: InventoryItem | null) => { setEditing(item); setDialogOpen(true); };
   const remove = async (item: InventoryItem) => {
-    if (!await confirm({ title: `Delete ${item.name}?`, message: 'This removes the item from this browser. It cannot be undone.', confirmLabel: 'Delete', destructive: true })) return;
-    try { deleteItem(item.id); toast.success(`${item.name} was deleted.`); } catch (e) { toast.error(e instanceof Error ? e.message : 'The item could not be deleted.'); }
+    await confirmDelete({ title: `Delete ${item.name}?`, message: 'It is removed from the shared inventory for everyone. This cannot be undone.', what: item.name, run: () => deleteItem(item.id), done: `${item.name} was deleted.`, after: () => list.refetch() });
   };
-  const save = (item: InventoryItem) => upsertItem(item);
+  const clearFilters = () => { setSearch(''); setStatusFilter('all'); setCategory(ALL); setSupplier(ALL); };
+  const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: filtered.length, transient: isTransientStatus(list.errorStatus) });
+  const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
 
   const rowActions = (item: InventoryItem) => (
     <span className="inline-flex gap-1">
@@ -169,6 +166,7 @@ function InventoryPageContent() {
         description="Stock levels, reorder points and locations."
         actions={(
           <>
+            <IconButton icon="refresh" label="Refresh inventory" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {filtered.length > 0 && (
               <DownloadButton
                 data={filtered as unknown as Record<string, unknown>[]}
@@ -179,21 +177,19 @@ function InventoryPageContent() {
                 statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS[stockStatus(row as unknown as InventoryItem)].tone]}
               />
             )}
-            <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>
+            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => openEditor(null)}>Add item</Button>
           </>
         )}
       />
 
-      <Notice tone="info" icon="info" title="Stored in this browser only">
-        This register is not connected to a shared service. Items are saved on this device and are not visible to other people or devices.
-      </Notice>
+      {moving && <Notice tone="info" title="Moving this browser's items to the shared inventory">Items saved on this device before the inventory was shared are being added for everyone.</Notice>}
 
       <MetricGrid compact>
-        <MetricTile compact label="Items" value={counts.total} selected={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
-        <MetricTile compact label="In stock" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} />
-        <MetricTile compact label="Low stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} />
-        <MetricTile compact label="Out of stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} />
-        <MetricTile compact label="Stock value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} />
+        <MetricTile compact label="Items" value={counts.total} selected={statusFilter === 'all'} onClick={() => setStatusFilter('all')} {...tile} />
+        <MetricTile compact label="In stock" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} {...tile} />
+        <MetricTile compact label="Low stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} {...tile} />
+        <MetricTile compact label="Out of stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} {...tile} />
+        <MetricTile compact label="Stock value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} {...tile} />
       </MetricGrid>
 
       <Toolbar
@@ -207,11 +203,13 @@ function InventoryPageContent() {
         {categories.length > 0 && <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />}
       </Toolbar>
 
-      {inventory.length === 0 ? (
-        <EmptyState icon="package" title="No inventory items yet" description="Add your first item to start tracking stock levels." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>} />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon="search" title="No items match" description="Try a different search or filter." action={hasFilters ? <Button onClick={() => { setSearch(''); setStatusFilter('all'); setCategory(ALL); setSupplier(ALL); }}>Clear filters</Button> : undefined} />
-      ) : view === 'cards' ? (
+      <DataRegion
+        status={status} subject="inventory" error={list.error} onRetry={() => list.refetch()}
+        empty={hasFilters
+          ? <EmptyState icon="search" title="No items match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
+          : <EmptyState icon="package" title="No inventory items yet" description="Add your first item to start tracking stock levels." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>} />}
+      >
+      {view === 'cards' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map(item => (
             <RecordCard
@@ -237,8 +235,9 @@ function InventoryPageContent() {
       ) : (
         <DataTable caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} onRowActivate={openEditor} rowActions={rowActions} />
       )}
+      </DataRegion>
 
-      <ItemDialog item={editing} existing={inventory} open={dialogOpen} onOpenChange={setDialogOpen} onSave={save} />
+      <ItemDialog item={editing} existing={inventory} open={dialogOpen} onOpenChange={setDialogOpen} onSave={saveItem} />
     </div>
   );
 }
