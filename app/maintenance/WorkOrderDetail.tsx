@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList } from '@/components/ui-system';
+import { Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanReportForm } from './ArtisanReportForm';
 import { ForemanSignoff } from './ForemanSignoff';
@@ -25,7 +25,7 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
   return (
     <Dialog
       open={!!w} onOpenChange={o => { if (!o) onClose(); }} size="xl" title={w ? `Work order ${w.work_order_number}` : 'Work order'} description={w?.equipment_info}
-      footer={w && (<><Button variant="danger" icon="delete" onClick={() => onDelete(w)}>Delete</Button><Button icon="edit" onClick={() => onEdit(w)}>Edit request</Button><Button onClick={onClose}>Close</Button></>)}
+      footer={w && (<DetailActions onDelete={() => onDelete(w)} onClose={onClose} onEdit={() => onEdit(w)} editLabel="Edit request" />)}
     >
       {w && status && priority && (
         <div className="flex flex-col gap-4">

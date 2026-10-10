@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -148,7 +148,7 @@ function EquipmentContent() {
                   ...(i.criticality ? [{ label: 'Criticality', value: <StatusBadge tone={CRIT_TONE[i.criticality] ?? 'neutral'}>{i.criticality}</StatusBadge> }] : []),
                   { label: 'Age', value: calcAge(i.commission_date) },
                 ]}
-                action={<span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${i.name}`} onClick={() => openForm(i)} /><IconButton icon="delete" variant="danger" size="sm" label={`Delete ${i.name}`} onClick={() => remove(i)} /></span>}
+                action={<RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />}
                 onOpen={() => setViewingId(i.id)} openLabel={`View ${i.name}`}
               />
             ))}
@@ -157,7 +157,7 @@ function EquipmentContent() {
           <DataTable
             caption="Equipment register" rows={pageRows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={s => { setSort(s); setPage(1); }}
             onRowActivate={i => setViewingId(i.id)}
-            rowActions={i => <span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${i.name}`} onClick={() => openForm(i)} /><IconButton icon="delete" variant="danger" size="sm" label={`Delete ${i.name}`} onClick={() => remove(i)} /></span>}
+            rowActions={i => <RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />}
           />
         )}
         {filtered.length > pageSize && (

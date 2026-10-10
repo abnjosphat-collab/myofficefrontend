@@ -14,6 +14,7 @@ import { normalizePhoneField } from '@/lib/phone';
 import { sectionSelectOptions } from '@/lib/sections';
 import { CLASS_OPTIONS, formProblems, fullName } from './roster';
 import type { Employee, EmployeeFormData } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const EMPTY: EmployeeFormData = {
   employee_id: '', first_name: '', last_name: '', id_number: '', email: '', phone: '', address: '', date_of_engagement: '', designation: '', employee_class: '', employment_type: '', supervisor: '', section: '',
@@ -38,9 +39,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
 }) {
   const [form, setForm] = useState<EmployeeFormData>(EMPTY);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(employee?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY }); } }
+  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
   const problems = formProblems(form);
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);

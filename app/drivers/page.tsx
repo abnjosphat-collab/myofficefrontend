@@ -4,15 +4,12 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger,
-  PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus,
-  sortRows, useConfirm, useViewPreference, type Column, type SortState,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
 import type { Driver, DriverForm } from './types';
 import { useDriversData, createDriver, updateDriver, deleteDriver } from './useDriversData';
 import { exportExcel, exportPDF } from './exportDrivers';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const DEPARTMENTS = ['Mining', 'Engineering', 'Geology', 'Survey', 'Environment', 'Safety', 'HR', 'Finance', 'IT', 'Logistics', 'Security', 'Administration'];
 const LICENSE_CLASSES = ['Code 08', 'Code 10', 'Code 14', 'EC', 'EC1', 'PrDP', 'Other'];
@@ -62,15 +59,10 @@ function PhoneRows({ phones, onChange }: { phones: string[]; onChange: (v: strin
 function DriverDialog({ driver, departments, open, onOpenChange, onSaved }: { driver?: Driver; departments: string[]; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const [form, setForm] = useState<DriverForm>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(driver?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(driver ? { full_name: driver.full_name, phones: driver.phone_numbers?.length ? driver.phone_numbers : [''], department: driver.department || '', license_class: driver.license_class || '', license_expiry: driver.license_expiry?.slice(0, 10) || '', status: driver.status, notes: driver.notes || '' } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, driver?.id), () => {
+    setTouched(false);
+    setForm(driver ? { full_name: driver.full_name, phones: driver.phone_numbers?.length ? driver.phone_numbers : [''], department: driver.department || '', license_class: driver.license_class || '', license_expiry: driver.license_expiry?.slice(0, 10) || '', status: driver.status, notes: driver.notes || '' } : emptyForm());
+  });
   const set = <K extends keyof DriverForm>(k: K, v: DriverForm[K]) => setForm(p => ({ ...p, [k]: v }));
   const allDepts = [...new Set([...DEPARTMENTS, ...departments])].sort();
 
@@ -236,10 +228,7 @@ function DriversContent() {
             onSortChange={setSort}
             onRowActivate={openEditor}
             rowActions={d => (
-              <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit ${d.full_name}`} onClick={() => openEditor(d)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Remove ${d.full_name}`} onClick={() => remove(d)} />
-              </span>
+              <RowActions subject={`${d.full_name}`} onEdit={() => openEditor(d)} onDelete={() => remove(d)} deleteVerb="Remove" />
             )}
           />
         )}

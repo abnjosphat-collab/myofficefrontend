@@ -4,12 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge,
-  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
-  type Column, FilterField,
-  LoadingPulse,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
@@ -200,10 +195,7 @@ function LeavesContent() {
                 caption="Leave requests" rows={filtered} columns={COLUMNS} getRowId={l => l.id}
                 selected={selected} onSelectedChange={setSelected} onRowActivate={l => setViewingId(l.id)}
                 rowActions={l => (
-                  <span className="inline-flex gap-1">
-                    <IconButton icon="edit" size="sm" label={`Edit the leave request for ${l.employee_name}`} onClick={() => openForm(l)} />
-                    <IconButton icon="delete" variant="danger" size="sm" label={`Delete the leave request for ${l.employee_name}`} onClick={() => remove(l)} />
-                  </span>
+                  <RowActions subject={`the leave request for ${l.employee_name}`} onEdit={() => openForm(l)} onDelete={() => remove(l)} />
                 )}
               />
             )}

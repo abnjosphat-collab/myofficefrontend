@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -16,6 +16,7 @@ import { createInspection, deleteInspection, updateInspection, useSheqInspection
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const SECTIONS: SectionType[] = ['mechanical', 'electrical'];
 const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
@@ -78,15 +79,10 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(inspection?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(inspection ? { ...emptyForm(), ...inspection, findings: inspection.findings || [], before_photos: inspection.before_photos || [], after_photos: inspection.after_photos || [] } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, inspection?.id), () => {
+    setTouched(false);
+    setForm(inspection ? { ...emptyForm(), ...inspection, findings: inspection.findings || [], before_photos: inspection.before_photos || [], after_photos: inspection.after_photos || [] } : emptyForm());
+  });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
   const setInspectors = (name: string) => {
@@ -163,11 +159,7 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
       description={inspection ? `${inspection.title}, ${formatDate(inspection.date)}` : undefined}
       size="lg"
       footer={inspection && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(inspection)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(inspection)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(inspection)} onClose={onClose} onEdit={() => onEdit(inspection)} />
       )}
     >
       {inspection && (
@@ -386,10 +378,7 @@ function InspectionContent() {
             onSortChange={setSort}
             onRowActivate={setViewing}
             rowActions={i => (
-              <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit inspection ${i.title}`} onClick={() => openEditor(i)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Delete inspection ${i.title}`} onClick={() => remove(i)} />
-              </span>
+              <RowActions subject={`inspection ${i.title}`} onEdit={() => openEditor(i)} onDelete={() => remove(i)} />
             )}
           />
         )}

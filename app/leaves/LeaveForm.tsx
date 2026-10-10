@@ -14,6 +14,7 @@ import { fmtDate } from '@/components/shared/utils';
 import { overlappingLeave } from './leaveLogic';
 import { LEAVE_TYPES, defaultReasonFor, isDefaultReason } from './leaveTypes';
 import type { Leave } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const COMMON_REASONS = ['Annual leave', 'Sick leave', 'Family emergency', 'Medical appointment', 'Personal reasons', 'Bereavement', 'Study leave', 'Maternity leave', 'Paternity leave', 'Unpaid leave'];
 const TYPE_OPTIONS = Object.entries(LEAVE_TYPES).map(([value, t]) => ({ value, label: t.name }));
@@ -29,9 +30,7 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(blank);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(leave?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(leave ? fromLeave(leave) : blank()); } }
+  useResetOnOpen(dialogKey(open, leave?.id), () => { setTouched(false); setForm(leave ? fromLeave(leave) : blank()); });
   const set = (patch: Form) => setForm(f => ({ ...f, ...patch }));
   const setType = (t: string) => setForm(f => {
     const current = f.reason?.trim() ?? '';

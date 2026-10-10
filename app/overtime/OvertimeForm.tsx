@@ -20,6 +20,7 @@ import { findDuplicate } from './overtimeLogic';
 import { PAYOUT_LABELS, PLANNING_LABELS, TYPE_LABELS, statusMeta } from './overtimeMeta';
 import { ENGINEERING_COST_CENTRE, SELECTABLE_OT_TYPES, overtimeCostCentreOptions, type OTForm, type OTRecord, type OTType, type PayoutMethod, type PlanningStatus, type SpareUsedEntry } from './types';
 import { buildOvertimePayload } from './useOvertimeData';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 export const REASON_HISTORY_KEY = 'overtime_reason';
 
@@ -53,16 +54,11 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
   const [useHours, setUseHours] = useState(false);
   const [used, setUsed] = useState<SpareUsedEntry[]>([]);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(record?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false); setForm(record ? fromRecord(record) : blankForm()); setUsed(record?.spares_used || []);
-      // A record with a stored hours value and no times was entered the fast way: reopen it that way.
-      setUseHours(!!record && !record.start_time && record.hours != null);
-    }
-  }
+  useResetOnOpen(dialogKey(open, record?.id), () => {
+    setTouched(false); setForm(record ? fromRecord(record) : blankForm()); setUsed(record?.spares_used || []);
+    // A record with a stored hours value and no times was entered the fast way: reopen it that way.
+    setUseHours(!!record && !record.start_time && record.hours != null);
+  });
   const editing = !!record;
   const set = (patch: Partial<OTForm>) => setForm(f => ({ ...f, ...patch }));
   const hours = useHours ? parseFloat(form.hours) || 0 : calcHours(form.start_time, form.end_time);

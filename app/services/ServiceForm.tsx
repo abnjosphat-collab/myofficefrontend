@@ -8,6 +8,7 @@ import { Field, FormDialog, Input, Select, Textarea } from '@/components/ui-syst
 import { CATEGORIES } from './meta';
 import { emptyRecord } from './useServicesData';
 import type { ServiceRecord } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const NONE = '__none__';
 
@@ -16,9 +17,8 @@ export function ServiceForm({ open, record, onOpenChange, onSave }: {
 }) {
   const [form, setForm] = useState<ServiceRecord>(emptyRecord);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? (record ? record.id || 'scanned' : 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(record ?? emptyRecord()); } }
+  // A scanned record has no id yet; it is still a different form from "new".
+  useResetOnOpen(dialogKey(open, record ? record.id || 'scanned' : undefined), () => { setTouched(false); setForm(record ?? emptyRecord()); });
   const set = (patch: Partial<ServiceRecord>) => setForm(f => ({ ...f, ...patch }));
   const text = (k: keyof ServiceRecord, placeholder?: string) => <Input value={String(form[k] ?? '')} onChange={e => set({ [k]: e.target.value } as Partial<ServiceRecord>)} placeholder={placeholder} />;
   const editing = !!record?.id;

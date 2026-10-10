@@ -2,7 +2,7 @@
 // Offence records are held on the person and edited in the form, but are not displayed here.
 'use client';
 
-import { Button, Dialog, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeDesignation, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay, telHref } from '@/lib/phone';
@@ -24,7 +24,7 @@ export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { emp
   return (
     <Dialog
       open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e ? fullName(e) : 'Employee'} description={e ? [e.employee_id, designation].filter(Boolean).join(', ') : undefined}
-      footer={e && (<><Button variant="danger" icon="delete" onClick={() => onDelete(e)}>Delete</Button><Button icon="edit" onClick={() => onEdit(e)}>Edit</Button><Button onClick={onClose}>Close</Button></>)}
+      footer={e && (<DetailActions onDelete={() => onDelete(e)} onClose={onClose} onEdit={() => onEdit(e)} />)}
     >
       {e && (
         <div className="flex flex-col gap-4">

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
@@ -13,6 +13,7 @@ import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, upl
 import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, type AttachmentKind } from './attachments';
 import { exportPriorityColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const CATEGORIES = ['HR', 'Safety', 'IT', 'General', 'Operations', 'Finance'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -59,19 +60,14 @@ function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice
   const [touched, setTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(notice?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false); setUploadError(null);
-      setForm(notice ? {
-        title: notice.title || '', content: notice.content || '', date: dayOf(notice.date) || emptyForm().date, category: notice.category || 'General', priority: notice.priority || 'Medium',
-        status: notice.status || 'Draft', is_pinned: !!notice.is_pinned, requires_acknowledgment: !!notice.requires_acknowledgment, author: notice.author || '', department: notice.department || 'General',
-        expires_at: dayOf(notice.expires_at), target_audience: notice.target_audience || 'All Employees', notification_type: notice.notification_type || 'General Announcement', attachments: notice.attachments || [],
-      } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, notice?.id), () => {
+    setTouched(false); setUploadError(null);
+    setForm(notice ? {
+      title: notice.title || '', content: notice.content || '', date: dayOf(notice.date) || emptyForm().date, category: notice.category || 'General', priority: notice.priority || 'Medium',
+      status: notice.status || 'Draft', is_pinned: !!notice.is_pinned, requires_acknowledgment: !!notice.requires_acknowledgment, author: notice.author || '', department: notice.department || 'General',
+      expires_at: dayOf(notice.expires_at), target_audience: notice.target_audience || 'All Employees', notification_type: notice.notification_type || 'General Announcement', attachments: notice.attachments || [],
+    } : emptyForm());
+  });
   const set = (p: Partial<NoticeFormData>) => setForm(f => ({ ...f, ...p }));
 
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,11 +152,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
       description={notice ? `${notice.author || 'Unknown author'}, ${formatDate(notice.date)}` : undefined}
       size="lg"
       footer={notice && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(notice)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(notice)}>Edit notice</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(notice)} onClose={onClose} onEdit={() => onEdit(notice)} editLabel="Edit notice" />
       )}
     >
       {notice && (
@@ -292,7 +284,7 @@ function NoticeboardContent() {
           { label: 'Status', value: <span className="inline-flex flex-wrap gap-1.5"><StatusTag status={n.status} />{n.is_pinned && <StatusBadge tone="warning" icon="pinned">Pinned</StatusBadge>}{ex.expired && <StatusBadge tone="danger" icon="expired">Expired</StatusBadge>}{ex.soon && <StatusBadge tone="warning" icon="due-soon">Expires soon</StatusBadge>}</span> },
           ...(n.attachments?.length ? [{ label: 'Attachments', value: String(n.attachments.length) }] : []),
         ]}
-        action={<span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${n.title}`} onClick={() => openEditor(n)} /><IconButton icon="delete" variant="danger" size="sm" label={`Delete ${n.title}`} onClick={() => remove(n)} /></span>}
+        action={<RowActions subject={`${n.title}`} onEdit={() => openEditor(n)} onDelete={() => remove(n)} />}
         onOpen={() => setViewingId(n.id)}
         openLabel={`View notice ${n.title}`}
       />
@@ -376,10 +368,7 @@ function NoticeboardContent() {
             onSortChange={setSort}
             onRowActivate={n => setViewingId(n.id)}
             rowActions={n => (
-              <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit ${n.title}`} onClick={() => openEditor(n)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${n.title}`} onClick={() => remove(n)} />
-              </span>
+              <RowActions subject={`${n.title}`} onEdit={() => openEditor(n)} onDelete={() => remove(n)} />
             )}
           />
         )}

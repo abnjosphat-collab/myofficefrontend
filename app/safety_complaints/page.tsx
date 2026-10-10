@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
@@ -15,6 +15,7 @@ import type { Complaint } from './types';
 import { api, useSafetyComplaintsData } from './useSafetyComplaintsData';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const CATEGORIES = ['Safety', 'Health', 'Environment', 'Quality', 'General', 'Other'];
 const SECTIONS = ['Mechanical', 'Electrical', 'General'];
@@ -44,19 +45,14 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(complaint?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(complaint ? {
-        date: complaint.date, raisedBy: complaint.raisedBy || '', issueRaised: complaint.issueRaised, category: complaint.category || 'General', priority: complaint.priority || 'medium',
-        section: complaint.section || 'General', location: complaint.location || '', actionPlan: complaint.actionPlan || '', byWho: complaint.byWho || '', byWhen: complaint.byWhen || '',
-        supervisorName: complaint.supervisorName || '', supervisorSignature: complaint.supervisorSignature || '', status: complaint.status || 'open', dateClosed: complaint.dateClosed || '',
-      } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, complaint?.id), () => {
+    setTouched(false);
+    setForm(complaint ? {
+      date: complaint.date, raisedBy: complaint.raisedBy || '', issueRaised: complaint.issueRaised, category: complaint.category || 'General', priority: complaint.priority || 'medium',
+      section: complaint.section || 'General', location: complaint.location || '', actionPlan: complaint.actionPlan || '', byWho: complaint.byWho || '', byWhen: complaint.byWhen || '',
+      supervisorName: complaint.supervisorName || '', supervisorSignature: complaint.supervisorSignature || '', status: complaint.status || 'open', dateClosed: complaint.dateClosed || '',
+    } : emptyForm());
+  });
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(p => ({ ...p, [k]: v }));
   const submit = async () => {
     setTouched(true);
@@ -102,11 +98,7 @@ function DetailDialog({ complaint, onClose, onEdit, onDelete }: { complaint: Com
       description={complaint ? `${complaint.category}, ${formatDate(complaint.date)}` : undefined}
       size="lg"
       footer={complaint && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(complaint)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(complaint)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(complaint)} onClose={onClose} onEdit={() => onEdit(complaint)} />
       )}
     >
       {complaint && (
@@ -343,10 +335,7 @@ function SafetyComplaintsContent() {
               onSortChange={setSort}
               onRowActivate={setViewing}
               rowActions={c => (
-                <span className="inline-flex gap-1">
-                  <IconButton icon="edit" size="sm" label={`Edit complaint of ${formatDate(c.date)}`} onClick={() => openEditor(c)} />
-                  <IconButton icon="delete" variant="danger" size="sm" label={`Delete complaint of ${formatDate(c.date)}`} onClick={() => remove(c)} />
-                </span>
+                <RowActions subject={`complaint of ${formatDate(c.date)}`} onEdit={() => openEditor(c)} onDelete={() => remove(c)} />
               )}
             />
           </TabsContent>

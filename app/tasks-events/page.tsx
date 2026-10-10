@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -154,10 +154,7 @@ function Board({ completedBy }: { completedBy: string }) {
           onSortChange={setSort}
           onRowActivate={i => setViewingId(i.id)}
           rowActions={i => (
-            <span className="inline-flex gap-1">
-              <IconButton icon="edit" size="sm" label={`Edit "${i.title}"`} onClick={() => openForm(i)} />
-              <IconButton icon="delete" variant="danger" size="sm" label={`Delete "${i.title}"`} onClick={() => remove(i)} />
-            </span>
+            <RowActions subject={`"${i.title}"`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />
           )}
         />
       </DataRegion>

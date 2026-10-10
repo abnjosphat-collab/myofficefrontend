@@ -13,6 +13,7 @@ import { editOrderBody, machinesOf, newOrderBody, nextWONumber, type RequestForm
 import { MachinePicker } from './MachinePicker';
 import { CLASSIFICATIONS, PRIORITY } from './meta';
 import type { WorkOrder, WorkOrderPriority } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const blank = (): RequestForm => ({ equipment_info: '', to_department: 'Engineering', allocated_to: '', priority: 'medium', estimated_hours: '2', job_request_details: '', requested_by: '', authorising_foreman: '', job_instructions: '', date_raised: todayLocal(), due_date: '', classification: '' });
 const fromOrder = (w: WorkOrder): RequestForm => ({
@@ -28,9 +29,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
 }) {
   const [form, setForm] = useState<RequestForm>(blank);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(order?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(order ? fromOrder(order) : blank()); } }
+  useResetOnOpen(dialogKey(open, order?.id), () => { setTouched(false); setForm(order ? fromOrder(order) : blank()); });
   const editing = !!order;
   const set = (patch: Partial<RequestForm>) => setForm(f => ({ ...f, ...patch }));
   const machines = machinesOf(form.equipment_info);

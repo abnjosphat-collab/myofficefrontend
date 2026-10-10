@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -18,6 +18,7 @@ import { itemTotal } from './calcRequisitions';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const STATUSES: Requisition['status'][] = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
 const PRIORITIES: Requisition['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
@@ -65,15 +66,10 @@ function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; op
   const equipment = useApiList<{ id?: number | string; name?: string; location?: string; department?: string; category?: string }>('/api/equipment');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(req?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items : [newItem()], notes: req.notes ?? '' } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, req?.id), () => {
+    setTouched(false);
+    setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items : [newItem()], notes: req.notes ?? '' } : emptyForm());
+  });
   const set = (p: Partial<Form>) => setForm(f => ({ ...f, ...p }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), section: e.department })), [employees]);
   const assets = useMemo(() => equipment.items.filter(e => e.name).map(e => ({ name: String(e.name), section: String(e.location ?? e.department ?? e.category ?? '') })), [equipment.items]);
@@ -151,11 +147,7 @@ function DetailDialog({ req, onClose, onEdit, onDelete }: { req: Requisition | n
       description={req ? `${req.requester}, ${formatDate(req.date)}` : undefined}
       size="lg"
       footer={req && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(req)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(req)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(req)} onClose={onClose} onEdit={() => onEdit(req)} />
       )}
     >
       {req && (
@@ -311,10 +303,7 @@ function RequisitionsContent() {
               onSortChange={setSort}
               onRowActivate={setViewing}
               rowActions={r => (
-                <span className="inline-flex gap-1">
-                  <IconButton icon="edit" size="sm" label={`Edit requisition ${r.requisitionNumber}`} onClick={() => openEditor(r)} />
-                  <IconButton icon="delete" variant="danger" size="sm" label={`Delete requisition ${r.requisitionNumber}`} onClick={() => remove(r)} />
-                </span>
+                <RowActions subject={`requisition ${r.requisitionNumber}`} onEdit={() => openEditor(r)} onDelete={() => remove(r)} />
               )}
             />
           </TabsContent>

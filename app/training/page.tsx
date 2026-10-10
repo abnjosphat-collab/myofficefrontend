@@ -11,6 +11,7 @@ import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const STATUS_ORDER: Record<string, number> = { Expired: 3, 'Due Soon': 2, Valid: 1 };
 const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-soon' | 'expired' }> = {
@@ -41,15 +42,10 @@ const dlCols: DLColumn[] = [
 function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Certification | null; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(cert?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department, certification_name: cert.certification_name, expiry_date: cert.expiry_date, required_refresher: cert.required_refresher, certificate_file: null } : EMPTY_FORM);
-    }
-  }
+  useResetOnOpen(dialogKey(open, cert?.id), () => {
+    setTouched(false);
+    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department, certification_name: cert.certification_name, expiry_date: cert.expiry_date, required_refresher: cert.required_refresher, certificate_file: null } : EMPTY_FORM);
+  });
   const set = (patch: Partial<FormState>) => setForm(current => ({ ...current, ...patch }));
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
   const days = form.expiry_date ? daysUntilExpiry(form.expiry_date) : null;

@@ -16,6 +16,7 @@ import type { InventoryItem } from './types';
 import { stockStatus, useInventoryData, type InventoryDraft } from './useInventoryData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { EXPORT_TONE_HEX } from '@/lib/status';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 type StockStatus = ReturnType<typeof stockStatus>;
 const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | 'low-stock' | 'out-of-stock' }> = {
@@ -43,16 +44,10 @@ const exportColumns: DLColumn[] = [
 function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: InventoryItem | null; existing: readonly InventoryItem[]; open: boolean; onOpenChange: (open: boolean) => void; onSave: (draft: InventoryDraft, id?: string) => Promise<void> }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
-  // Load the form when the dialog opens for a different item (or for a new one).
-  const key = open ? (item?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(item ? { name: item.name, sku: item.sku, category: item.category, description: item.description, currentStock: String(item.currentStock), minStock: String(item.minStock), maxStock: String(item.maxStock), unit: item.unit, cost: String(item.cost), supplier: item.supplier, location: item.location } : EMPTY_FORM);
-    }
-  }
+  useResetOnOpen(dialogKey(open, item?.id), () => {
+    setTouched(false);
+    setForm(item ? { name: item.name, sku: item.sku, category: item.category, description: item.description, currentStock: String(item.currentStock), minStock: String(item.minStock), maxStock: String(item.maxStock), unit: item.unit, cost: String(item.cost), supplier: item.supplier, location: item.location } : EMPTY_FORM);
+  });
   const set = (patch: Partial<typeof EMPTY_FORM>) => setForm(current => ({ ...current, ...patch }));
 
   const duplicateSku = existing.some(i => i.id !== item?.id && i.sku.trim().toLowerCase() === form.sku.trim().toLowerCase() && form.sku.trim() !== '');

@@ -6,6 +6,7 @@
 import { useRef, useState } from 'react';
 import { Field, FormDialog, IconButton, Icon, Input, StatusBadge, Textarea, cn } from '@/components/ui-system';
 import { fileTypeOf, formatSize, typeMeta } from './documentLogic';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 interface Pending { id: number; file: File; name: string; comment: string; problem?: string }
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -19,9 +20,8 @@ export function UploadDialog({ open, where, onOpenChange, onUpload, onUploaded }
   const [over, setOver] = useState(false);
   const [done, setDone] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [loadedFor, setLoadedFor] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  if (open !== loadedFor) { setLoadedFor(open); if (open) { setFiles([]); setDone(0); } }
+  useResetOnOpen(dialogKey(open, undefined), () => { setFiles([]); setDone(0); });
 
   const add = (list: FileList | null) => {
     const added = Array.from(list ?? []).map<Pending>(file => ({ id: nextId++, file, name: file.name, comment: '', problem: file.size > MAX_BYTES ? 'Larger than the 100 MB limit.' : undefined }));

@@ -2,7 +2,7 @@
 // the downtime and repair worked out, what happened, the work done and recommendations, and the parts used with their cost.
 'use client';
 
-import { Button, Dialog, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { minutesToDisplay } from './calcBreakdowns';
 import { priorityMeta, statusMeta, typeMeta } from './breakdownMeta';
@@ -17,7 +17,7 @@ export function BreakdownDetail({ record: b, onClose, onEdit, onDelete }: { reco
   return (
     <Dialog
       open={!!b} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={b?.machine_name ?? 'Breakdown'} description={b ? [b.machine_id, b.breakdown_date ? fmtDate(b.breakdown_date) : ''].filter(Boolean).join(', ') : undefined}
-      footer={b && (<><Button variant="danger" icon="delete" onClick={() => onDelete(b)}>Delete</Button><Button icon="edit" onClick={() => onEdit(b)}>Edit</Button><Button onClick={onClose}>Close</Button></>)}
+      footer={b && (<DetailActions onDelete={() => onDelete(b)} onClose={onClose} onEdit={() => onEdit(b)} />)}
     >
       {b && (
         <div className="flex flex-col gap-4">

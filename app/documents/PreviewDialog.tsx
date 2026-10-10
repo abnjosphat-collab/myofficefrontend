@@ -2,7 +2,7 @@
 // the actions on it. Where there is no stored link the dialog says so instead of offering a dead download.
 'use client';
 
-import { Button, Dialog, Fact, FactList, Icon, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, Fact, FactList, Icon, StatusBadge, DetailActions } from '@/components/ui-system';
 import { fmtDateTime } from '@/components/shared/utils';
 import { formatSize, typeMeta } from './documentLogic';
 import type { DocumentFile } from './types';
@@ -18,7 +18,7 @@ export function PreviewDialog({ doc, where, onClose, onDownload, onRename, onDel
   return (
     <Dialog
       open={!!doc} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={doc?.name ?? 'File'} description="File preview"
-      footer={doc && (<><Button variant="danger" icon="delete" onClick={() => onDelete(doc)}>Delete</Button><Button icon="edit" onClick={() => onRename(doc)}>Rename</Button><Button variant="primary" icon="download" disabled={!doc.url} onClick={() => onDownload(doc)}>Download</Button></>)}
+      footer={doc && (<DetailActions onDelete={() => onDelete(doc)} onEdit={() => onRename(doc)} editLabel="Rename"><Button variant="primary" icon="download" disabled={!doc.url} onClick={() => onDownload(doc)}>Download</Button></DetailActions>)}
     >
       {doc && m && (
         <div className="flex flex-col gap-4">

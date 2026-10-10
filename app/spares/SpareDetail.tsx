@@ -2,7 +2,7 @@
 // supplier and notes, with the actions that apply (add to the requisition, edit, delete).
 'use client';
 
-import { Button, Dialog, Progress, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Button, Dialog, Progress, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { categoriesOf, lineValue, priorityMeta, stockOf } from './stock';
 import type { Spare } from './types';
@@ -13,7 +13,7 @@ export function SpareDetail({ spare: s, onClose, onEdit, onDelete, onAddToRequis
   return (
     <Dialog
       open={!!s} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={s?.description ?? 'Spare part'} description={s?.stock_code}
-      footer={s && (<><Button variant="danger" icon="delete" onClick={() => onDelete(s)}>Delete</Button><Button icon="cart" onClick={() => onAddToRequisition(s)}>Add to requisition</Button><Button icon="edit" onClick={() => onEdit(s)}>Edit</Button><Button onClick={onClose}>Close</Button></>)}
+      footer={s && <DetailActions onDelete={() => onDelete(s)} onClose={onClose} onEdit={() => onEdit(s)} primary="edit"><Button icon="cart" onClick={() => onAddToRequisition(s)}>Add to requisition</Button></DetailActions>}
     >
       {s && st && pr && (
         <div className="flex flex-col gap-4">

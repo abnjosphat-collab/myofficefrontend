@@ -14,6 +14,7 @@ import { DOW, MON, scheduleBody, scheduleProblems, type ScheduleDraft } from './
 import { MachinePicker } from './MachinePicker';
 import { PRIORITY, RECURRENCES } from './meta';
 import type { MaintenanceSchedule, RecurrenceType, WorkOrderPriority } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const saved = (key: string) => { try { return localStorage.getItem(key) || ''; } catch { return ''; } };
 const blank = (): ScheduleDraft => ({
@@ -32,9 +33,7 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
   const [d, setD] = useState<ScheduleDraft>(blank);
   const [newDate, setNewDate] = useState('');
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(schedule?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setNewDate(''); setD(schedule ? fromSchedule(schedule) : blank()); } }
+  useResetOnOpen(dialogKey(open, schedule?.id), () => { setTouched(false); setNewDate(''); setD(schedule ? fromSchedule(schedule) : blank()); });
   const editing = !!schedule;
   const set = (patch: Partial<ScheduleDraft>) => setD(prev => ({ ...prev, ...patch }));
   const problems = scheduleProblems(d);

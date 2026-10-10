@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Button, Checkbox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { categoriesOf, PRIORITY } from './stock';
 import type { Spare, SpareFormData } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const PARTS = ['Hydraulic power packs', 'Lubricants', 'Dewatering/Pumps', 'Steels', 'Stationery'];
 const EQUIPMENT = ['Winders', 'Conveyance', 'Airloaders', 'Compressors', 'Locomotives', 'Scrappers', 'Winches', 'Transformers'];
@@ -41,9 +42,7 @@ function CategoryPicker({ value, onChange, inUse }: { value: string[]; onChange:
 export function SpareForm({ open, spare, all, onOpenChange, onSave }: { open: boolean; spare: Spare | null; all: Spare[]; onOpenChange: (open: boolean) => void; onSave: (data: SpareFormData, id?: number) => Promise<void> }) {
   const [d, setD] = useState<Draft>(blank);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(spare?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setD(spare ? fromSpare(spare) : blank()); } }
+  useResetOnOpen(dialogKey(open, spare?.id), () => { setTouched(false); setD(spare ? fromSpare(spare) : blank()); });
   const set = (patch: Partial<Draft>) => setD(prev => ({ ...prev, ...patch }));
   const editing = !!spare;
   const inUse = useMemo(() => [...new Set(all.flatMap(categoriesOf))].sort(), [all]);

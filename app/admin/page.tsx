@@ -13,6 +13,7 @@ import { useApiList } from '@/lib/useApiList';
 import type { UserProfile, UserRole } from '@/lib/supabase';
 // Role labels, order and descriptions come from the single source (lib/roles.ts).
 import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
+import { useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const ALL = '__all__';
 const ROLE_UI: Record<UserRole, { tone: Tone; icon: IconMeaning }> = {
@@ -31,10 +32,9 @@ const canManage = (caller: UserProfile, target: UserProfile) => caller.role === 
 function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile | null; caller: UserProfile; onClose: () => void; onChanged: () => Promise<void> }) {
   const confirm = useConfirm();
   const [role, setRole] = useState<UserRole>('user');
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [busy, setBusy] = useState<'save' | 'active' | 'reset' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  if ((user?.id ?? null) !== loadedFor) { setLoadedFor(user?.id ?? null); if (user) { setRole(user.role); setError(null); } }
+  useResetOnOpen(user?.id ?? null, () => { if (user) { setRole(user.role); setError(null); } });
 
   const run = async (kind: 'save' | 'active' | 'reset', action: () => Promise<void>, done: string) => {
     setBusy(kind); setError(null);

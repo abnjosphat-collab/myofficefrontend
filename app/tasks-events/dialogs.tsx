@@ -3,12 +3,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse, Fact, FactList } from '@/components/ui-system';
+import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { PeoplePicker } from './PeoplePicker';
 import { addComment, listComments } from './useTasksEventsData';
 import { PRIORITIES, TASK_TYPES, type TaskComment, type TaskEvent, type TaskEventFormData } from './types';
 import { PRIORITY_TONE, TYPE_TONE, isOverdue } from './meta';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const blank = (): TaskEventFormData => ({ title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_people: [], priority: 'Medium' });
 const fromItem = (i: TaskEvent): TaskEventFormData => ({ title: i.title, description: i.description || '', task_type: i.task_type, event_date: i.event_date || '', due_date: i.due_date || '', responsible_people: i.responsible_people || [], priority: i.priority });
@@ -18,9 +19,7 @@ export function ItemFormDialog({ open, item, onOpenChange, onSave }: {
 }) {
   const [form, setForm] = useState<TaskEventFormData>(blank);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(item?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(item ? fromItem(item) : blank()); } }
+  useResetOnOpen(dialogKey(open, item?.id), () => { setTouched(false); setForm(item ? fromItem(item) : blank()); });
   const set = <K extends keyof TaskEventFormData>(k: K, v: TaskEventFormData[K]) => setForm(f => ({ ...f, [k]: v }));
   const noTitle = !form.title.trim();
 
@@ -81,11 +80,9 @@ export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onT
       title={item?.title ?? 'Event or task'}
       size="lg"
       footer={item && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(item)}>Delete</Button>
-          <Button icon="edit" onClick={() => onEdit(item)}>Edit</Button>
+        <DetailActions onDelete={() => onDelete(item)} onEdit={() => onEdit(item)}>
           <Button variant="primary" icon={item.status === 'completed' ? 'undo' : 'check'} onClick={() => onToggle(item)}>{item.status === 'completed' ? 'Reopen' : 'Mark complete'}</Button>
-        </>
+        </DetailActions>
       )}
     >
       {item && (

@@ -16,6 +16,7 @@ import { minutesToDisplay } from './calcBreakdowns';
 import { PRIORITIES, STATUSES, TYPES } from './breakdownMeta';
 import { emptyForm, formFromRecord, formProblems, previewDowntime } from './breakdownLogic';
 import type { Breakdown, BreakdownFormData } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const OPTIONS = (list: { value: string; label: string }[]) => list.map(m => ({ value: m.value, label: m.label }));
 const h2 = 'border-b border-line pb-1.5 font-display text-section font-semibold text-ink';
@@ -24,9 +25,7 @@ export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: bo
   const equipment = useEquipment();
   const [f, setF] = useState<BreakdownFormData>(() => emptyForm(todayLocal()));
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(record?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setF(record ? formFromRecord(record, todayLocal()) : emptyForm(todayLocal())); } }
+  useResetOnOpen(dialogKey(open, record?.id), () => { setTouched(false); setF(record ? formFromRecord(record, todayLocal()) : emptyForm(todayLocal())); });
   const editing = !!record;
   const set = (patch: Partial<BreakdownFormData>) => setF(prev => ({ ...prev, ...patch }));
   const problems = formProblems(f);

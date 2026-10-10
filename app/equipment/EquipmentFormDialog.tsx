@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { STATUSES, STATUS_LABELS, blankForm, formFromItem, toPayload, type EquipmentForm } from './equipmentLogic';
 import type { EquipmentItem } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const CRITICALITY = [{ value: '__none__', label: 'Not set' }, { value: 'High', label: 'High' }, { value: 'Medium', label: 'Medium' }, { value: 'Low', label: 'Low' }];
 
@@ -26,9 +27,7 @@ export function EquipmentFormDialog({ open, item, locations, onOpenChange, onSav
 }) {
   const [form, setForm] = useState<EquipmentForm>(blankForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(item?.id ?? 'new') : null;
-  if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(item ? formFromItem(item) : blankForm()); } }
+  useResetOnOpen(dialogKey(open, item?.id), () => { setTouched(false); setForm(item ? formFromItem(item) : blankForm()); });
   const set = (patch: Partial<EquipmentForm>) => setForm(f => ({ ...f, ...patch }));
   const text = (k: keyof EquipmentForm, placeholder?: string) => <Input value={form[k]} onChange={e => set({ [k]: e.target.value } as Partial<EquipmentForm>)} placeholder={placeholder} />;
   const missing = useMemo(() => ({ id: !form.equipment_id.trim(), name: !form.name.trim() }), [form.equipment_id, form.name]);

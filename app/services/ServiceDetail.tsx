@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList } from '@/components/ui-system';
+import { Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { AttachmentsPanel } from './AttachmentsPanel';
 import { PipelineEditor } from './PipelineEditor';
@@ -22,7 +22,7 @@ export function ServiceDetail({ record, who, onClose, onEdit, onDelete, onSaveSt
     <Dialog
       open={!!record} onOpenChange={o => { if (!o) onClose(); }} size="xl"
       title={record?.description || 'Service'} description={record ? [record.supplier, record.date && fmtDate(record.date)].filter(Boolean).join(', ') || undefined : undefined}
-      footer={record && (<><Button variant="danger" icon="delete" onClick={() => onDelete(record)}>Delete</Button><Button onClick={onClose}>Close</Button><Button variant="primary" icon="edit" onClick={() => onEdit(record)}>Edit details</Button></>)}
+      footer={record && (<DetailActions onDelete={() => onDelete(record)} onClose={onClose} onEdit={() => onEdit(record)} editLabel="Edit details" />)}
     >
       {record && status && (
         <div className="flex flex-col gap-4">

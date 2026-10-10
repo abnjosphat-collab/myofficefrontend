@@ -2,7 +2,7 @@
 // apply to it (approve or reject while it is pending, edit, delete).
 'use client';
 
-import { Button, Dialog, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Button, Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { overtimeCostCentre } from './calcOvertime';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
@@ -23,12 +23,9 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
       open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="lg"
       title={r ? `${r.employee_name}` : 'Overtime request'} description={r ? [r.employee_id, r.position].filter(Boolean).join(', ') : undefined}
       footer={r && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(r)}>Delete</Button>
+        <DetailActions onDelete={() => onDelete(r)} onClose={onClose} onEdit={() => onEdit(r)}>
           {r.status === 'pending' && <><Button icon="close" onClick={() => onReject(r)}>Reject</Button><Button variant="primary" icon="success" onClick={() => onApprove(r)}>Approve</Button></>}
-          <Button icon="edit" onClick={() => onEdit(r)}>Edit</Button>
-          <Button onClick={onClose}>Close</Button>
-        </>
+        </DetailActions>
       )}
     >
       {r && status && type && (

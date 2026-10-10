@@ -12,6 +12,7 @@ import { SECTION_ORDER } from '@/lib/sections';
 import { expiryFor, formProblems } from './ppeLogic';
 import { CONDITIONS, STATUSES, TYPE_OPTIONS } from './ppeMeta';
 import type { EmployeeRow, EmployeeWithPPE, FormState, PPERecord } from './types';
+import { useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const blank = (): FormState => ({ employee_name: '', employee_id: '', position: '', ppe_type: 'helmet', item_name: '', size: '', issue_date: todayLocal(), expiry_date: '', condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop', mine_section: '' });
 const seedOf = (r: PPERecord, employee: EmployeeWithPPE | null): FormState => ({
@@ -29,12 +30,9 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
   const [form, setForm] = useState<FormState>(blank);
   const [touchedExpiry, setTouchedExpiry] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  // One form per record, per order-list prefill and per employee it was opened for.
   const key = open ? `${record?.id ?? (prefill ? `prefill-${prefill.employee_id}-${prefill.ppe_type}` : 'new')}-${employee?.employee_id ?? ''}` : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) { setTouched(false); setTouchedExpiry(false); const seed = record ?? prefill; setForm(seed ? seedOf(seed, employee) : { ...blank(), employee_name: employee?.employee_name ?? '', employee_id: employee?.employee_id ?? '', position: employee?.position ?? '', mine_section: employee?.section ?? '' }); }
-  }
+  useResetOnOpen(key, () => { setTouched(false); setTouchedExpiry(false); const seed = record ?? prefill; setForm(seed ? seedOf(seed, employee) : { ...blank(), employee_name: employee?.employee_name ?? '', employee_id: employee?.employee_id ?? '', position: employee?.position ?? '', mine_section: employee?.section ?? '' }); });
   const editing = !!record;
   const set = (patch: Partial<FormState>) => setForm(f => ({ ...f, ...patch }));
   // Until someone types an expiry, it follows the issue date and type (an old record included, so fixing its date recalculates it).

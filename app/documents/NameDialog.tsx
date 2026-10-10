@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Field, FormDialog, Input, Textarea } from '@/components/ui-system';
+import { useResetOnOpen } from '@/lib/useResetOnOpen';
 
 export interface NameTarget { key: string; title: string; description?: string; label: string; name: string; comment?: string; submitLabel: string }
 
@@ -13,9 +14,7 @@ export function NameDialog({ target, onOpenChange, onSave }: {
   const [name, setName] = useState('');
   const [comment, setComment] = useState('');
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = target?.key ?? null;
-  if (key !== loadedFor) { setLoadedFor(key); if (target) { setName(target.name); setComment(target.comment ?? ''); setTouched(false); } }
+  useResetOnOpen(target?.key ?? null, () => { if (target) { setName(target.name); setComment(target.comment ?? ''); setTouched(false); } });
 
   const submit = async () => {
     setTouched(true);

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, type Column, FilterField } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { toLocalISODate } from '@/lib/dates';
@@ -253,10 +253,7 @@ function AvailabilitiesContent() {
               columns={RECORD_COLS}
               getRowId={r => String(r.id)}
               rowActions={r => r.source === 'breakdown' ? null : (
-                <span className="inline-flex gap-1">
-                  <IconButton icon="edit" size="sm" label={`Edit the record for ${nameOf(r)} on ${r.date}`} onClick={() => openEdit(r)} />
-                  <IconButton icon="delete" variant="danger" size="sm" label={`Delete the record for ${nameOf(r)} on ${r.date}`} onClick={() => remove(r)} />
-                </span>
+                <RowActions subject={`the record for ${nameOf(r)} on ${r.date}`} onEdit={() => openEdit(r)} onDelete={() => remove(r)} />
               )}
             />
             <p className="mt-3 font-sans text-caption text-ink-muted">Records derived from breakdowns cannot be edited here; log a manual record for that day to replace one.</p>

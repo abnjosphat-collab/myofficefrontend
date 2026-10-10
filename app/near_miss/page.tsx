@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
@@ -14,6 +14,7 @@ import type { NearMissReport } from './types';
 import { createReport, deleteReport, updateReport, useNearMissData } from './useNearMissData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 type Section = NearMissReport['section'];
 const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }[] = [
@@ -43,18 +44,13 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(report?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(report ? {
-        department: report.department, section: report.section, date: report.date, time: report.time, location: report.location,
-        description: report.description, witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
-      } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, report?.id), () => {
+    setTouched(false);
+    setForm(report ? {
+      department: report.department, section: report.section, date: report.date, time: report.time, location: report.location,
+      description: report.description, witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
+    } : emptyForm());
+  });
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(p => ({ ...p, [k]: v }));
   const names = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
   const setReporter = (name: string) => {
@@ -114,11 +110,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: NearMissR
       description={report ? `${report.department}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
     >
       {report && (
@@ -271,10 +263,7 @@ function NearMissContent() {
           onSortChange={setSort}
           onRowActivate={setViewing}
           rowActions={r => (
-            <span className="inline-flex gap-1">
-              <IconButton icon="edit" size="sm" label={`Edit report from ${r.department}, ${formatDate(r.date)}`} onClick={() => openEditor(r)} />
-              <IconButton icon="delete" variant="danger" size="sm" label={`Delete report from ${r.department}, ${formatDate(r.date)}`} onClick={() => remove(r)} />
-            </span>
+            <RowActions subject={`report from ${r.department}, ${formatDate(r.date)}`} onEdit={() => openEditor(r)} onDelete={() => remove(r)} />
           )}
         />
       </DataRegion>

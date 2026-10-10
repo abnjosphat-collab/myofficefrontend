@@ -16,6 +16,7 @@ import { computeStats, rangeToFromTo, scoreLabel, weekLabel, weeklyActuals } fro
 import type { Comment, ModuleKey, QuickRange } from './types';
 import { postSafetyAnalysis, useSheqDashboardData } from './useSheqDashboardData';
 import { priorityTone } from '@/lib/status';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const RANGES: { value: QuickRange | 'custom'; label: string }[] = [
   { value: '7d', label: '7 days' }, { value: '30d', label: '30 days' }, { value: '90d', label: '90 days' },
@@ -69,8 +70,7 @@ function weeklyStatus(actual: number, target: number): { label: string; tone: To
 
 function TargetsDialog({ targets, open, onOpenChange, onSave }: { targets: Record<TargetKey, number>; open: boolean; onOpenChange: (open: boolean) => void; onSave: (t: Record<TargetKey, number>) => void }) {
   const [draft, setDraft] = useState(targets);
-  const [loadedFor, setLoadedFor] = useState(false);
-  if (open !== loadedFor) { setLoadedFor(open); if (open) setDraft(targets); }
+  useResetOnOpen(dialogKey(open, undefined), () => setDraft(targets));
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title="Edit weekly targets" description="Saved on this device only. Each target is the number of records expected per week." submitLabel="Save targets" onSubmit={async () => { onSave(draft); }}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

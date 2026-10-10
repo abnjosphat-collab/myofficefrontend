@@ -18,6 +18,7 @@ import { countDuplicates } from './overtimeLogic';
 import { PAYOUT_LABELS, PLANNING_LABELS, TYPE_LABELS } from './overtimeMeta';
 import { SELECTABLE_OT_TYPES, overtimeCostCentreOptions, type OTForm, type OTRecord, type OTType, type PayoutMethod, type PlanningStatus } from './types';
 import { buildOvertimePayload, createOT } from './useOvertimeData';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 type Shared = Omit<OTForm, 'employee_name' | 'employee_id' | 'position' | 'department' | 'contact_number'>;
 const sharedOf = (): Shared => {
@@ -36,8 +37,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
   const [form, setForm] = useState<Shared>(sharedOf);
   const [useHours, setUseHours] = useState(false);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState(false);
-  if (open !== loadedFor) { setLoadedFor(open); if (open) { setForm(sharedOf()); setUseHours(false); setTouched(false); setPeople(initial); } }
+  useResetOnOpen(dialogKey(open, undefined), () => { setForm(sharedOf()); setUseHours(false); setTouched(false); setPeople(initial); });
   const set = (patch: Partial<Shared>) => setForm(f => ({ ...f, ...patch }));
   const hours = useHours ? parseFloat(form.hours) || 0 : calcHours(form.start_time, form.end_time);
   const dupes = useMemo(() => (useHours ? 0 : countDuplicates(records, people.map(p => p.employee_id), form.date, form.start_time)), [records, people, form.date, form.start_time, useHours]);

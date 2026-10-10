@@ -9,6 +9,7 @@ import { Button, Dialog, Icon, Notice, cn } from '@/components/ui-system';
 import { fileMode, isKnownHeader, ocrToRecord, parseExcelDate, rowToRecord } from './extract';
 import { createService, ocrExtract } from './useServicesData';
 import type { ServiceRecord } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 interface Parsed { records: ServiceRecord[]; skipped: number; headers: string[]; preview: string[][]; ignored: string[] }
 const label = (r: ServiceRecord) => r.description || r.supplier || 'Row';
@@ -21,8 +22,7 @@ export function ImportDialog({ open, onOpenChange, onScanned, onImported }: {
   const [error, setError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [failures, setFailures] = useState<{ name: string; reason: string }[]>([]);
-  const [loadedFor, setLoadedFor] = useState(false);
-  if (open !== loadedFor) { setLoadedFor(open); if (open) { setParsed(null); setError(null); setFailures([]); setBusy(null); } }
+  useResetOnOpen(dialogKey(open, undefined), () => { setParsed(null); setError(null); setFailures([]); setBusy(null); });
 
   const handleFile = async (file: File) => {
     setError(null); setFailures([]); setBusy('reading');

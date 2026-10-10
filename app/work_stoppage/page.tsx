@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -16,6 +16,7 @@ import { createReport, deleteReport, updateReport, useWorkStoppageData } from '.
 import { statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
@@ -72,15 +73,10 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkSt
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(report?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, report?.id), () => {
+    setTouched(false);
+    setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : emptyForm());
+  });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), designation: e.designation, department: e.department })), [employees]);
   const setIssuer = (name: string) => {
@@ -155,11 +151,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
       description={report ? `${report.department}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
     >
       {report && (
@@ -385,10 +377,7 @@ function WorkStoppageContent() {
             onSortChange={setSort}
             onRowActivate={setViewing}
             rowActions={r => (
-              <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit ${r.department} report of ${formatDate(r.date)}`} onClick={() => openEditor(r)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Delete ${r.department} report of ${formatDate(r.date)}`} onClick={() => remove(r)} />
-              </span>
+              <RowActions subject={`${r.department} report of ${formatDate(r.date)}`} onEdit={() => openEditor(r)} onDelete={() => remove(r)} />
             )}
           />
         )}

@@ -61,6 +61,7 @@ export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';
 export { Fact, FactList } from './patterns/Fact';
+export { DetailActions, RowActions } from './patterns/RecordActions';
 export { DataTable } from './patterns/DataTable';
 export type { Column, DataTableProps } from './patterns/DataTable';
 export { Pagination } from './patterns/Pagination';

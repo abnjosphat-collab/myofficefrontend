@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -15,6 +15,7 @@ import { createPacheduReport, deletePacheduReport, updatePacheduReport, usePache
 import { statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
 const BEHAVIOURS: BehaviourType[] = ['Intentional', 'Unintentional'];
@@ -54,15 +55,10 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: Pached
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(report?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false);
-      setForm(report ? { ...emptyForm(), location: report.location, date: report.date, activityObserved: report.activityObserved, whatDidYouSee: report.whatDidYouSee, reasons: report.reasons || '', behaviourType: report.behaviourType, impacts: report.impacts || [], whatDidYouDo: report.whatDidYouDo, observerName: report.observerName || '', dept: report.dept || '', sdwt: report.sdwt || '', sectionChoice: report.sectionChoice, checklist: report.checklist || [], status: report.status } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, report?.id), () => {
+    setTouched(false);
+    setForm(report ? { ...emptyForm(), location: report.location, date: report.date, activityObserved: report.activityObserved, whatDidYouSee: report.whatDidYouSee, reasons: report.reasons || '', behaviourType: report.behaviourType, impacts: report.impacts || [], whatDidYouDo: report.whatDidYouDo, observerName: report.observerName || '', dept: report.dept || '', sdwt: report.sdwt || '', sectionChoice: report.sectionChoice, checklist: report.checklist || [], status: report.status } : emptyForm());
+  });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
   const setObserver = (name: string) => { const m = people.find(p => p.name === name); setForm(p => ({ ...p, observerName: name, dept: m?.department || p.dept })); };
@@ -142,11 +138,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       description={report ? `${report.observerName || 'Anonymous'}, ${formatDate(report.date)}` : undefined}
       size="lg"
       footer={report && (
-        <>
-          <Button variant="danger" icon="delete" onClick={() => onDelete(report)}>Delete</Button>
-          <Button onClick={onClose}>Close</Button>
-          <Button variant="primary" icon="edit" onClick={() => onEdit(report)}>Edit</Button>
-        </>
+        <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
     >
       {report && (
@@ -343,10 +335,7 @@ function PacheduContent() {
             onSortChange={setSort}
             onRowActivate={r => setViewingId(r.id)}
             rowActions={r => (
-              <span className="inline-flex gap-1">
-                <IconButton icon="edit" size="sm" label={`Edit care observation by ${label(r)}`} onClick={() => openEditor(r)} />
-                <IconButton icon="delete" variant="danger" size="sm" label={`Delete care observation by ${label(r)}`} onClick={() => remove(r)} />
-              </span>
+              <RowActions subject={`care observation by ${label(r)}`} onEdit={() => openEditor(r)} onDelete={() => remove(r)} />
             )}
           />
         )}

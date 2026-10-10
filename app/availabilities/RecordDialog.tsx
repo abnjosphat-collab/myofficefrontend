@@ -9,6 +9,7 @@ import { todayLocal } from '@/lib/dates';
 import { fetchBreakdownRecords } from './useAvailabilitiesData';
 import { availabilityPercent, availabilityTone } from './calcAvailabilities';
 import type { AvailRecord, Equipment } from './types';
+import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 type Form = { equipment_id: string; date: string; operational_hours: string; breakdown_hours: string; notes: string };
 const emptyForm = (): Form => ({ equipment_id: '', date: todayLocal(), operational_hours: '24', breakdown_hours: '0', notes: '' });
@@ -24,15 +25,10 @@ export function RecordDialog({ open, record, equipment, onOpenChange, onSave }: 
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const key = open ? String(record?.id ?? 'new') : null;
-  if (key !== loadedFor) {
-    setLoadedFor(key);
-    if (key !== null) {
-      setTouched(false); setHint(null);
-      setForm(record ? { equipment_id: String(record.equipment_id), date: record.date, operational_hours: String(record.operational_hours ?? ''), breakdown_hours: String(record.breakdown_hours ?? ''), notes: record.notes ?? '' } : emptyForm());
-    }
-  }
+  useResetOnOpen(dialogKey(open, record?.id), () => {
+    setTouched(false); setHint(null);
+    setForm(record ? { equipment_id: String(record.equipment_id), date: record.date, operational_hours: String(record.operational_hours ?? ''), breakdown_hours: String(record.breakdown_hours ?? ''), notes: record.notes ?? '' } : emptyForm());
+  });
   const set = (patch: Partial<Form>) => setForm(f => ({ ...f, ...patch }));
 
   const op = parseFloat(form.operational_hours); const bd = parseFloat(form.breakdown_hours);

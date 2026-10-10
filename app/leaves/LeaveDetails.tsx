@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { typeOf } from './leaveTypes';
@@ -25,9 +25,7 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
         open={!!leave} onOpenChange={o => { if (!o) onClose(); }}
         title={leave ? `Leave request #${leave.id}` : 'Leave request'} description={leave ? `${leave.employee_name}, ${type?.name}` : undefined} size="lg"
         footer={leave && (
-          <>
-            <Button variant="danger" icon="delete" onClick={() => onDelete(leave)}>Delete</Button>
-            <Button icon="edit" onClick={() => onEdit(leave)}>Edit</Button>
+          <DetailActions onDelete={() => onDelete(leave)} onEdit={() => onEdit(leave)}>
             <Menu>
               <MenuTrigger asChild><Button variant="primary" iconAfter="chevron-down">Update status</Button></MenuTrigger>
               <MenuContent>
@@ -36,7 +34,7 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
                 <MenuItem icon="undo" onSelect={() => { onStatus(leave, 'pending').catch(() => {}); }}>Mark pending</MenuItem>
               </MenuContent>
             </Menu>
-          </>
+          </DetailActions>
         )}
       >
         {leave && meta && type && (

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Field, FormDialog, Icon, Input, Select, cn } from '@/components/ui-system';
 import { STATUS_KEYS, STATUS_META } from './meta';
 import type { AddCompressorFormData, Compressor } from './types';
+import { useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const emptyForm = (): AddCompressorFormData => ({ name: '', model: '', capacity: '', location: '', status: 'standby', total_running_hours: 0, total_loaded_hours: 0, color: 'bg-brand-500' });
 
@@ -51,8 +52,7 @@ export function StatusDialog({ compressor, onClose, onChange }: {
   compressor: Compressor | null; onClose: () => void; onChange: (id: number, status: string) => Promise<void>;
 }) {
   const [choice, setChoice] = useState('');
-  const [loadedFor, setLoadedFor] = useState<number | null>(null);
-  if ((compressor?.id ?? null) !== loadedFor) { setLoadedFor(compressor?.id ?? null); setChoice(compressor?.status ?? ''); }
+  useResetOnOpen(compressor ? String(compressor.id) : null, () => setChoice(compressor?.status ?? ''));
   const submit = async () => {
     if (!compressor) return false;
     if (choice === compressor.status) throw new Error('Choose a different status first.');
