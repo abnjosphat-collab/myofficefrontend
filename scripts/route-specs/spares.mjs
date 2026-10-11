@@ -96,7 +96,7 @@ const spec = {
     await rq.waitFor({ timeout: 5000 });
     check(await rq.getByLabel('Requisition lines').getByText('Gasket').or(rq.getByText(/S3/)).first().isVisible(), 'adding a part opens the builder with that line');
     await rq.getByLabel('Quantity').fill('4');
-    check(await rq.getByText('$6.00').first().isVisible(), 'the line and total are worked out');
+    check(await rq.getByText('R6.00').first().isVisible(), 'the line and total are worked out');
     await rq.getByRole('button', { name: 'Add a line' }).click();
     check(await rq.getByText('Some lines are not complete').isVisible(), 'an empty line is flagged and does not count');
     await rq.getByRole('button', { name: 'Remove part 2' }).click();

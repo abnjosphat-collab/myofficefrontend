@@ -1,13 +1,12 @@
 // Shared utility functions — import these instead of re-defining in every page
 
 import type { EquipmentBase } from '@/app/equipment/types';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatLongDate } from '@/lib/format';
 
 // Dates have one definition, in lib/format.ts. These names stay because 40+ files import them.
 export function fmtDate(s?: string | null, style: 'short' | 'long' = 'short'): string {
   if (style === 'short') return formatDate(s);
-  const d = s ? new Date(s) : null;
-  return d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+  return formatLongDate(s);
 }
 
 export const fmtDateTime = (s?: string | null): string => formatDateTime(s);
@@ -30,17 +29,18 @@ export function calcDays(start?: string | null, end?: string | null): number {
   } catch { return 0; }
 }
 
-export function formatCurrency(n: number, currency = 'USD', fractionDigits = 2): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency', currency,
-    minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits,
-  }).format(n || 0);
+// The app money is rand (R1,234.56): one symbol with en-US digit grouping. Written by hand rather than
+// Intl currency style because en-US renders ZAR as "ZAR", not "R". Pages with their own currency choice
+// (quotations) keep their own formatter; everything else comes through here.
+export function formatCurrency(n: number, currency = 'ZAR', fractionDigits = 2): string {
+  const symbol = currency === 'USD' ? '$' : currency === 'ZAR' ? 'R' : `${currency} `;
+  return `${symbol}${(n || 0).toLocaleString('en-US', { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits })}`;
 }
 
 export function formatCurrencyShort(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
+  if (n >= 1_000_000) return `R${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `R${(n / 1_000).toFixed(1)}K`;
+  return `R${n.toFixed(0)}`;
 }
 
 // The qty × unit-price line-item total, repeated ~18 times across

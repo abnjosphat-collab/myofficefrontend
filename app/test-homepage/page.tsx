@@ -16,6 +16,7 @@ import { FiguresBand } from './FiguresBand';
 import { DirectorySection } from './DirectorySection';
 import { opsVerdict } from './verdict';
 import { hrefForModuleName } from './moduleLinks';
+import { formatTime } from '@/lib/format';
 
 /** Quiet staggered entrance; renders static when reduced motion is preferred. */
 function Reveal({ index, children }: { index: number; children: ReactNode }) {
@@ -131,7 +132,7 @@ function ConceptContent() {
         <p className="font-sans text-caption text-ink-subtle">Concept preview — this page isn&rsquo;t linked anywhere.</p>
         <p className="flex items-center gap-3 font-sans text-caption text-ink-muted">
           {updatedAt ? (
-            <span>Updated {updatedAt.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })}</span>
+            <span>Updated {formatTime(updatedAt)}</span>
           ) : (
             <span role="status">Updating…</span>
           )}

@@ -13,7 +13,7 @@ import { fmtDate } from '@/components/shared/utils';
 import { ArtisanEditor } from './ArtisanEditor';
 import { TimesheetLoading } from './TimesheetLoading';
 import { artisanKey, artisansOf, draftToPayload, isDirty, openMonth, periodLabel, previousMonth, problems, refreshedRows, snapshot } from './artisanLogic';
-import { monthName } from './calcTotals';
+import { monthName } from '@/lib/format';
 import { downloadArtisanTimesheetExcel, downloadArtisanTimesheetPdf } from './exportArtisanTimesheet';
 import type { ArtisanTimesheetDraft, ArtisanTimesheetRecord, ArtisanTimesheetSummary } from './types';
 import { createArtisanTimesheet, deleteArtisanTimesheet, fetchMonth, fetchTimesheet, updateArtisanTimesheet, useReference, useSavedTimesheets, useStaff } from './useArtisanTimesheetsData';

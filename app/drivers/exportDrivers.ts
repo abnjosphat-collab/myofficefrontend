@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { EXPORT_BRAND_RGB, styleExcelHeaderRow, exportFilename } from '@/lib/exportUtils';
 import type { Driver } from './types';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 export async function exportExcel(drivers: Driver[]) {
   const ExcelJS = (await import('exceljs')).default;
@@ -44,7 +44,7 @@ export function exportPDF(drivers: Driver[], filterLabel: string) {
   doc.setFontSize(14); doc.setFont('helvetica', 'bold');
   doc.text('Authorised Drivers Registry', 14, 9);
   doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}  ·  ${filterLabel}  ·  ${drivers.length} driver${drivers.length !== 1 ? 's' : ''}`, 14, 16);
+  doc.text(`Generated: ${formatDateTime(new Date())}  ·  ${filterLabel}  ·  ${drivers.length} driver${drivers.length !== 1 ? 's' : ''}`, 14, 16);
 
   const phonePositions: { x: number; y: number; w: number; h: number; tel: string }[] = [];
   const body = drivers.map(d => [

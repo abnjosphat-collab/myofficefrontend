@@ -6,6 +6,7 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableCell, TableRow, WidthType, BorderStyle, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 import { SOP_SECTION_LABELS, SOP_STATUS_LABEL, SOP_RISK_TIER_LABEL, type SopDocument } from './types';
+import { formatDateTime } from '../format';
 
 const BRAND = '7c3aed'; // ACCENT_HEX.violet — matches the app's hero/brand accent
 const MUTED = '6b7280';
@@ -84,7 +85,7 @@ export async function exportSopToWord(sop: SopDocument): Promise<void> {
 
         new Paragraph({
           children: [new TextRun({
-            text: `Exported ${new Date().toLocaleString()} · saved version ${sop.version} · last updated ${new Date(sop.updated_at).toLocaleString()}`,
+            text: `Exported ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`,
             size: 14, italics: true, color: MUTED,
           })],
           spacing: { before: 500 },

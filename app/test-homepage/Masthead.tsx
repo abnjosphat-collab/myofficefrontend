@@ -5,6 +5,7 @@
 'use client';
 
 import { Button, Popover, PopoverContent, PopoverTrigger, cn } from '@/components/ui-system';
+import { formatFullDate } from '@/lib/format';
 
 function Tips() {
   return (
@@ -31,7 +32,7 @@ export function Masthead({ live }: { live: boolean }) {
         {' \u00b7 '}
         {/* The server and the browser disagree on "now"; correct once rendered. */}
         <time suppressHydrationWarning dateTime={new Date().toISOString()}>
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {formatFullDate(new Date())}
         </time>
       </p>
       <div className="flex items-center gap-3">

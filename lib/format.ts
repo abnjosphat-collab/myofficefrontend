@@ -39,6 +39,13 @@ const en = (value: string | number | Date | null | undefined, options: Intl.Date
   return d ? d.toLocaleDateString('en-GB', options) : '—';
 };
 
+/** "5 Oct, 14:30" — day and time without the year, for feeds within the current year. */
+export function formatShortDateTime(value?: string | number | Date | null): string {
+  const d = asDate(value);
+  if (!d) return '—';
+  return `${formatDayMonth(d)}, ${formatTime(d)}`;
+};
+
 /** "5 July 2026" — a date written out, for documents and headings. */
 export const formatLongDate = (value?: string | number | Date | null) => en(value, { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -55,6 +62,16 @@ export const formatWeekday = (value?: string | number | Date | null, long = fals
 /** "Jul"; "Jul 26" with `year: 'short'`; "Jul 2026" with `year: 'full'` — month labels for charts and periods. */
 export const formatMonth = (value?: string | number | Date | null, year: 'none' | 'short' | 'full' = 'none') =>
   en(value, { month: 'short', ...(year === 'short' ? { year: '2-digit' as const } : year === 'full' ? { year: 'numeric' as const } : {}) });
+
+/** "October 2026" — a month heading with the year written out (dashboard titles). */
+export const formatMonthYear = (value?: string | number | Date | null) =>
+  en(value, { month: 'long', year: 'numeric' });
+
+/** "October" — the full month name for a 1–12 month number (period labels, month pickers). */
+export function monthName(month: number): string {
+  if (!Number.isInteger(month) || month < 1 || month > 12) return '—';
+  return en(new Date(2000, month - 1, 1), { month: 'long' });
+}
 
 /** Relative "time ago" for activity feeds: "just now", "5 min", "3 hours", "2 days". */
 export function timeAgo(value?: string | number | Date | null): string {

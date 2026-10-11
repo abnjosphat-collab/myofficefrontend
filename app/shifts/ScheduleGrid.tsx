@@ -9,6 +9,7 @@ import { d2s, buildHolidayMap, stripTime } from './calcShifts';
 import { cellFor, timingFor } from './cellLogic';
 import { DAY_STATUS, EVENT_TYPES, TONE_CELL, patternOf } from './shiftMeta';
 import type { LeaveRecord, ShiftAssignment } from './types';
+import { formatDate, formatDayMonth, formatFullDate, formatMonth } from '@/lib/format';
 
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const DAYS = 28;
@@ -29,12 +30,12 @@ export function ScheduleGrid({ assignments, leaves, onOpenEvent, onView }: {
   const months = useMemo(() => {
     const spans: { label: string; count: number }[] = [];
     for (const d of days) {
-      const label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      const label = formatMonth(d, 'short');
       if (spans.at(-1)?.label === label) spans[spans.length - 1].count += 1; else spans.push({ label, count: 1 });
     }
     return spans;
   }, [days]);
-  const range = `${days[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} to ${days[DAYS - 1].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  const range = `${formatDayMonth(days[0])} to ${formatDate(days[DAYS - 1])}`;
 
   return (
     <div className="flex flex-col gap-3">
@@ -84,7 +85,7 @@ export function ScheduleGrid({ assignments, leaves, onOpenEvent, onView }: {
                       <td key={ds} className={cn('border-b border-line p-0.5 text-center', isToday && 'bg-action-soft/40')}>
                         <button
                           type="button" title={c.label} onClick={() => onOpenEvent(a, ds)}
-                          aria-label={`${a.employee_name}, ${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}: ${c.label}${c.pending ? ' (not yet decided)' : ''}. Add or edit an event.`}
+                          aria-label={`${a.employee_name}, ${formatFullDate(d)}: ${c.label}${c.pending ? ' (not yet decided)' : ''}. Add or edit an event.`}
                           className={cn('focus-ring flex min-h-11 w-full flex-col items-center justify-center rounded-control border px-0.5 py-1 font-semibold leading-none tabular transition-[filter] hover:brightness-95', c.tone ? TONE_CELL[c.tone] : 'border-transparent font-normal text-ink-muted', c.pending && 'border-dashed')}
                         >
                           <span>{c.abbr}</span>

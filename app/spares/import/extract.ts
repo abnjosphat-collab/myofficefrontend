@@ -12,13 +12,13 @@ export interface ExtractedRow {
 }
 
 /**
- * A price from a cell: currency symbols and spaces are ignored; "1,234.50" is 1234.5 and "12,50" is 12.5.
+ * A price from a cell: currency symbols and spaces are ignored ("R1,234.50" is 1234.5, as is "$1,234.50"); "12,50" is 12.5.
  * Anything that is not a non-negative number is null, never 0.
  */
 export function parsePrice(raw: unknown): number | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === 'number') return Number.isFinite(raw) && raw >= 0 ? raw : null;
-  let s = String(raw).replace(/[$€£\s]/g, '');
+  let s = String(raw).replace(/[$€£Rr\s]/g, '');
   if (s === '') return null;
   if (/^\d+,\d{1,2}$/.test(s)) s = s.replace(',', '.'); // a decimal comma
   else s = s.replace(/,/g, ''); // thousands separators

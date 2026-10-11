@@ -417,7 +417,7 @@ function SheqContent() {
                     </Card>
                   )}
                 </div>
-                <p className="text-right font-sans text-caption text-ink-muted">Generated {ai.generated_at ? new Date(ai.generated_at).toLocaleString('en-GB') : ''}. Review the recommendations with your safety team before acting.</p>
+                <p className="text-right font-sans text-caption text-ink-muted">Generated {ai.generated_at ? formatDateTime(ai.generated_at) : ''}. Review the recommendations with your safety team before acting.</p>
               </div>
             )}
           </TabsContent>

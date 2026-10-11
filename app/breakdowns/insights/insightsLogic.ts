@@ -2,6 +2,7 @@
 // the time and money formats, and the plain-English lines that stand in for each chart.
 import { minutesToDisplay } from '../calcBreakdowns';
 import { formatMonth } from '@/lib/format';
+import { formatCurrency } from '@/components/shared/utils';
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const DAYS_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -17,7 +18,7 @@ export const busyHours = (grid: number[][]): number[] => Array.from({ length: 24
 export const gridTotal = (grid: number[][]): number => grid.reduce((s, row) => s + row.reduce((a, v) => a + v, 0), 0);
 
 export const duration = (minutes: number | null | undefined): string => (minutes == null || !Number.isFinite(minutes) ? 'Not recorded' : minutesToDisplay(Math.round(minutes)));
-export const money = (v: number | null | undefined): string => `$${(Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+export const money = (v: number | null | undefined): string => formatCurrency(Number(v) || 0, 'ZAR', 0);
 export const monthLabel = (key: string): string => { const m = /^(\d{4})-(\d{2})$/.exec(key); return m ? formatMonth(new Date(Number(m[1]), Number(m[2]) - 1, 1), 'short') : key; };
 
 /** "Mechanical 12; Electrical 3." — the text alternative for a ranked list or a bar chart. */

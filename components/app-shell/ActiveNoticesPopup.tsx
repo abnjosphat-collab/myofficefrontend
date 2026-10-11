@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button, IconButton, Icon, StatusBadge, type Tone } from '@/components/ui-system';
+import { priorityTone } from '@/lib/status';
 import { useNoticeAlerts } from './useNoticeAlerts';
 import { useNotifications } from './useNotifications';
 import type { Notice } from '@/app/noticeboard/types';
@@ -34,8 +35,8 @@ function markShownThisSession() {
 }
 
 const PRIORITY: Record<string, { tone: Tone; accent: string }> = {
-  Critical: { tone: 'danger', accent: 'border-l-danger' }, High: { tone: 'warning', accent: 'border-l-warning' },
-  Medium: { tone: 'info', accent: 'border-l-info' }, Low: { tone: 'neutral', accent: 'border-l-line-strong' },
+  Critical: { tone: priorityTone('critical'), accent: 'border-l-danger' }, High: { tone: priorityTone('high'), accent: 'border-l-warning' },
+  Medium: { tone: priorityTone('medium'), accent: 'border-l-info' }, Low: { tone: priorityTone('low'), accent: 'border-l-line-strong' },
 };
 
 const truncate = (text: string, max = 90) => (text.length <= max ? text : `${text.slice(0, max)}…`);

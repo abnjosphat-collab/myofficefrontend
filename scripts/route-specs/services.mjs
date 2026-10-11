@@ -160,8 +160,10 @@ const spec = {
     failImportFor = null;
     await im.getByRole('button', { name: 'Cancel' }).click();
 
-    // scan: OCR opens the form pre-filled rather than saving
-    await page.getByRole('button', { name: 'Import or scan' }).click();
+    // scan: OCR opens the form pre-filled rather than saving (reopen the dialog first: the import above closed it)
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Import or scan' }).click();
+    await dialog('Import or scan').waitFor({ timeout: 5000 });
     await dialog('Import or scan').getByLabel('File to import or scan', { exact: true }).setInputFiles({ name: 'scan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('p') });
     const sc = dialog('New service');
     await sc.waitFor({ timeout: 8000 });

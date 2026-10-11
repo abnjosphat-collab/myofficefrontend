@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
@@ -155,7 +156,7 @@ export function DownloadButton({
       // ── Footer metadata ──────────────────────────────────────────────────
       ws.addRow([]);
       const footer = ws.addRow([
-        `Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
+        `Generated ${formatDateTime(new Date())} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
       ]);
       footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
       ws.mergeCells(footer.number, 1, footer.number, columns.length);
@@ -201,7 +202,7 @@ export function DownloadButton({
       }
       doc.setFontSize(7);
       doc.setTextColor(160, 170, 180);
-      doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} · ${data.length} records`, 14, y);
+      doc.text(`Generated ${formatDate(new Date())} · ${data.length} records`, 14, y);
       y += 4;
 
       const statusColIdx = statusColumn ? pdfCols.findIndex(c => c.key === statusColumn) : -1;

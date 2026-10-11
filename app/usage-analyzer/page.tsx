@@ -13,7 +13,7 @@ import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches, usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
 } from '@/lib/usage';
-import { formatFullDate } from '@/lib/format';
+import { formatFullDate, formatShortDateTime } from '@/lib/format';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
@@ -289,7 +289,7 @@ function UsageAnalyzerContent() {
                     <li key={i} className="rounded-control border border-line-subtle bg-surface-subtle px-3 py-2">
                       <div className="mb-0.5 flex items-center justify-between gap-2"><span className="truncate font-sans text-label font-medium text-ink">{f.page}</span>{f.rating > 0 ? <Rating value={f.rating} /> : <span className="font-sans text-caption text-ink-muted">No rating</span>}</div>
                       {f.text && <p className="font-sans text-body text-ink">{f.text}</p>}
-                      <p className="mt-0.5 font-sans text-caption text-ink-muted">{new Date(f.ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="mt-0.5 font-sans text-caption text-ink-muted">{formatShortDateTime(f.ts)}</p>
                     </li>
                   ))}
                 </ul>

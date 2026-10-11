@@ -42,7 +42,7 @@ export function ServiceForm({ open, record, onOpenChange, onSave }: {
         <Field label="Requisition number" optional>{text('requisition_number', 'REQ-001')}</Field>
         <Field label="Order (PO) number" optional>{text('order_number', 'PO-001')}</Field>
         <Field label="Invoice number" optional>{text('invoice_number', 'INV-001')}</Field>
-        <Field label="Total amount" optional description="Kept as typed, so include the currency.">{text('amount', '$1,500.00')}</Field>
+        <Field label="Total amount" optional description="Kept as typed, so include the currency.">{text('amount', 'R1,500.00')}</Field>
         <Field label="General comments" optional className="sm:col-span-2"><Textarea rows={2} value={form.general_comments} onChange={e => set({ general_comments: e.target.value })} placeholder="Anything else worth knowing" /></Field>
       </div>
     </FormDialog>

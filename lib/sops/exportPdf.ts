@@ -6,6 +6,7 @@ import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer
 import { createElement as h } from 'react';
 import { saveAs } from 'file-saver';
 import { SOP_SECTION_LABELS, SOP_STATUS_LABEL, SOP_RISK_TIER_LABEL, type SopDocument } from './types';
+import { formatDateTime } from '../format';
 
 const BRAND = '#7c3aed';
 const MUTED = '#6b7280';
@@ -67,7 +68,7 @@ function buildSopPdfDocument(sop: SopDocument) {
     }),
 
     h(View, { style: styles.footer, key: 'footer', fixed: true }, [
-      h(Text, { key: '1' }, `Exported ${new Date().toLocaleString()} · saved version ${sop.version} · last updated ${new Date(sop.updated_at).toLocaleString()}`),
+      h(Text, { key: '1' }, `Exported ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`),
       h(Text, { key: '2' }, 'This is a versioned snapshot as saved at export time — future changes will not update this downloaded file.'),
     ]),
   ]));

@@ -3,10 +3,11 @@
 'use client';
 
 import { EmptyState, Icon, StatusBadge, type Tone } from '@/components/ui-system';
+import { priorityTone } from '@/lib/status';
 import type { OTAnalysisResult } from '../types';
 
 const SEVERITY = ['critical', 'high', 'medium', 'low'] as const;
-const SEV_TONE: Record<(typeof SEVERITY)[number], Tone> = { critical: 'danger', high: 'warning', medium: 'info', low: 'neutral' };
+const SEV_TONE: Record<(typeof SEVERITY)[number], Tone> = { critical: priorityTone('critical'), high: priorityTone('high'), medium: priorityTone('medium'), low: priorityTone('low') };
 const PRIORITY: Record<string, { label: string; tone: Tone }> = { immediate: { label: 'Immediate', tone: 'danger' }, short_term: { label: 'Short term', tone: 'warning' }, long_term: { label: 'Long term', tone: 'info' } };
 
 export function CausesTab({ r }: { r: OTAnalysisResult }) {

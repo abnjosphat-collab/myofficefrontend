@@ -6,9 +6,9 @@
 //   neutral  not started, set aside or filed away       draft, cancelled, archived
 //   info     underway, nothing needed from you yet      submitted, in progress, paid
 //   brand    checked by someone, awaiting the next step reviewed
-//   warning  waiting on someone, or soon due            pending, open, on hold, due soon
-//   success  done, approved or working                  approved, completed, closed, running
-//   danger   needs action now                           overdue, rejected, lost, offline
+//   warning  waiting on someone, or soon due            pending, open, on hold, due soon, suspended, low stock
+//   success  done, approved or working                  approved, completed, closed, running, valid, in stock
+//   danger   needs action now                           overdue, rejected, lost, offline, breakdown, out of stock
 import type { Tone } from '@/components/ui-system';
 
 const key = (value?: string | null) => (value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -18,9 +18,9 @@ export const STATUS_TONE: Readonly<Record<string, Tone>> = {
   cancelled: 'neutral', archived: 'neutral', returned: 'neutral', retired: 'neutral',
   submitted: 'info', logged: 'info', in_progress: 'info', processing: 'info', scheduled: 'info', paid: 'info', standby: 'info', reserved: 'info',
   reviewed: 'brand',
-  pending: 'warning', open: 'warning', on_hold: 'warning', due_soon: 'warning', maintenance: 'warning',
-  approved: 'success', completed: 'success', resolved: 'success', closed: 'success', active: 'success', current: 'success', operational: 'success', running: 'success', available: 'success',
-  rejected: 'danger', overdue: 'danger', expired: 'danger', lost: 'danger', damaged: 'danger', attention: 'danger', offline: 'danger', out_of_service: 'danger',
+  pending: 'warning', open: 'warning', on_hold: 'warning', due_soon: 'warning', maintenance: 'warning', suspended: 'warning', low_stock: 'warning',
+  approved: 'success', completed: 'success', resolved: 'success', closed: 'success', active: 'success', current: 'success', operational: 'success', running: 'success', available: 'success', valid: 'success', in_stock: 'success',
+  rejected: 'danger', overdue: 'danger', expired: 'danger', lost: 'danger', damaged: 'danger', attention: 'danger', offline: 'danger', out_of_service: 'danger', breakdown: 'danger', out_of_stock: 'danger',
 };
 
 /** Urgency, priority, criticality and risk all read on one scale. */

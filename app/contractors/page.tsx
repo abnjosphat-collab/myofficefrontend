@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList } from '@/components/ui-system';
+import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import type { Contractor, CStatus, Job } from './types';
@@ -29,7 +30,7 @@ function Expiry({ date }: { date: string }) {
   );
 }
 
-const StatusTag = ({ status }: { status: CStatus }) => <StatusBadge tone={status === 'active' ? 'success' : 'neutral'} icon={status === 'active' ? 'active' : 'inactive'}>{status === 'active' ? 'Active' : 'Inactive'}</StatusBadge>;
+const StatusTag = ({ status }: { status: CStatus }) => <StatusBadge tone={statusTone(status)} icon={status === 'active' ? 'active' : 'inactive'}>{status === 'active' ? 'Active' : 'Inactive'}</StatusBadge>;
 
 function JobsList({ jobs }: { jobs: Job[] }) {
   if (jobs.length === 0) return <p className="font-sans text-body-sm text-ink-muted">No active jobs.</p>;

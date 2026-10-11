@@ -4,6 +4,7 @@
 
 import type { ReactNode } from 'react';
 import { Button, EmptyState, IconButton, Notice } from '@/components/ui-system';
+import { formatDateTime } from '@/lib/format';
 import type { useOvertimeAnalysis } from '../useOvertimeData';
 import type { OTAnalysisResult } from '../types';
 
@@ -17,7 +18,7 @@ export function AnalysisGate({ analysis: a, count, children }: { analysis: Retur
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p role="status" className="font-sans text-caption text-ink-muted">
-          {a.updating ? 'Updating for the current filters…' : `${a.result._records_analysed} ${a.result._records_analysed === 1 ? 'record' : 'records'} analysed, ${new Date(a.result.generated_at).toLocaleString('en-GB')}`}
+          {a.updating ? 'Updating for the current filters…' : `${a.result._records_analysed} ${a.result._records_analysed === 1 ? 'record' : 'records'} analysed, ${formatDateTime(a.result.generated_at)}`}
         </p>
         <IconButton icon="refresh" variant="shell" label="Run the analysis again" pending={a.updating} onClick={() => a.refresh()} />
       </div>

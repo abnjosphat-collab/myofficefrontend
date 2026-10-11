@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { formatDate } from '@/lib/format';
+import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, sortRows, type Column, type SortState, type Tone } from '@/components/ui-system';
 import type { DataStatus } from '@/components/ui-system';
@@ -15,7 +16,7 @@ import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const STATUS_ORDER: Record<string, number> = { Expired: 3, 'Due Soon': 2, Valid: 1 };
 const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-soon' | 'expired' }> = {
-  Valid: { tone: 'success', label: 'Valid', icon: 'valid' }, 'Due Soon': { tone: 'warning', label: 'Due soon', icon: 'due-soon' }, Expired: { tone: 'danger', label: 'Expired', icon: 'expired' },
+  Valid: { tone: statusTone('valid'), label: 'Valid', icon: 'valid' }, 'Due Soon': { tone: statusTone('due_soon'), label: 'Due soon', icon: 'due-soon' }, Expired: { tone: statusTone('expired'), label: 'Expired', icon: 'expired' },
 };
 const ALL = '__all__';
 const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null };

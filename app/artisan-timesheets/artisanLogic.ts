@@ -7,7 +7,8 @@ import { autoPopulateMonthRows } from './autoPopulate';
 import { dayStatusLabel, isLeaveDayStatus } from './dayStatus';
 import { LEAVE_NORMAL_HRS } from './hourAlloc';
 import { dayPart, sameEmployee } from './shiftDay';
-import { mergeMonthRows, monthName, parseNumericField } from './calcTotals';
+import { mergeMonthRows, parseNumericField } from './calcTotals';
+import { monthName } from '@/lib/format';
 import type { ArtisanEmployeeOption, ArtisanTimesheetDraft, ArtisanTimesheetRecord } from './types';
 
 export interface Staff { id: number; employee_id: string; name: string; id_number: string; designation: string; employment_type: string; active: boolean }

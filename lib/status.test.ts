@@ -6,6 +6,7 @@ import { STATUS as serviceStatus } from '@/app/services/meta';
 import { statusMeta as overtimeStatus } from '@/app/overtime/overtimeMeta';
 import { statusMeta as ppeStatus, conditionMeta } from '@/app/ppe/ppeMeta';
 import { PRIORITY_TONE as taskPriority } from '@/app/tasks-events/meta';
+import { PRIORITY as sparePriority, STOCK as spareStock } from '@/app/spares/stock';
 import { typeOf as leaveType } from '@/app/leaves/leaveTypes';
 import { statusMeta as dayCode } from '@/app/timesheets/timesheetMeta';
 
@@ -41,6 +42,18 @@ describe('status vocabulary', () => {
     expect(ppeStatus('damaged').tone).toBe(conditionMeta('damaged').tone);
     expect([taskPriority.Medium, workOrderPriority('medium').tone]).toEqual(['info', 'info']);
     expect([taskPriority.High, workOrderPriority('high').tone]).toEqual(['warning', 'warning']);
+  });
+
+  it('covers equipment, people, stock and certification states', () => {
+    expect(statusTone('breakdown')).toBe('danger');
+    expect(statusTone('suspended')).toBe('warning');
+    expect(statusTone('Valid')).toBe('success');
+    expect([statusTone('in-stock'), statusTone('low_stock'), statusTone('out of stock')]).toEqual(['success', 'warning', 'danger']);
+  });
+
+  it('keeps the spares stock and priority scales on the shared tones', () => {
+    expect([spareStock.in.tone, spareStock.low.tone, spareStock.out.tone]).toEqual([statusTone('in_stock'), statusTone('low_stock'), statusTone('out_of_stock')]);
+    expect([sparePriority.critical.tone, sparePriority.high.tone, sparePriority.medium.tone, sparePriority.low.tone]).toEqual(['danger', 'warning', 'info', 'neutral']);
   });
 });
 

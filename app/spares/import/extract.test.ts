@@ -5,6 +5,7 @@ describe('parsePrice', () => {
   it('reads plain, symbol-prefixed and thousands-separated prices', () => {
     expect(parsePrice('12.5')).toBe(12.5);
     expect(parsePrice('$1,234.50')).toBe(1234.5);
+    expect(parsePrice('R1,234.50')).toBe(1234.5);
     expect(parsePrice(' £ 8 ')).toBe(8);
     expect(parsePrice(7)).toBe(7);
   });

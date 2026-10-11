@@ -38,20 +38,20 @@ describe('calcDays', () => {
 
 describe('formatCurrency', () => {
   it('formats with the currency symbol and 2 decimal places', () => {
-    expect(formatCurrency(1234.5)).toBe('$1,234.50');
+    expect(formatCurrency(1234.5)).toBe('R1,234.50');
   });
   it('treats a missing amount as 0', () => {
-    expect(formatCurrency(undefined as unknown as number)).toBe('$0.00');
+    expect(formatCurrency(undefined as unknown as number)).toBe('R0.00');
   });
 });
 
 describe('formatCurrencyShort', () => {
   it('abbreviates millions and thousands', () => {
-    expect(formatCurrencyShort(2_500_000)).toBe('$2.5M');
-    expect(formatCurrencyShort(15_000)).toBe('$15.0K');
+    expect(formatCurrencyShort(2_500_000)).toBe('R2.5M');
+    expect(formatCurrencyShort(15_000)).toBe('R15.0K');
   });
-  it('shows a plain dollar amount under 1000', () => {
-    expect(formatCurrencyShort(450)).toBe('$450');
+  it('shows a plain rand amount under 1000', () => {
+    expect(formatCurrencyShort(450)).toBe('R450');
   });
 });
 

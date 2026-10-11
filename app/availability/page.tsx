@@ -16,14 +16,14 @@ import { exportFilename } from '@/lib/exportUtils';
 import type { Equipment } from './types';
 import { averageAvailability, figureText, hasFigure } from './figures';
 import { useAvailabilityData } from './useAvailabilityData';
-import { EXPORT_TONE_HEX } from '@/lib/status';
+import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
 
 const ALL = '__all__';
 const STATUS_META: Record<Equipment['status'], { label: string; tone: Tone; icon: IconMeaning }> = {
-  operational: { label: 'Operational', tone: 'success', icon: 'active' },
-  maintenance: { label: 'Maintenance', tone: 'warning', icon: 'maintenance' },
-  breakdown: { label: 'Breakdown', tone: 'danger', icon: 'breakdown' },
-  idle: { label: 'Idle', tone: 'neutral', icon: 'inactive' },
+  operational: { label: 'Operational', tone: statusTone('operational'), icon: 'active' },
+  maintenance: { label: 'Maintenance', tone: statusTone('maintenance'), icon: 'maintenance' },
+  breakdown: { label: 'Breakdown', tone: statusTone('breakdown'), icon: 'breakdown' },
+  idle: { label: 'Idle', tone: statusTone('idle'), icon: 'inactive' },
 };
 const meta = (s: Equipment['status']) => STATUS_META[s] ?? { label: String(s), tone: 'neutral' as Tone, icon: 'inactive' as IconMeaning };
 /** 95% and above is good, 90% and above needs watching, below that is poor. */

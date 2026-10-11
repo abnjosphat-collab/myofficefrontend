@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Drawer, Notice, LoadingPulse } from '@/components/ui-system';
 import { SOP_SECTION_LABELS, type SopDocument, type SopRevision } from '@/lib/sops/types';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { SopBadges } from './SopCard';
 
 export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEdit, onExportWord, onExportPdf }: {
@@ -82,7 +82,7 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
               <ol className="flex flex-col gap-3">
                 {history.map(rev => (
                   <li key={rev.id} className="border-l-2 border-line pl-3 font-sans text-body-sm">
-                    <p className="text-ink"><strong className="font-semibold">Revision {rev.revision_number}</strong><span className="text-ink-muted"> · {new Date(rev.created_at).toLocaleString()} · {rev.author_email}</span></p>
+                    <p className="text-ink"><strong className="font-semibold">Revision {rev.revision_number}</strong><span className="text-ink-muted"> · {formatDateTime(rev.created_at)} · {rev.author_email}</span></p>
                     <p className="mt-0.5 text-ink-muted">{rev.change_note}</p>
                   </li>
                 ))}

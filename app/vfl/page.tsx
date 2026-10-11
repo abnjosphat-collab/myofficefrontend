@@ -33,7 +33,7 @@ const STATUS_META: Record<VFLStatus, { tone: Tone; icon: IconMeaning; label: str
   draft: { tone: statusTone('draft'), icon: 'draft', label: 'Draft' }, submitted: { tone: statusTone('submitted'), icon: 'submitted', label: 'Submitted' },
   reviewed: { tone: statusTone('reviewed'), icon: 'reviewed', label: 'Reviewed' }, closed: { tone: statusTone('closed'), icon: 'closed', label: 'Closed' },
 };
-const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: 'warning', icon: 'pending' }, 'In Progress': { tone: 'info', icon: 'clock' }, Completed: { tone: 'success', icon: 'closed' } };
+const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = { Pending: { tone: statusTone('pending'), icon: 'pending' }, 'In Progress': { tone: statusTone('in_progress'), icon: 'clock' }, Completed: { tone: statusTone('completed'), icon: 'closed' } };
 
 // A malformed but non-empty time is a valid Date object that renders as "Invalid Date" rather than throwing.
 const fmtTime = (s: string) => {

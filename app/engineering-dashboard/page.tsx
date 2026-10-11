@@ -9,9 +9,11 @@ import {
   deriveDataStatus, isTransientStatus, type Column, type Tone,
 } from '@/components/ui-system';
 import { useEngineeringDashboardData, type OpenJobCard } from './useEngineeringDashboardData';
+import { priorityTone } from '@/lib/status';
+import { formatMonthYear } from '@/lib/format';
 
 const PRIORITY: Record<string, { tone: Tone; label: string }> = {
-  critical: { tone: 'danger', label: 'Critical' }, high: { tone: 'warning', label: 'High' }, medium: { tone: 'info', label: 'Medium' }, low: { tone: 'neutral', label: 'Low' },
+  critical: { tone: priorityTone('critical'), label: 'Critical' }, high: { tone: priorityTone('high'), label: 'High' }, medium: { tone: priorityTone('medium'), label: 'Medium' }, low: { tone: priorityTone('low'), label: 'Low' },
 };
 
 const COLUMNS: Column<OpenJobCard>[] = [
@@ -30,7 +32,7 @@ function EngineeringDashboardContent() {
   const bdPending = breakdowns.loading && !breakdowns.loaded;
   const overdue = jobCards.items.filter(j => j.overdue).length;
   const refreshAll = () => { jobCards.refetch(); breakdowns.refetch(); };
-  const monthName = new Date().toLocaleString('en-ZA', { month: 'long', year: 'numeric' });
+  const monthName = formatMonthYear(new Date());
   const monthlySummary = `Breakdowns per month over the last six months: ${monthly.map(m => `${m.month} ${m.failures}`).join(', ')}.`;
   const topSummary = topFailures.length ? `Equipment with the most breakdowns in the last six months: ${topFailures.map(f => `${f.equipment} ${f.failures}`).join(', ')}.` : 'No breakdowns in the last six months.';
   const maxFailures = Math.max(1, ...topFailures.map(f => f.failures));

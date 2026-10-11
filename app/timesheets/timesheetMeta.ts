@@ -5,6 +5,7 @@ import type { IconMeaning, Tone } from '@/components/ui-system';
 import { toLocalISODate } from '@/lib/dates';
 import type { Period, StatusKey } from './types';
 import { absenceTone } from '@/lib/status';
+import { formatDate } from '@/lib/format';
 
 export interface StatusMeta { label: string; short: string; abbr: string; tone: Tone; icon: IconMeaning }
 export const STATUS_META: Record<StatusKey, StatusMeta> = {
@@ -43,7 +44,7 @@ export function getDays({ start, end }: Period): Date[] {
   while (d <= end) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
   return days;
 }
-export const fmtPeriod = ({ start, end }: Period): string => `${start.getDate()} ${start.toLocaleString('en-GB', { month: 'short' })} ${start.getFullYear()} — ${end.getDate()} ${end.toLocaleString('en-GB', { month: 'short' })} ${end.getFullYear()}`;
+export const fmtPeriod = ({ start, end }: Period): string => `${formatDate(start)} — ${formatDate(end)}`;
 
 /** The NEC cycle: the 13th of the previous month to the 12th of this one. */
 export const getNECPeriod = (month: Date): Period => { const y = month.getFullYear(), m = month.getMonth(); return { start: new Date(y, m - 1, 13), end: new Date(y, m, 12) }; };

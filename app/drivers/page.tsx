@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
+import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
 import { useDriversData, createDriver, updateDriver, deleteDriver } from './useDriversData';
 import { exportExcel, exportPDF } from './exportDrivers';
@@ -14,7 +15,7 @@ import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 const DEPARTMENTS = ['Mining', 'Engineering', 'Geology', 'Survey', 'Environment', 'Safety', 'HR', 'Finance', 'IT', 'Logistics', 'Security', 'Administration'];
 const LICENSE_CLASSES = ['Code 08', 'Code 10', 'Code 14', 'EC', 'EC1', 'PrDP', 'Other'];
 const STATUS_OPTIONS = [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'suspended', label: 'Suspended' }];
-const STATUS_TONE = { active: 'success', inactive: 'neutral', suspended: 'warning' } as const;
+
 const STATUS_ICON = { active: 'active', inactive: 'inactive', suspended: 'warning' } as const;
 const ALL = '__all__';
 const emptyForm = (): DriverForm => ({ full_name: '', phones: [''], department: '', license_class: '', license_expiry: '', status: 'active', notes: '' });
@@ -26,7 +27,7 @@ const isExpiringSoon = (expiry?: string) => {
   return d >= new Date() && d <= soon;
 };
 
-const StatusTag = ({ status }: { status: Driver['status'] }) => <StatusBadge tone={STATUS_TONE[status] ?? 'neutral'} icon={STATUS_ICON[status] ?? 'info' as never}>{STATUS_OPTIONS.find(o => o.value === status)?.label ?? status}</StatusBadge>;
+const StatusTag = ({ status }: { status: Driver['status'] }) => <StatusBadge tone={statusTone(status)} icon={STATUS_ICON[status] ?? 'info' as never}>{STATUS_OPTIONS.find(o => o.value === status)?.label ?? status}</StatusBadge>;
 
 function LicenceExpiry({ expiry }: { expiry?: string }) {
   if (!expiry) return <span className="text-ink-muted">Not set</span>;

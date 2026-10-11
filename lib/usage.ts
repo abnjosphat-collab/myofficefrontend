@@ -18,6 +18,7 @@
 // that only need the local read/derive side.
 
 import { toLocalISODate } from './dates';
+import { formatDayMonth, formatMonth, formatTime } from './format';
 
 export type UsageEvent =
   | { type: 'module_open'; ts: number; href: string; title?: string }
@@ -380,14 +381,14 @@ export function usageOverTime(events: UsageEvent[], granularity: Granularity = '
     let d: Date, label: string;
     if (granularity === 'month') {
       d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      label = d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+      label = formatMonth(d, 'short');
     } else if (granularity === 'week') {
       const base = mondayOf(now);
       d = new Date(base); d.setDate(base.getDate() - i * 7);
-      label = `w/o ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+      label = `w/o ${formatDayMonth(d)}`;
     } else {
       d = new Date(now); d.setDate(now.getDate() - i); d.setHours(0, 0, 0, 0);
-      label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      label = formatDayMonth(d);
     }
     const key = bucketKey(d, granularity);
     index.set(key, buckets.length);
@@ -467,7 +468,7 @@ export function dailyActivity(events: UsageEvent[], days = 98): DayActivity[] {
     const i = index.get(toLocalISODate(d));
     if (i === undefined) continue;
     buckets[i].count++;
-    if (buckets[i].times.length < 6) buckets[i].times.push(d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    if (buckets[i].times.length < 6) buckets[i].times.push(formatTime(d));
   }
   return buckets;
 }

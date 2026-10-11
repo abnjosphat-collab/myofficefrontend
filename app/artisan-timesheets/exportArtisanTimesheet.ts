@@ -1,6 +1,6 @@
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
-import { formatDate } from '@/lib/format';
-import { calcArtisanTimesheetTotals, monthName } from './calcTotals';
+import { formatDate, monthName } from '@/lib/format';
+import { calcArtisanTimesheetTotals } from './calcTotals';
 import { dayStatusLabel, type DayStatusKey } from './dayStatus';
 import type { ArtisanTimesheetRecord } from './types';
 

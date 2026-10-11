@@ -1,11 +1,12 @@
 // app/spares/stock.ts — pure rules for the spares register and the requisition builder: how well stocked a part is, the filters and
 // sort, the headline numbers and category breakdown, and the requisition's totals, saved form and copy-to-clipboard text.
 import type { Tone } from '@/components/ui-system';
+import { priorityTone, statusTone } from '@/lib/status';
 import type { ReqHeader, ReqLine, SavedRequisition, Spare } from './types';
 
 export type StockKey = 'out' | 'low' | 'adequate' | 'in';
 export const STOCK: Record<StockKey, { label: string; tone: Tone }> = {
-  out: { label: 'Out of stock', tone: 'danger' }, low: { label: 'Low stock', tone: 'warning' }, adequate: { label: 'Adequate', tone: 'info' }, in: { label: 'In stock', tone: 'success' },
+  out: { label: 'Out of stock', tone: statusTone('out_of_stock') }, low: { label: 'Low stock', tone: statusTone('low_stock') }, adequate: { label: 'Adequate', tone: 'info' }, in: { label: 'In stock', tone: statusTone('in_stock') },
 };
 /** Out at zero, low at or below the minimum, adequate up to 1.5 times it, in stock above that. */
 export function stockKey(current: number, min: number): StockKey {
@@ -16,7 +17,7 @@ export function stockKey(current: number, min: number): StockKey {
 export const stockOf = (s: Pick<Spare, 'current_quantity' | 'min_quantity'>) => { const key = stockKey(s.current_quantity, s.min_quantity); return { key, ...STOCK[key] }; };
 
 export const PRIORITY: Record<Spare['priority'], { label: string; tone: Tone; rank: number }> = {
-  critical: { label: 'Critical', tone: 'danger', rank: 0 }, high: { label: 'High', tone: 'warning', rank: 1 }, medium: { label: 'Medium', tone: 'info', rank: 2 }, low: { label: 'Low', tone: 'neutral', rank: 3 },
+  critical: { label: 'Critical', tone: priorityTone('critical'), rank: 0 }, high: { label: 'High', tone: priorityTone('high'), rank: 1 }, medium: { label: 'Medium', tone: priorityTone('medium'), rank: 2 }, low: { label: 'Low', tone: priorityTone('low'), rank: 3 },
 };
 export const priorityMeta = (p: string) => PRIORITY[p as Spare['priority']] ?? PRIORITY.medium;
 

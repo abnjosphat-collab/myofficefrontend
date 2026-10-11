@@ -4,10 +4,10 @@ import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { formatCurrency, lineTotal } from '@/components/shared/utils';
 import { issueCost } from './analytics';
 import type { StockIssue } from './types';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 
 const stamp = () => new Date().toISOString().slice(0, 10);
-const when = (s: string) => (s ? new Date(s).toLocaleString('en-GB') : '');
+const when = (s: string) => (s ? formatDateTime(s) : '');
 
 export async function exportIssuesExcel(issues: StockIssue[]): Promise<void> {
   const ExcelJS = (await import('exceljs')).default;
@@ -35,7 +35,7 @@ export async function exportIssuesExcel(issues: StockIssue[]): Promise<void> {
   issues.forEach((issue, i) => {
     const row = ws.addRow({ date: when(issue.issued_at), recipient: issue.recipient_name, rid: issue.recipient_id || '', issuedby: issue.issued_by || '', items: (issue.items ?? []).length, cost: issueCost(issue), notes: issue.notes || '' });
     band(row, i);
-    row.getCell('cost').numFmt = '"$"#,##0.00';
+    row.getCell('cost').numFmt = '"R"#,##0.00';
   });
   ws.autoFilter = { from: 'A1', to: 'G1' };
 
@@ -50,7 +50,7 @@ export async function exportIssuesExcel(issues: StockIssue[]): Promise<void> {
     for (const item of issue.items ?? []) {
       const row = ws2.addRow({ date: when(issue.issued_at), recipient: issue.recipient_name, code: item.stock_code || '', desc: item.description, qty: item.qty, unit: item.unit || '', uprice: item.unit_price ?? '', total: lineTotal(item.qty, item.unit_price || 0) });
       band(row, n++);
-      ['uprice', 'total'].forEach(k => { row.getCell(k).numFmt = '"$"#,##0.00'; });
+      ['uprice', 'total'].forEach(k => { row.getCell(k).numFmt = '"R"#,##0.00'; });
     }
   }
   ws2.autoFilter = { from: 'A1', to: 'H1' };

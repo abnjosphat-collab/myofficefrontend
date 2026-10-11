@@ -15,21 +15,22 @@ import { formatDate } from '@/lib/format';
 import type { InventoryItem } from './types';
 import { stockStatus, useInventoryData, type InventoryDraft } from './useInventoryData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
-import { EXPORT_TONE_HEX } from '@/lib/status';
+import { EXPORT_TONE_HEX, statusTone } from '@/lib/status';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+import { formatCurrency } from '@/components/shared/utils';
 
 type StockStatus = ReturnType<typeof stockStatus>;
 const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | 'low-stock' | 'out-of-stock' }> = {
-  'in-stock': { label: 'In stock', tone: 'success', icon: 'valid' },
-  'low-stock': { label: 'Low stock', tone: 'warning', icon: 'low-stock' },
-  'out-of-stock': { label: 'Out of stock', tone: 'danger', icon: 'out-of-stock' },
+  'in-stock': { label: 'In stock', tone: statusTone('in_stock'), icon: 'valid' },
+  'low-stock': { label: 'Low stock', tone: statusTone('low_stock'), icon: 'low-stock' },
+  'out-of-stock': { label: 'Out of stock', tone: statusTone('out_of_stock'), icon: 'out-of-stock' },
 };
 const STATUS_FILTERS: { value: 'all' | StockStatus; label: string }[] = [{ value: 'all', label: 'All' }, ...(Object.keys(STATUS) as StockStatus[]).map(s => ({ value: s, label: STATUS[s].label }))];
 const ALL = '__all__';
 const EMPTY_FORM = { name: '', sku: '', category: '', description: '', currentStock: '0', minStock: '0', maxStock: '0', unit: 'pcs', cost: '0', supplier: '', location: '' };
 
 const StatusTag = ({ item }: { item: InventoryItem }) => { const s = STATUS[stockStatus(item)]; return <StatusBadge tone={s.tone} icon={s.icon}>{s.label}</StatusBadge>; };
-const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const stockPct = (i: InventoryItem) => (i.maxStock > 0 ? Math.min(100, Math.round((i.currentStock / i.maxStock) * 100)) : 0);
 const wholeNumber = (text: string) => text.trim() !== '' && Number.isInteger(Number(text)) && Number(text) >= 0;
 
@@ -148,7 +149,7 @@ function InventoryPageContent() {
     { id: 'category', header: 'Category', sortable: true, hideBelow: 'md', cell: i => i.category || <span className="text-ink-muted">None</span> },
     { id: 'status', header: 'Status', sortable: true, cell: i => <StatusTag item={i} /> },
     { id: 'currentStock', header: 'Stock', numeric: true, sortable: true, cell: i => <span>{i.currentStock}<span className="text-ink-muted"> / {i.maxStock} {i.unit}</span></span> },
-    { id: 'cost', header: 'Unit cost', numeric: true, sortable: true, hideBelow: 'md', cell: i => money(i.cost) },
+    { id: 'cost', header: 'Unit cost', numeric: true, sortable: true, hideBelow: 'md', cell: i => formatCurrency(i.cost) },
     { id: 'location', header: 'Location', hideBelow: 'lg', cell: i => i.location },
     { id: 'supplier', header: 'Supplier', hideBelow: 'lg', cell: i => i.supplier },
   ];
@@ -184,7 +185,7 @@ function InventoryPageContent() {
         <MetricTile compact label="In stock" tone="success" value={counts.inStock} selected={statusFilter === 'in-stock'} onClick={() => setStatusFilter('in-stock')} {...tile} />
         <MetricTile compact label="Low stock" tone="warning" value={counts.lowStock} selected={statusFilter === 'low-stock'} onClick={() => setStatusFilter('low-stock')} {...tile} />
         <MetricTile compact label="Out of stock" tone="danger" value={counts.outOfStock} selected={statusFilter === 'out-of-stock'} onClick={() => setStatusFilter('out-of-stock')} {...tile} />
-        <MetricTile compact label="Stock value" value={`$${counts.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} {...tile} />
+        <MetricTile compact label="Stock value" value={formatCurrency(counts.value, 'ZAR', 0)} {...tile} />
       </MetricGrid>
 
       <Toolbar
@@ -215,7 +216,7 @@ function InventoryPageContent() {
               status={<StatusTag item={item} />}
               facts={[
                 { label: 'Stock', value: <span>{item.currentStock} / {item.maxStock} {item.unit}</span> },
-                { label: 'Unit cost', value: money(item.cost) },
+                { label: 'Unit cost', value: formatCurrency(item.cost) },
                 ...(item.location ? [{ label: 'Location', value: item.location }] : []),
                 ...(item.supplier ? [{ label: 'Supplier', value: item.supplier }] : []),
                 { label: 'Restocked', value: formatDate(item.lastRestocked) },

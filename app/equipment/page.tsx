@@ -8,7 +8,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
 import { useApiList } from '@/lib/useApiList';
-import { fmtDate } from '@/components/shared/utils';
+import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { EquipmentFormDialog } from './EquipmentFormDialog';
 import { createEquipment, deleteEquipment, updateEquipment } from './api';
 import { NO_EQUIPMENT_FILTERS, STATUSES, STATUS_LABELS, calcAge, countByStatus, filterEquipment, type EquipmentFilters } from './equipmentLogic';
@@ -181,7 +181,7 @@ function EquipmentContent() {
               <Fact label="Manufacturer">{viewing.manufacturer}</Fact><Fact label="Model">{viewing.model}</Fact><Fact label="Serial number">{viewing.serial_number}</Fact>
               <Fact label="Power rating">{viewing.power_rating}</Fact><Fact label="Commissioned">{dateText(viewing.commission_date)}</Fact><Fact label="Age">{calcAge(viewing.commission_date)}</Fact>
               <Fact label="Supplier">{viewing.supplier}</Fact><Fact label="Supplier contact">{viewing.supplier_contact}</Fact><Fact label="Supplier phone">{viewing.supplier_phone}</Fact>
-              <Fact label="Warranty">{viewing.warranty_info}</Fact><Fact label="Maintenance interval">{viewing.maintenance_interval != null ? `${viewing.maintenance_interval} months` : ''}</Fact><Fact label="Purchase cost">{viewing.purchase_cost != null ? `$${viewing.purchase_cost}` : ''}</Fact>
+              <Fact label="Warranty">{viewing.warranty_info}</Fact><Fact label="Maintenance interval">{viewing.maintenance_interval != null ? `${viewing.maintenance_interval} months` : ''}</Fact><Fact label="Purchase cost">{viewing.purchase_cost != null ? formatCurrency(viewing.purchase_cost) : ''}</Fact>
             </FactList>
             {viewing.specifications && <section><h3 className="font-sans text-label font-semibold text-ink">Specifications</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.specifications}</p></section>}
             {viewing.maintenance_notes && <section><h3 className="font-sans text-label font-semibold text-ink">Maintenance notes</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.maintenance_notes}</p></section>}

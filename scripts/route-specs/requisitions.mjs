@@ -21,8 +21,8 @@ const spec = {
   async ready(page, calls, { check, shot }) {
     const table = page.getByRole('table', { name: 'Purchase requisitions' });
     check(await table.getByRole('row').count() === 4, 'header plus three requisitions (an unrecognised status does not crash the page)');
-    check(await table.getByText('$291.00').isVisible() && await table.getByText('$300.00').isVisible(), 'costs are the sum of unit cost times quantity (2x120.50 + 5x10 = 291)');
-    check(await page.getByText('$591.00').first().isVisible(), 'total value sums the filtered requisitions');
+    check(await table.getByText('R291.00').isVisible() && await table.getByText('R300.00').isVisible(), 'costs are the sum of unit cost times quantity (2x120.50 + 5x10 = 291)');
+    check(await page.getByText('R591.00').first().isVisible(), 'total value sums the filtered requisitions');
     check(await table.getByText('Critical', { exact: true }).isVisible() && await table.getByText('Pending', { exact: true }).isVisible(), 'priority and status are labelled badges');
     await shot(page, 'table@1440');
     await page.getByRole('button', { name: /^Pending/ }).first().click();
@@ -30,7 +30,7 @@ const spec = {
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
     await page.getByRole('tab', { name: 'Analytics' }).click();
-    check(await page.getByText(/By status: Pending 1 worth \$291\.00/).count() === 1, 'analytics carry a text alternative with the values');
+    check(await page.getByText(/By status: Pending 1 worth R291\.00/).count() === 1, 'analytics carry a text alternative with the values');
     await shot(page, 'analytics@1440');
     await page.getByRole('tab', { name: 'Requisitions' }).click();
 
@@ -49,7 +49,7 @@ const spec = {
     check(await edit.getByText('Describe the item.').isVisible(), 'a blank item description shows its error');
     await edit.getByLabel(/^Description \(item 2\)/).fill('Gasket set');
     await edit.getByLabel(/^Qty \(item 2\)/).fill('6');
-    check(await edit.getByText('$301.00').first().isVisible(), 'the form total updates as items change (2x120.50 + 6x10 = 301)');
+    check(await edit.getByText('R301.00').first().isVisible(), 'the form total updates as items change (2x120.50 + 6x10 = 301)');
     await edit.getByRole('button', { name: 'Save changes' }).click();
     await edit.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     const patch = calls.filter(c => c.method === 'PATCH').pop();

@@ -11,6 +11,7 @@ import {
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatDateTime } from '@/lib/format';
 
 export type ExportFormat = 'xlsx' | 'docx' | 'pdf';
 export type ExportTable = {
@@ -32,7 +33,7 @@ const STATUS_COLOURS: Record<string, string> = {
 const text = (value: string | number | undefined | null) => String(value ?? '');
 const statusColour = (value: string | number) => STATUS_COLOURS[text(value).trim().toLowerCase()];
 const statusColumn = (headers: string[]) => headers.findIndex(header => header.trim().toLowerCase() === 'status');
-const generated = () => new Date().toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const generated = () => formatDateTime(new Date());
 const metaLine = (data: ExportTable) => [data.subtitle, `Generated ${generated()}`].filter(Boolean).join('  ·  ');
 const fileName = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const hex = (value: string) => value.replace('#', '');

@@ -3,7 +3,6 @@ import {
   buildMonthDayRows,
   calcArtisanTimesheetTotals,
   mergeMonthRows,
-  monthName,
 } from './calcTotals';
 
 describe('buildMonthDayRows', () => {
@@ -47,8 +46,3 @@ describe('calcArtisanTimesheetTotals', () => {
   });
 });
 
-describe('monthName', () => {
-  it('returns English month name', () => {
-    expect(monthName(3)).toBe('March');
-  });
-});
