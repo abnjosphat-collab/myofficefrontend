@@ -80,7 +80,7 @@ export { nextSort, sortRows, selectionState, toggleAllVisible, toggleOne, pruneS
 export type { SortState, SortDirection } from './patterns/tableLogic';
 
 // Hooks
-export { usePersistentState, oneOf } from './hooks/usePersistentState';
+export { usePersistentState, oneOf, asString, readStored, storeValue } from './hooks/usePersistentState';
 export { useMediaQuery, DESKTOP_QUERY } from './hooks/useMediaQuery';
 
 // Shell

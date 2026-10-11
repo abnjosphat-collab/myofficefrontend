@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { addMonths, todayLocal, daysUntil, toLocalISODate } from './dates';
+import { addMonths, todayLocal, daysUntil, toLocalISODate, tomorrowAt } from './dates';
 
 // Exercise it in a UTC+ timezone — exactly where the old `new Date(...).toISOString()`
 // implementation produced a day-early result (Africa/Johannesburg is UTC+2). addMonths is
@@ -66,5 +66,17 @@ describe('daysUntil', () => {
 
   it('returns 0 for empty input', () => {
     expect(daysUntil('')).toBe(0);
+  });
+});
+
+describe('tomorrowAt — default expected-return time', () => {
+  it('is tomorrow at the requested local time, in datetime-local shape', () => {
+    const plus = new Date(); plus.setDate(plus.getDate() + 1);
+    expect(tomorrowAt()).toBe(`${toLocalISODate(plus)}T16:00`);
+    expect(tomorrowAt(8, 30)).toBe(`${toLocalISODate(plus)}T08:30`);
+  });
+
+  it('is always in the future, even late at night', () => {
+    expect(new Date(tomorrowAt()).getTime()).toBeGreaterThan(Date.now());
   });
 });

@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Field, Input, Notice, Select } from '@/components/ui-system';
+import { asString, Button, Field, Input, Notice, readStored, Select, storeValue } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { todayLocal } from '@/lib/dates';
@@ -14,12 +14,10 @@ import { PhraseField } from './PhraseField';
 import { SignOffField } from './SignOffField';
 import type { WorkOrder, WorkOrderStatus } from './types';
 
-const SAVED_NAME = 'maint_foreman_name';
 const STATUS_OPTIONS = REPORT_STATUSES.map(s => ({ value: s, label: statusMeta(s).label }));
-const savedName = () => { try { return localStorage.getItem(SAVED_NAME) || ''; } catch { return ''; } };
 
 export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: (updated: WorkOrder) => void }) {
-  const [f, setF] = useState(() => ({ status: order.status, progress: order.progress ?? 0, notes: order.notes || '', foreman_name: order.foreman_name || savedName(), foreman_sign: order.foreman_sign || '', foreman_date: order.foreman_date || todayLocal() }));
+  const [f, setF] = useState(() => ({ status: order.status, progress: order.progress ?? 0, notes: order.notes || '', foreman_name: order.foreman_name || readStored('maint_foreman_name', asString, ''), foreman_sign: order.foreman_sign || '', foreman_date: order.foreman_date || todayLocal() }));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<typeof f>) => setF(prev => ({ ...prev, ...patch }));
@@ -28,7 +26,7 @@ export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: 
     setPending(true); setError(null);
     try {
       const updated = await updateWorkOrder(order.id, f);
-      try { if (f.foreman_name) localStorage.setItem(SAVED_NAME, f.foreman_name); } catch { /* a convenience */ }
+      if (f.foreman_name.trim()) storeValue('maint_foreman_name', f.foreman_name.trim());
       if (f.notes.trim()) rememberChoice('maint_foreman_notes', f.notes);
       toast.success('Foreman sign-off saved.');
       onSaved(updated);

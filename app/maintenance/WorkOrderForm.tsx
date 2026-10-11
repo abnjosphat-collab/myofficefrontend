@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Field, FormDialog, Input, Segmented, Select, Textarea } from '@/components/ui-system';
+import { asString, Field, FormDialog, Input, Segmented, Select, Textarea, usePersistentState } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { todayLocal } from '@/lib/dates';
 import { createWorkOrder, updateWorkOrder } from './api';
@@ -15,7 +15,7 @@ import { CLASSIFICATIONS, PRIORITY } from './meta';
 import type { WorkOrder, WorkOrderPriority } from './types';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
-const blank = (): RequestForm => ({ equipment_info: '', to_department: 'Engineering', allocated_to: '', priority: 'medium', estimated_hours: '2', job_request_details: '', requested_by: '', authorising_foreman: '', job_instructions: '', date_raised: todayLocal(), due_date: '', classification: '' });
+const blank = (remembered: { allocated_to?: string; requested_by?: string; authorising_foreman?: string } = {}): RequestForm => ({ equipment_info: '', to_department: 'Engineering', allocated_to: remembered.allocated_to || '', priority: 'medium', estimated_hours: '2', job_request_details: '', requested_by: remembered.requested_by || '', authorising_foreman: remembered.authorising_foreman || '', job_instructions: '', date_raised: todayLocal(), due_date: '', classification: '' });
 const fromOrder = (w: WorkOrder): RequestForm => ({
   equipment_info: w.equipment_info || '', to_department: w.to_department || 'Engineering', allocated_to: w.allocated_to || w.artisan_name || '', priority: w.priority || 'medium', estimated_hours: w.estimated_hours || '2',
   job_request_details: w.job_request_details || '', requested_by: w.requested_by || '', authorising_foreman: w.authorising_foreman || w.responsible_foreman || '', job_instructions: w.job_instructions || '',
@@ -27,11 +27,20 @@ const CLASSES = [{ value: '', label: 'Not set' }, ...CLASSIFICATIONS.map(c => ({
 export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged }: {
   open: boolean; order: WorkOrder | null; allOrders: WorkOrder[]; onOpenChange: (open: boolean) => void; onChanged: (updated?: WorkOrder) => void;
 }) {
-  const [form, setForm] = useState<RequestForm>(blank);
+  const [lastAllocated, setLastAllocated] = usePersistentState('myoffice.work-order.last-allocated', '', asString);
+  const [lastRequested, setLastRequested] = usePersistentState('myoffice.work-order.last-requested-by', '', asString);
+  const [lastForeman, setLastForeman] = usePersistentState('myoffice.work-order.last-foreman', '', asString);
+  const lastPeople = { allocated_to: lastAllocated, requested_by: lastRequested, authorising_foreman: lastForeman };
+  const [form, setForm] = useState<RequestForm>(() => blank(lastPeople));
   const [touched, setTouched] = useState(false);
-  useResetOnOpen(dialogKey(open, order?.id), () => { setTouched(false); setForm(order ? fromOrder(order) : blank()); });
+  useResetOnOpen(dialogKey(open, order?.id), () => { setTouched(false); setForm(order ? fromOrder(order) : blank(lastPeople)); });
   const editing = !!order;
   const set = (patch: Partial<RequestForm>) => setForm(f => ({ ...f, ...patch }));
+  const rememberPeople = () => {
+    if (form.allocated_to.trim()) setLastAllocated(form.allocated_to.trim());
+    if (form.requested_by.trim()) setLastRequested(form.requested_by.trim());
+    if (form.authorising_foreman.trim()) setLastForeman(form.authorising_foreman.trim());
+  };
   const machines = machinesOf(form.equipment_info);
   const missing = { machine: machines.length === 0, person: !form.allocated_to.trim(), job: !form.job_request_details.trim() };
   const err = (bad: boolean, msg: string) => (touched && bad ? msg : undefined);
@@ -41,6 +50,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
     if (Object.values(missing).some(Boolean)) return false;
     if (editing && order) {
       const updated = await updateWorkOrder(order.id, editOrderBody({ ...form, equipment_info: machines[0] }));
+      rememberPeople();
       onChanged(updated);
       toast.success('Work order updated.');
       return;
@@ -51,7 +61,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
       try { await createWorkOrder(newOrderBody(form, machine, nextWONumber(allOrders, raised))); raised += 1; }
       catch (e) { failed.push({ machine, reason: e instanceof Error ? e.message : 'Not saved.' }); }
     }
-    if (raised) { onChanged(); toast.success(raised > 1 ? `${raised} work orders raised.` : 'Work order raised.'); }
+    if (raised) { rememberPeople(); onChanged(); toast.success(raised > 1 ? `${raised} work orders raised.` : 'Work order raised.'); }
     if (failed.length) {
       set({ equipment_info: failed.map(f => f.machine).join(', ') });
       throw new Error(`${raised} raised, ${failed.length} not. ${failed.map(f => `${f.machine}: ${f.reason}`).join(' ')}`);

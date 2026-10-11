@@ -40,3 +40,23 @@ export function usePersistentState<T>(key: string, initial: T, validate: (raw: u
 export function oneOf<T extends string>(choices: readonly T[]) {
   return (raw: unknown): T | undefined => (typeof raw === 'string' && (choices as readonly string[]).includes(raw) ? (raw as T) : undefined);
 }
+
+/** Validator for a free-text "last used" value (a remembered name, place or reference). Blank stored values fall back. */
+export function asString(raw: unknown): string | undefined {
+  return typeof raw === 'string' && raw.trim() !== '' ? raw : undefined;
+}
+
+/** One-shot localStorage read for "last used" form fields. Dialog-mounted forms only render on the client after hydration, so a synchronous read in a state initializer is safe; server-side it returns `fallback`. Corrupt, blocked or invalid data also falls back. */
+export function readStored<T>(key: string, validate: (raw: unknown) => T | undefined, fallback: T): T {
+  try {
+    if (typeof window === 'undefined') return fallback;
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return validate(JSON.parse(raw)) ?? fallback;
+  } catch { return fallback; }
+}
+
+/** One-shot localStorage write to pair with {@link readStored}. Failures (private mode, quota) never throw. */
+export function storeValue(key: string, value: unknown): void {
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* non-fatal */ }
+}

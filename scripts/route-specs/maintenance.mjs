@@ -124,10 +124,18 @@ const spec = {
     const ep = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/1').pop();
     check(ep?.body.due_date === null, 'clearing the due date sends null so it clears');
 
+    // the people from the last saved order are remembered: raising the next one starts with them filled in
+    await page.getByRole('button', { name: 'New work order' }).click();
+    const remembered = dialog('New work order');
+    await remembered.waitFor({ timeout: 5000 });
+    check(await remembered.getByLabel(/^Allocated to/).inputValue() === 'Alex', 'the artisan from the last saved order is already filled in');
+    await remembered.getByRole('button', { name: 'Cancel' }).click();
+
     // raise two machines, one refused: the refused one stays with its reason
     await page.getByRole('button', { name: 'New work order' }).click();
     const nw = dialog('New work order');
     await nw.waitFor({ timeout: 5000 });
+    await nw.getByLabel(/^Allocated to/).fill(''); // clear the remembered artisan: this check is about empty-form validation
     await nw.getByRole('button', { name: 'Raise work order' }).click();
     check(await nw.getByText('Add at least one machine.').isVisible() && await nw.getByText('Enter who will do the job.').isVisible(), 'missing machine, person and job are explained');
     await nw.getByLabel(/^Or type a machine name/).fill('Pump X');
