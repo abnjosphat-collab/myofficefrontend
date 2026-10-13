@@ -87,7 +87,7 @@ function QuotationsContent() {
 
   if (!ready) return <LoadingPulse label="Loading quotations" />;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Quotations' }]}
         title="Quotations"

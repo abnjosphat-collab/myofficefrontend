@@ -33,6 +33,10 @@ export interface DataTableProps<T> {
   onSortChange?: (sort: SortState) => void;
   selected?: ReadonlySet<string>;
   onSelectedChange?: (selected: Set<string>) => void;
+  /** Accessible name of a row's checkbox, e.g. "Select Angle grinder". Defaults to "Select row N". */
+  rowSelectLabel?: (row: T) => string;
+  /** A reason a row cannot be ticked (shown as its tooltip), or nothing when it can. Blocked rows are skipped by "select all". */
+  rowSelectBlocked?: (row: T) => string | undefined;
   onRowActivate?: (row: T) => void;
   /** Trailing per-row actions (icon buttons / menu). */
   rowActions?: (row: T) => ReactNode;
@@ -53,14 +57,15 @@ export interface DataTableProps<T> {
  * Sorting and selection logic live in tableLogic.ts (pure, tested).
  */
 export function DataTable<T>({
-  rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, onRowActivate, rowActions, density = 'comfortable', className,
+  rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, rowSelectLabel, rowSelectBlocked, onRowActivate, rowActions, density = 'comfortable', className,
   renderExpanded, expandLabel,
 }: DataTableProps<T>) {
   const ids = useMemo(() => rows.map(getRowId), [rows, getRowId]);
   const [openId, setOpenId] = useState<string | null>(null);
   const span = columns.length + (selected && onSelectedChange ? 1 : 0) + (rowActions ? 1 : 0) + (renderExpanded ? 1 : 0);
   const selectable = Boolean(selected && onSelectedChange);
-  const state = selected ? selectionState(ids, selected) : 'none';
+  const selectableIds = useMemo(() => rows.filter(row => !rowSelectBlocked?.(row)).map(getRowId), [rows, getRowId, rowSelectBlocked]);
+  const state = selected ? selectionState(selectableIds, selected) : 'none';
   const pad = density === 'compact' ? 'px-3 py-1.5' : 'px-3.5 py-2.5';
   const hide = (c: Column<T>) => (c.hideBelow === 'md' ? 'hidden md:table-cell' : c.hideBelow === 'lg' ? 'hidden lg:table-cell' : '');
 
@@ -78,7 +83,7 @@ export function DataTable<T>({
                   aria-label="Select all rows on this page"
                   checked={state === 'all'}
                   ref={element => { if (element) element.indeterminate = state === 'some'; }}
-                  onChange={() => selected && onSelectedChange?.(toggleAllVisible(ids, selected))}
+                  onChange={() => selected && onSelectedChange?.(toggleAllVisible(selectableIds, selected))}
                 />
               </th>
             )}
@@ -128,7 +133,7 @@ export function DataTable<T>({
               >
                 {selectable && (
                   <td className={cn(cell, 'w-11')} onClick={event => event.stopPropagation()}>
-                    <Checkbox aria-label={`Select row ${index + 1}`} checked={isSelected} onChange={() => selected && onSelectedChange?.(toggleOne(id, selected))} />
+                    <Checkbox aria-label={rowSelectLabel ? rowSelectLabel(row) : `Select row ${index + 1}`} title={rowSelectBlocked?.(row)} disabled={!!rowSelectBlocked?.(row)} checked={isSelected} onChange={() => selected && onSelectedChange?.(toggleOne(id, selected))} />
                   </td>
                 )}
                 {columns.map(column => (

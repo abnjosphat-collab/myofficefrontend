@@ -9,8 +9,14 @@ export interface Compressor {
   location: string; status: string;
   total_running_hours: number; total_loaded_hours: number;
   color?: string; initial_total_running?: number; initial_total_loaded?: number;
+  /** The Equipment register item this compressor is (the register owns its name, model and location). */
+  equipment_id?: number | null;
+  /** The register's code for it, for example "CMP 01". */
+  equipment_code?: string | null;
 }
 export interface PreviousReading { total_running_hours: number; total_loaded_hours: number; date: string; }
+/** One saved daily reading. `daily_*` is the change since the previous reading, which may span several days. */
+export interface ReadingRow { date: string; total_running_hours: number; total_loaded_hours: number; daily_running_hours?: number | null; daily_loaded_hours?: number | null; pressure?: number | null; temperature?: number | null; notes?: string | null; }
 export interface UpcomingService {
   compressor_id: number; compressor_name: string; service_interval: number;
   current_hours: number; next_service_hours: number; hours_remaining: number;
@@ -31,4 +37,3 @@ export interface RecentAlert { id: number; title: string; message: string; sever
 export interface RecentService { id: number; service_type: string; description: string; service_date: string; running_hours_at_service: number; }
 export interface AgeDistribution { less_than_year?: number; "1_3_years"?: number; "3_5_years"?: number; more_than_5?: number; }
 export interface ManagementSummary { status_distribution: Record<string, number>; location_distribution: Record<string, number>; age_distribution: AgeDistribution; total_compressors: number; unread_alerts?: number; recent_alerts?: RecentAlert[]; recent_services?: RecentService[]; }
-export interface AddCompressorFormData { name: string; model: string; capacity: string; location: string; status: string; total_running_hours: number; total_loaded_hours: number; color: string; }

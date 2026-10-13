@@ -15,6 +15,7 @@ export * from './foundations/glyphs';
 
 // Appearance
 export { AppearanceProvider, useAppearance } from './appearance/AppearanceProvider';
+export { AppearanceFields } from './appearance/AppearanceFields';
 export {
   APPEARANCE_FONTS, APPEARANCE_BOOTSTRAP, DEFAULT_APPEARANCE, FONT_SIZE_MAX, FONT_SIZE_MIN, FONT_SIZE_STEP,
   clampFontSize, migrateAppearance, parseAppearance,
@@ -22,7 +23,7 @@ export {
 export type { Appearance, AppearanceFont } from './appearance/appearance';
 
 // Primitives
-export { Button, IconButton, Spinner, buttonVariants, iconButtonVariants } from './primitives/Button';
+export { Button, IconButton, Spinner, buttonVariants, floatingActionClass, iconButtonVariants } from './primitives/Button';
 export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './primitives/Button';
 export { StatusBadge, Tag, CountBadge } from './primitives/Badge';
 export type { Tone } from './primitives/Badge';

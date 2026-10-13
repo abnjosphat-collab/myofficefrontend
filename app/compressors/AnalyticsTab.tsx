@@ -4,6 +4,9 @@
 import { DataTable, EmptyState, Icon, Panel, Progress, Select, StatusBadge, type Column } from '@/components/ui-system';
 import { efficiencyTone } from './calcCompressors';
 import { RATING_TONE, TREND_META, hours } from './meta';
+import { DownloadButton } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { PERFORMANCE_COLUMNS, performanceRows } from './exports';
 import { SectionView } from './SectionView';
 import type { ComparisonResult, PerformanceMetric, TrendsResult } from './types';
 import type { Section } from './useCompressorsData';
@@ -31,7 +34,7 @@ export function AnalyticsTab({ metrics, trends, comparison, period, onPeriod, me
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="flex flex-col gap-4 lg:col-span-2">
-        <Panel title="Performance metrics" actions={<Select className="w-40" aria-label="Period" value={period} onValueChange={onPeriod} options={PERIODS} />}>
+        <Panel title="Performance metrics" actions={<span className="flex items-center gap-2"><Select className="w-40" aria-label="Period" value={period} onValueChange={onPeriod} options={PERIODS} />{metrics.data.length > 0 && <DownloadButton data={performanceRows(metrics.data)} columns={PERFORMANCE_COLUMNS} filename={exportFilename('Compressor_Performance')} title="Compressor performance" subtitle={PERIODS.find(p => p.value === period)?.label} />}</span>}>
           <SectionView section={metrics} subject="performance metrics" onRetry={onRetry}>
             {rows => rows.length === 0
               ? <EmptyState icon="analytics" title="No performance data yet" description="Readings in this period will appear here." />

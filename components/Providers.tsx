@@ -5,6 +5,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { GlobalMfaGate } from '@/components/app-shell/mfa-ui';
 import { ServiceWorkerRegistrar } from '@/components/app-shell/ServiceWorkerRegistrar';
 import { AppearanceProvider, ConfirmProvider, TooltipProvider } from '@/components/ui-system';
+import { FloorProvider } from '@/components/shared/floor/FloorProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <GlobalMfaGate />
       <AppearanceProvider>
         <TooltipProvider>
-          <ConfirmProvider>{children}</ConfirmProvider>
+          <ConfirmProvider><FloorProvider>{children}</FloorProvider></ConfirmProvider>
         </TooltipProvider>
       </AppearanceProvider>
     </AuthProvider>

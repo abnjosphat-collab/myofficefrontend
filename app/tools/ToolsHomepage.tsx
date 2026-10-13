@@ -1,18 +1,16 @@
+// app/tools/ToolsHomepage.tsx — the overview: the figures that matter (each opens its list), what needs attention, shortcuts
+// to the sections, and the latest movements (closed by default; the choice is remembered in this browser).
 'use client';
 
 import { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { AnimatedText, tileEmergeProps } from './ToolsUI';
-import { ToolsIcon as Icon, type IconName } from './ToolsIcon';
+import { Button, Icon, MetricGrid, MetricTile, Notice, Panel } from '@/components/ui-system';
 import type { Status } from './prototype';
 import type { ToolsTab } from './toolSelectors';
-import s from './tools.module.css';
-import { Button } from '@/components/ui-system';
 
-export type HomepageStat = { key: string; label: string; value: number; icon: IconName; tab: ToolsTab; filter: Status | 'all'; tone?: 'amber' | 'red'; unavailable?: boolean; loading?: boolean };
+export type HomepageStat = { key: string; label: string; value: number; tab: ToolsTab; filter: Status | 'all'; tone?: 'amber' | 'red'; unavailable?: boolean; loading?: boolean };
 export type HomepageAttention = { id: string; tone: 'amber' | 'red'; title: string; detail: string; tab: ToolsTab };
 export type HomepageMovement = { id: string; title: string; detail: string; time: string };
-export type HomepageSection = { value: ToolsTab; label: string; icon: IconName };
+export type HomepageSection = { value: ToolsTab; label: string };
 
 const SECTION_DESCRIPTIONS: Partial<Record<ToolsTab, string>> = {
   register: 'Browse every tool and its live status',
@@ -42,38 +40,80 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
   onNavigate: (tab: ToolsTab, filter: Status | 'all') => void;
   onRetry: () => void;
 }) {
-  const reduced = useReducedMotion();
-  // Recent movements are the lowest-priority panel, so they start closed; the choice is remembered in this browser.
   const [movementsChosen, setMovementsChosen] = useState(() => { try { return typeof window !== 'undefined' && window.localStorage.getItem(MOVEMENTS_OPEN_KEY) === '1'; } catch { return false; } });
   const toggleMovements = () => setMovementsChosen(open => { const next = !open; try { window.localStorage.setItem(MOVEMENTS_OPEN_KEY, next ? '1' : '0'); } catch { /* storage unavailable */ } return next; });
   // A failed history stays open, so the retry cannot be missed.
   const movementsOpen = movementsChosen || historyFailed;
   const movementsChip = historyLoading ? 'Loading…' : historyFailed ? 'Unavailable' : String(movements.length);
-  return <div className={s.homepage}>
-    <div className={s.homeHeader}><div><h2>Overview</h2><p className={s.homeScope}>{scopeLabel}</p></div></div>
-    <div className={`${s.homeStats} ${s.homeStatsHero}`}>{stats.map((stat, i) => stat.loading
-      ? <motion.div key={stat.key} className={s.homeStat} aria-busy="true" aria-label={`${stat.label}, loading`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong>—</strong><span>{stat.label}</span><small>Loading…</small></div></motion.div>
-      : stat.unavailable
-      ? <motion.div key={stat.key} className={s.homeStat} data-unavailable="true" aria-label={`${stat.label} unavailable`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong>—</strong><span>{stat.label}</span><small>Unavailable</small></div><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></motion.div>
-      : <motion.button key={stat.key} className={s.homeStat} data-tone={stat.tone} onClick={() => onNavigate(stat.tab, stat.filter)} aria-label={`${stat.label}: ${stat.value}`} {...tileEmergeProps(i, reduced)}><span className={s.homeStatIcon}><Icon name={stat.icon} size={18} /></span><div><strong><AnimatedText value={stat.value}>{stat.value}</AnimatedText></strong><span>{stat.label}</span></div><Icon name="chevron" size={15} /></motion.button>)}
-    </div>
-    <motion.section className={s.homePanel} aria-label="Needs attention" {...tileEmergeProps(stats.length, reduced)}><div className={s.homePanelHeader}><h3><Icon name="alert" size={15} />Needs attention</h3>{attention.length > 0 && <small>{attention.length}</small>}</div>
-        {attentionLoading ? <div className={s.homeEmpty} role="status"><p>Loading the latest records…</p></div>
-          : attentionFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Needs-attention data is unavailable.</p><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></div>
-          : attention.length ? <div className={s.homeAttention}>{attention.map(item => <button key={item.id} data-tone={item.tone} onClick={() => onNavigate(item.tab, 'all')}><i /><span><strong>{item.title}</strong><small>{item.detail}</small></span><Icon name="chevron" size={15} /></button>)}</div>
-            : <div className={s.homeEmpty}><Icon name="check" size={22} /><p>Everything is clear. No overdue returns, open incidents or due checks.</p></div>}
-      </motion.section>
-    <nav className={s.homeShortcuts} aria-label="Workspace shortcuts"><div className={s.homeShortcutsHeader}><h3>Workspace shortcuts</h3></div><div className={s.homeSections}>{sections.map((section, i) => <motion.button key={section.value} className={s.homeSection} aria-label={`Open ${section.label}`} title={SECTION_DESCRIPTIONS[section.value] ?? section.label} onClick={() => onNavigate(section.value, 'all')} {...tileEmergeProps(stats.length + 2 + i, reduced)}><span className={s.homeStatIcon}><Icon name={section.icon} size={16} /></span><span><strong>{section.label}</strong></span><Icon name="chevron" size={14} /></motion.button>)}
-    </div></nav>
-      <motion.section className={s.homePanel} aria-label="Recent movements" data-open={movementsOpen} {...tileEmergeProps(stats.length + 2 + sections.length, reduced)}>
-        <div className={s.homePanelHeader}>
-          <h3><button type="button" className={s.homeDisclosure} aria-expanded={movementsOpen} aria-controls="home-movements" disabled={historyFailed} onClick={toggleMovements}><Icon name="history" size={15} />Recent movements<small>{movementsChip}</small><Icon name="down" size={14} /></button></h3>
-          {movementsOpen && !historyLoading && <Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={() => onNavigate('activity', 'all')}>View all<Icon name="out" size={14} /></Button>}
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="font-sans text-body-sm text-ink-muted">{scopeLabel}</p>
+      <MetricGrid compact>
+        {stats.map(stat => (
+          <MetricTile key={stat.key} compact label={stat.label} value={stat.value} loading={stat.loading} unavailable={stat.unavailable}
+            tone={stat.tone === 'red' ? 'danger' : stat.tone === 'amber' ? 'warning' : 'default'}
+            onClick={stat.loading || stat.unavailable ? undefined : () => onNavigate(stat.tab, stat.filter)} />
+        ))}
+      </MetricGrid>
+      {stats.some(stat => stat.unavailable) && <div><Button size="sm" onClick={onRetry}>Retry</Button></div>}
+
+      <Panel title="Needs attention" description={attention.length ? `${attention.length} to look at` : undefined}>
+        {attentionLoading ? <p role="status" className="font-sans text-body-sm text-ink-muted">Loading the latest records…</p>
+          : attentionFailed ? <Notice tone="warning" title="Needs-attention data is unavailable." action={<Button size="sm" onClick={onRetry}>Retry</Button>} />
+          : attention.length ? (
+            <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">
+              {attention.map(item => (
+                <li key={item.id}>
+                  <button type="button" onClick={() => onNavigate(item.tab, 'all')} className="focus-ring flex w-full items-start gap-3 py-2.5 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+                    <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: item.tone === 'red' ? 'var(--mo-danger)' : 'var(--mo-warning)' }} />
+                    <span className="min-w-0 flex-1"><strong className="block font-sans text-body-sm font-medium text-ink">{item.title}</strong><small className="block font-sans text-caption text-ink-muted">{item.detail}</small></span>
+                    <Icon name="chevron-right" size="xs" className="mt-1 text-ink-muted" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+          : <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="success" size="sm" />Everything is clear. No overdue returns, open incidents or due checks.</p>}
+      </Panel>
+
+      <nav aria-label="Workspace shortcuts" className="flex flex-col gap-2">
+        <h2 className="font-sans text-caption font-medium text-ink-muted">Workspace shortcuts</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {sections.map(section => (
+            <button key={section.value} type="button" aria-label={`Open ${section.label}`} title={SECTION_DESCRIPTIONS[section.value] ?? section.label} onClick={() => onNavigate(section.value, 'all')}
+              className="focus-ring flex items-center justify-between gap-2 rounded-[6px] border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)] px-3 py-2.5 text-left font-sans text-body-sm font-medium text-ink transition-colors hover:border-[var(--mo-action)]">
+              <span className="min-w-0"><span className="block truncate">{section.label}</span><small className="block truncate font-normal text-ink-muted">{SECTION_DESCRIPTIONS[section.value]}</small></span>
+              <Icon name="chevron-right" size="xs" className="shrink-0 text-ink-muted" />
+            </button>
+          ))}
         </div>
-        {movementsOpen && <div id="home-movements">{historyLoading ? <div className={s.homeEmpty} role="status"><p>Loading the latest records…</p></div>
-          : historyFailed ? <div className={s.homeEmpty}><Icon name="alert" size={22} /><p>Movement history is unavailable.</p><Button variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={onRetry}>Retry</Button></div>
-          : movements.length ? <div className={s.homeMoves}>{movements.map(item => <button key={item.id} onClick={() => onNavigate('activity', 'all')}><span><strong>{item.title}</strong><small>{item.detail}</small></span><time>{item.time}</time></button>)}</div>
-            : <div className={s.homeEmpty}><Icon name="history" size={22} /><p>No movements recorded yet.</p></div>}</div>}
-      </motion.section>
-  </div>;
+      </nav>
+
+      <Panel title={(
+        <button type="button" aria-expanded={movementsOpen} aria-controls="home-movements" disabled={historyFailed} onClick={toggleMovements} className="focus-ring inline-flex items-center gap-2 rounded-[4px]">
+          Recent movements <small className="font-normal text-ink-muted">{movementsChip}</small><Icon name={movementsOpen ? 'chevron-up' : 'chevron-down'} size="xs" />
+        </button>
+      )} actions={movementsOpen && !historyLoading ? <Button variant="ghost" size="sm" onClick={() => onNavigate('activity', 'all')}>View all</Button> : undefined}>
+        {movementsOpen && (
+          <div id="home-movements">
+            {historyLoading ? <p role="status" className="font-sans text-body-sm text-ink-muted">Loading the latest records…</p>
+              : historyFailed ? <Notice tone="warning" title="Movement history is unavailable." action={<Button size="sm" onClick={onRetry}>Retry</Button>} />
+              : movements.length ? (
+                <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">
+                  {movements.map(item => (
+                    <li key={item.id}>
+                      <button type="button" onClick={() => onNavigate('activity', 'all')} className="focus-ring flex w-full items-start justify-between gap-3 py-2.5 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+                        <span className="min-w-0"><strong className="block font-sans text-body-sm font-medium text-ink">{item.title}</strong><small className="block font-sans text-caption text-ink-muted">{item.detail}</small></span>
+                        <time className="shrink-0 font-sans text-caption text-ink-muted">{item.time}</time>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+              : <p className="font-sans text-body-sm text-ink-muted">No movements recorded yet.</p>}
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
 }

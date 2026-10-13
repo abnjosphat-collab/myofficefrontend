@@ -24,7 +24,7 @@ export function HomeView({ onOpenCategory, onLocate }: { onOpenCategory: (id: st
   const status = deriveDataStatus({ loaded: search.loaded && !search.pending, loading: search.loading || search.pending, error: search.error, errorStatus: search.errorStatus, count: search.items.length, transient: isTransientStatus(search.errorStatus) });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <SearchField value={query} onValueChange={setQuery} placeholder="Search all documents" wrapperClassName="w-full max-w-xl" />
       {searching ? (
         <DataRegion

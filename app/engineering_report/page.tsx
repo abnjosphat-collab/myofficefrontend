@@ -73,7 +73,7 @@ function EngineeringReportContent() {
   const dailySummary = `Daily tonnes milled against the ${REPORT_TARGETS.tonnesPerDay} tonne target: ${prod.daily.map(d => `${d.date} ${d.tonnes}`).join(', ')}.`;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Engineering' }, { label: 'Monthly report' }]}
         title="Engineering report"

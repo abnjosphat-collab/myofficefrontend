@@ -3,7 +3,7 @@
 // summed from calcEmployeeTotals by the caller, so this never re-derives payroll rules.
 'use client';
 
-import { LoadingPulse, Progress } from '@/components/ui-system';
+import { LoadingPulse, Progress, usePersistentState } from '@/components/ui-system';
 import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 
 export interface NecPeriodTotals {
@@ -19,6 +19,7 @@ export interface NecPeriodTotals {
 }
 
 export function NecQuickView({ totals, loading }: { totals: NecPeriodTotals; loading: boolean }) {
+  const [open, setOpen] = usePersistentState<boolean>('myoffice_nec_roster_summary_open', false, raw => (typeof raw === 'boolean' ? raw : undefined));
   if (loading) {
     return (
       <LoadingPulse label="Loading period totals" />
@@ -31,6 +32,7 @@ export function NecQuickView({ totals, loading }: { totals: NecPeriodTotals; loa
     <TotalsStrip
       label="Period at a glance"
       title="Period at a glance"
+      collapsible={{ expanded: open, onToggle: () => setOpen(!open), headline: <span className="font-sans text-body-sm text-ink-muted">Payable <strong className="font-display text-title font-semibold tabular text-action">{h(payable)}</strong></span> }}
       figures={[
         { value: String(totals.people), label: 'People on the roster' },
         { value: h(totals.actual), label: 'Actual hours', note: 'reporting figure, uncapped' },

@@ -1,6 +1,6 @@
 import { fuzzyScore } from './fuzzySearch';
 import { departmentOf, type Activity, type Employee, type Tool } from './prototype';
-import type { IconName } from './ToolsIcon';
+import type { IconMeaning } from '@/components/ui-system/foundations/icon-meanings';
 import type { ToolsTab } from './toolSelectors';
 import type { SourceRegisterRecord } from './ToolsSourceRegisters';
 
@@ -15,18 +15,18 @@ export type WorkspaceSearchResult = {
   title: string;
   subtitle: string;
   keywords: string;
-  icon: IconName;
+  icon: IconMeaning;
   target: SearchTarget;
 };
 
 const fixedResults: WorkspaceSearchResult[] = [
   { id: 'page-home', kind: 'Page', title: 'Overview', subtitle: 'Attention list and recent movements', keywords: 'home homepage overview dashboard start summary attention', icon: 'home', target: { type: 'tab', tab: 'homepage' } },
-  { id: 'page-equipment', kind: 'Page', title: 'Equipment register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'box', target: { type: 'tab', tab: 'register' } },
-  { id: 'page-loans', kind: 'Page', title: 'Equipment in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'out', target: { type: 'tab', tab: 'loans' } },
+  { id: 'page-equipment', kind: 'Page', title: 'Equipment register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'equipment', target: { type: 'tab', tab: 'register' } },
+  { id: 'page-loans', kind: 'Page', title: 'Equipment in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'overdue', target: { type: 'tab', tab: 'loans' } },
   { id: 'page-employees', kind: 'Page', title: 'Employee register', subtitle: 'Find people who can receive equipment', keywords: 'staff personnel workers people employees', icon: 'user', target: { type: 'tab', tab: 'employees' } },
   { id: 'page-history', kind: 'Page', title: 'Movement history', subtitle: 'Review the issue and return audit trail', keywords: 'activity movements audit trail issue return transfer', icon: 'history', target: { type: 'tab', tab: 'activity' } },
   { id: 'page-sources', kind: 'Page', title: 'Source registers', subtitle: 'Original PDF, Excel, Word and scanned registers', keywords: 'documents source files pdf spreadsheet excel word scan register', icon: 'upload', target: { type: 'tab', tab: 'sources' } },
-  { id: 'page-accounts', kind: 'Page', title: 'Account access', subtitle: 'Grant or revoke roles and departmental access', keywords: 'admin users accounts roles permissions grant revoke issuer viewer', icon: 'accounts', target: { type: 'tab', tab: 'accounts' } },
+  { id: 'page-accounts', kind: 'Page', title: 'Account access', subtitle: 'Grant or revoke roles and departmental access', keywords: 'admin users accounts roles permissions grant revoke issuer viewer', icon: 'admin-role', target: { type: 'tab', tab: 'accounts' } },
   { id: 'page-analytics', kind: 'Page', title: 'Analytics', subtitle: 'Usage, errors and feedback', keywords: 'charts metrics insights errors usage reports', icon: 'analytics', target: { type: 'tab', tab: 'analytics' } },
   { id: 'page-feedback', kind: 'Page', title: 'Feedback inbox', subtitle: 'Read saved text and audio feedback', keywords: 'suggestions recordings voice comments', icon: 'edit', target: { type: 'tab', tab: 'feedback' } },
   { id: 'action-add-tool', kind: 'Action', title: 'Add equipment', subtitle: 'Create a new register record', keywords: 'new tool asset create register', icon: 'plus', target: { type: 'modal', modal: 'new' } },
@@ -46,7 +46,7 @@ export function buildWorkspaceSearchIndex(tools: Tool[], employees: Employee[], 
       id: `tool-${tool.id}`, kind: 'Equipment', title: tool.name,
       subtitle: `${tool.id} · ${departmentOf(tool)} · ${tool.location}`,
       keywords: `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.job ?? ''} ${tool.notes ?? ''} ${departmentOf(tool)} ${tool.section ?? ''}`,
-      icon: 'box', target: { type: 'tool', toolId: tool.id },
+      icon: 'equipment', target: { type: 'tool', toolId: tool.id },
     });
     for (const file of tool.evidence ?? []) dynamic.push({
       id: `document-${tool.id}-${file.id}`, kind: 'Document', title: file.name,

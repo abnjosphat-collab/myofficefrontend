@@ -78,8 +78,8 @@ export function TimesheetDayCell({
         <div
           role="button" tabIndex={0} title="Drag across days to fill normal hours or Off. Overtime is not copied. From the keyboard: Enter, then the arrow keys, then Enter." aria-label={`Fill from ${dateKey}`}
           onPointerDown={startFillPointer} onKeyDown={startFillKey}
-          className={cn('absolute bottom-0 right-0 z-0 inline-flex size-6 cursor-ew-resize touch-manipulation items-end justify-end rounded-tl-control border-l border-t border-line-strong bg-surface text-ink-muted focus-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/cell:opacity-100 [@media(hover:hover)]:group-focus-within/cell:opacity-100')}
-        ><Icon name="chevron-right" size="xs" /></div>
+          className={cn('absolute -bottom-1 -right-1 z-10 inline-flex size-6 cursor-ew-resize touch-manipulation items-center justify-center rounded-full focus-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/cell:opacity-100 [@media(hover:hover)]:group-focus-within/cell:opacity-100')}
+        ><span aria-hidden className="size-2 rounded-full bg-action shadow-card transition-transform duration-[var(--mo-duration-base)] group-hover/cell:scale-125" /></div>
         {!entry && <button type="button" title="Quick add: the normal shift" aria-label={`Quick add a shift for ${emp.name} on ${dateKey}`} onClick={e => { e.stopPropagation(); onQuickAdd(emp, day); }} className={cn(SMALL, 'right-1 top-1 bg-success-soft text-success [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/cell:opacity-100 [@media(hover:hover)]:group-focus-within/cell:opacity-100')}><Icon name="plus" size="xs" /></button>}
         {entry?.id != null && <button type="button" title="Quick remove this day's entry" aria-label={`Remove the entry for ${emp.name} on ${dateKey}`} onClick={e => { e.stopPropagation(); onQuickRemove(emp, entry); }} className={cn(SMALL, 'right-1 top-1 bg-danger-soft text-danger [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/cell:opacity-100 [@media(hover:hover)]:group-focus-within/cell:opacity-100')}><Icon name="close" size="xs" /></button>}
       </div>

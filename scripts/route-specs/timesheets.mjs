@@ -52,7 +52,9 @@ const spec = {
     check(/Leave/.test(await cellOf('Bob Beta', w2).textContent()) && /8/.test(await cellOf('Bob Beta', w2).textContent()), 'approved leave is laid over the grid as 8 hours of leave');
     check(await cellOf('Ann Alpha', w1).getByText('Pending').isVisible(), 'pending overtime is shown with its status in words');
     check(/10/.test(await cellOf('Ann Alpha', w0).textContent()), 'an entered day shows its hours');
-    check(await page.getByRole('heading', { name: 'Period at a glance' }).isVisible(), 'the period summary names its buckets');
+    check(await page.getByRole('button', { name: 'Show Period at a glance' }).isVisible(), 'the period summary folds to one bar');
+    await page.getByRole('button', { name: 'Show Period at a glance' }).click();
+    check(await page.getByText('Actual hours').isVisible(), 'opening it names every bucket');
     check(await page.getByText('Payable total').isVisible(), 'the summary foots the payable total');
     await shot(page, 'grid@1440');
 

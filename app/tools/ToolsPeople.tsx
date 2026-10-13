@@ -1,14 +1,14 @@
+// app/tools/ToolsPeople.tsx — the employee register: who may receive which equipment, by person or by equipment, with the
+// approvals (trained, qualified, authorised) behind each, bulk deactivation, and a detailed approvals panel per person.
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button, Checkbox, EmptyState, Field, Icon, Input, Notice, SearchField, Segmented, useConfirm } from '@/components/ui-system';
 import type { CompetencyRecord } from './complianceTypes';
-import { ToolsIcon as Icon } from './ToolsIcon';
 import { ToolsDialog } from './ToolsUI';
 import { EligibilityByEquipment, EligibilityByPerson } from './ToolsEligibility';
 import type { Employee, Tool } from './prototype';
 import { buildEligibility, competencyForEmployeeTool, isCurrentCompetency, latestAuthoriser } from './toolEligibility';
-import s from './tools.module.css';
-import { Button } from '@/components/ui-system';
 
 type SaveCompetency = (value: {
   employee_id: string;
@@ -44,21 +44,23 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
     }
   }
 
-  return <article className={s.eligibilityRow} data-eligible={eligible}>
-    <div className={s.eligibilityTool}>
-      <span className={s.eligibilityIcon}><Icon name="box" size={17}/></span>
-      <span><strong>{tool.id} · {tool.name}</strong><small>{tool.category}{inherited ? ' · inherited category approval' : ''}</small></span>
-    </div>
-    <div className={s.eligibilityChecks} aria-label={`${tool.name} competency requirements`}>
-      <label data-selected={trained}><input aria-label="Trained" type="checkbox" checked={trained} disabled={!canManage} onChange={event=>setTrained(event.target.checked)}/><span>Trained</span></label>
-      <label data-selected={qualified}><input aria-label="Qualified" type="checkbox" checked={qualified} disabled={!canManage} onChange={event=>setQualified(event.target.checked)}/><span>Qualified</span></label>
-      <label data-selected={authorized}><input aria-label="Authorized" type="checkbox" checked={authorized} disabled={!canManage} onChange={event=>setAuthorized(event.target.checked)}/><span>Authorized</span></label>
-    </div>
-    <div className={s.eligibilityAction}>
-      <span data-eligible={eligible}>{eligible ? 'Eligible to receive' : 'Not eligible'}</span>
-      {canManage&&<Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} disabled={!changed||saving} onClick={()=>void save()}>{saving?'Saving…':'Save'}</Button>}
-    </div>
-  </article>;
+  return (
+    <article className="flex flex-col gap-3 rounded-card border border-[var(--mo-line-subtle)] p-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="text-ink-muted"><Icon name="equipment" size="md" /></span>
+        <span className="min-w-0"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.id} · {tool.name}</strong><small className="block font-sans text-caption text-ink-muted">{tool.category}{inherited ? ' · inherited category approval' : ''}</small></span>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1" role="group" aria-label={`${tool.name} competency requirements`}>
+        <Checkbox aria-label="Trained" label="Trained" checked={trained} disabled={!canManage} onChange={event => setTrained(event.target.checked)} />
+        <Checkbox aria-label="Qualified" label="Qualified" checked={qualified} disabled={!canManage} onChange={event => setQualified(event.target.checked)} />
+        <Checkbox aria-label="Authorized" label="Authorized" checked={authorized} disabled={!canManage} onChange={event => setAuthorized(event.target.checked)} />
+      </div>
+      <div className="flex items-center gap-3">
+        <span className={`font-sans text-caption font-medium ${eligible ? 'text-success' : 'text-ink-muted'}`}>{eligible ? 'Eligible to receive' : 'Not eligible'}</span>
+        {canManage && <Button type="button" disabled={!changed || saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</Button>}
+      </div>
+    </article>
+  );
 }
 
 export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
@@ -70,7 +72,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   search: string;
   canManage: boolean;
   onAdd: () => void;
-  onIssue: (employee:Employee) => void;
+  onIssue: (employee: Employee) => void;
   onSaveCompetency: SaveCompetency;
   /** Deactivate or reactivate a person: nothing is deleted, they simply stop being offered. */
   onSetActive: (employee: Employee, active: boolean) => Promise<void>;
@@ -79,72 +81,112 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   /** False hides the Deactivate buttons (one at a time and in bulk); Reactivate is always available. */
   allowDeactivate?: boolean;
 }) {
-  const [selecting,setSelecting]=useState(false);
-  const [picked,setPicked]=useState<string[]>([]);
-  const [confirming,setConfirming]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [selected,setSelected]=useState<Employee|null>(null);
-  const [toolSearch,setToolSearch]=useState('');
-  const [view,setView]=useState<'person'|'equipment'>('person');
-  const [showInactive,setShowInactive]=useState(false);
-  const [authoriserEdit,setAuthoriserEdit]=useState<string|null>(()=>{try{return typeof window==='undefined'?null:window.localStorage.getItem('tools-authoriser');}catch{return null;}});
-  const authoriser=authoriserEdit??latestAuthoriser(competencies);
-  const setAuthoriser=(value:string)=>{setAuthoriserEdit(value);try{window.localStorage.setItem('tools-authoriser',value);}catch{/* storage unavailable */}};
-  const eligibility=useMemo(()=>buildEligibility(employees,tools,competencies),[employees,tools,competencies]);
+  const confirm = useConfirm();
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Employee | null>(null);
+  const [toolSearch, setToolSearch] = useState('');
+  const [view, setView] = useState<'person' | 'equipment'>('person');
+  const [showInactive, setShowInactive] = useState(false);
+  const [authoriserEdit, setAuthoriserEdit] = useState<string | null>(() => { try { return typeof window === 'undefined' ? null : window.localStorage.getItem('tools-authoriser'); } catch { return null; } });
+  const authoriser = authoriserEdit ?? latestAuthoriser(competencies);
+  const setAuthoriser = (value: string) => { setAuthoriserEdit(value); try { window.localStorage.setItem('tools-authoriser', value); } catch { /* storage unavailable */ } };
+  const eligibility = useMemo(() => buildEligibility(employees, tools, competencies), [employees, tools, competencies]);
   const query = search.trim().toLowerCase();
-  const inactiveCount=employees.filter(employee=>!employee.active).length;
-  const visible = employees.filter(employee => (showInactive||employee.active) && `${employee.name} ${employee.employeeNumber} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
-  const blockedReason=(employee:Employee)=>!employee.active?'Already inactive.':tools.some(tool=>tool.holder===employee.name||tool.holder?.startsWith(`${employee.name} ·`))?'Receive their equipment before deactivating them.':undefined;
-  const pickable=visible.filter(employee=>!blockedReason(employee));
-  const chosen=pickable.filter(employee=>picked.includes(employee.id));
-  const canSelect=canManage&&allowDeactivate&&!!onDeactivateMany&&view==='person'&&pickable.length>0;
-  const stopSelecting=()=>{setSelecting(false);setPicked([]);setConfirming(false);};
-  const deactivateChosen=async()=>{setBusy(true);try{await onDeactivateMany?.(chosen);stopSelecting();}finally{setBusy(false);setConfirming(false);}};
-  const bulkBar=canSelect&&(selecting
-    ?<div className={s.bulkBar} role="toolbar" aria-label="Deactivate several people">
-      <strong role="status">{chosen.length?`${chosen.length} selected`:'Tick the people to deactivate'}</strong>
-      <Button type="button" variant="ghost" size="sm" className={`${s.sharedButton}`} onClick={()=>setPicked(chosen.length===pickable.length?[]:pickable.map(employee=>employee.id))}>{chosen.length===pickable.length?'Clear selection':`Select all ${pickable.length}`}</Button>
-      <span className={s.bulkSpacer}/>
-      {confirming
-        ?<><span>Deactivate {chosen.length} {chosen.length===1?'person':'people'}? Nothing is deleted and they can be reactivated.</span><Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} disabled={busy} onClick={()=>setConfirming(false)}>Not yet</Button><Button type="button" variant="primary" size="lg" className={`${s.sharedButton}`} disabled={busy} onClick={()=>void deactivateChosen()}>{busy?'Deactivating…':'Yes, deactivate'}</Button></>
-        :<><Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={stopSelecting}>Cancel</Button><Button type="button" variant="primary" size="lg" className={`${s.sharedButton}`} disabled={!chosen.length} onClick={()=>setConfirming(true)}>Deactivate{chosen.length?` ${chosen.length}`:''}</Button></>}
-    </div>
-    :<div className={s.bulkBar}><Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={()=>setSelecting(true)}><Icon name="user" size={16}/>Select to deactivate</Button></div>);
-  const held=selected?tools.filter(tool=>tool.holder===selected.name||tool.holder?.startsWith(`${selected.name} ·`)):[];
-  const employeeTools=useMemo(()=>selected?tools
-    .filter(tool=>!tool.archived&&tool.backendId&&(!tool.department||tool.department===selected.department))
-    .filter(tool=>`${tool.id} ${tool.name} ${tool.category}`.toLowerCase().includes(toolSearch.trim().toLowerCase())):[],[selected,toolSearch,tools]);
-  const eligibleTools=selected?tools.filter(tool=>isCurrentCompetency(competencyForEmployeeTool(selected,tool,competencies))):[];
-
-  if (!employees.length) return <div className={s.empty}><Icon name="user" size={32}/><h2>Build your employee register</h2><p>Add the people who may receive tools and equipment. This register is separate from MyOffice.</p><Button variant="primary" size="lg" className={`${s.sharedButton}`} onClick={onAdd}><Icon name="plus" size={16}/>Add the first employee</Button></div>;
-  return <>
-    <div className={s.eligToolbar}>
-      <div className={s.eligSwitch} role="group" aria-label="Show eligibility">
-        <button type="button" aria-pressed={view==='person'} onClick={()=>setView('person')}><Icon name="user" size={15}/>By person</button>
-        <button type="button" aria-pressed={view==='equipment'} onClick={()=>setView('equipment')}><Icon name="box" size={15}/>By equipment</button>
+  const inactiveCount = employees.filter(employee => !employee.active).length;
+  const visible = employees.filter(employee => (showInactive || employee.active) && `${employee.name} ${employee.employeeNumber} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
+  const blockedReason = (employee: Employee) => !employee.active ? 'Already inactive.' : tools.some(tool => tool.holder === employee.name || tool.holder?.startsWith(`${employee.name} ·`)) ? 'Receive their equipment before deactivating them.' : undefined;
+  const pickable = visible.filter(employee => !blockedReason(employee));
+  const chosen = pickable.filter(employee => picked.includes(employee.id));
+  const canSelect = canManage && allowDeactivate && !!onDeactivateMany && view === 'person' && pickable.length > 0;
+  const stopSelecting = () => { setSelecting(false); setPicked([]); };
+  const deactivateChosen = async () => {
+    const ok = await confirm({ title: `Deactivate ${chosen.length} ${chosen.length === 1 ? 'person' : 'people'}?`, message: 'Nothing is deleted and they can be reactivated.', confirmLabel: 'Yes, deactivate', destructive: true });
+    if (!ok) return;
+    setBusy(true);
+    try { await onDeactivateMany?.(chosen); stopSelecting(); } finally { setBusy(false); }
+  };
+  const bulkBar = canSelect && (selecting
+    ? (
+      <div role="toolbar" aria-label="Deactivate several people" className="flex flex-wrap items-center gap-2">
+        <strong role="status" className="font-sans text-body-sm font-medium text-ink">{chosen.length ? `${chosen.length} selected` : 'Tick the people to deactivate'}</strong>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setPicked(chosen.length === pickable.length ? [] : pickable.map(employee => employee.id))}>{chosen.length === pickable.length ? 'Clear selection' : `Select all ${pickable.length}`}</Button>
+        <span className="ml-auto flex gap-2">
+          <Button type="button" onClick={stopSelecting}>Cancel</Button>
+          <Button type="button" variant="primary" disabled={!chosen.length} pending={busy} onClick={() => void deactivateChosen()}>{`Deactivate${chosen.length ? ` ${chosen.length}` : ''}`}</Button>
+        </span>
       </div>
-      {inactiveCount>0&&<Button type="button" variant="ghost" size="sm" className={`${s.sharedButton}`} aria-pressed={showInactive} onClick={()=>setShowInactive(value=>!value)}>{showInactive?'Hide inactive people':`Show ${inactiveCount} inactive ${inactiveCount===1?'person':'people'}`}</Button>}
-      {canManage&&<label className={s.eligAuthoriser}><span>Authorised by</span><input aria-label="Authorised by" value={authoriser} onChange={event=>setAuthoriser(event.target.value)} placeholder="Name of the authorising officer"/></label>}
+    )
+    : <div className="flex"><Button type="button" icon="user" onClick={() => setSelecting(true)}>Select to deactivate</Button></div>);
+  const held = selected ? tools.filter(tool => tool.holder === selected.name || tool.holder?.startsWith(`${selected.name} ·`)) : [];
+  const employeeTools = useMemo(() => selected ? tools
+    .filter(tool => !tool.archived && tool.backendId && (!tool.department || tool.department === selected.department))
+    .filter(tool => `${tool.id} ${tool.name} ${tool.category}`.toLowerCase().includes(toolSearch.trim().toLowerCase())) : [], [selected, toolSearch, tools]);
+  const eligibleTools = selected ? tools.filter(tool => isCurrentCompetency(competencyForEmployeeTool(selected, tool, competencies))) : [];
+
+  if (!employees.length) {
+    return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools and equipment. This register is separate from MyOffice." action={<Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button>} />;
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <Segmented label="Show eligibility" value={view} onValueChange={setView} options={[{ value: 'person', label: 'By person' }, { value: 'equipment', label: 'By equipment' }]} />
+        {inactiveCount > 0 && <Button type="button" variant="ghost" size="sm" aria-pressed={showInactive} onClick={() => setShowInactive(value => !value)}>{showInactive ? 'Hide inactive people' : `Show ${inactiveCount} inactive ${inactiveCount === 1 ? 'person' : 'people'}`}</Button>}
+        {canManage && <Field label="Authorised by" className="ml-auto w-full sm:w-72"><Input aria-label="Authorised by" value={authoriser} onChange={event => setAuthoriser(event.target.value)} placeholder="Name of the authorising officer" /></Field>}
+      </div>
+      {approvals.state !== 'ready' && (
+        <Notice tone="warning" title={approvals.state === 'loading' ? 'Loading approvals…' : 'The approvals could not be loaded'}
+          action={approvals.state === 'failed' ? <Button type="button" onClick={approvals.onRetry}>Try again</Button> : undefined}>
+          {approvals.state === 'loading' ? 'Who is eligible for what will appear in a moment.' : `${approvals.message || 'The server did not answer.'} Eligibility is not shown until they load, so nobody is listed as having none.`}
+        </Notice>
+      )}
+      {view === 'person' && bulkBar}
+      {view === 'person'
+        ? (visible.length
+          ? <EligibilityByPerson selection={canSelect && selecting ? { picked, blocked: blockedReason, onToggle: (employee, on) => setPicked(current => on ? [...current, employee.id] : current.filter(id => id !== employee.id)) } : undefined}
+              employees={visible} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()}
+              onGrant={onSaveCompetency} onOpenApprovals={employee => { setSelected(employee); setToolSearch(''); }} onIssue={onIssue} onSetActive={onSetActive} allowDeactivate={allowDeactivate} />
+          : <EmptyState icon="search" title="No matching employees" description="Try a name, employee number, supervisor or department." />)
+        : <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} search={search} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} />}
+      <ToolsDialog open={!!selected} onClose={() => setSelected(null)} title={selected?.name || 'Employee details'} description={selected ? `${selected.employeeNumber} · ${selected.department}` : ''} wide>
+        {selected && (
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-[var(--mo-action-soft)] text-ink"><Icon name="user" size="md" /></span>
+              <div className="min-w-0 flex-1">
+                <strong className="block font-sans text-body-sm font-semibold text-ink">{selected.jobTitle || 'Job title not recorded'}</strong>
+                <p className="font-sans text-caption text-ink-muted">{selected.active ? 'Active employee' : 'Inactive employee'} · {selected.department}</p>
+                {selected.supervisorName && <p className="font-sans text-caption text-ink-muted">Supervisor: {selected.supervisorName}</p>}
+              </div>
+              <span className="text-right"><strong className="block font-display text-title text-ink">{eligibleTools.length}</strong><small className="font-sans text-caption text-ink-muted">approved {eligibleTools.length === 1 ? 'item' : 'items'}</small></span>
+            </div>
+            <section className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
+              <div className="flex items-baseline justify-between gap-2"><h3 className="font-sans text-caption font-medium text-ink-muted">Currently assigned</h3><span className="font-sans text-caption text-ink-muted">{held.length} {held.length === 1 ? 'item' : 'items'}</span></div>
+              {held.length
+                ? <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">{held.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="font-sans text-caption text-ink-muted">{tool.id} · {tool.location}</small></span></li>)}</ul>
+                : <p className="font-sans text-body-sm text-ink-muted">No tools or equipment are currently assigned to this person.</p>}
+            </section>
+            <section className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] pt-4">
+              <div className="flex items-baseline justify-between gap-2">
+                <div><h3 className="font-sans text-body-sm font-semibold text-ink">Tool eligibility</h3><p className="font-sans text-caption text-ink-muted">All three requirements must be current before this employee appears in the Issue tool list.</p></div>
+                <span className="shrink-0 font-sans text-caption text-ink-muted">{eligibleTools.length} eligible</span>
+              </div>
+              <SearchField label="Find equipment" placeholder="Find equipment by name, ID or category…" value={toolSearch} onValueChange={setToolSearch} />
+              <div className="flex flex-col gap-2">
+                {employeeTools.map(tool => { const record = competencyForEmployeeTool(selected, tool, competencies); return <EmployeeToolEligibilityRow key={`${selected.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={selected} tool={tool} record={record} canManage={canManage} onSave={onSaveCompetency} />; })}
+                {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No equipment in {selected.department} matches this search.</p>}
+              </div>
+              {!canManage && <p className="font-sans text-caption text-ink-muted">Only an administrator or issuer can update competency approvals.</p>}
+            </section>
+            <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
+              <Button onClick={() => setSelected(null)}>Close</Button>
+              <Button variant="primary" disabled={!selected.active || !eligibleTools.length} title={!selected.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one equipment item first.' : undefined}
+                onClick={() => { const employee = selected; setSelected(null); onIssue(employee); }}>Issue a tool</Button>
+            </div>
+          </div>
+        )}
+      </ToolsDialog>
     </div>
-    {approvals.state!=='ready'&&<div className={`${s.formContext} ${s.formContextWarning}`} role="status"><Icon name="alert"/><span><strong>{approvals.state==='loading'?'Loading approvals…':'The approvals could not be loaded'}</strong><small>{approvals.state==='loading'?'Who is eligible for what will appear in a moment.':`${approvals.message||'The server did not answer.'} Eligibility is not shown until they load, so nobody is listed as having none.`}</small></span>{approvals.state==='failed'&&<Button type="button" variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={approvals.onRetry}>Try again</Button>}</div>}
-    {view==='person'&&bulkBar}
-    {view==='person'
-      ? (visible.length
-        ? <EligibilityByPerson selection={canSelect&&selecting?{picked,blocked:blockedReason,onToggle:(employee,on)=>setPicked(current=>on?[...current,employee.id]:current.filter(id=>id!==employee.id))}:undefined} employees={visible} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state==='ready'} canManage={canManage&&approvals.state==='ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} onOpenApprovals={employee=>{setSelected(employee);setToolSearch('');}} onIssue={onIssue} onSetActive={onSetActive} allowDeactivate={allowDeactivate}/>
-        : <div className={s.empty}><Icon name="search" size={28}/><h2>No matching employees</h2><p>Try a name, employee number, supervisor or department.</p></div>)
-      : <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state==='ready'} search={search} canManage={canManage&&approvals.state==='ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency}/>}
-    <ToolsDialog open={!!selected} onClose={()=>setSelected(null)} title={selected?.name||'Employee details'} description={selected?`${selected.employeeNumber} · ${selected.department}`:''} wide>
-      {selected&&<div className={s.employeeDetail}>
-        <div className={s.employeeIdentity}><span className={s.personAvatar}><Icon name="user" size={22}/></span><div><strong>{selected.jobTitle||'Job title not recorded'}</strong><p>{selected.active?'Active employee':'Inactive employee'} · {selected.department}</p>{selected.supervisorName&&<p>Supervisor: {selected.supervisorName}</p>}</div><span className={s.eligibilitySummary}><strong>{eligibleTools.length}</strong><small>approved {eligibleTools.length===1?'item':'items'}</small></span></div>
-        <section><div className={s.fieldHeading}><h3>Currently assigned</h3><span>{held.length} {held.length===1?'item':'items'}</span></div>{held.length?<div className={s.employeeTools}>{held.map(tool=><div key={tool.id}><Icon name="box" size={16}/><span><strong>{tool.name}</strong><small>{tool.id} · {tool.location}</small></span></div>)}</div>:<p className={s.formHint}>No tools or equipment are currently assigned to this person.</p>}</section>
-        <section className={s.eligibilitySection}>
-          <div className={s.fieldHeading}><div><h3>Tool eligibility</h3><p>All three requirements must be current before this employee appears in the Issue tool list.</p></div><span>{eligibleTools.length} eligible</span></div>
-          <label className={s.eligibilitySearch}><Icon name="search" size={16}/><input aria-label="Find equipment" type="search" value={toolSearch} onChange={event=>setToolSearch(event.target.value)} placeholder="Find equipment by name, ID or category…"/></label>
-          <div className={s.eligibilityList}>{employeeTools.map(tool=>{const record=competencyForEmployeeTool(selected,tool,competencies);return <EmployeeToolEligibilityRow key={`${selected.id}-${tool.id}-${record?.updated_at||'new'}`} employee={selected} tool={tool} record={record} canManage={canManage} onSave={onSaveCompetency}/>;})}{!employeeTools.length&&<p className={s.formHint}>No equipment in {selected.department} matches this search.</p>}</div>
-          {!canManage&&<p className={s.formHint}>Only an administrator or issuer can update competency approvals.</p>}
-        </section>
-        <div className={s.formFooter}><Button variant="secondary" size="lg" className={`${s.sharedButton}`} onClick={()=>setSelected(null)}>Close</Button><Button variant="primary" size="lg" className={`${s.sharedButton}`} disabled={!selected.active||!eligibleTools.length} title={!selected.active?'This employee is inactive.':!eligibleTools.length?'Approve at least one equipment item first.':undefined} onClick={()=>{const employee=selected;setSelected(null);onIssue(employee);}}><Icon name="out" size={16}/>Issue a tool</Button></div>
-      </div>}
-    </ToolsDialog>
-  </>;
+  );
 }

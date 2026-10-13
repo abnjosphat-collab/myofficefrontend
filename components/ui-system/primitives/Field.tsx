@@ -48,7 +48,7 @@ export function Field({ label, description, error, required, optional, className
         <label htmlFor={ids.inputId} className="font-sans text-label font-medium text-ink">
           {label}
           {required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}
-          {optional && <span className="ml-1.5 font-normal text-ink-muted">Optional</span>}
+          {optional && <span className="ml-1.5 font-normal text-ink-muted"> Optional</span>}
         </label>
         {children}
         {description && <p id={ids.descriptionId} className="font-sans text-caption text-ink-muted">{description}</p>}

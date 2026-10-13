@@ -13,7 +13,7 @@ import { DayCard, DayCardsShell, DayHoursList } from '@/components/shared/timesh
 import { DayTable, DayTableNum, type DayTableRow } from '@/components/shared/timesheet/DayTable';
 import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 import { otTypeLabel } from '@/components/shared/timesheet/overtimeLabels';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatWeekday } from '@/lib/format';
 import { zimHolidayName } from '@/lib/zimHolidays';
 import { buildEarlyMorningOtDatesForEmployee, buildModuleOt15ByDateForEmployee } from './calcTotals';
 import { normalizeTimesheetEmployeeCode } from './employeeCode';
@@ -37,7 +37,7 @@ const COLUMNS = [
   { header: 'Out', align: 'center' as const },
 ];
 
-const weekdayOf = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short' });
+const weekdayOf = (d: Date) => formatWeekday(d);
 const isApproved = (status: string) => status.trim().toLowerCase() === 'approved';
 
 interface NecDay {
@@ -74,6 +74,7 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
   onDownload: () => void;
 }) {
   const [daysView, setDaysView] = usePersistentState<'cards' | 'quick'>('myoffice_nec_dayview', 'quick', raw => (raw === 'cards' || raw === 'quick' ? raw : undefined));
+  const [summaryOpen, setSummaryOpen] = usePersistentState<boolean>('myoffice_nec_summary_open', false, raw => (typeof raw === 'boolean' ? raw : undefined));
   const mine = normalizeTimesheetEmployeeCode(employee.employeeId);
   const moduleOt15 = useMemo(() => buildModuleOt15ByDateForEmployee(employee.employeeId, approvedOvertime), [employee.employeeId, approvedOvertime]);
   const earlyMorning = useMemo(() => buildEarlyMorningOtDatesForEmployee(employee.employeeId, approvedOvertime), [employee.employeeId, approvedOvertime]);
@@ -110,6 +111,8 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
   const totalsStrip = (
     <TotalsStrip
       label={`${employee.name}'s period totals`}
+      title="Period totals"
+      collapsible={{ expanded: summaryOpen, onToggle: () => setSummaryOpen(!summaryOpen), headline: <span className="font-sans text-body-sm text-ink-muted">Payable <strong className="font-display text-title font-semibold tabular text-action">{h(totals.total)}</strong></span> }}
       figures={[
         { value: h(totals.actual), label: 'Actual hours', note: 'reporting figure, uncapped' },
         { value: h(totals.reg), label: 'Regular (payable)', note: totals.actual > 208 ? 'capped at 208' : undefined },
@@ -255,7 +258,7 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
               regionLabel={`${employee.name}'s days at a glance (scrollable)`}
               columns={COLUMNS}
               rows={tableRows}
-              footerLabel="Period totals"
+              footerLabel="Totals"
               footerLabelSpan={3}
               footerCells={[
                 { content: totals.actual.toFixed(1) },

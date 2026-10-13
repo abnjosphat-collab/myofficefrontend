@@ -63,7 +63,7 @@ export function SpareForm({ open, spare, all, onOpenChange, onSave }: { open: bo
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? `Edit ${spare.stock_code}` : 'Add a spare part'} description={editing ? spare.description : 'Stock code, description and price are required.'} submitLabel={editing ? 'Save changes' : 'Add spare'} onSubmit={submit}>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <section aria-labelledby="sf-req" className="flex flex-col gap-3">
           <h3 id="sf-req" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">The part</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

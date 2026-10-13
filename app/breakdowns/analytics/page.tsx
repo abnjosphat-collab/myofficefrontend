@@ -20,7 +20,7 @@ function AnalyticsContent() {
   const clear = () => { setDraft(NONE); setApplied(NONE); };
   const badRange = !!draft.from && !!draft.to && draft.from > draft.to;
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Breakdowns', href: '/breakdowns' }, { label: 'Analytics' }]}
         title="Breakdown analytics"

@@ -201,9 +201,9 @@
     },
     "/compressors": {
       "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (screenshots inspected; 844 and 1180 by the no-overflow checks only); ready, empty and failed-load states; the page's own interactions (reading validation and save, day change, status change, record a service, analytics section failure, add). No live data.",
-      "note": "Daily reading cards and table, services, analytics, management. Previous readings reload per day and a failed history is stated; analytics sections report their own failures. Recording a service sets the running hours to the interval (existing behaviour, now confirmed first)."
+      "date": "2026-10-10",
+      "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px (screenshots inspected: floor, hovered pod, unit drawer with a reading typed, phone); no horizontal overflow at either width; axe WCAG 2.1 AA clean on the floor and with the drawer open; route spec covers pods incl. a legacy record with no totals, a failed history load, invalid and valid reading, status change. No live data.",
+      "note": "The redesigned floor (3D backdrop with flat cards, figure strip as filter, side panel per unit, week and month views, services, analytics, fleet; Excel and PDF downloads) replaced the earlier page on 2026-10-10. Compressors come from the Equipment register; service completion belongs to Maintenance. Reduced-motion users get a still page."
     },
     "/availability": {
       "status": "verified",

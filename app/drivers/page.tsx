@@ -194,7 +194,7 @@ function DriversContent() {
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'driver' : 'drivers'}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}</p>
         {view === 'cards' ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             {grouped.map(([department, items]) => (
               <section key={department} aria-labelledby={`dept-${department}`}>
                 <h2 id={`dept-${department}`} className="mb-3 font-display text-section font-semibold text-ink">{department}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{items.length} {items.length === 1 ? 'driver' : 'drivers'}</span></h2>

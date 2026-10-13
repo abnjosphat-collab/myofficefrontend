@@ -41,6 +41,34 @@ export function summarise(records: OTRecord[]) {
   };
 }
 
+export interface PersonOvertimeSummary {
+  instances: number; hours: number;
+  planned: { count: number; hours: number }; unplanned: { count: number; hours: number };
+  /** Records with no planning status (counted as unplanned: "not known to be planned"). */
+  unmarked: number;
+  pending: number;
+  /** Rejected/cancelled records, excluded from every figure above. */
+  excluded: number;
+}
+
+/** Quick stats for one person's requests in a range: instances, hours, planned/unplanned split. Rejected and
+ * cancelled requests are left out (they are not overtime worked or owed); records with no planning status
+ * count as unplanned, the same convention as the weekly totals. */
+export function summarisePerson(records: OTRecord[]): PersonOvertimeSummary {
+  const live = records.filter(r => r.status !== 'rejected' && r.status !== 'cancelled');
+  const hours = (rs: OTRecord[]) => round1(rs.reduce((s, r) => s + recordHours(r), 0));
+  const planned = live.filter(r => r.planning_status === 'planned');
+  const rest = live.filter(r => r.planning_status !== 'planned');
+  return {
+    instances: live.length, hours: hours(live),
+    planned: { count: planned.length, hours: hours(planned) },
+    unplanned: { count: rest.length, hours: hours(rest) },
+    unmarked: rest.filter(r => !r.planning_status).length,
+    pending: live.filter(r => r.status === 'pending').length,
+    excluded: records.length - live.length,
+  };
+}
+
 /** The twelve newest months present in the data, as ready-made date ranges. */
 export function monthOptions(records: OTRecord[]) {
   const months = new Set(records.map(r => r.date?.slice(0, 7)).filter((m): m is string => !!m));

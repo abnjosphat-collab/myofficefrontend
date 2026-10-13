@@ -2,22 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SuggestField, MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
-import { AnimatedSelect } from './AnimatedSelect';
+import { MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
-import { ToolsDateInput } from './ToolsDateInput';
 import { PEOPLE, LOCATIONS, JOBS } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
-vi.mock('./ToolsIcon', () => ({ ToolsIcon: () => <span aria-hidden="true" /> }));
 
-function SearchHarness() {
-  const [value,setValue] = useState('');
-  return <SuggestField label="Employee" options={PEOPLE} value={value} onChange={setValue} />;
-}
-function SearchDialogHarness() {
-  const [value,setValue] = useState('');
-  return <ToolsDialog open onClose={()=>{}} title="Issue tool" description="Select an employee"><SuggestField label="Employee" options={PEOPLE} value={value} onChange={setValue} /></ToolsDialog>;
-}
 function DialogHarness() {
   const [open,setOpen] = useState(false);
   return <><button onClick={()=>setOpen(true)}>Open tool</button><ToolsDialog open={open} onClose={()=>setOpen(false)} title="Tool details" description="Current condition"><button>Sample action</button></ToolsDialog></>;
@@ -25,78 +14,26 @@ function DialogHarness() {
 function RequiredAuthDialogHarness({onClose}:{onClose:()=>void}) {
   return <ToolsDialog open dismissible={false} onClose={onClose} title="Sign in or sign up" description="Use your workspace account or create one to continue."><button>Sign in</button></ToolsDialog>;
 }
-function SelectHarness() {
-  const [status,setStatus]=useState('all');
-  const [sort,setSort]=useState('register');
-  return <><AnimatedSelect ariaLabel="Status" value={status} onChange={setStatus} options={[{value:'all',label:'All tools'},{value:'ready',label:'Ready'}]}/><AnimatedSelect ariaLabel="Sort" value={sort} onChange={setSort} options={[{value:'register',label:'Register order'},{value:'name',label:'Name'}]}/></>;
-}
 const placeholderPeople=PEOPLE.map((label,index)=>({id:String(index),employeeNumber:label.split(' · ')[1],name:label.split(' · ')[0],department:'Engineering',active:true}));
+// G2: location/job fields are the shared Combobox with free text — open, type, then take the matching
+// option, or the "Use …" row when the text is new.
+async function fillSuggestField(user:ReturnType<typeof userEvent.setup>,label:string,text:string) {
+  await user.click(screen.getByRole('combobox',{name:label}));
+  await user.type(screen.getByPlaceholderText(`Search ${label.toLowerCase()}…`),text);
+  const useRow=screen.queryByRole('option',{name:`Use “${text}”`});
+  if (useRow) await user.click(useRow);
+  else await user.click(await screen.findByRole('option',{name:text}));
+}
 describe('Tools interaction controls', () => {
-  it('opens one dropdown at a time and supports keyboard selection', async () => {
-    const user=userEvent.setup(); render(<SelectHarness/>);
-    const status=screen.getByRole('combobox',{name:'Status'});
-    const sort=screen.getByRole('combobox',{name:'Sort'});
-    await user.click(status);
-    await waitFor(()=>expect(screen.getByRole('listbox',{name:'Status options'})).toBeVisible());
-    expect(screen.getByRole('listbox',{name:'Status options'}).closest('[data-tools-workspace]')).toBeNull();
-    await user.keyboard('{Escape}');
-    await waitFor(()=>expect(screen.queryByRole('listbox',{name:'Status options'})).not.toBeInTheDocument());
-    await user.click(sort);
-    await waitFor(()=>expect(screen.getByRole('listbox',{name:'Sort options'})).toBeVisible());
-    await user.keyboard('{ArrowDown}{Enter}');
-    expect(sort).toHaveTextContent('Name');
-    await waitFor(()=>expect(screen.queryByRole('listbox',{name:'Sort options'})).not.toBeInTheDocument());
-  });
-  it('selects a suggestion using the keyboard and closes the list', async () => {
-    const user=userEvent.setup(); render(<SearchHarness/>);
-    const input=screen.getByRole('combobox',{name:'Employee'});
-    await user.type(input,'Sam'); await user.keyboard('{Enter}');
-    expect(input).toHaveValue(PEOPLE[2]); expect(input).toHaveAttribute('aria-expanded','false');
-  });
-  it('accepts the highlighted suggestion with Tab', async () => {
-    const user=userEvent.setup(); render(<SearchHarness/>);
-    const input=screen.getByRole('combobox',{name:'Employee'});
-    await user.type(input,'Sam'); await user.keyboard('{Tab}');
-    expect(input).toHaveValue(PEOPLE[2]); expect(input).toHaveAttribute('aria-expanded','false');
-  });
-  it('commits a clicked suggestion inside the modal portal', async () => {
-    const user=userEvent.setup(); render(<SearchDialogHarness/>);
-    const input=screen.getByRole('combobox',{name:'Employee'});
-    await user.type(input,'Sam');
-    await user.click(screen.getByRole('option',{name:PEOPLE[2]}));
-    expect(input).toHaveValue(PEOPLE[2]);
-    await waitFor(()=>expect(screen.queryByRole('listbox',{name:'Employee suggestions'})).not.toBeInTheDocument());
-  });
-  it('renders autocomplete suggestions outside clipping form containers', async () => {
-    const user=userEvent.setup(); render(<SearchHarness/>);
-    const input=screen.getByRole('combobox',{name:'Employee'});
-    await user.click(input);
-    const list=await screen.findByRole('listbox',{name:'Employee suggestions'});
-    expect(list.parentElement).toBe(document.body);
-  });
-  it('keeps typed text when Escape closes suggestions', async () => {
-    const user=userEvent.setup(); render(<SearchHarness/>);
-    const input=screen.getByRole('combobox',{name:'Employee'});
-    await user.type(input,'Alex'); await user.keyboard('{Escape}');
-    expect(input).toHaveValue('Alex'); await waitFor(()=>expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
-  });
   it('reads the chosen native return date when issuing a tool', async () => {
-    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+    const onSave=vi.fn(); const user=userEvent.setup(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    await fillSuggestField(user,'Current work location',LOCATIONS[1]);
+    await fillSuggestField(user,'Work order / job',JOBS[0]);
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({toolId:SEED_TOOLS[0].id,person:PEOPLE[0],dueISO:new Date('2050-09-25T16:00').toISOString()});
-  });
-  it('opens the native picker when any date field area is clicked', async () => {
-    const user=userEvent.setup(); render(<ToolsDateInput aria-label="Inspection date"/>);
-    const input=screen.getByLabelText('Inspection date') as HTMLInputElement;
-    const showPicker=vi.fn();
-    Object.defineProperty(input,'showPicker',{value:showPicker});
-    await user.click(input);
-    expect(showPicker).toHaveBeenCalledOnce();
   });
   it('does not let signed-out visitors dismiss the required authentication dialog', async () => {
     const user=userEvent.setup();
@@ -123,9 +60,9 @@ describe('Tools interaction controls', () => {
     const restricted={...SEED_TOOLS[1],id:'RESTRICTED',backendId:'restricted',status:'available' as const,eligibleEmployees:[]};
     render(<MovementForm kind="issue" initialEmployee={employee} tools={[approved,restricted]} employees={[employee]} issuerDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     await user.click(screen.getByRole('combobox',{name:'Tool'}));
-    const suggestions=screen.getByRole('listbox',{name:'Tool suggestions'});
-    expect(suggestions).toHaveTextContent('APPROVED');
-    expect(suggestions).not.toHaveTextContent('RESTRICTED');
+    const options=(await screen.findAllByRole('option')).map(option=>option.textContent).join(' | ');
+    expect(options).toContain('APPROVED');
+    expect(options).not.toContain('RESTRICTED');
   });
   it('autofills saved employee details when an employee is selected', async () => {
     const user=userEvent.setup();
@@ -137,8 +74,8 @@ describe('Tools interaction controls', () => {
     await user.keyboard('{Enter}');
     expect(employee).toHaveValue('Mina Dube · C1042');
     expect(screen.getByLabelText('Selected employee details')).toHaveTextContent('Electrician · Mining · Supervisor: T. Moyo');
-    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[0]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    await fillSuggestField(user,'Current work location',LOCATIONS[0]);
+    await fillSuggestField(user,'Work order / job',JOBS[0]);
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
     await user.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave.mock.calls[0][0]).toMatchObject({person:'Mina Dube · C1042',department:'Mining'});
@@ -149,10 +86,12 @@ describe('Tools interaction controls', () => {
     const employees=[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Mining',active:true}];
     const due={...SEED_TOOLS[0],inspectionDue:['monthly','quarterly']};
     render(<MovementForm kind="issue" initialTool={due} tools={[due]} employees={employees} locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
-    expect(screen.getByText('monthly, quarterly check overdue')).toBeVisible();
+    const statements = screen.getAllByText('monthly, quarterly check overdue');
+    expect(statements).toHaveLength(2);
+    statements.forEach(statement => expect(statement).toBeVisible());
     await user.type(screen.getByRole('combobox',{name:'Employee'}),'Mina'); await user.keyboard('{Enter}');
-    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[0]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    await fillSuggestField(user,'Current work location',LOCATIONS[0]);
+    await fillSuggestField(user,'Work order / job',JOBS[0]);
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2050-09-25T16:00'}});
     await user.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).not.toHaveBeenCalled();
@@ -171,11 +110,11 @@ describe('Tools interaction controls', () => {
     render(<MovementForm kind="issue" initialTool={{...SEED_TOOLS[0],inspectionDue:[]}} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     expect(screen.queryByRole('checkbox',{name:/Go ahead anyway/})).not.toBeInTheDocument();
   });
-  it('rejects an old return date without discarding form values', () => {
-    const onSave=vi.fn(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
+  it('rejects an old return date without discarding form values', async () => {
+    const onSave=vi.fn(); const user=userEvent.setup(); render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
     fireEvent.change(screen.getByRole('combobox',{name:'Employee'}),{target:{value:PEOPLE[0]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Current work location'}),{target:{value:LOCATIONS[1]}});
-    fireEvent.change(screen.getByRole('combobox',{name:'Work order / job'}),{target:{value:JOBS[0]}});
+    await fillSuggestField(user,'Current work location',LOCATIONS[1]);
+    await fillSuggestField(user,'Work order / job',JOBS[0]);
     fireEvent.change(screen.getByLabelText('Expected return'),{target:{value:'2000-01-01T16:00'}});
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).not.toHaveBeenCalled(); expect(screen.getByRole('alert')).toHaveTextContent('future');
@@ -193,10 +132,10 @@ describe('Tools interaction controls', () => {
     expect(screen.getByRole('dialog',{name:'clamp-meter.jpg'})).toBeVisible();
     await user.click(screen.getByRole('button',{name:'Zoom in'}));
     expect(screen.getByRole('button',{name:'Reset image zoom'})).toHaveTextContent('125%');
-    await user.click(screen.getByRole('button',{name:'Close image viewer'}));
+    await user.click(screen.getByRole('button',{name:'Close dialog'}));
     await waitFor(()=>expect(screen.queryByRole('dialog',{name:'clamp-meter.jpg'})).not.toBeInTheDocument());
   });
-  it('keeps the equipment pictogram type compatible with its category', async () => {
+  it('keeps the equipment type compatible with its category', async () => {
     const user=userEvent.setup();
     render(<ToolForm defaultDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     const category=screen.getByRole('combobox',{name:'Category'});

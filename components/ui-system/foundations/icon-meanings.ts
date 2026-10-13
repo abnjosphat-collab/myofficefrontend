@@ -5,7 +5,7 @@
 import type { ElementType } from 'react';
 import {
   Archive, ArrowClockwise, ArrowCounterClockwise, ArrowDown, ArrowLeft, ArrowSquareOut, ArrowUUpLeft, ArrowUUpRight,
-  ArrowUp, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, Briefcase, Buildings, CalendarBlank, Camera,
+  ArrowUp, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, SpeakerHigh, SpeakerSlash, Briefcase, Buildings, CalendarBlank, Camera,
   Car, CaretDown, CaretLeft, CaretRight, CaretUp, ChartLineUp, ChatCircleText, Check,
   CheckCircle, CheckSquare, CirclesFour, ClipboardText, Clock, ClockCounterClockwise, Columns, Copy,
   Cube, CurrencyCircleDollar, DotsSixVertical, DotsThree, DotsThreeVertical, DownloadSimple, EnvelopeSimple, Eye,
@@ -47,7 +47,7 @@ export const ICON_MEANINGS = [
   'draft', 'safe', 'unsafe',
   'high-risk', 'mechanical', 'electrical', 'general',
   'operational',
-  'home', 'chat', 'bell', 'history', 'pin', 'back', 'swap',
+  'home', 'chat', 'bell', 'sound-on', 'sound-off', 'history', 'pin', 'back', 'swap',
   'undo', 'redo', 'attachment', 'image', 'pdf', 'upload',
   'show', 'hide', 'department', 'font', 'grip',
   'zoom-in', 'zoom-out', 'accounts', 'app',
@@ -238,6 +238,8 @@ export const ICON_BY_MEANING: Record<IconMeaning, ElementType> = {
   home: House,
   chat: ChatCircleText,
   bell: Bell,
+  'sound-on': SpeakerHigh,
+  'sound-off': SpeakerSlash,
   history: ClockCounterClockwise,
   pin: MapPin,
   back: ArrowLeft,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EmployeeLookup } from '@/hooks/useLookups';
-import { NO_FILTERS, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, normalizeSection, recordHours, summarise, tally, timeSpan, weeklyView } from './overtimeLogic';
+import { NO_FILTERS, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, normalizeSection, recordHours, summarise, summarisePerson, tally, timeSpan, weeklyView } from './overtimeLogic';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import type { OTRecord } from './types';
 
@@ -50,6 +50,28 @@ describe('summaries', () => {
     const m = monthOptions([rec({ date: '2026-02-10' }), rec({ date: '2026-09-01' })]);
     expect(m.map(x => x.key)).toEqual(['2026-09', '2026-02']);
     expect(m[1]).toMatchObject({ from: '2026-02-01', to: '2026-02-28' });
+  });
+});
+
+describe('summarisePerson', () => {
+  const rows = [
+    rec({ id: 1, planning_status: 'planned', hours: 4, start_time: undefined, end_time: undefined }),
+    rec({ id: 2, planning_status: 'unplanned', status: 'approved' }),
+    rec({ id: 3, planning_status: null }),
+    rec({ id: 4, planning_status: 'planned', status: 'rejected', hours: 8, start_time: undefined, end_time: undefined }),
+    rec({ id: 5, planning_status: 'planned', status: 'cancelled' }),
+  ];
+  it('splits instances and hours into planned and unplanned', () => {
+    expect(summarisePerson(rows)).toMatchObject({
+      instances: 3, hours: 10, planned: { count: 1, hours: 4 }, unplanned: { count: 2, hours: 6 }, pending: 2, excluded: 2,
+    });
+  });
+  it('counts records with no planning status as unplanned and says how many', () => {
+    expect(summarisePerson(rows).unmarked).toBe(1);
+    expect(summarisePerson([rec({ planning_status: undefined })]).unplanned.count).toBe(1);
+  });
+  it('is all zeroes for nobody', () => {
+    expect(summarisePerson([])).toMatchObject({ instances: 0, hours: 0, pending: 0, excluded: 0 });
   });
 });
 

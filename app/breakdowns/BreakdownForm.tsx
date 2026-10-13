@@ -47,7 +47,7 @@ export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: bo
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? `Edit breakdown, ${record.machine_name}` : 'Log a breakdown'} description={editing ? undefined : 'Which machine, what happened, and who attended.'} submitLabel={editing ? 'Save changes' : 'Log breakdown'} onSubmit={submit}>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <section aria-labelledby="bf-what" className="flex flex-col gap-3">
           <h3 id="bf-what" className={h2}>What broke</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

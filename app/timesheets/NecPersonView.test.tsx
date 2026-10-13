@@ -46,14 +46,18 @@ const props = () => {
 beforeEach(() => window.localStorage.clear());
 
 describe('NecPersonView', () => {
-  it('heads the period with the person and the authoritative totals', () => {
+  it('heads the period with the person and the authoritative totals', async () => {
+    const user = userEvent.setup();
     const p = props();
     render(<NecPersonView {...p} />);
     expect(screen.getByRole('heading', { name: /Nkosana Moyo/ })).toBeInTheDocument();
     expect(screen.getByText('C007')).toBeInTheDocument();
-    // Actual 40.0h, Reg floored to 208, OT 2.0h, night 13.0h (12 roster + 1 OT past 18:00), standby 8.0h → payable 231.0h.
-    expect(screen.getByText('40.0h')).toBeInTheDocument();
+    // The folded bar shows the payable total; the buckets open on demand.
     expect(screen.getByText('231.0h')).toBeInTheDocument();
+    expect(screen.queryByText('40.0h')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show Period totals' }));
+    // Actual 40.0h, Reg floored to 208, OT 2.0h, night 13.0h (12 roster + 1 OT past 18:00), standby 8.0h.
+    expect(screen.getByText('40.0h')).toBeInTheDocument();
     expect(screen.getAllByText('Regular floored to 208 (no absence this period).')).toHaveLength(2);
   });
 
@@ -64,12 +68,12 @@ describe('NecPersonView', () => {
     expect(within(table).getAllByRole('columnheader').map(h => h.textContent)).toEqual([
       'Date', 'Day', 'Status', 'Normal', 'OT 1.5', 'OT 2.0', 'Night', 'Standby', 'In', 'Out', '',
     ]);
-    expect(screen.getByText('Period totals')).toBeInTheDocument();
+    expect(screen.getByText('Totals')).toBeInTheDocument();
     // The standby day flags SB; the night roster shows its 12h allowance in the row, 13.0h in the foot with the OT hour past 18:00.
     expect(screen.getByText('SB')).toBeInTheDocument();
     expect(screen.getAllByText('12.0')).toHaveLength(1);
     const table2 = screen.getByRole('table', { name: /Nkosana Moyo's days/ });
-    const foot2 = within(table2).getByText('Period totals').closest('tr')!;
+    const foot2 = within(table2).getByText('Totals').closest('tr')!;
     expect(within(foot2).getAllByRole('cell')[3]).toHaveTextContent('13.0');
   });
 
@@ -101,7 +105,7 @@ describe('NecPersonView', () => {
     expect(within(row).getAllByText('0.0')).toHaveLength(4);
     // … and the 1.5× foot stands at the approved 2.0h only.
     const table = screen.getByRole('table', { name: /Nkosana Moyo's days/ });
-    const foot = within(table).getByText('Period totals').closest('tr')!;
+    const foot = within(table).getByText('Totals').closest('tr')!;
     expect(within(foot).getAllByRole('cell')[1]).toHaveTextContent('2.0');
   });
 

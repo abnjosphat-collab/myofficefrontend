@@ -142,7 +142,7 @@ function SpareImportContent() {
       )}
 
       {step === 1 && infer && (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-4">
             <Icon name="documents" size="lg" className="text-ink-muted" />
             <div className="min-w-0 flex-1"><p className="truncate font-sans text-label font-medium text-ink">{fileName}</p><p className="font-sans text-caption text-ink-muted">{infer.total_rows} rows, {infer.all_columns.length} columns{infer.has_categories ? ', categories found' : ''}</p></div>

@@ -1,27 +1,21 @@
-// app/compressors/ManagementTab.tsx — fleet summary (status, location, age), recent alerts and services, system actions.
+// app/compressors/ManagementTab.tsx — fleet summary (status, location, age; downloadable as Excel or PDF), recent alerts and services.
 'use client';
 
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { Button, EmptyState, MetricGrid, MetricTile, Panel, Progress, StatusBadge } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { STATUS_META, hours } from './meta';
+import { DownloadButton } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { SUMMARY_COLUMNS, summaryRows } from './exports';
 import { SectionView } from './SectionView';
 import type { ManagementSummary } from './types';
 import type { Section } from './useCompressorsData';
 
-export function ManagementTab({ summary, onRetry, onExport, onBackup, backupReady }: {
+export function ManagementTab({ summary, onRetry }: {
   summary: Section<ManagementSummary | null>;
   onRetry: () => void;
-  onExport: () => Promise<void>;
-  onBackup: () => void;
-  backupReady: boolean;
 }) {
-  const [exporting, setExporting] = useState(false);
-  const exportReport = async () => {
-    setExporting(true);
-    try { await onExport(); toast.success('Report exported.'); } catch (e) { toast.error((e as Error).message); } finally { setExporting(false); }
-  };
+  const rows = summaryRows(summary.data);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -102,9 +96,9 @@ export function ManagementTab({ summary, onRetry, onExport, onBackup, backupRead
         <Panel title="System actions">
           <div className="flex flex-col gap-2">
             <Button icon="refresh" onClick={onRetry}>Refresh all data</Button>
-            <Button icon="download" pending={exporting} onClick={exportReport}>Export last 30 days (CSV)</Button>
-            <Button icon="save" disabled={!backupReady} onClick={onBackup}>Back up what is loaded (JSON)</Button>
-            {!backupReady && <p className="font-sans text-caption text-ink-muted">The register has not loaded, so there is nothing to back up yet.</p>}
+            {rows.length > 0
+              ? <DownloadButton data={rows} columns={SUMMARY_COLUMNS} filename={exportFilename('Compressor_Fleet_Summary')} title="Compressor fleet summary" iconOnly={false} />
+              : <p className="font-sans text-caption text-ink-muted">The summary has not loaded, so there is nothing to download yet.</p>}
           </div>
         </Panel>
       </div>

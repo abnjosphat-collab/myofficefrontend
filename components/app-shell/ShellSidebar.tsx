@@ -5,7 +5,7 @@
 // persist per device. Below 821 px it becomes an icon strip plus a drawer.
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   DESKTOP_QUERY, Icon, IconButton, NavGroup, NavHeading, NavItem, SidebarFrame, useMediaQuery, usePersistentState, cn,
@@ -25,7 +25,7 @@ const recordOfBooleans = (raw: unknown): Record<string, boolean> | undefined => 
 };
 
 export function ShellSidebar({
-  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories,
+  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories, search,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,6 +35,7 @@ export function ShellSidebar({
   recentModules: Module[];
   onToggleFavorite: (href: string) => void;
   visibleCategories: Category[];
+  search?: ReactNode;
 }) {
   const pathname = usePathname();
   const desktop = useMediaQuery(DESKTOP_QUERY, true);
@@ -133,11 +134,13 @@ export function ShellSidebar({
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
       spotlight={<ShellBrand compact={rail} />}
+      search={search}
       footer={footer}
       drawerBrand={<ShellBrand />}
       strip={(
         <>
           <IconButton icon="sidebar" label="Open navigation" variant="shell" size="shell" onClick={() => onOpenChange(true)} className="shrink-0" />
+          <IconButton icon="search" label="Search" variant="shell" size="shell" onClick={() => onOpenChange(true)} className="shrink-0" />
           <NavItem label="Home" icon="home" href="/" active={home} collapsed onNavigate={close} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
           {favoriteModules.map(({ module }) => (
             <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />

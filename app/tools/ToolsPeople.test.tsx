@@ -1,4 +1,6 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render as baseRender, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { ConfirmProvider } from '@/components/ui-system';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { CompetencyRecord } from './complianceTypes';
@@ -6,7 +8,8 @@ import type { Employee, Tool } from './prototype';
 import { ToolsPeople } from './ToolsPeople';
 import { EligibleEmployeesList } from './ToolsEligibility';
 
-vi.mock('./ToolsIcon', () => ({ ToolsIcon: () => <span aria-hidden="true" /> }));
+const render = (ui: ReactElement) => baseRender(<ConfirmProvider>{ui}</ConfirmProvider>);
+
 
 const employees: Employee[] = [
   { id: 'employee-2', backendId: 'employee-2', employeeNumber: 'M-2', name: 'Mina Dube', department: 'Mining', active: true },
@@ -45,8 +48,12 @@ describe('ToolsPeople', () => {
     await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
     const authoriser = screen.getByRole('textbox', { name: 'Authorised by' });
     expect(authoriser).toHaveValue('Edson Mavhondo');
-    await user.type(screen.getByRole('combobox', { name: 'Add equipment' }), 'weld');
-    await user.keyboard('{Tab}');
+    // G2: the field is the shared Combobox with free text — open, type, take the matching entry.
+    // Regex, not the exact 'Add equipment Optional': jsdom's name computation drops the space between the
+    // label and the Optional marker (browser truth is checked separately — see tmp/mo-sweep-g2/ax-names.mjs).
+    await user.click(screen.getByRole('combobox', { name: /Add equipment/ }));
+    await user.type(screen.getByPlaceholderText('Search add equipment…'), 'ENG-02 · Welding machine');
+    await user.click(await screen.findByRole('option', { name: 'ENG-02 · Welding machine' }));
     expect(onSaveCompetency).toHaveBeenCalledWith({ employee_id: 'employee-1', tool_id: 'tool-2', trained: true, qualified: true, authorized: true, authorized_by: 'Edson Mavhondo' });
   });
 

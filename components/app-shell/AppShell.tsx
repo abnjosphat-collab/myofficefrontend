@@ -1,7 +1,7 @@
 // components/app-shell/AppShell.tsx — the shared page frame for every module route, built only from
-// the UI system (components/ui-system). One appearance, one top bar (Feedback, notifications and
-// settings live there), a sidebar that is a drawer below lg, and no bottom status bar. The document
-// scrolls; there is no inner scroll container.
+// the UI system (components/ui-system). One appearance, one top bar (notifications and settings live
+// there), a sidebar that is a drawer below lg with search pinned at its top, and Feedback floating at
+// the bottom-right. No bottom status bar. The document scrolls; there is no inner scroll container.
 //
 // `migrated` is true for routes that already use the UI system. Routes that have not migrated yet
 // still render their own spacing and get the saved text size through CSS zoom on their content only
@@ -10,6 +10,8 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { AppFrame, Button, Dialog, IconButton, useAppearance } from '@/components/ui-system';
+import { ShellFeedback } from './ShellFeedback';
+import { ShellSearch } from './ShellSearch';
 import { ShellSidebar } from './ShellSidebar';
 import { ShellTopBar } from './ShellTopBar';
 import { ShellSettings } from './ShellSettings';
@@ -54,16 +56,7 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
       <ServiceWorkerRegistrar />
       <AppFrame
         contained={migrated}
-        topBar={(
-          <ShellTopBar
-            searchQuery={s.searchQuery}
-            onSearchChange={s.setSearchQuery}
-            mobileSearchOpen={s.mobileSearchOpen}
-            onMobileSearchChange={s.setMobileSearchOpen}
-            onOpenSettings={() => setSettingsOpen(true)}
-            visibleCategories={s.visibleCategories}
-          />
-        )}
+        topBar={<ShellTopBar onOpenSettings={() => setSettingsOpen(true)} />}
         sidebar={(
           <ShellSidebar
             open={s.sidebarOpen}
@@ -74,11 +67,13 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
             recentModules={NO_RECENT_MODULES}
             onToggleFavorite={s.toggleFavorite}
             visibleCategories={s.visibleCategories}
+            search={<ShellSearch value={s.searchQuery} onValueChange={s.setSearchQuery} visibleCategories={s.visibleCategories} />}
           />
         )}
       >
         {legacyZoom ? <div style={{ zoom: legacyZoom }}>{children}</div> : children}
       </AppFrame>
+      <ShellFeedback />
 
       <Dialog
         open={s.customizeOpen}

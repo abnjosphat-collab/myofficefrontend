@@ -354,7 +354,7 @@ function NoticeboardContent() {
           : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} />}
       >
         {view === 'cards' ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             {pinned.length > 0 && <section aria-labelledby="nb-pinned"><h2 id="nb-pinned" className="mb-3 font-display text-section font-semibold text-ink">Pinned notices <span className="font-sans text-label font-normal text-ink-muted">{pinned.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{pinned.map(card)}</div></section>}
             {regular.length > 0 && <section aria-labelledby="nb-all"><h2 id="nb-all" className="mb-3 font-display text-section font-semibold text-ink">{pinned.length ? 'Other notices' : 'All notices'} <span className="font-sans text-label font-normal text-ink-muted">{regular.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{regular.map(card)}</div></section>}
           </div>

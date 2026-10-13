@@ -1,61 +1,16 @@
 'use client';
 
-import { createContext, useContext, useId, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Dialog as SharedDialog, HelpHint, Tooltip as SharedTooltip, type DialogSkin, type TooltipSkin, Button } from '@/components/ui-system';
-import { ToolsIcon as Icon } from './ToolsIcon';
+import { createContext, useId, useState, type ReactNode } from 'react';
+import { Button, Dialog as SharedDialog, Icon, IconButton } from '@/components/ui-system';
 import { attachmentError, type Evidence } from './prototype';
-import s from './tools.module.css';
 
 export type FontChoice = 'inter' | 'manrope' | 'jakarta';
 export type FontSizeChoice = number;
 export const ToolsPreferences = createContext({ font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, guidance: true });
-const scaleStyle = (fontSize: number) => ({ '--font-scale': fontSize / 100 } as CSSProperties);
-// Hints use the shared tooltip behaviour (ui-system) dressed in the workspace's own typeface and text size.
-const useHintSkin = (extra = ''): TooltipSkin => {
-  const prefs = useContext(ToolsPreferences);
-  return { className: `${s.surface} ${s.helpTip} ${extra}`.trim(), arrowClassName: s.helpArrow, attrs: { 'data-font': prefs.font, style: scaleStyle(prefs.fontSize) } };
-};
 
-export function Help({ label, children }: { label: string; children: ReactNode }) {
-  const prefs = useContext(ToolsPreferences);
-  const skin = useHintSkin();
-  if (!prefs.guidance) return null;
-  return <HelpHint label={label} skin={skin} trigger={{ className: s.helpButton, icon: <Icon name="info" size={16} /> }}>{children}</HelpHint>;
-}
-
-export function ActionHint({ label, children }: { label: ReactNode; children: ReactElement }) {
-  const prefs = useContext(ToolsPreferences);
-  const skin = useHintSkin(s.actionHelpTip);
-  if (!prefs.guidance) return children;
-  return <SharedTooltip side="bottom" content={label} skin={skin}>{children}</SharedTooltip>;
-}
-
-export function AnimatedText({ children, value }: { children: ReactNode; value: string | number }) {
-  const reduced = useReducedMotion();
-  return <AnimatePresence initial={false} mode="wait"><motion.span key={value} initial={{ opacity: 0, y: reduced ? 0 : 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -4 }} transition={{ duration: reduced ? 0 : .16 }} className={s.animatedText}>{children}</motion.span></AnimatePresence>;
-}
-
-/** Shared tile-entrance motion: a fade with a slight rise, staggered per index and capped so long lists settle together.
- *  Mount-only (no exit); instant under reduced motion. Spread onto any motion element. */
-export function tileEmergeProps(index = 0, reduced: boolean | null = false) {
-  return {
-    initial: { opacity: 0, y: reduced ? 0 : 8 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: reduced ? 0 : 0.18, delay: reduced ? 0 : Math.min(index * 0.025, 0.15) },
-  };
-}
-
-/** The shared Dialog (focus trap, focus return, dismissal rules) dressed in the workspace's look, typeface and text size. */
+/** The shared Dialog (focus trap, focus return, dismissal rules); a wide one for forms with many fields. */
 export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {
-  const prefs = useContext(ToolsPreferences);
-  const skin: DialogSkin = {
-    overlay: s.dialogOverlay, panel: `${s.surface} ${s.dialogPanel} ${wide ? s.dialogWide : ''}`, header: s.dialogHeader,
-    title: s.modalTitle, description: s.drawerSubtitle, body: s.dialogBody, close: s.closeButton, closeIcon: <Icon name="close" size={20} />,
-    attrs: { 'data-font': prefs.font, style: scaleStyle(prefs.fontSize) },
-  };
-  return <SharedDialog open={open} onOpenChange={value => { if (!value) onClose(); }} dismissible={dismissible} title={title} description={description} focusTitle skin={skin}>{children}</SharedDialog>;
+  return <SharedDialog open={open} onOpenChange={value => { if (!value) onClose(); }} dismissible={dismissible} title={title} description={description} size={wide ? 'lg' : 'md'} focusTitle>{children}</SharedDialog>;
 }
 
 export type AddEvidence = (files: File[]) => Evidence[];
@@ -68,41 +23,74 @@ export function EvidencePicker({ value, onChange, addFiles, toolPhoto = false }:
     if (invalid) { setError(invalid); return; }
     setError(''); onChange([...value, ...addFiles(files)]);
   }
-  return <div className={s.evidencePicker}>
-    <div className={s.fieldHeading}><span>{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'} <small>Optional</small></span><Help label="Attachments">{toolPhoto ? 'The first uploaded image remains attached to the equipment record.' : 'Add a photo of the condition or a PDF report. Saved files stay with the equipment record.'}</Help></div>
-    <label className={s.uploadZone} htmlFor={inputId}><Icon name={toolPhoto ? 'image' : 'upload'} size={22} /><span><strong>{toolPhoto ? 'Add a tool photograph or PDF' : 'Add photos or a PDF'}</strong><small>{toolPhoto ? 'The first image becomes the register photo · ' : ''}Up to 6 files · original-quality photos</small></span><Icon name="plus" size={18} /><input id={inputId} className={s.fileInput} aria-label="Attach photos or PDF" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf" onChange={e => { receive(Array.from(e.target.files || [])); e.target.value = ''; }} /></label>
-    {value.length > 0 && <div className={s.evidenceList}>{value.map(file => <div key={file.id} className={s.evidenceRow}><Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size={20} /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></span><Button type="button" aria-label={`Remove ${file.name}`} variant="ghost" size="sm" className={`${s.sharedIconButton}`} onClick={() => onChange(value.filter(f => f.id !== file.id))}><Icon name="close" size={16} /></Button></div>)}</div>}
-    {error && <p role="alert" className={s.warning}>{error}</p>}
-  </div>;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline gap-2">
+        <span className="font-sans text-label font-medium text-ink">{toolPhoto ? 'Tool photograph & records' : 'Photos & documents'}</span>
+        <span className="font-sans text-caption text-ink-muted">Optional</span>
+      </div>
+      <label htmlFor={inputId} className="focus-within:ring-2 focus-within:ring-[var(--mo-focus)] flex cursor-pointer items-center gap-3 rounded-card border border-dashed border-[var(--mo-line)] px-4 py-3 transition-colors hover:border-[var(--mo-action)] hover:bg-[var(--mo-surface-subtle)]">
+        <Icon name={toolPhoto ? 'image' : 'upload'} size="md" />
+        <span className="min-w-0 flex-1">
+          <strong className="block font-sans text-body-sm font-medium text-ink">{toolPhoto ? 'Add a tool photograph or PDF' : 'Add photos or a PDF'}</strong>
+          <small className="block font-sans text-caption text-ink-muted">{toolPhoto ? 'The first image becomes the register photo · ' : ''}Up to 6 files · original-quality photos</small>
+        </span>
+        <Icon name="plus" size="sm" />
+        <input id={inputId} className="sr-only" aria-label="Attach photos or PDF" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,image/avif,application/pdf"
+          onChange={e => { receive(Array.from(e.target.files || [])); e.target.value = ''; }} />
+      </label>
+      {value.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {value.map(file => (
+            <li key={file.id} className="flex items-center gap-3 rounded-control border border-[var(--mo-line-subtle)] px-3 py-1.5">
+              <Icon name={file.type === 'application/pdf' ? 'pdf' : 'image'} size="sm" />
+              <span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{file.name}</strong><small className="font-sans text-caption text-ink-muted">{Math.max(1, Math.round(file.size / 1024))} KB</small></span>
+              <IconButton icon="close" label={`Remove ${file.name}`} variant="ghost" onClick={() => onChange(value.filter(f => f.id !== file.id))} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
+    </div>
+  );
 }
+
 export function EvidenceGallery({ files }: { files: Evidence[] }) {
-  const prefs = useContext(ToolsPreferences);
   const [preview, setPreview] = useState<Evidence | null>(null);
   const [zoom, setZoom] = useState(1);
   const changeZoom = (amount: number) => setZoom(current => Math.min(4, Math.max(1, Number((current + amount).toFixed(2)))));
-  return <>
-    <div className={s.evidenceGallery}>{files.map(file => file.type === 'application/pdf'
-      ? <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" className={s.evidenceLink} aria-label={`Open ${file.name} in a new tab`}><Icon name="pdf" size={28} /><span>{file.name}</span><Icon name="out" size={14} /></a>
-      : <button key={file.id} type="button" className={s.evidenceLink} aria-label={`View image ${file.name}`} onClick={() => { setPreview(file); setZoom(1); }}>
-        {/* Local object URLs are intentionally not passed to the remote image optimizer. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={file.url} alt="" /><span>{file.name}</span><Icon name="zoomIn" size={15} />
-      </button>)}</div>
-    <Dialog.Root open={!!preview} onOpenChange={open => { if (!open) { setPreview(null); setZoom(1); } }}>
-      <Dialog.Portal>
-        <Dialog.Overlay className={s.imageViewerOverlay} />
-        <Dialog.Content className={`${s.surface} ${s.imageViewer}`} data-font={prefs.font} style={scaleStyle(prefs.fontSize)}>
-          <div className={s.imageViewerHeader}><div><Dialog.Title>{preview?.name || 'Photograph'}</Dialog.Title><Dialog.Description>Attached photograph preview</Dialog.Description></div><Dialog.Close asChild><button type="button" className={s.imageViewerClose} aria-label="Close image viewer"><Icon name="close" size={19}/></button></Dialog.Close></div>
-          <div className={s.imageStage} data-zoomed={zoom > 1} role="button" tabIndex={0} aria-label="Image zoom area. Double-click or press Enter to zoom." onWheel={event => { event.preventDefault(); changeZoom(event.deltaY < 0 ? .25 : -.25); }} onDoubleClick={() => setZoom(current => current === 1 ? 2 : 1)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setZoom(current => current === 1 ? 2 : 1); } if (event.key === '+' || event.key === '=') changeZoom(.25); if (event.key === '-') changeZoom(-.25); if (event.key === '0') setZoom(1); }}>
-            <div className={s.imageZoomSurface} style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}>
-              {preview && /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={preview.url} alt={`Full view of ${preview.name}`} />}
-            </div>
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {files.map(file => file.type === 'application/pdf'
+          ? <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${file.name} in a new tab`} className="focus-ring flex items-center gap-2 rounded-control border border-[var(--mo-line-subtle)] px-3 py-2 font-sans text-caption text-ink hover:border-[var(--mo-action)]"><Icon name="pdf" size="sm" /><span className="min-w-0 flex-1 truncate">{file.name}</span><Icon name="link" size="xs" /></a>
+          : (
+            <button key={file.id} type="button" aria-label={`View image ${file.name}`} onClick={() => { setPreview(file); setZoom(1); }} className="focus-ring group overflow-hidden rounded-control border border-[var(--mo-line-subtle)] text-left hover:border-[var(--mo-action)]">
+              {/* Local object URLs are intentionally not passed to the remote image optimizer. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={file.url} alt="" className="aspect-[4/3] w-full object-cover" />
+              <span className="block truncate px-2 py-1 font-sans text-caption text-ink-muted">{file.name}</span>
+            </button>
+          ))}
+      </div>
+      <SharedDialog open={!!preview} onOpenChange={open => { if (!open) { setPreview(null); setZoom(1); } }} title={preview?.name || 'Photograph'} description="Attached photograph preview" size="xl"
+        footer={(
+          <>
+            <span className="mr-auto font-sans text-caption text-ink-muted">Scroll or double-click to zoom</span>
+            <IconButton icon="zoom-out" label="Zoom out" variant="ghost" disabled={zoom <= 1} onClick={() => changeZoom(-0.25)} />
+            <Button variant="ghost" aria-label="Reset image zoom" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</Button>
+            <IconButton icon="zoom-in" label="Zoom in" variant="ghost" disabled={zoom >= 4} onClick={() => changeZoom(0.25)} />
+          </>
+        )}>
+        <div role="button" tabIndex={0} aria-label="Image zoom area. Double-click or press Enter to zoom." className="focus-ring max-h-[65vh] overflow-auto rounded-control bg-[var(--mo-surface-subtle)]"
+          onWheel={event => { changeZoom(event.deltaY < 0 ? 0.25 : -0.25); }} onDoubleClick={() => setZoom(current => (current === 1 ? 2 : 1))}
+          onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setZoom(current => (current === 1 ? 2 : 1)); } if (event.key === '+' || event.key === '=') changeZoom(0.25); if (event.key === '-') changeZoom(-0.25); if (event.key === '0') setZoom(1); }}>
+          <div style={{ width: `${zoom * 100}%` }}>
+            {preview && /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={preview.url} alt={`Full view of ${preview.name}`} className="h-auto w-full" />}
           </div>
-          <div className={s.imageViewerControls}><button type="button" disabled={zoom <= 1} aria-label="Zoom out" onClick={() => changeZoom(-.25)}><Icon name="zoomOut" size={18}/></button><button type="button" className={s.zoomValue} onClick={() => setZoom(1)} aria-label="Reset image zoom">{Math.round(zoom * 100)}%</button><button type="button" disabled={zoom >= 4} aria-label="Zoom in" onClick={() => changeZoom(.25)}><Icon name="zoomIn" size={18}/></button><span>Scroll or double-click to zoom</span></div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  </>;
+        </div>
+      </SharedDialog>
+    </>
+  );
 }
-

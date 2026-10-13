@@ -115,7 +115,8 @@ Measured with `scripts/linen-audit.mjs` (captures in `docs/linen/before` and `do
 
 There is one design system. The legacy one (`components/shared/design-system/`, the `${t.*}` token layer, `GlowCard`,
 `CenterModal`, `PrimaryButton`, `PageHero`, the `.oz-*` classes, `components/ui/`) is deleted; sign-in, password, two-factor,
-the signature pad, photo upload and typeahead are built from this system. What remains outside it is the Tools & Equipment
-workspace's own component layer (`app/tools`: `ToolsUI`, `AnimatedSelect`, `ToolsDateInput`, `tools.module.css`); it shares
-the tokens and glyphs and is the visual reference. Moving those components onto this system is an open decision (see
-`docs/CURRENT_HANDOFF.md`).
+the signature pad, photo upload and typeahead are built from this system. The Tools & Equipment workspace (`app/tools`)
+is built from it too (2026-10-10): its sidebar, top bar, dialogs, forms, tables, charts and settings are the shared
+components, and its own stylesheet (`tools.module.css`), icon set and select/date/suggestion controls are gone. It keeps its
+own sign-in and its own sidebar icon-style choice (Phosphor or Tabler, confined to `ToolsSidebarIcon`). The compressors
+and Tools screens share the floor look (3D backdrop, flat cards, animated text, sound) from `components/shared/floor`.

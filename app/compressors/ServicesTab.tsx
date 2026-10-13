@@ -1,32 +1,35 @@
-// app/compressors/ServicesTab.tsx — upcoming services, the service intervals, and CSV export / import.
+// app/compressors/ServicesTab.tsx — upcoming services (downloadable as Excel or PDF) and the service intervals.
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button, EmptyState, Icon, Panel, Progress, StatusBadge, useConfirm } from '@/components/ui-system';
 import { SERVICE_INTERVALS, calculateNextService } from './calcCompressors';
 import { URGENCY_TONE, hours } from './meta';
+import { DownloadButton } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { SERVICES_COLUMNS } from './exports';
 import { SectionView } from './SectionView';
 import type { Compressor, UpcomingService } from './types';
 import type { Section } from './useCompressorsData';
 
-export function ServicesTab({ services, compressors, registerLoaded, onRetry, onComplete, onExport, onImport }: {
+export function ServicesTab({ services, compressors, registerLoaded, onRetry, onComplete }: {
   services: Section<UpcomingService[]>;
   compressors: Compressor[];
   registerLoaded: boolean;
   onRetry: () => void;
-  onComplete: (compressorId: number, interval: number) => Promise<void>;
-  onExport: () => Promise<void>;
-  onImport: (file: File) => Promise<{ imported: number; errors: number }>;
+  /** Record a service as done from here. Left out where service work is recorded in the Maintenance module instead. */
+  onComplete?: (compressorId: number, interval: number) => Promise<void>;
 }) {
   const confirm = useConfirm();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const complete = async (svc: UpcomingService) => {
+    if (!onComplete) return;
     const ok = await confirm({
       title: `Record the ${svc.service_interval} h service for ${svc.compressor_name}?`,
-      message: `This records the service as completed and sets the compressor's running hours to ${svc.service_interval} h.`,
+      message: `This records the service as completed at the compressor's current meter. The running hours are left alone.`,
       confirmLabel: 'Record service',
     });
     if (!ok) return;
@@ -35,24 +38,10 @@ export function ServicesTab({ services, compressors, registerLoaded, onRetry, on
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(null); }
   };
-  const run = async (key: string, fn: () => Promise<void>, done: string) => {
-    setBusy(key);
-    try { await fn(); toast.success(done); } catch (e) { toast.error((e as Error).message); } finally { setBusy(null); }
-  };
-  const pick = async (file: File | undefined) => {
-    if (!file) return;
-    setBusy('import');
-    try {
-      const r = await onImport(file);
-      if (r.errors) toast.warning(`Imported ${r.imported} compressors; ${r.errors} rows had errors.`); else toast.success(`Imported ${r.imported} compressors.`);
-    } catch (e) { toast.error(`The import failed: ${(e as Error).message}`); }
-    finally { setBusy(null); if (fileRef.current) fileRef.current.value = ''; }
-  };
-
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        <Panel title="Upcoming services" description="The next service interval each compressor has not yet reached.">
+        <Panel title="Upcoming services" description="The next service interval each compressor has not yet reached." actions={services.data.length > 0 ? <DownloadButton data={services.data as unknown as Record<string, unknown>[]} columns={SERVICES_COLUMNS} filename={exportFilename('Compressor_Upcoming_Services')} title="Upcoming compressor services" /> : undefined}>
           <SectionView section={services} subject="upcoming services" onRetry={onRetry}>
             {list => list.length === 0
               ? <EmptyState icon="success" title="All compressors are up to date" description="No compressor has a service interval ahead of it." />
@@ -73,7 +62,9 @@ export function ServicesTab({ services, compressors, registerLoaded, onRetry, on
                         <div><dt className="font-sans text-caption text-ink-muted">Days until</dt><dd className="font-display text-title font-semibold text-ink tabular">{svc.days_remaining}</dd></div>
                       </dl>
                       <Progress value={svc.next_service_hours ? (svc.current_hours / svc.next_service_hours) * 100 : 0} label={`${svc.compressor_name} progress to its ${svc.service_interval} hour service`} />
-                      <div><Button icon="check" pending={busy === `svc-${svc.compressor_id}`} onClick={() => complete(svc)} aria-label={`Mark ${svc.service_interval} hour service done for ${svc.compressor_name}`}>Mark as done</Button></div>
+                      <div>{onComplete
+                        ? <Button icon="check" pending={busy === `svc-${svc.compressor_id}`} onClick={() => complete(svc)} aria-label={`Mark ${svc.service_interval} hour service done for ${svc.compressor_name}`}>Mark as done</Button>
+                        : <Link href={`/maintenance?q=${encodeURIComponent(svc.compressor_name.trim())}`} className="font-sans text-body-sm text-ink-muted underline underline-offset-2 hover:text-ink">See its work orders in Maintenance</Link>}</div>
                     </li>
                   ))}
                 </ul>
@@ -92,13 +83,6 @@ export function ServicesTab({ services, compressors, registerLoaded, onRetry, on
               </li>
             ))}
           </ul>
-        </Panel>
-        <Panel title="Export and import">
-          <div className="flex flex-col gap-2">
-            <Button icon="download" pending={busy === 'export'} onClick={() => run('export', onExport, 'Report exported.')}>Export last 30 days (CSV)</Button>
-            <Button icon="upload" pending={busy === 'import'} onClick={() => fileRef.current?.click()}>Import compressors (CSV)</Button>
-            <input ref={fileRef} type="file" accept=".csv" aria-label="Import CSV file" className="hidden" onChange={e => pick(e.target.files?.[0])} />
-          </div>
         </Panel>
       </div>
     </div>

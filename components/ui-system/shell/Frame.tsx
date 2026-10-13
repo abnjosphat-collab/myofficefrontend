@@ -23,7 +23,7 @@ const STRIP_HEIGHT = 'calc(57px + var(--mo-safe-top))';
  * Callers render the same `children` in both modes, so navigation is identical at every width; pass `collapsed`
  * only for the desktop rail (the drawer never renders collapsed).
  */
-export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed, spotlight, strip, children, footer, drawerBrand, label = 'Main navigation' }: {
+export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed, spotlight, strip, children, search, footer, drawerBrand, label = 'Main navigation' }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collapsed: boolean;
@@ -33,6 +33,8 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   /** Mobile strip content. */
   strip: ReactNode;
   children: ReactNode;
+  /** Pinned above the destinations (desktop panel and drawer); hidden on the collapsed rail, which has no room for a field. */
+  search?: ReactNode;
   /** Toggle row inside the bottom of the navigation panel (desktop and drawer). */
   footer?: ReactNode;
   /** Brand shown at the top of the drawer. */
@@ -46,6 +48,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   const panel = (
     <nav aria-label={label} className="flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface">
       {/* The panel hugs its content (as in Tools) and only scrolls when the viewport is shorter than the list. */}
+      {search && !(collapsed && desktop) && <div className="shrink-0 border-b border-line-subtle p-2">{search}</div>}
       <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">{children}</div>
       {footer && <div className="shrink-0 border-t border-line">{footer}</div>}
     </nav>

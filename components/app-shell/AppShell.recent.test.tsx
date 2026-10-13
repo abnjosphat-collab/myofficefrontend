@@ -3,9 +3,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const recent = [{ href: '/leaves', title: 'Leaves' }, { href: '/ppe', title: 'PPE' }];
-vi.mock('./useAppShellState', () => ({ useAppShellState: () => ({ recentModules: recent, favoriteModules: [], visibleCategories: [], searchQuery: '', mobileSearchOpen: false, sidebarOpen: false, sidebarCollapsed: false }) }));
-vi.mock('./ShellSidebar', () => ({ ShellSidebar: (props: { recentModules: unknown[] }) => <div data-testid="sidebar" data-recent={props.recentModules.length} /> }));
+vi.mock('./useAppShellState', () => ({ useAppShellState: () => ({ recentModules: recent, favoriteModules: [], visibleCategories: [], searchQuery: '', setSearchQuery: () => {}, sidebarOpen: false, sidebarCollapsed: false }) }));
+vi.mock('./ShellSidebar', () => ({ ShellSidebar: (props: { recentModules: unknown[]; search?: unknown }) => <div data-testid="sidebar" data-recent={props.recentModules.length} data-search={props.search ? 'yes' : 'no'} /> }));
 vi.mock('./ShellTopBar', () => ({ ShellTopBar: () => null }));
+vi.mock('./ShellFeedback', () => ({ ShellFeedback: () => null }));
 vi.mock('./ShellSettings', () => ({ ShellSettings: () => null }));
 vi.mock('./UsageTracker', () => ({ UsageTracker: () => null }));
 vi.mock('./ServiceWorkerRegistrar', () => ({ ServiceWorkerRegistrar: () => null }));
@@ -23,5 +24,10 @@ describe('AppShell sidebar', () => {
   it('lists favourites only: no recent modules are passed to the sidebar', () => {
     render(<AppShell>page</AppShell>);
     expect(screen.getByTestId('sidebar')).toHaveAttribute('data-recent', '0');
+  });
+
+  it('hands the search to the sidebar (the top bar no longer carries it)', () => {
+    render(<AppShell>page</AppShell>);
+    expect(screen.getByTestId('sidebar')).toHaveAttribute('data-search', 'yes');
   });
 });

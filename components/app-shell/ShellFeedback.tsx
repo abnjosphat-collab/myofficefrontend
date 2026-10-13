@@ -1,10 +1,10 @@
-// components/app-shell/ShellFeedback.tsx — Feedback stays visible in the top bar (icon-only below sm,
-// labelled from sm up). Same persistence as before: saveFeedback(page, rating, text) in lib/usage.
+// components/app-shell/ShellFeedback.tsx — one round Feedback action floating at the bottom-right (the panel
+// opens above it). Same persistence as before: saveFeedback(page, rating, text) in lib/usage.
 'use client';
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Button, Field, Icon, Popover, PopoverContent, PopoverTrigger, Textarea, cn } from '@/components/ui-system';
+import { Button, Field, Icon, IconButton, Popover, PopoverContent, PopoverTrigger, Textarea, cn, floatingActionClass } from '@/components/ui-system';
 import { saveFeedback } from '@/lib/usage';
 
 export function ShellFeedback() {
@@ -29,11 +29,9 @@ export function ShellFeedback() {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="shell" size="shell" icon="chat" aria-label="Feedback" className="max-sm:w-[34px] max-sm:px-0">
-          <span className="hidden sm:inline">Feedback</span>
-        </Button>
+        <IconButton icon="chat" label="Feedback" tooltip={false} variant="shell" size="lg" className={floatingActionClass} />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80">
+      <PopoverContent side="top" align="end" className="w-80">
         {sent ? (
           <div role="status" className="flex items-start gap-2.5 py-1">
             <Icon name="success" size="lg" weight="emphasis" className="mt-0.5 text-success" />

@@ -1,5 +1,5 @@
-// app/overtime/EmployeePicks.tsx — pick several employees from the employee list; the chosen ones show as removable chips.
-// Used to scope the register to certain people and to enter the same overtime for a crew.
+// app/overtime/EmployeePicks.tsx — pick employees from the employee list; the chosen ones show as removable chips.
+// Used to scope the register to one person (`single`) and to enter the same overtime for a crew.
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -8,7 +8,7 @@ import { useEmployees } from '@/hooks/useLookups';
 
 export interface PickedPerson { employee_id: string; name: string }
 
-export function EmployeePicks({ label, value, onChange, hint }: { label: string; value: PickedPerson[]; onChange: (people: PickedPerson[]) => void; hint?: string }) {
+export function EmployeePicks({ label, value, onChange, hint, single = false }: { label: string; value: PickedPerson[]; onChange: (people: PickedPerson[]) => void; hint?: string; single?: boolean }) {
   const employees = useEmployees();
   const [pick, setPick] = useState('');
   const options = useMemo(() => {
@@ -19,14 +19,16 @@ export function EmployeePicks({ label, value, onChange, hint }: { label: string;
   }, [employees, value]);
   const add = (id: string) => {
     const o = options.find(x => x.value === id);
-    if (o) onChange([...value, { employee_id: id, name: o.label }]);
+    if (o) onChange(single ? [{ employee_id: id, name: o.label }] : [...value, { employee_id: id, name: o.label }]);
     setPick('');
   };
   return (
     <div className="flex flex-col gap-2">
+      {!(single && value.length > 0) && (
       <Field label={label} optional description={hint}>
-        <Combobox aria-label={`Add to ${label}`} value={pick} onValueChange={add} options={options} placeholder="Search the employee list" />
+        <Combobox aria-label={single ? label : `Add to ${label}`} value={pick} onValueChange={add} options={options} placeholder="Search the employee list" />
       </Field>
+      )}
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={label}>
           {value.map(p => (

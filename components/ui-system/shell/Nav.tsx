@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useId, useState, type ElementType, type ReactNode } from 'react';
@@ -12,11 +12,11 @@ import { Tooltip } from '../overlays/Tooltip';
 type NavIconSource = IconMeaning | ElementType;
 
 /**
- * Navigation glyph: 18 px, solid (filled), in a 26 px box (the Tools sidebar geometry). Sidebars use the Phosphor Solid style the
- * Tools workspace adopted, so every destination reads the same way; the weight comes from the shared "emphasis" policy, so a
- * legacy icon wrapper cannot change it. Tabs, tiles and the home module browser keep the lighter "navigation" weight.
+ * Navigation glyph: 18 px, outline (stroke), in a 26 px box. Destinations read in the lighter "navigation" weight
+ * and muted ink, going brand-green on hover and when active; only the spotlight keeps the filled "emphasis" glyph.
+ * (Solid sidebar icons were tried and rejected by the owner: too heavy and too green against the Sage shell.)
  */
-function NavGlyph({ icon, weight = 'emphasis' }: { icon: NavIconSource; weight?: 'navigation' | 'emphasis' }) {
+function NavGlyph({ icon, weight = 'navigation' }: { icon: NavIconSource; weight?: 'navigation' | 'emphasis' }) {
   return isIconMeaning(icon) ? <Icon name={icon} size="md" weight={weight} /> : <Glyph as={icon} size="md" weight={weight} />;
 }
 
@@ -38,7 +38,7 @@ export interface NavItemProps {
 
 /**
  * One navigation destination, matching the Tools sidebar item: 40 px row (44 px on touch), 9 px radius, 12 px label at
- * weight 500, a brand-coloured regular-weight glyph, soft fill and brand text on hover. Renders a link when `href`
+ * weight 500, a muted outline glyph that goes brand-green on hover and when active. Renders a link when `href`
  * is given, otherwise a button.
  */
 export function NavItem({ label, icon, href, onClick, active, collapsed, badge, trailing, onNavigate, className }: NavItemProps) {
@@ -51,7 +51,7 @@ export function NavItem({ label, icon, href, onClick, active, collapsed, badge, 
   );
   const inner = (
     <>
-      <span className="grid size-6.5 shrink-0 place-items-center text-action"><NavGlyph icon={icon} /></span>
+      <span className={cn('grid size-6.5 shrink-0 place-items-center', active ? 'text-action' : 'text-ink-muted group-hover/nav:text-action')}><NavGlyph icon={icon} /></span>
       <span className={cn('min-w-0 flex-1 text-left leading-[1.25] [overflow-wrap:anywhere] line-clamp-2', collapsed && 'sr-only')} title={label}>{label}</span>
       {!collapsed && badge !== undefined && badge > 0 && <CountBadge value={badge} />}
     </>
@@ -115,7 +115,7 @@ export function NavGroup({ label, icon, open: controlled, onOpenChange, defaultO
           onClick={toggle}
           className="group/nav focus-ring touch-target flex min-h-10 pointer-coarse:min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-nav px-[11px] py-1.5 text-left font-sans text-nav text-ink transition-colors duration-[var(--mo-duration-base)] hover:bg-soft hover:text-action"
         >
-          {icon && <span className="grid size-6.5 shrink-0 place-items-center text-action"><NavGlyph icon={icon} /></span>}
+          {icon && <span className="grid size-6.5 shrink-0 place-items-center text-ink-muted group-hover/nav:text-action"><NavGlyph icon={icon} /></span>}
           <span className="min-w-0 flex-1 leading-[1.25] [overflow-wrap:anywhere] line-clamp-2" title={label}>{label}</span>
           <Icon name="chevron-down" size="xs" className={cn('shrink-0 transition-transform duration-[var(--mo-duration-base)]', open && 'rotate-180')} />
         </button>

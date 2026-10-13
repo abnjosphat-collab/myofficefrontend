@@ -1,0 +1,42 @@
+/* components/shared/floor/floor-themes.css — the floor's one theme, Sage, mounted app-wide by FloorProvider:
+   <html data-floor-theme> persists across navigation, so everything on every page follows it: cards, the drawer,
+   dialogs, menus, tooltips and toasts, which Radix portals into <body>. Text keeps at least 4.5:1 on every ground
+   (checked with axe). */
+
+html[data-floor-theme] {
+  --mo-radius-card: 10px;
+  --mo-shadow-card: 0 1px 2px color-mix(in srgb, var(--mo-ink) 5%, transparent);
+  --mo-shadow-card-hover: var(--mo-shadow-card);
+  --mo-shadow-popover: 0 2px 6px color-mix(in srgb, var(--mo-ink) 10%, transparent), 0 22px 44px -16px color-mix(in srgb, var(--mo-ink) 40%, transparent);
+  --mo-shadow-dialog: 0 10px 30px -12px color-mix(in srgb, var(--mo-ink) 24%, transparent), 0 40px 90px -30px color-mix(in srgb, var(--mo-ink) 55%, transparent);
+  --mo-overlay: color-mix(in srgb, var(--mo-ink) 38%, transparent);
+}
+html[data-floor-theme] body { background: var(--mo-canvas); }
+
+/* Sage: the green one-mode theme. */
+html[data-floor-theme='sage'] {
+  --mo-canvas: #dbe7df;
+  /* Quiet text sits on the sage canvas too (chip details): darkened from #5c6b64 (4.4:1 there) to keep 4.5:1. */
+  --mo-ink-subtle: #52625a;
+  --mo-paper: #f6faf7;
+  --mo-surface: #f6faf7;
+  --mo-surface-raised: #ffffff;
+  --mo-surface-subtle: #ebf2ed;
+  --mo-soft: #d3e2d8;
+  --mo-surface-muted: #d3e2d8;
+  --mo-surface-interactive: #c9dacf;
+  --mo-surface-interactive-hover: #bdd2c4;
+  --mo-line: #bccdc2;
+  --mo-line-subtle: #d6e3da;
+  --mo-chart-grid: #d6e3da;
+}
+
+/* The floor's type pairing (fonts.ts): display face for headings and figures, mono for meters. Set on <html> so the
+   drawer and dialogs, which portal into <body>, use it too. */
+html[data-floor-theme] { --mo-font-display: var(--font-floor-display), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif; }
+html[data-floor-theme] .floor-meter { font-family: var(--font-floor-mono), ui-monospace, 'SFMono-Regular', monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* The app's page wrappers (AppFrame, the sign-in layout) paint the canvas colour themselves; with the floor behind the app
+   they let it show through. The body still carries the canvas colour, so nothing is left unpainted. */
+html[data-floor-theme] .bg-canvas { background-color: transparent; }
+@media print { html[data-floor-theme] body { background: #fff; } }

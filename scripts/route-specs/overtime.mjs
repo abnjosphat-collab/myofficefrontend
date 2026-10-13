@@ -1,4 +1,4 @@
-// /overtime: requests (cards, table, filters, month and employee scope), detail, create/edit/bulk, delete, the signature step,
+﻿// /overtime: requests (cards, table, filters, month and employee scope), detail, create/edit/bulk, delete, the signature step,
 // insights (overview, analytics, patterns with the heatmap, causes) and the weekly summary. Mock shapes mirror the real router.
 const pad = n => String(n).padStart(2, '0');
 const local = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -75,13 +75,19 @@ const spec = {
     await page.getByRole('button', { name: 'Card view' }).click();
 
     // month and employee scope
-    const month = page.getByRole('group', { name: 'Filter by month' }).getByRole('button').first();
-    await month.click();
-    check(await month.getAttribute('aria-pressed') === 'true', 'a month shortcut scopes the dates');
-    await month.click();
-    await page.getByRole('combobox', { name: /^Employees/ }).click();
+    const monthPick = page.getByRole('combobox', { name: 'Filter by month' });
+    await monthPick.click();
+    await page.getByRole('option').nth(1).click();
+    check(await page.getByRole('button', { name: 'Filters, 2 active' }).isVisible(), 'the month dropdown scopes the dates');
+    await monthPick.click();
+    await page.getByRole('option', { name: 'All months' }).click();
+    check(await page.getByRole('button', { name: 'Filters' }).isVisible(), 'All months clears the dates');
+    await page.getByRole('combobox', { name: 'Employee' }).click();
     await page.getByRole('option', { name: /Bo Ng/ }).click();
     check(await cards.count() === 1, 'choosing an employee shows only their requests');
+    check(await page.getByRole('combobox', { name: 'Employee' }).count() === 0, 'only one employee can be filtered at a time');
+    const stats = page.getByRole('region', { name: 'Quick stats for Bo Ng' });
+    check(await stats.getByText('4.0h').first().isVisible() && await stats.getByText('Planned', { exact: true }).isVisible(), 'the pick shows quick stats for that person');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
     // detail

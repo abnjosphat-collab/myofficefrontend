@@ -1,13 +1,9 @@
+// app/tools/ToolsProfileMenu.tsx — who is signed in to Tools, their access, and sign out. With nobody signed in it is the
+// sign-in button.
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ToolsIcon as Icon } from './ToolsIcon';
-import { ActionHint } from './ToolsUI';
-import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
+import { Button, IconButton, Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui-system';
 import type { WorkspaceAccount } from './prototype';
-import s from './tools.module.css';
-import { Button } from '@/components/ui-system';
 
 const ROLE_LABELS = { admin: 'Administrator', issuer: 'Issuer', viewer: 'Viewer' } as const;
 
@@ -16,44 +12,26 @@ function initials(name: string) {
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?';
 }
 
-export function ToolsProfileMenu({ account, open, onOpenChange, onSignIn, onSignOut, duration }: {
-  account: WorkspaceAccount | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSignIn: () => void;
-  onSignOut: () => void;
-  duration: number;
-}) {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const closeOutside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) onOpenChange(false); };
-    const closeAnother = (event: Event) => { if ((event as CustomEvent<string>).detail !== 'account') onOpenChange(false); };
-    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onOpenChange(false); };
-    document.addEventListener('pointerdown', closeOutside);
-    window.addEventListener(TOOLS_POPOVER_EVENT, closeAnother);
-    window.addEventListener('keydown', closeEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOutside);
-      window.removeEventListener(TOOLS_POPOVER_EVENT, closeAnother);
-      window.removeEventListener('keydown', closeEscape);
-    };
-  }, [onOpenChange]);
-  useEffect(() => { if (!account) onOpenChange(false); }, [account, onOpenChange]);
-  const toggle = () => {
-    if (!account) { onSignIn(); return; }
-    const next = !open;
-    if (next) announceToolsPopover('account');
-    onOpenChange(next);
-  };
-  return <div ref={root} className={s.accountShell}>
-    <ActionHint label={account ? 'View your account, role or sign out.' : 'Sign in to save records.'}><button className={s.accountButton} aria-label={account ? `Account: ${account.name}` : 'Sign in'} aria-expanded={account ? open : undefined} aria-controls={account ? 'tools-profile' : undefined} onClick={toggle}><Icon name="user" size={16} /></button></ActionHint>
-    <AnimatePresence>{account && open && <motion.div id="tools-profile" role="dialog" aria-label="Your profile" className={s.accountPanel} initial={{ opacity: 0, y: -5, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: .98 }} transition={{ duration }}>
-      <div className={s.notificationHeader}><span><strong>Profile</strong><small>{account.username}</small></span><Button variant="ghost" size="sm" className={`${s.sharedIconButton}`} aria-label="Close profile" onClick={() => onOpenChange(false)}><Icon name="close" size={15} /></Button></div>
-      <div className={s.profilePanelBody}>
-        <div className={s.profileIdentity}><span className={s.profileAvatar} aria-hidden="true">{initials(account.name)}</span><div><strong>{account.name}</strong><small>{ROLE_LABELS[account.role]}{account.department ? ` · ${account.department}` : ''}</small></div></div>
-        <dl className={s.profileDetails}><div><dt>Access</dt><dd>{ROLE_LABELS[account.role]}</dd></div>{account.department && <div><dt>Department</dt><dd>{account.department}</dd></div>}<div><dt>Session</dt><dd>This device · 7 days</dd></div></dl>
-        <Button type="button" variant="secondary" size="lg" className={`${s.profileSignout} ${s.sharedButton}`} onClick={() => { onOpenChange(false); onSignOut(); }}><Icon name="out" size={15} />Sign out</Button>
-      </div>
-    </motion.div>}</AnimatePresence>
-  </div>;
+export function ToolsProfileMenu({ account, onSignIn, onSignOut }: { account: WorkspaceAccount | null; onSignIn: () => void; onSignOut: () => void }) {
+  if (!account) return <IconButton icon="user" variant="ghost" label="Sign in" onClick={onSignIn} />;
+  return (
+    <Popover>
+      <PopoverTrigger asChild><IconButton icon="user" variant="ghost" label={`Account: ${account.name}`} /></PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-4" aria-label="Your profile">
+        <div className="flex items-center gap-3">
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--mo-action-soft)] font-sans text-body-sm font-semibold text-ink">{initials(account.name)}</span>
+          <div className="min-w-0">
+            <strong className="block truncate font-sans text-body-sm font-semibold text-ink">{account.name}</strong>
+            <small className="block truncate font-sans text-caption text-ink-muted">{account.username}</small>
+          </div>
+        </div>
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 font-sans text-body-sm">
+          <dt className="text-ink-muted">Access</dt><dd className="text-ink">{ROLE_LABELS[account.role]}</dd>
+          {account.department && <><dt className="text-ink-muted">Department</dt><dd className="text-ink">{account.department}</dd></>}
+          <dt className="text-ink-muted">Session</dt><dd className="text-ink">This device · 7 days</dd>
+        </dl>
+        <PopoverClose asChild><Button className="mt-4 w-full" icon="sign-out" onClick={onSignOut}>Sign out</Button></PopoverClose>
+      </PopoverContent>
+    </Popover>
+  );
 }

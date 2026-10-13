@@ -27,7 +27,7 @@ export function useAppShellState() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
@@ -225,7 +225,7 @@ export function useAppShellState() {
     visibleCategories,
     sidebarOpen, setSidebarOpen,
     sidebarCollapsed, setSidebarCollapsed,
-    mobileSearchOpen, setMobileSearchOpen,
+
     searchQuery, setSearchQuery,
     customizeOpen, setCustomizeOpen,
     favoriteHrefs, favoriteModules, toggleFavorite, addFavorites,

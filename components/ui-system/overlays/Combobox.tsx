@@ -25,6 +25,8 @@ export interface ComboboxProps {
   onSearchChange?: (query: string) => void;
   /** Allow clearing back to '' with an explicit "None" row. */
   clearLabel?: string;
+  /** Free text (G2): the typed query itself can be committed — Enter on the "Use …" row, or Tab to complete and move on. */
+  allowCustomValue?: boolean;
   'aria-label'?: string;
   disabled?: boolean;
   className?: string;
@@ -34,17 +36,25 @@ export interface ComboboxProps {
  * Searchable single-choice picker for large datasets (employees, equipment,
  * spares…). Popover for positioning/focus return, cmdk for the keyboard model
  * (↑/↓, Home/End, Enter, type-to-filter). Escape closes and returns focus.
+ * With allowCustomValue the query itself is committable: a trailing "Use …" row
+ * (Enter), or Tab to take the typed text and keep moving (the Tab-to-complete a
+ * native datalist lacks, which is why Tools suggest-fields use this).
  */
 export function Combobox({
   value, onValueChange, options, placeholder = 'Select…', searchPlaceholder = 'Search…', emptyMessage = 'No matches.',
-  loading = false, shouldFilter = true, onSearchChange, clearLabel, disabled, className, ...aria
+  loading = false, shouldFilter = true, onSearchChange, clearLabel, allowCustomValue = false, disabled, className, ...aria
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const listId = useId();
   const field = useFieldProps();
   const selected = options.find(option => option.value === value);
+  const shown = selected ? selected.label : (allowCustomValue && value ? value : placeholder);
+  const trimmed = query.trim();
+  const exact = trimmed !== '' && options.some(option => option.label.toLowerCase() === trimmed.toLowerCase() || option.value.toLowerCase() === trimmed.toLowerCase());
+  const commit = (next: string) => { onValueChange(next); setQuery(''); setOpen(false); };
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+    <PopoverPrimitive.Root open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery(''); }}>
       <PopoverPrimitive.Trigger asChild>
         <button
           type="button"
@@ -54,10 +64,10 @@ export function Combobox({
           aria-label={field.id ? undefined : aria['aria-label']}
           {...field}
           disabled={disabled}
-          data-placeholder={selected ? undefined : ''}
+          data-placeholder={selected || (allowCustomValue && value) ? undefined : ''}
           className={cn(triggerSurface, className)}
         >
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
+          <span className="truncate">{shown}</span>
           <Icon name="chevron-down" size="xs" className="shrink-0 text-ink-muted" />
         </button>
       </PopoverPrimitive.Trigger>
@@ -73,15 +83,35 @@ export function Combobox({
               <Icon name="search" size="sm" className="shrink-0 text-ink-muted" />
               <Command.Input
                 placeholder={searchPlaceholder}
-                onValueChange={onSearchChange}
+                onValueChange={next => { setQuery(next); onSearchChange?.(next); }}
+                onKeyDown={event => {
+                  if (!allowCustomValue || trimmed === '' || exact) return;
+                  // Tab-to-complete: take the typed text and let focus move on (no preventDefault).
+                  if (event.key === 'Tab') { commit(trimmed); return; }
+                  // Enter with no real option showing commits the typed text (the Use row is unscored,
+                  // so cmdk's own Enter would do nothing). With options showing, Enter keeps cmdk's
+                  // behaviour and picks the highlighted one. cmdk unmounts filtered-out items, so the
+                  // live DOM count is exactly what the person sees.
+                  if (event.key === 'Enter') {
+                    const root = event.currentTarget.closest('[cmdk-root]');
+                    const shown = root?.querySelectorAll('[cmdk-item]:not([data-custom-row])').length ?? 0;
+                    if (shown === 0) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      commit(trimmed);
+                    }
+                  }
+                }}
                 className="h-10 w-full bg-transparent font-sans text-body text-ink outline-none placeholder:text-ink-subtle"
               />
               {loading && <Spinner className="text-ink-muted" />}
             </div>
             <Command.List id={listId} className="max-h-72 overflow-y-auto p-1">
-              {!loading && <Command.Empty className="px-3 py-6 text-center font-sans text-body-sm text-ink-muted">{emptyMessage}</Command.Empty>}
+              {/* The Use row replaces the empty state: cmdk never scores it (its value changes per keystroke),
+                  so its own Empty would show alongside it. */}
+              {!loading && !(allowCustomValue && trimmed !== '' && !exact) && <Command.Empty className="px-3 py-6 text-center font-sans text-body-sm text-ink-muted">{emptyMessage}</Command.Empty>}
               {clearLabel && value !== '' && (
-                <Command.Item value="__clear__" onSelect={() => { onValueChange(''); setOpen(false); }} className={optionRow}>
+                <Command.Item value="__clear__" onSelect={() => commit('')} className={optionRow}>
                   <span className="text-ink-muted">{clearLabel}</span>
                 </Command.Item>
               )}
@@ -91,7 +121,7 @@ export function Combobox({
                   value={`${option.label} ${option.value}`}
                   keywords={option.keywords}
                   disabled={option.disabled}
-                  onSelect={() => { onValueChange(option.value); setOpen(false); }}
+                  onSelect={() => commit(option.value)}
                   className={optionRow}
                   data-state={option.value === value ? 'checked' : 'unchecked'}
                 >
@@ -103,6 +133,11 @@ export function Combobox({
                   {option.value === value && <Icon name="check" size="sm" weight="emphasis" className="absolute right-2.5 text-action" />}
                 </Command.Item>
               ))}
+              {allowCustomValue && trimmed !== '' && !exact && (
+                <Command.Item value={trimmed} data-custom-row onSelect={() => commit(trimmed)} className={optionRow}>
+                  <span className="block truncate">Use &ldquo;{trimmed}&rdquo;</span>
+                </Command.Item>
+              )}
             </Command.List>
           </Command>
         </PopoverPrimitive.Content>

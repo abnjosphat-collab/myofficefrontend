@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { EmployeePicker, type PickerChoice } from './ToolsEmployeePicker';
 
-vi.mock('./ToolsIcon', () => ({ ToolsIcon: () => <span aria-hidden="true" /> }));
 
 const choices: PickerChoice[] = [
   { label: 'Alex Moyo · C1', detail: 'Fitter Class 1 · Engineering' },

@@ -234,7 +234,7 @@ function ContractorsContent() {
           : <EmptyState icon="contractor" title="No contractors yet" description="Add the first contractor to start the register." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>} />}
       >
         {view === 'cards' ? (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             {groups.map(([trade, items]) => (
               <section key={trade} aria-labelledby={`trade-${trade}`}>
                 <h2 id={`trade-${trade}`} className="mb-3 font-display text-section font-semibold text-ink">{trade}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{plural(items.length, 'contractor')}</span></h2>

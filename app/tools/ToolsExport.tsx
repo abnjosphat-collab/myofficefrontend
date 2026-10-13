@@ -1,5 +1,29 @@
+// app/tools/ToolsExport.tsx — download the current view as an Excel workbook, a Word document or a PDF.
 'use client';
-import { ToolsIcon as Icon } from './ToolsIcon';
+
+import { Icon } from '@/components/ui-system';
 import { exportTable, type ExportTable } from './toolsExports';
-import s from './tools.module.css';
-export function ToolsExport({data,onDone}:{data:ExportTable;onDone:()=>void}){return <div className={s.form}><p className={s.formHint}>Download the current view in the format that best fits your next task.</p><div className={s.exportChoices}><button onClick={()=>void exportTable('xlsx',data).then(onDone)}><Icon name="download"/><strong>Excel workbook</strong><span>For filtering, analysis and updates</span></button><button onClick={()=>void exportTable('docx',data).then(onDone)}><Icon name="download"/><strong>Word document</strong><span>For reports and review</span></button><button onClick={()=>void exportTable('pdf',data).then(onDone)}><Icon name="pdf"/><strong>PDF</strong><span>For a stable printable record</span></button></div></div>}
+
+const CHOICES = [
+  { format: 'xlsx', title: 'Excel workbook', note: 'For filtering, analysis and updates', icon: 'download' },
+  { format: 'docx', title: 'Word document', note: 'For reports and review', icon: 'download' },
+  { format: 'pdf', title: 'PDF', note: 'For a stable printable record', icon: 'pdf' },
+] as const;
+
+export function ToolsExport({ data, onDone }: { data: ExportTable; onDone: () => void }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="font-sans text-body-sm text-ink-muted">Download the current view in the format that best fits your next task.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {CHOICES.map(choice => (
+          <button key={choice.format} type="button" onClick={() => void exportTable(choice.format, data).then(onDone)}
+            className="focus-ring flex flex-col items-start gap-1 rounded-card border border-[var(--mo-line)] bg-[var(--mo-surface-raised)] p-4 text-left transition-colors hover:border-[var(--mo-action)] hover:bg-[var(--mo-surface-subtle)]">
+            <Icon name={choice.icon} size="md" />
+            <strong className="font-sans text-body-sm font-medium text-ink">{choice.title}</strong>
+            <span className="font-sans text-caption text-ink-muted">{choice.note}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -83,4 +83,13 @@ describe('ShellSidebar', () => {
     expect(screen.getByRole('button', { name: 'All modules' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Shifts' })).toBeInTheDocument();
   });
+
+  it('pins the search above the destinations, and hides it on the collapsed rail', () => {
+    const search = <input aria-label="Search modules and pages" />;
+    const full = render(<ShellSidebar {...base} search={search} />);
+    expect(screen.getByRole('textbox', { name: 'Search modules and pages' })).toBeInTheDocument();
+    full.unmount();
+    render(<TooltipProvider><ShellSidebar {...base} collapsed search={search} /></TooltipProvider>);
+    expect(screen.queryByRole('textbox', { name: 'Search modules and pages' })).not.toBeInTheDocument();
+  });
 });

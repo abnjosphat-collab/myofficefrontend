@@ -28,7 +28,7 @@
 | `/breakdowns/analytics` | Migrated | Yes | No | Yes, 2026-10-04 | Dashboard pattern on the same insight views as the Breakdowns page. |
 | `/competency` | Migrated | Yes | No | Yes, 2026-10-03 | Skill matrix; saves use the real employee_id (data bug fixed); department filter removed (no data). |
 | `/compliance-register` | Migrated | Yes | No | Yes, 2026-10-03 | Register with status tiles as filters; add dialog. |
-| `/compressors` | Migrated | Yes | 2 | Yes, 2026-10-03 | Daily reading cards and table, services, analytics, management. Previous readings reload per day and a failed history is stated; analytics sections report their own failures. Recording a service sets the running hours to the interval (existing behaviour, now confirmed first). |
+| `/compressors` | Migrated | Yes | 4 | Yes, 2026-10-10 | The redesigned floor (3D backdrop with flat cards, figure strip as filter, side panel per unit, week and month views, services, analytics, fleet; Excel and PDF downloads) replaced the earlier page on 2026-10-10. Compressors come from the Equipment register; service completion belongs to Maintenance. Reduced-motion users get a still page. |
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
 | `/documents` | Migrated | Yes | 1 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
@@ -67,7 +67,7 @@
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 17 | unverified (2026-10-08) | NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
-| `/tools` | Own chrome | No | 23 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/tools` | Own chrome | Yes | 20 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |

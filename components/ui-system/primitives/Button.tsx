@@ -96,6 +96,9 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+/** One round action floating at the viewport's bottom-right (Feedback). Above content, below every overlay; safe-area aware. */
+export const floatingActionClass = 'fixed bottom-[max(1.25rem,var(--mo-safe-bottom))] right-[max(1.25rem,var(--mo-safe-right))] z-[var(--mo-z-sticky)] rounded-full shadow-dialog';
+
 export const iconButtonVariants = cva(
   [
     'focus-ring touch-target inline-flex shrink-0 items-center justify-center rounded-control border',

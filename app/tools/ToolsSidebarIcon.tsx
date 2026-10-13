@@ -8,7 +8,6 @@ import { IconArrowUpRight, IconBox, IconChartLine, IconChecklist, IconHistory, I
 // eslint-disable-next-line no-restricted-imports
 import { ArrowCircleUpRight, ChartBar, ChatCircleText, ClockClockwise, Cube, FileArrowUp, House, ShieldCheck, User as PhosphorUser, UserGear } from '@phosphor-icons/react';
 import { ICON_PACKS, type IconPackId } from './sidebarNav';
-import s from './tools.module.css';
 
 export type SidebarIconName = 'home' | 'box' | 'out' | 'user' | 'check' | 'history' | 'upload' | 'accounts' | 'analytics' | 'edit';
 
@@ -27,10 +26,15 @@ const SAMPLE: SidebarIconName[] = ['home', 'box', 'user', 'check', 'history'];
 
 /** The Settings control: each style previewed with five of the icons, applied at once. */
 export function IconPackPicker({ pack, onChange }: { pack: IconPackId; onChange: (pack: IconPackId) => void }) {
-  return <div className={s.packList} role="radiogroup" aria-label="Sidebar icon style">
-    {ICON_PACKS.map(item => <button key={item.id} type="button" role="radio" aria-checked={item.id === pack} aria-label={item.label} className={s.packOption} data-selected={item.id === pack || undefined} onClick={() => onChange(item.id)}>
-      <span className={s.packSample}>{SAMPLE.map(name => <SidebarIcon key={name} pack={item.id} name={name} size={20} />)}</span>
-      <span className={s.packName}>{item.label}</span>
-    </button>)}
-  </div>;
+  return (
+    <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Sidebar icon style">
+      {ICON_PACKS.map(item => (
+        <button key={item.id} type="button" role="radio" aria-checked={item.id === pack} aria-label={item.label} onClick={() => onChange(item.id)}
+          className={`focus-ring flex flex-col gap-2 rounded-card border px-3 py-2 text-left transition-colors ${item.id === pack ? 'border-[var(--mo-action)] bg-[var(--mo-action-soft)]' : 'border-[var(--mo-line)] hover:border-[var(--mo-action)]'}`}>
+          <span className="flex gap-3 text-ink">{SAMPLE.map(name => <SidebarIcon key={name} pack={item.id} name={name} size={20} />)}</span>
+          <span className="font-sans text-body-sm font-medium text-ink">{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
 }

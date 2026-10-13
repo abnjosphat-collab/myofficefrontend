@@ -14,7 +14,7 @@ export function CategoryView({ category, folders, entries, files, actions, onOpe
 }) {
   const foldersFailed = !!folders.error && !folders.loaded;
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       <section aria-labelledby="folders-h" className="flex flex-col gap-3">
         <div><h2 id="folders-h" className="font-display text-section font-semibold text-ink">Folders</h2><p className="font-sans text-body-sm text-ink-muted">{category.description}</p></div>
         {foldersFailed && <Notice tone="danger" title="Custom folders could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => folders.refetch()}>Try again</Button>}>{folders.error} The built-in folders below still work.</Notice>}

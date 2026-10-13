@@ -1,0 +1,118 @@
+/* components/shared/floor/floor.module.css — the surfaces, motion and backdrop of the compressor floor preview.
+   Minimal: cards sit on the page (a hairline and a whisper of shadow), the depth is in the backdrop. Nothing loops for ever: a thing moves once when it appears or
+   changes, while the pointer is on it, or when the floor signals an event. Everything stops under prefers-reduced-motion. */
+
+
+
+/* Flat, like the app's own cards (Third party services): plain white, a hairline border, no shadow, corners a little sharper
+   than the rest of the app (6px) but never square. A clickable one takes a faint tint under the pointer; nothing moves. */
+.slab {
+  position: relative;
+  background: var(--mo-surface-raised);
+  border: 1px solid var(--mo-line-subtle);
+  border-radius: 6px;
+  box-shadow: none;
+  transition: background-color var(--mo-duration-base) var(--mo-ease-standard), border-color var(--mo-duration-base) var(--mo-ease-standard), box-shadow var(--mo-duration-base) var(--mo-ease-standard);
+}
+
+/* Information only (the quick figures): quieter still, the page shows through and there is no shadow. */
+.slab[data-still] {
+  background: color-mix(in srgb, var(--mo-surface-raised) 55%, transparent);
+  box-shadow: none;
+}
+
+/* The status lamp: a small saturated dot (colour as detail, never as surface). */
+.lamp {
+  position: relative;
+  flex-shrink: 0;
+  width: 10px; height: 10px; border-radius: 999px;
+  background: var(--accent);
+}
+/* The lamp is a still dot: the fan beside it already shows a unit is running, so the lamp does not animate too. */
+
+/* A running unit's fan spins up once when it appears (or is kicked by an event), and turns while hovered. */
+.fan { transform-origin: 50% 50%; }
+.fan[data-running='true'] { animation: spinUp 1.8s cubic-bezier(.2, .8, .2, 1) 1; }
+:global(.group):hover .fan[data-running='true'] { animation: spin 1.1s linear infinite; }
+
+/* The icon well: an inset, so the glyph sits *in* the unit. */
+.well {
+  display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 6px;
+  background: color-mix(in srgb, var(--accent, var(--mo-action)) 8%, transparent);
+  color: var(--accent);
+}
+
+/* A completed reading: a brief ripple across the slab. */
+.saved::before {
+  content: '';
+  position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  border: 2px solid var(--mo-success);
+  animation: savedRing 1.2s var(--mo-ease-emphasized) forwards;
+}
+
+/* Urgent service: the ring nudges three times to draw the eye, then rests (and nudges again on hover). */
+.urgent { animation: attention 2.8s ease-in-out 3; }
+:global(.group):hover .urgent { animation: attentionHover 2.8s ease-in-out infinite; }
+
+/* A view's panels come in once, one after another (Services, Analytics, Fleet). */
+.viewEnter > * > * { animation: riseIn .5s var(--mo-ease-emphasized) both; }
+.viewEnter > * > *:nth-child(2) { animation-delay: .06s; }
+.viewEnter > * > *:nth-child(3) { animation-delay: .12s; }
+.viewEnter > * > *:nth-child(4) { animation-delay: .18s; }
+.viewEnter > * > *:nth-child(n+5) { animation-delay: .24s; }
+@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* The background. All of the depth is here, not in the cards: a calm wash that brightens towards the top, with two
+   faint glass planes hanging at different depths (below). No grid lines: they read as content. Still between events (a
+   notification sends one ripple across the floor, below). It sits behind the page in its own stacking layer. */
+.backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  /* The ground stays the theme canvas (text contrast is measured on it); it only brightens towards the top. */
+  background:
+    radial-gradient(90% 38% at 50% 34%, color-mix(in srgb, white 70%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--mo-canvas) 55%, white) 0%, var(--mo-canvas) 36%, var(--mo-canvas) 100%); }
+
+/* Two faint glass planes at different depths, tilted in space; decoration only. */
+.plate { position: absolute; border: 1px solid color-mix(in srgb, var(--mo-action) 14%, transparent); border-radius: 6px;
+  background: linear-gradient(135deg, color-mix(in srgb, white 38%, transparent), color-mix(in srgb, white 4%, transparent)); }
+.plateA { width: 380px; height: 240px; right: 6%; top: 14%; transform: perspective(1000px) rotateY(-24deg) rotateX(8deg) rotateZ(-3deg); }
+.plateB { width: 260px; height: 170px; left: 3%; top: 48%; opacity: .7; transform: perspective(1000px) rotateY(22deg) rotateX(-6deg) rotateZ(4deg); }
+
+.ripple {
+  position: absolute; left: 50%; top: 52%; width: 40px; height: 40px; margin-left: -20px;
+  border-radius: 999px; border: 2px solid var(--pulse, var(--mo-action));
+  transform: perspective(560px) rotateX(74deg) scale(0); opacity: 0;
+}
+.ripple[data-pulse] { animation: ripple 1.6s var(--mo-ease-emphasized) 1; }
+
+/* The service runway bar. */
+.runway {
+  height: 10px; border-radius: 999px;
+  background: var(--mo-surface-muted);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--mo-ink) 16%, transparent);
+  overflow: hidden;
+}
+.runwayFill {
+  height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, white), var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+@keyframes spinUp { 0% { transform: rotate(0); } 100% { transform: rotate(1080deg); } }
+@keyframes attentionHover { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
+
+@keyframes ripple { 0% { opacity: .9; transform: perspective(560px) rotateX(74deg) scale(0); } 100% { opacity: 0; transform: perspective(560px) rotateX(74deg) scale(70); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes savedRing { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.04); } }
+@keyframes attention { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse], .viewEnter > * > *,
+  :global(.group):hover .fan[data-running='true'], :global(.group):hover .urgent { animation: none; }
+  .slab { transition: none; }
+}
+
+/* Month view: a reading after a gap carries a small corner mark; rows come in once, top to bottom. */
+.spanMark { display: inline-block; width: 6px; height: 6px; border-radius: 1px; background: var(--mo-warning); }
+.rowIn { animation: riseIn .4s var(--mo-ease-emphasized) both; }
+@media (prefers-reduced-motion: reduce) { .rowIn { animation: none; } }

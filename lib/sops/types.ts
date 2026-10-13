@@ -26,18 +26,8 @@ export const SOP_STATUS_LABEL: Record<SopStatus, string> = {
   retired: 'Retired',
 };
 
-// Matches how status color reads elsewhere in the app (StatusBadge takes a hex).
-// Effective = emerald (the live operating standard); superseded = amber (a
-// newer version exists — worth a second look); retired/draft = neutral greys;
-// pilot = blue (a trial in progress).
-export const SOP_STATUS_HEX: Record<SopStatus, string> = {
-  draft: '#94a3b8',
-  pilot: '#3b82f6',
-  effective: '#10b981',
-  superseded: '#f59e0b',
-  retired: '#64748b',
-};
-
+// G7: the SOP_STATUS_HEX off-palette map was deleted (no consumer; screens read
+// status tones from the shared vocabulary).
 export type SopClassification = 'Internal' | 'Confidential' | 'Restricted';
 export const SOP_CLASSIFICATIONS: SopClassification[] = ['Internal', 'Confidential', 'Restricted'];
 

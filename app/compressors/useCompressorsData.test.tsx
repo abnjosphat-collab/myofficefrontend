@@ -81,11 +81,23 @@ describe('compressor data', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('reports which step failed when a service is recorded but the hours are not updated', async () => {
+  it('records a service at the actual meter and never rewrites the running hours', async () => {
     install();
-    vi.mocked(api.post).mockImplementation((async (path: string) => { if (path.includes('daily-entries')) throw new ApiError('Hours rejected', 400); return {}; }) as never);
+    vi.mocked(api.post).mockResolvedValue({});
     const { result } = renderHook(() => useCompressorsData('2026-09-28'));
     await waitFor(() => expect(result.current.register.loaded).toBe(true));
-    await expect(result.current.completeService(1, 2000)).rejects.toThrow(/The service was recorded, but the running hours were not updated: Hours rejected/);
+    await result.current.completeService(1, 1000); // meter sits at 1200 h: the service was done late
+    const posts = vi.mocked(api.post).mock.calls;
+    expect(posts).toHaveLength(1);
+    expect(posts[0][0]).toBe('/api/compressors/service-records');
+    expect(posts[0][1]).toMatchObject({ service_type: '1000 Hour Service', running_hours_at_service: 1200 });
+  });
+
+  it('reports a service that could not be recorded', async () => {
+    install();
+    vi.mocked(api.post).mockRejectedValue(new ApiError('DB down', 500));
+    const { result } = renderHook(() => useCompressorsData('2026-09-28'));
+    await waitFor(() => expect(result.current.register.loaded).toBe(true));
+    await expect(result.current.completeService(1, 1000)).rejects.toThrow(/DB down/);
   });
 });

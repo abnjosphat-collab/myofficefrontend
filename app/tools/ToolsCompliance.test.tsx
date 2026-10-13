@@ -5,7 +5,6 @@ import { ToolsCompliance } from './ToolsCompliance';
 import type { CompetencyRecord, IncidentRecord, InspectionRecord } from './complianceTypes';
 import type { Employee, Tool } from './prototype';
 
-vi.mock('./ToolsIcon',()=>({ToolsIcon:()=> <span aria-hidden="true"/>}));
 
 const tool:Tool={id:'PP-UG-ENG-AG-01',backendId:'tool-1',name:'Angle grinder',make:'Bosch',serial:'AG-1',category:'Power tools',kind:'angle-grinder',status:'available',location:'Tool room',condition:'Good',maintenanceRequirements:'Inspect guard and cable',inspectionDue:[],latestInspections:{}};
 const employee:Employee={id:'E-1',backendId:'employee-1',employeeNumber:'E-1',name:'Tariro Moyo',department:'Engineering',active:true};
@@ -18,7 +17,7 @@ describe('ToolsCompliance',()=>{
     render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
     await user.click(screen.getByRole('button',{name:'Record'}));
     await user.click(screen.getByText('Record inspection or maintenance'));
-    await user.click(screen.getByRole('combobox',{name:'Inspection type'}));
+    await user.click(screen.getByRole('combobox',{name:'Check type'}));
     await user.click(await screen.findByRole('option',{name:'Repair verification'}));
     fireEvent.change(screen.getByLabelText('Repair quotation'),{target:{value:'600'}});
     fireEvent.change(screen.getByLabelText('New equipment price'),{target:{value:'1000'}});
@@ -34,7 +33,7 @@ describe('ToolsCompliance',()=>{
     await user.click(screen.getByRole('button',{name:'Record'}));
     await user.click(screen.getByText('Report loss, damage or theft'));
     fireEvent.change(screen.getByLabelText('Occurred at'),{target:{value:'2030-02-01T10:30'}});
-    await user.click(screen.getByRole('combobox',{name:'Employee involved'}));
+    await user.click(screen.getByRole('combobox',{name:/Employee involved/}));
     await user.click(await screen.findByRole('option',{name:'Tariro Moyo · E-1'}));
     fireEvent.change(screen.getByLabelText('Immediate report'),{target:{value:'Guard damaged during use and equipment isolated.'}});
     await user.click(screen.getByRole('button',{name:'Report incident'}));

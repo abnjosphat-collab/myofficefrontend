@@ -57,20 +57,20 @@
 
   /* ── Status (operational meaning only — always paired with a label or icon) ─ */
   --mo-success: #27705a;  --mo-success-soft: #e3f1ea;  --mo-success-line: #b8d9c9;
-  --mo-warning: #8a5d18;  --mo-warning-soft: #f8eedc;  --mo-warning-line: #e6cfa3;
+  --mo-warning: #77601b;  --mo-warning-soft: #f2ecd9;  --mo-warning-line: #dcd1a9;
   --mo-danger:  #a13f47;  --mo-danger-soft:  #f8e6e7;  --mo-danger-line:  #e7bfc3;
   --mo-info:    #2f5f8a;  --mo-info-soft:    #e4edf6;  --mo-info-line:    #bed2e6;
   --mo-neutral: #52625a;  --mo-neutral-soft: #eaefec;  --mo-neutral-line: #d3ddd8;
 
   /* ── Data visualisation (categorical, fixed order — never cycled) ───────────
-     Validated with the dataviz six-checks on #fbfcfb: all hard gates pass.
-     Slots 3–5 are below 3:1 contrast: charts that use them must show direct
-     labels or offer a table view. Never reuse status colours as series. */
+     Validated 2026-10-13: all eight series hold 3:1 graphics contrast on
+     surface, raised and subtle grounds (see foundations/tokens.test.ts, which
+     re-checks this on every run). Never reuse status colours as series. */
   --mo-chart-1: #2a78d6;
-  --mo-chart-2: #eb6834;
-  --mo-chart-3: #1baf7a;
-  --mo-chart-4: #eda100;
-  --mo-chart-5: #e87ba4;
+  --mo-chart-2: #d95726; /* F3: darkened for 3:1 on all three grounds (was #eb6834, 2.81 on subtle) */
+  --mo-chart-3: #0e8f62; /* F3: darkened for 3:1 on all three grounds (was #1baf7a, 2.47 worst) */
+  --mo-chart-4: #a86e00; /* F3: darkened for 3:1 on all three grounds (was #eda100, 1.90 worst) */
+  --mo-chart-5: #c44e7d; /* F3: darkened for 3:1 on all three grounds (was #e87ba4, 2.37 worst) */
   --mo-chart-6: #008300;
   --mo-chart-7: #4a3aa7;
   --mo-chart-8: #e34948;

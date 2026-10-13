@@ -123,7 +123,7 @@ function DocumentsContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Documents' }]}
         title="Documents"

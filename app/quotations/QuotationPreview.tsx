@@ -16,7 +16,7 @@ export function QuotationPreview({ draft: d, company }: { draft: Draft; company:
   const who = [d.client.name, d.client.company, d.client.email, d.client.phone, place(d.client)].filter(Boolean);
   const lines = usedLines(d);
   return (
-    <article aria-label="Quotation preview" className="flex flex-col gap-6 rounded-card border border-line bg-surface p-6 shadow-card sm:p-8">
+    <article aria-label="Quotation preview" className="flex flex-col gap-5 rounded-card border border-line bg-surface p-6 shadow-card sm:p-8">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line pb-5">
         <div className="flex min-w-0 items-start gap-4">
           {company.logo && <Logo src={company.logo} alt="" className="size-16 shrink-0 object-contain" />}

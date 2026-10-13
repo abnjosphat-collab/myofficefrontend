@@ -56,6 +56,13 @@ describe('calculateNextService', () => {
     expect(info?.hoursRemaining).toBe(500);
   });
 
+  it('follows the owner ladder 400/800/1000/2000/4000/8000 h', () => {
+    expect(calculateNextService(0)?.interval).toBe(400);
+    expect(calculateNextService(500)?.interval).toBe(800);
+    expect(calculateNextService(850)?.interval).toBe(1000);
+    expect(calculateNextService(8000)).toBeNull();
+  });
+
   it('returns null once every known interval has been passed', () => {
     expect(calculateNextService(20000)).toBeNull();
   });

@@ -17,13 +17,14 @@ import { EmployeePicks, type PickedPerson } from './EmployeePicks';
 import { InsightsView } from './insights/InsightsView';
 import { OvertimeDetail } from './OvertimeDetail';
 import { OvertimeForm } from './OvertimeForm';
-import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, summarise, timeSpan, type OTFilters } from './overtimeLogic';
+import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
 import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { WeeklySummary } from './WeeklySummary';
 import { bulkUpdateOTStatus, createOT, deleteOT, updateOT, useOvertime } from './useOvertimeData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
+import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'employee_name', label: 'Employee', width: 20 }, { key: 'employee_id', label: 'ID', width: 20 }, { key: 'position', label: 'Position', width: 20 },
@@ -37,6 +38,25 @@ const STATUS_OPTIONS = [{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s
 const TYPE_OPTIONS = [{ value: ALL, label: 'All types' }, ...OT_TYPES.map(t => ({ value: t, label: TYPE_LABELS[t] }))];
 const ORDER = [{ value: 'desc', label: 'Newest first' }, { value: 'asc', label: 'Oldest first' }];
 const SIZES = [{ value: '25', label: '25 per page' }, { value: '50', label: '50 per page' }, { value: '100', label: '100 per page' }];
+
+function PersonStatsStrip({ name, range, summary: s }: { name: string; range: string; summary: import('./overtimeLogic').PersonOvertimeSummary }) {
+  const foot = [`${range} · any status`, s.excluded > 0 ? `excludes ${s.excluded} rejected or cancelled` : '', s.unmarked > 0 ? `${s.unmarked} unmarked counted as unplanned` : ''].filter(Boolean).join(' · ');
+  const countHours = (count: number, hours: number) => `${count} · ${hours.toFixed(1)}h`;
+  return (
+    <TotalsStrip
+      label={`Quick stats for ${name}`}
+      title={name}
+      figures={[
+        { value: String(s.instances), label: s.instances === 1 ? 'Instance' : 'Instances', dim: s.instances === 0 },
+        { value: `${s.hours.toFixed(1)}h`, label: 'Total hours', hero: true },
+        { value: countHours(s.planned.count, s.planned.hours), label: 'Planned', dim: s.planned.count === 0 },
+        { value: countHours(s.unplanned.count, s.unplanned.hours), label: 'Unplanned', dim: s.unplanned.count === 0 },
+        { value: String(s.pending), label: 'Pending', dim: s.pending === 0 },
+      ]}
+      foot={<p className="font-sans text-caption text-ink-muted">{foot}</p>}
+    />
+  );
+}
 
 function Badges({ r }: { r: OTRecord }) {
   const type = typeMeta(r.overtime_type); const plan = planningMeta(r.planning_status); const pay = payoutMeta(r.payout_method);
@@ -82,8 +102,14 @@ function OvertimeContent() {
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: matches.length, transient: isTransientStatus(list.errorStatus) });
   const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
   const clear = () => { setFilters(NO_FILTERS); setPeople([]); setUnmatchedOnly(false); setPage(1); };
-  const toggleMonth = (m: (typeof months)[number]) => (activeMonth === m.key ? set({ from: '', to: '' }) : set({ from: m.from, to: m.to }));
-  const togglePerson = (id: string, name: string) => { if (!id) return; setPeople(p => (p.some(x => x.employee_id === id) ? p.filter(x => x.employee_id !== id) : [...p, { employee_id: id, name }])); setPage(1); };
+  const monthChoices = useMemo(() => [{ value: '', label: 'All months' }, ...months.map(m => ({ value: m.key, label: m.label }))], [months]);
+  const chooseMonth = (key: string) => { const m = months.find(x => x.key === key); set(m ? { from: m.from, to: m.to } : { from: '', to: '' }); };
+  const personStats = useMemo(() => {
+    if (people.length !== 1) return null;
+    const inRange = filterRecords(records, { ...NO_FILTERS, from: filters.from, to: filters.to, employeeIds: [people[0].employee_id] }, order);
+    return { person: people[0], summary: summarisePerson(inRange) };
+  }, [people, records, filters.from, filters.to, order]);
+  const togglePerson = (id: string, name: string) => { if (!id) return; setPeople(p => (p.some(x => x.employee_id === id) ? [] : [{ employee_id: id, name }])); setPage(1); };
 
   const replace = (updated: OTRecord) => list.setItems(prev => prev.map(r => (r.id === updated.id ? updated : r)));
   const save = async (payload: Record<string, unknown>, id?: number | string) => {
@@ -181,12 +207,21 @@ function OvertimeContent() {
             <Select aria-label="Status" className="w-36" value={filters.status} onValueChange={v => set({ status: v })} options={STATUS_OPTIONS} />
             <Select aria-label="Type" className="w-36" value={filters.type} onValueChange={v => set({ type: v })} options={TYPE_OPTIONS} />
           </Toolbar>
-          {months.length > 0 && (
-            <div role="group" aria-label="Filter by month" className="flex gap-1.5 overflow-x-auto pb-0.5">
-              {months.map(m => <Button key={m.key} size="sm" variant={activeMonth === m.key ? 'primary' : 'secondary'} aria-pressed={activeMonth === m.key} className="shrink-0" onClick={() => toggleMonth(m)}>{m.label}</Button>)}
-            </div>
+          <div className="flex flex-wrap items-start gap-3">
+            {months.length > 0 && (
+              <FilterField label="Month">
+                <Select aria-label="Filter by month" className="w-44" value={activeMonth ?? ''} onValueChange={chooseMonth} options={monthChoices} />
+              </FilterField>
+            )}
+            <div className="max-w-md flex-1 basis-64"><EmployeePicks single label="Employee" value={people} onChange={p => { setPeople(p.slice(0, 1)); setPage(1); }} hint="Show only this person's overtime." /></div>
+          </div>
+          {personStats && (
+            <PersonStatsStrip
+              name={personStats.person.name}
+              range={activeMonth ? months.find(m => m.key === activeMonth)?.label ?? '' : [filters.from, filters.to].filter(Boolean).join(' to ') || 'All dates'}
+              summary={personStats.summary}
+            />
           )}
-          <div className="max-w-md"><EmployeePicks label="Employees" value={people} onChange={p => { setPeople(p); setPage(1); }} hint="Show only these people's overtime." /></div>
 
           {view === 'table' && selected.size > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">

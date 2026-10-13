@@ -1,54 +1,68 @@
+// app/tools/ToolsNotifications.tsx — the bell: what needs attention in the chosen department (overdue returns, held tools,
+// checks due, investigations). Opening it marks the notifications as viewed.
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ToolsIcon as Icon } from './ToolsIcon';
-import { ActionHint } from './ToolsUI';
-import { announceToolsPopover, TOOLS_POPOVER_EVENT } from './toolsPopover';
-import s from './tools.module.css';
-import { Button } from '@/components/ui-system';
+import { Button, CountBadge, Icon, IconButton, Popover, PopoverContent, PopoverTrigger } from '@/components/ui-system';
+import type { IconMeaning } from '@/components/ui-system/foundations/icon-meanings';
 
-export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue:number; investigationsOverdue:number; overdueEscalations:number };
+export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue: number; investigationsOverdue: number; overdueEscalations: number };
 
-export function ToolsNotifications({ counts, unread, open, unavailable, loading, onRetry, onOpenChange, onViewed, onShowOverdue, onShowInspection, duration }: {
+function Row({ icon, title, detail, onClick }: { icon: IconMeaning; title: string; detail: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="focus-ring flex w-full items-start gap-3 rounded-[6px] px-2 py-2 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+      <span className="mt-0.5 text-ink-muted"><Icon name={icon} size="sm" /></span>
+      <span className="min-w-0 flex-1">
+        <strong className="block font-sans text-body-sm font-medium text-ink">{title}</strong>
+        <small className="block font-sans text-caption text-ink-muted">{detail}</small>
+      </span>
+      <Icon name="chevron-right" size="xs" className="mt-1 text-ink-muted" />
+    </button>
+  );
+}
+
+export function ToolsNotifications({ counts, unread, unavailable, loading, onRetry, onViewed, onShowOverdue, onShowInspection }: {
   counts: ToolAttentionCounts;
   unread: number;
-  open: boolean;
   unavailable?: string;
   loading?: boolean;
   onRetry: () => void;
-  onOpenChange: (open: boolean) => void;
   onViewed: () => void | Promise<void>;
   onShowOverdue: () => void;
   onShowInspection: () => void;
-  duration: number;
 }) {
   const total = counts.overdue + counts.attention + counts.inspectionDue + counts.investigationsOverdue;
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const closeOutside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) onOpenChange(false); };
-    const closeAnother = (event: Event) => { if ((event as CustomEvent<string>).detail !== 'notifications') onOpenChange(false); };
-    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onOpenChange(false); };
-    document.addEventListener('pointerdown', closeOutside);
-    window.addEventListener(TOOLS_POPOVER_EVENT, closeAnother);
-    window.addEventListener('keydown', closeEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOutside);
-      window.removeEventListener(TOOLS_POPOVER_EVENT, closeAnother);
-      window.removeEventListener('keydown', closeEscape);
-    };
-  }, [onOpenChange]);
-  const toggle = () => {
-    const next = !open;
-    if (next) { announceToolsPopover('notifications'); void onViewed(); }
-    onOpenChange(next);
-  };
-  return <div ref={root} className={s.notificationShell} data-unread={unread>0} data-unavailable={!!unavailable}>
-    <ActionHint label={unavailable?'Notifications are temporarily unavailable.':unread ? `Review ${unread} new notification${unread===1?'':'s'} about overdue returns or equipment needing attention.` : 'Review overdue returns and equipment that needs attention.'}><button className={s.notificationButton} data-active={unread>0||!!unavailable} aria-label={unavailable?'Tool notifications unavailable':`${unread} unread tool notifications`} aria-expanded={open} aria-controls="tools-notifications" onClick={toggle}><Icon name={unavailable?'alert':'bell'} size={18}/>{unread>0&&<span className={s.notificationBadge}>{unread}</span>}</button></ActionHint>
-    <AnimatePresence>{open&&<motion.div id="tools-notifications" className={s.notificationPanel} initial={{opacity:0,y:-5,scale:.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-4,scale:.98}} transition={{duration}}>
-      <div className={s.notificationHeader}><span><strong>Notifications</strong><small>{total ? unread ? `${unread} new · ${total} need attention` : `${total} active · viewed` : 'You are all caught up'}</small></span><Button variant="ghost" size="sm" className={`${s.sharedIconButton}`} aria-label="Close notifications" onClick={()=>onOpenChange(false)}><Icon name="close" size={15}/></Button></div>
-      {unavailable?<div className={s.notificationEmpty}><Icon name="alert" size={20}/><span><strong>Notifications unavailable</strong><small>{unavailable}</small></span><Button variant="secondary" size="lg" className={`${s.sharedButton}`} disabled={loading} onClick={onRetry}>{loading?'Retrying…':'Retry'}</Button></div>:total ? <div className={s.notificationItems}>{counts.overdue>0&&<button onClick={onShowOverdue}><span className={s.notificationItemIcon}><Icon name="clock" size={17}/></span><span><strong>{counts.overdue} overdue {counts.overdue===1?'return':'returns'}</strong><small>{counts.overdueEscalations?`${counts.overdueEscalations} exceeded the six-hour reporting threshold.`:'Review tools past their expected return time.'}</small></span><Icon name="chevron" size={15}/></button>}{counts.attention>0&&<button onClick={onShowInspection}><span className={s.notificationItemIcon}><Icon name="alert" size={17}/></span><span><strong>{counts.attention} held for inspection</strong><small>Check condition notes before returning to service.</small></span><Icon name="chevron" size={15}/></button>}{counts.inspectionDue>0&&<button onClick={onShowInspection}><span className={s.notificationItemIcon}><Icon name="check" size={17}/></span><span><strong>{counts.inspectionDue} scheduled {counts.inspectionDue===1?'check':'checks'} due</strong><small>Complete the required inspection or maintenance before issue.</small></span><Icon name="chevron" size={15}/></button>}{counts.investigationsOverdue>0&&<button onClick={onShowInspection}><span className={s.notificationItemIcon}><Icon name="alert" size={17}/></span><span><strong>{counts.investigationsOverdue} overdue {counts.investigationsOverdue===1?'investigation':'investigations'}</strong><small>Close the equipment incident investigation without further delay.</small></span><Icon name="chevron" size={15}/></button>}</div>:<div className={s.notificationEmpty}><Icon name="check" size={20}/><span><strong>Nothing needs attention</strong><small>No overdue returns, scheduled checks, holds or investigations.</small></span></div>}
-      <p className={s.notificationNote}>Notifications follow the selected department.</p>
-    </motion.div>}</AnimatePresence>
-  </div>;
+  return (
+    <Popover onOpenChange={open => { if (open) void onViewed(); }}>
+      <div className="relative">
+        <PopoverTrigger asChild>
+          <IconButton icon={unavailable ? 'warning' : 'bell'} variant="ghost"
+            label={unavailable ? 'Tool notifications unavailable' : `${unread} unread tool notifications`} />
+        </PopoverTrigger>
+        {unread > 0 && <span className="pointer-events-none absolute -right-1 -top-1"><CountBadge value={unread} /></span>}
+      </div>
+      <PopoverContent align="end" className="w-80 p-3">
+        <div className="mb-2">
+          <strong className="block font-sans text-body-sm font-semibold text-ink">Notifications</strong>
+          <small className="font-sans text-caption text-ink-muted">{total ? (unread ? `${unread} new · ${total} need attention` : `${total} active · viewed`) : 'You are all caught up'}</small>
+        </div>
+        {unavailable ? (
+          <div className="flex flex-col gap-2 py-2">
+            <strong className="font-sans text-body-sm font-medium text-ink">Notifications unavailable</strong>
+            <small className="font-sans text-caption text-ink-muted">{unavailable}</small>
+            <Button disabled={loading} onClick={onRetry}>{loading ? 'Retrying…' : 'Retry'}</Button>
+          </div>
+        ) : total ? (
+          <div className="flex flex-col">
+            {counts.overdue > 0 && <Row icon="overdue" title={`${counts.overdue} overdue ${counts.overdue === 1 ? 'return' : 'returns'}`} detail={counts.overdueEscalations ? `${counts.overdueEscalations} exceeded the six-hour reporting threshold.` : 'Review tools past their expected return time.'} onClick={onShowOverdue} />}
+            {counts.attention > 0 && <Row icon="warning" title={`${counts.attention} held for inspection`} detail="Check condition notes before returning to service." onClick={onShowInspection} />}
+            {counts.inspectionDue > 0 && <Row icon="success" title={`${counts.inspectionDue} scheduled ${counts.inspectionDue === 1 ? 'check' : 'checks'} due`} detail="Complete the required inspection or maintenance before issue." onClick={onShowInspection} />}
+            {counts.investigationsOverdue > 0 && <Row icon="warning" title={`${counts.investigationsOverdue} overdue ${counts.investigationsOverdue === 1 ? 'investigation' : 'investigations'}`} detail="Close the equipment incident investigation without further delay." onClick={onShowInspection} />}
+          </div>
+        ) : (
+          <p className="py-2 font-sans text-body-sm text-ink-muted">Nothing needs attention. No overdue returns, scheduled checks, holds or investigations.</p>
+        )}
+        <p className="mt-2 border-t border-[var(--mo-line-subtle)] pt-2 font-sans text-caption text-ink-muted">Notifications follow the selected department.</p>
+      </PopoverContent>
+    </Popover>
+  );
 }

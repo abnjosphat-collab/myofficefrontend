@@ -43,6 +43,8 @@ export {
   Cow as Beef,
   BeerBottle as Beer,
   Bell,
+  SpeakerHigh,
+  SpeakerSlash,
   TextB as Bold,
   BookBookmark as BookHeart,
   BookmarkSimple as Bookmark,

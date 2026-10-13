@@ -1,213 +1,293 @@
-// app/compressors/page.tsx — compressor tracking: daily cumulative-hour readings, services, analytics, fleet management.
+// app/compressors/page.tsx — the compressors floor.
+// One screen built around the daily job: see the fleet, record today's meter readings, see services coming. Depth comes
+// from raised surfaces over a 3D backdrop. Nothing loops for ever: things move once, while hovered, or when an event
+// arrives (a saved reading, a status change, a unit falling due for service), which also plays a short chime unless
+// muted.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Select,
-  StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useViewPreference,
-  type Column,
-} from '@/components/ui-system';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { Button, DataRegion, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Select, deriveDataStatus, isTransientStatus, buttonVariants } from '@/components/ui-system';
 import { useLookupList } from '@/hooks/useLookups';
-import { exportFilename } from '@/lib/exportUtils';
-import { AddCompressorDialog, StatusDialog } from './dialogs';
+import { formatDate, formatWeekday } from '@/lib/format';
 import { AnalyticsTab } from './AnalyticsTab';
 import { ManagementTab } from './ManagementTab';
-import { ReadingCard } from './ReadingCard';
 import { ServicesTab } from './ServicesTab';
-import { calculateNextService, localDateString } from './calcCompressors';
-import { STATUS_KEYS, STATUS_META, URGENCY_TONE, hours, statusLabel } from './meta';
+import { localDateString } from './calcCompressors';
+import { STATUS_META, hours } from './meta';
 import type { Compressor } from './types';
 import { useCompressorsData } from './useCompressorsData';
-import { formatDate, formatWeekday } from '@/lib/format';
+import { AnimatedText } from '@/components/shared/floor/motion';
+import { DownloadButton } from '@/components/shared/DownloadButton';
+import { exportFilename } from '@/lib/exportUtils';
+import { REGISTER_COLUMNS, SERVICES_COLUMNS, registerRows, servicesFromRegister } from './exports';
+import { useFloorSignals } from '@/components/shared/floor/signals';
+import { serviceLife, statusAccent } from './floorLogic';
+import { UnitDrawer } from './UnitDrawer';
+import { UnitPod } from './UnitPod';
+import { MonthView } from './MonthView';
+import { UnitView } from './UnitView';
+import s from '@/components/shared/floor/floor.module.css';
 
 const ALL = '__all__';
+const RUNWAY_KEY = 'compressors.floor.runwayOpen';
+type View = 'floor' | 'month' | 'services' | 'analytics' | 'fleet' | 'unit';
+const parseDay = (v: string) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
+const dayLabel = (v: string) => `${formatWeekday(parseDay(v))} ${formatDate(parseDay(v))}`;
 
-const parseDay = (s: string) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
-const shiftDay = (s: string, by: number) => { const d = parseDay(s); d.setDate(d.getDate() + by); return localDateString(d); };
-const dayLabel = (s: string) => `${formatWeekday(parseDay(s))} ${formatDate(parseDay(s))}`;
-
-const EXPORT_COLUMNS: DLColumn[] = [
-  { key: 'name', label: 'Name', width: 20 }, { key: 'model', label: 'Model', width: 20 }, { key: 'capacity', label: 'Capacity', width: 14 },
-  { key: 'location', label: 'Location', width: 16 }, { key: 'status', label: 'Status', width: 14, format: v => statusLabel(v as string) },
-  { key: 'total_running_hours', label: 'Running hours', width: 16, format: v => hours(v as number) },
-  { key: 'total_loaded_hours', label: 'Loaded hours', width: 16, format: v => hours(v as number) },
-];
-
-function CompressorsContent() {
+function CompressorFloor() {
+  const reduced = useReducedMotion();
   const [date, setDate] = useState(() => localDateString(new Date()));
   const d = useCompressorsData(date);
-  const { register, compressors, stats, previous } = d;
+  const { register, previous } = d;
+  const compressors = register.items;
   const lookupLocations = useLookupList('location');
-  const [view, setView] = useViewPreference('compressors', VIEW_CARDS_TABLE);
-  const [tab, setTab] = useState('daily');
-  const [search, setSearch] = useState('');
-  const [locationF, setLocationF] = useState(ALL);
+  const [view, setView] = useState<View>('floor');
+  const [layout, setLayout] = useState<'pods' | 'list'>('pods');
+  const [location, setLocation] = useState(ALL);
   const [statusF, setStatusF] = useState(ALL);
-  const [includeOffline, setIncludeOffline] = useState(true);
-  const [showDaily, setShowDaily] = useState(true);
-  const [dueSoon, setDueSoon] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [statusId, setStatusId] = useState<number | null>(null);
-  const [readingId, setReadingId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
+  // The compressor whose week and month are open, and the view to return to.
+  const [unitId, setUnitId] = useState<number | null>(null);
+  const showUnit = (id: number) => { setOpenId(null); setUnitId(id); setView('unit'); };
+  const [ym, setYm] = useState(() => { const t = new Date(); return { y: t.getFullYear(), m: t.getMonth() + 1 }; });
+  const [justSaved, setJustSaved] = useState<number | null>(null);
+  // Each unit's event count: bumping it spins that unit's fan up once.
+  const [kicks, setKicks] = useState<Record<number, number>>({});
+  const kick = (id: number) => setKicks(k => ({ ...k, [id]: (k[id] ?? 0) + 1 }));
+  const { signal } = useFloorSignals();
+
+  useEffect(() => { if (justSaved == null) return; const t = window.setTimeout(() => setJustSaved(null), 1400); return () => window.clearTimeout(t); }, [justSaved]);
 
   const locations = useMemo(() => [...new Set([...lookupLocations, ...compressors.map(c => c.location).filter(Boolean)])].sort(), [lookupLocations, compressors]);
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return compressors.filter(c =>
-      (!q || [c.name, c.model, c.location].some(s => s?.toLowerCase().includes(q)))
-      && (locationF === ALL || c.location === locationF) && (statusF === ALL || c.status === statusF)
-      && (includeOffline || c.status !== 'offline') && (!dueSoon || calculateNextService(c.total_running_hours)?.isUrgent));
-  }, [compressors, search, locationF, statusF, includeOffline, dueSoon]);
-  const statusCompressor = compressors.find(c => c.id === statusId) ?? null;
-  const readingCompressor = compressors.find(c => c.id === readingId) ?? null;
+  const shown = useMemo(() => compressors.filter(c => (location === ALL || c.location === location) && (statusF === ALL || c.status === statusF)), [compressors, location, statusF]);
+  const recorded = new Set(previous.todayIds);
+  const dueSoon = useMemo(() => compressors.map(c => ({ c, life: serviceLife(c.total_running_hours) })).filter(x => x.life.next).sort((a, b) => (a.life.hoursLeft ?? 0) - (b.life.hoursLeft ?? 0)), [compressors]);
+  const open = compressors.find(c => c.id === openId) ?? null;
+  const status = deriveDataStatus({ loaded: register.loaded, loading: register.loading, error: register.error, errorStatus: register.errorStatus, count: shown.length, transient: isTransientStatus(register.errorStatus) });
+  const isToday = date === localDateString(new Date());
 
-  const status = deriveDataStatus({ loaded: register.loaded, loading: register.loading, error: register.error, errorStatus: register.errorStatus, count: filtered.length, transient: isTransientStatus(register.errorStatus) });
-  const unavailable = !register.loaded && !register.loading;
-  const hasFilters = !!search || locationF !== ALL || statusF !== ALL || !includeOffline || dueSoon;
-  const clearFilters = () => { setSearch(''); setLocationF(ALL); setStatusF(ALL); setIncludeOffline(true); setDueSoon(false); };
-  const s = stats.data;
-  const tileState = { loading: stats.loading && !stats.loaded, unavailable: !stats.loaded && !!stats.error };
-
-  const card = (c: Compressor) => (
-    <ReadingCard
-      key={`${c.id}-${c.total_running_hours}-${c.total_loaded_hours}-${date}`}
-      compressor={c}
-      previous={previous.byId[c.id]}
-      previousUnavailable={previous.failed.includes(c.id)}
-      previousLoading={previous.loading}
-      nextService={calculateNextService(c.total_running_hours)}
-      dateLabel={dayLabel(date)}
-      showDaily={showDaily}
-      onSave={v => d.saveReading(c.id, v)}
-      onChangeStatus={() => setStatusId(c.id)}
-    />
-  );
-
-  const COLUMNS: Column<Compressor>[] = [
-    { id: 'name', header: 'Compressor', sortable: false, sticky: true, cell: c => <div><p className="font-medium text-ink">{c.name}</p><p className="text-caption text-ink-muted">{c.model}</p></div> },
-    { id: 'status', header: 'Status', cell: c => <StatusBadge tone={STATUS_META[c.status]?.tone ?? 'neutral'} icon={STATUS_META[c.status]?.icon}>{statusLabel(c.status)}</StatusBadge> },
-    { id: 'location', header: 'Location', hideBelow: 'md', cell: c => c.location },
-    { id: 'running', header: 'Total running', hideBelow: 'md', cell: c => <div className="tabular"><p className="font-medium text-ink">{hours(c.total_running_hours)}</p><p className="text-caption text-ink-muted">{previous.failed.includes(c.id) ? 'Previous unavailable' : `Previous ${hours(previous.byId[c.id]?.total_running_hours)}`}</p></div> },
-    { id: 'loaded', header: 'Total loaded', hideBelow: 'lg', cell: c => <div className="tabular"><p className="font-medium text-ink">{hours(c.total_loaded_hours)}</p><p className="text-caption text-ink-muted">{previous.failed.includes(c.id) ? 'Previous unavailable' : `Previous ${hours(previous.byId[c.id]?.total_loaded_hours)}`}</p></div> },
-    { id: 'next', header: 'Next service', hideBelow: 'md', cell: c => { const si = calculateNextService(c.total_running_hours); return si ? <StatusBadge tone={URGENCY_TONE[si.urgency] ?? 'neutral'} icon={si.isUrgent ? 'warning' : undefined}>{`${si.interval} h in ${si.daysRemaining} d`}</StatusBadge> : <span className="text-ink-muted">All passed</span>; } },
-  ];
-
-  const backup = () => {
-    const data = { compressors, stats: stats.data, upcomingServices: d.services.data, performanceMetrics: d.metrics.data, trends: d.trends.data, comparison: d.comparison.data, management: d.summary.data, exportDate: new Date().toISOString() };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a'); a.href = url; a.download = `compressors-backup-${localDateString(new Date())}.json`; a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Backup downloaded.');
-  };
+  // A unit that has just fallen within a week of its service is an event: announce it once.
+  const urgentKey = dueSoon.filter(x => x.life.urgent).map(x => x.c.id).join(',');
+  const seenUrgent = useRef<Set<number> | null>(null);
+  useEffect(() => {
+    if (!register.loaded) return;
+    const now = new Set(urgentKey ? urgentKey.split(',').map(Number) : []);
+    const before = seenUrgent.current;
+    seenUrgent.current = now;
+    const fresh = before ? [...now].filter(id => !before.has(id)) : [...now];
+    if (!fresh.length) return;
+    signal('alert');
+    if (before) {
+      const names = compressors.filter(c => fresh.includes(c.id)).map(c => c.name);
+      toast.warning(`${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} now due for service within a week.`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to the urgent set only
+  }, [urgentKey, register.loaded]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Compressors' }]}
-        title="Compressors"
-        description="Daily readings, service scheduling and efficiency."
-        actions={(
-          <>
-            <IconButton icon="refresh" label="Refresh compressors" variant="shell" pending={register.loading && register.loaded} onClick={() => d.refresh()} />
-            {compressors.length > 0 && <DownloadButton data={compressors as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('compressors')} title="Compressor Tracking" formats={['excel']} />}
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setAdding(true)}>Add compressor</Button>
-          </>
-        )}
-      />
+    <div className="relative isolate flex min-h-[calc(100dvh-140px)] flex-col gap-6">
+      {/* Header: the place, the day, the one primary action */}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <AnimatedText as="h1" text="Compressors" className="font-display text-[30px] font-normal leading-tight tracking-tight text-ink" />
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Input type="date" aria-label="Reading date" className="w-40" value={date} onChange={e => e.target.value && setDate(e.target.value)} />
+          {!isToday && <Button onClick={() => setDate(localDateString(new Date()))}>Today</Button>}
+          {compressors.length > 0 && <DownloadButton data={registerRows(compressors, recorded)} columns={REGISTER_COLUMNS} filename={exportFilename('Compressor_Register')} title="Compressor register" subtitle={`Readings for ${dayLabel(date)}`} />}
+          <Link href="/equipment" className={buttonVariants({ variant: 'primary' }) + ' max-sm:w-full'}><Icon name="plus" size="sm" />Add in Equipment register</Link>
+        </div>
+      </header>
 
-      <div className="flex flex-col gap-3">
-        <MetricGrid compact>
-          <MetricTile compact label="Total units" value={s?.total_compressors} {...tileState} />
-          <MetricTile compact label="Running hours" value={s ? hours(s.total_running_hours) : undefined} {...tileState} />
-          <MetricTile compact label="Avg efficiency" value={s ? `${s.avg_efficiency ?? 0}%` : undefined} {...tileState} />
-          <MetricTile compact label="Upcoming services" value={s?.upcoming_services} tone={s?.upcoming_services ? 'warning' : 'default'} {...tileState} />
-          <MetricTile compact label="Urgent alerts" value={s?.urgent_alerts} tone={s?.urgent_alerts ? 'danger' : 'default'} {...tileState} />
-          <MetricTile compact label="Active" value={s?.active_compressors} {...tileState} />
-        </MetricGrid>
-        {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => d.refresh()}>Try again</Button>}>{stats.error}</Notice>}
-      </div>
+      {/* Today, as one quiet row of figures (the app's shared chips). The status chips filter the floor. */}
+      <MetricGrid compact>
+        <MetricTile compact label="Units" value={register.loaded ? compressors.length : undefined} selected={statusF === ALL} onClick={() => setStatusF(ALL)} loading={!register.loaded && register.loading} />
+        {(['running', 'standby', 'maintenance'] as const).map(k => (
+          <MetricTile key={k} compact label={STATUS_META[k].label} tone={k === 'running' ? 'success' : k === 'maintenance' ? 'warning' : 'default'}
+            value={register.loaded ? compressors.filter(c => c.status === k).length : undefined}
+            selected={statusF === k} onClick={() => setStatusF(statusF === k ? ALL : k)} loading={!register.loaded && register.loading} />
+        ))}
+      </MetricGrid>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label="Compressor sections">
-          <TabsTrigger value="daily" icon="calendar">Daily readings</TabsTrigger>
-          <TabsTrigger value="services" icon="service">Services</TabsTrigger>
-          <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="management" icon="maintenance">Management</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="daily" className="mt-4 flex flex-col gap-4">
-          <Toolbar inline={2} filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
-            <div className="flex items-center gap-2">
-              <IconButton icon="chevron-left" label="Previous day" variant="outline" onClick={() => setDate(shiftDay(date, -1))} />
-              <Input type="date" aria-label="Reading date" className="w-44" value={date} onChange={e => e.target.value && setDate(e.target.value)} />
-              <IconButton icon="chevron-right" label="Next day" variant="outline" onClick={() => setDate(shiftDay(date, 1))} />
-              <Button onClick={() => setDate(localDateString(new Date()))}>Today</Button>
-            </div>
-            <SearchField value={search} onValueChange={setSearch} placeholder="Search compressors" wrapperClassName="min-w-48 max-w-xs flex-1" />
-            <Select className="w-44" aria-label="Filter by location" value={locationF} onValueChange={setLocationF} options={[{ value: ALL, label: 'All locations' }, ...locations.map(l => ({ value: l, label: l }))]} />
-            <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...STATUS_KEYS.map(k => ({ value: k, label: STATUS_META[k].label }))]} />
-            {hasFilters && <Button variant="ghost" icon="close" onClick={clearFilters}>Clear filters</Button>}
-          </Toolbar>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Checkbox label="Include offline" checked={includeOffline} onChange={e => setIncludeOffline(e.target.checked)} />
-            <Checkbox label="Show daily figures" checked={showDaily} onChange={e => setShowDaily(e.target.checked)} />
-            <Checkbox label="Service due soon only" checked={dueSoon} onChange={e => setDueSoon(e.target.checked)} />
+      {/* View switch: the floor is the job; the rest are references */}
+      <nav aria-label="Compressor views" className="flex flex-wrap items-center justify-between gap-3">
+        {/* Scrolls sideways within its own width on a narrow screen rather than widening the page. */}
+        <div className="relative flex max-w-full gap-1 overflow-x-auto rounded-[10px] bg-[var(--mo-surface-muted)] p-1 shadow-[inset_0_1px_3px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] [scrollbar-width:none]">
+          {([['floor', 'Floor'], ['month', 'Month'], ['services', 'Services'], ['analytics', 'Analytics'], ['fleet', 'Fleet']] as const).map(([v, label]) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+              className="relative z-10 shrink-0 rounded-[8px] px-4 py-1.5 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
+              {view === v && <motion.span layoutId="view-pill" className="absolute inset-0 -z-10 rounded-[8px] bg-[var(--mo-surface-raised)] shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]" transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }} />}
+              {label}
+            </button>
+          ))}
+        </div>
+        {(view === 'floor' || view === 'month') && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select className="w-44" aria-label="Location" value={location} onValueChange={setLocation} options={[{ value: ALL, label: 'All locations' }, ...locations.map(l => ({ value: l, label: l }))]} />
+            {view === 'floor' && <div className="flex rounded-[8px] border border-[var(--mo-line-subtle)] p-0.5" role="group" aria-label="Layout">
+              <IconButton icon="grid-view" size="sm" label="Pods" variant={layout === 'pods' ? 'outline' : 'ghost'} aria-pressed={layout === 'pods'} onClick={() => setLayout('pods')} />
+              <IconButton icon="table-view" size="sm" label="List" variant={layout === 'list' ? 'outline' : 'ghost'} aria-pressed={layout === 'list'} onClick={() => setLayout('list')} />
+            </div>}
           </div>
+        )}
+      </nav>
 
-          <DataRegion
-            status={status}
-            subject="compressors"
-            error={register.error}
-            onRetry={() => d.refresh()}
-            empty={hasFilters
-              ? <EmptyState icon="search" title="No compressors match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-              : <EmptyState icon="compressor" title="No compressors registered" description="Add the first compressor to start recording readings." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add compressor</Button>} />}
-          >
-            {previous.failed.length > 0 && <Notice tone="warning" title="Some previous readings could not be loaded">{previous.failed.length === 1 ? 'One compressor shows' : `${previous.failed.length} compressors show`} no previous totals. Its daily figures are left blank rather than guessed.</Notice>}
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'compressor' : 'compressors'}{filtered.length !== compressors.length ? ` of ${compressors.length}` : ''} · readings for {dayLabel(date)}</p>
-            {view === 'cards' ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(card)}</div>
-            ) : (
-              <DataTable
-                caption="Compressors"
-                rows={filtered}
-                columns={COLUMNS}
-                getRowId={c => String(c.id)}
-                onRowActivate={c => setReadingId(c.id)}
-                rowActions={c => (
-                  <span className="inline-flex gap-1">
-                    <IconButton icon="edit" size="sm" label={`Enter a reading for ${c.name}`} onClick={() => setReadingId(c.id)} />
-                    <IconButton icon="settings" size="sm" label={`Change status of ${c.name}`} onClick={() => setStatusId(c.id)} />
-                  </span>
-                )}
-              />
-            )}
-          </DataRegion>
-        </TabsContent>
+      <AnimatePresence mode="wait">
+        <motion.div key={view} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.22 }}>
+          {view === 'floor' && (
+            <div className="flex flex-col gap-5">
+              <ServiceRunway items={dueSoon} onOpen={setOpenId} />
+              <DataRegion
+                status={status}
+                subject="compressors"
+                error={register.error}
+                onRetry={() => d.refresh()}
+                empty={compressors.length
+                  ? <EmptyState icon="search" title="No compressors match" description="Try another location or status." action={<Button onClick={() => { setLocation(ALL); setStatusF(ALL); }}>Show all</Button>} />
+                  : <EmptyState icon="compressor" title="No compressors registered" description="Compressors are added in the Equipment register (category Compressors) and appear here." action={<Link href="/equipment" className={buttonVariants({ variant: 'primary' })}><Icon name="plus" size="sm" />Add in Equipment register</Link>} />}
+              >
+                {layout === 'pods'
+                  ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{shown.map((c, i) => <UnitPod key={c.id} compressor={c} index={i} recordedToday={recorded.has(c.id)} justSaved={justSaved === c.id} kick={kicks[c.id] ?? 0} onOpen={() => setOpenId(c.id)} />)}</div>
+                  : <UnitList rows={shown} recorded={recorded} onOpen={setOpenId} />}
+              </DataRegion>
+            </div>
+          )}
+          {view === 'month' && (
+            <MonthView
+              compressors={shown}
+              history={previous.history}
+              loading={previous.loading}
+              year={ym.y} month={ym.m}
+              today={localDateString(new Date())}
+              onMonth={(y, m) => setYm({ y, m })}
+              onOpenDay={(id, day) => { setDate(day); setOpenId(id); }}
+              onOpenUnit={showUnit}
+            />
+          )}
+          {view === 'unit' && (() => {
+            const u = compressors.find(x => x.id === unitId);
+            return u ? (
+              <UnitView compressor={u} history={previous.history[u.id] ?? []} loading={previous.loading} today={localDateString(new Date())}
+                onBack={() => setView('floor')} onOpenDay={day => { setDate(day); setOpenId(u.id); }} />
+            ) : null;
+          })()}
+          {view === 'services' && <div className={s.viewEnter}><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
+          {view === 'analytics' && <div className={s.viewEnter}><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
+          {view === 'fleet' && <div className={s.viewEnter}><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
+        </motion.div>
+      </AnimatePresence>
 
-        <TabsContent value="services" className="mt-4">
-          <ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} onComplete={d.completeService} onExport={d.exportCsv} onImport={d.importCsv} />
-        </TabsContent>
-        <TabsContent value="analytics" className="mt-4">
-          <AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} />
-        </TabsContent>
-        <TabsContent value="management" className="mt-4">
-          <ManagementTab summary={d.summary} onRetry={() => d.refresh()} onExport={d.exportCsv} onBackup={backup} backupReady={register.loaded} />
-        </TabsContent>
-      </Tabs>
-
-      <AddCompressorDialog open={adding} onOpenChange={setAdding} locations={locations} onAdd={d.addCompressor} />
-      <StatusDialog compressor={statusCompressor} onClose={() => setStatusId(null)} onChange={d.changeStatus} />
-      <Dialog open={!!readingCompressor} onOpenChange={o => { if (!o) setReadingId(null); }} title={readingCompressor ? `Reading for ${readingCompressor.name}` : 'Reading'} size="md">
-        {readingCompressor && card(readingCompressor)}
-      </Dialog>
+      <UnitDrawer
+        compressor={open}
+        previous={open ? previous.byId[open.id] : undefined}
+        previousUnavailable={open ? previous.failed.includes(open.id) : false}
+        previousLoading={previous.loading}
+        dateLabel={dayLabel(date)}
+        recordedToday={open ? recorded.has(open.id) : false}
+        onClose={() => setOpenId(null)}
+        onSave={async (id, v) => { await d.saveReading(id, v); setJustSaved(id); kick(id); signal('saved'); }}
+        onStatus={async (id, st) => { await d.changeStatus(id, st); kick(id); signal('status'); }}
+        onHistory={showUnit}
+      />
     </div>
   );
 }
 
-export default function CompressorsPage() {
-  return <AppShell migrated><CompressorsContent /></AppShell>;
+/** The dense view: one row per unit. */
+function UnitList({ rows, recorded, onOpen }: { rows: Compressor[]; recorded: Set<number>; onOpen: (id: number) => void }) {
+  return (
+    <div className={`${s.slab} overflow-hidden`}>
+      <ul className="divide-y divide-[var(--mo-line-subtle)]">
+        {rows.map(c => {
+          const life = serviceLife(c.total_running_hours);
+          return (
+            <li key={c.id} style={{ ['--accent' as string]: statusAccent(c.status) }}>
+              <button type="button" onClick={() => onOpen(c.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-[var(--mo-surface-subtle)] focus-visible:bg-[var(--mo-surface-subtle)] focus-visible:outline-none sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]">
+                <span className={s.lamp} data-state={c.status} />
+                <span className="min-w-0"><span className="block truncate font-sans text-body font-medium text-ink">{c.name}</span><span className="block truncate font-sans text-caption text-ink-muted">{c.location}</span></span>
+                <span className="hidden font-sans text-body tabular text-ink sm:block">{hours(c.total_running_hours)}</span>
+                <span className="hidden font-sans text-caption text-ink-muted sm:block">{life.next ? `${life.next} h in ${life.hoursLeft?.toFixed(0)} h` : 'All passed'}</span>
+                <span className="font-sans text-caption font-medium" style={{ color: recorded.has(c.id) ? 'var(--mo-success)' : 'var(--mo-ink-muted)' }}>{recorded.has(c.id) ? 'Recorded' : 'Reading due'}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Services coming up, nearest first, as one slim strip. Folded (the default, remembered in this browser) it is a single
+ * line: the next service and how many fall within a week and within 30 days. Open, it is a small aligned list: name, a thin
+ * bar, hours to go and the service it is heading for. Six rows show; the rest are one click away.
+ */
+function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: ReturnType<typeof serviceLife> }[]; onOpen: (id: number) => void }) {
+  const reduced = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  const [all, setAll] = useState(false);
+  // Browser storage is only readable after mount.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading it during render would differ from the server render
+    try { if (window.localStorage.getItem(RUNWAY_KEY) === '1') setOpen(true); } catch { /* storage unavailable: stays folded */ }
+  }, []);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try { window.localStorage.setItem(RUNWAY_KEY, next ? '1' : '0'); } catch { /* the choice lasts this visit */ }
+  };
+  const first = items[0];
+  const week = items.filter(x => x.life.urgent).length;
+  const month = items.filter(x => (x.life.daysLeft ?? Infinity) <= 30).length;
+  const shown = all ? items : items.slice(0, 6);
+  const bodyId = 'service-runway-list';
+  return (
+    <section aria-label="Service runway" className={`${s.slab} px-4 py-2`} data-still="">
+      <button type="button" aria-expanded={open} aria-controls={bodyId} onClick={toggle}
+        className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-[8px] py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
+        <span className="font-sans text-body-sm font-medium text-ink">Services</span>
+        <span className="min-w-0 flex-1 truncate font-sans text-caption text-ink-muted">
+          {first ? <>Next: <span className="text-ink">{first.c.name.trim()}</span> in {first.life.hoursLeft?.toFixed(0)} h</> : 'No planned services ahead'}
+        </span>
+        <span className="font-sans text-caption tabular" style={{ color: week ? 'var(--mo-danger)' : 'var(--mo-ink-muted)' }}>{week} within a week</span>
+        <span className="font-sans text-caption tabular text-ink-muted">{month} within 30 days</span>
+        <Icon name="chevron-down" size="xs" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div id={bodyId} key="list"
+            initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={reduced ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: reduced ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
+            <ul className="mt-1 divide-y divide-[var(--mo-line-subtle)] border-t border-[var(--mo-line-subtle)]">
+              {shown.map(({ c, life }) => (
+                <li key={c.id} style={{ ['--accent' as string]: life.tone }}>
+                  <button type="button" onClick={() => onOpen(c.id)}
+                    className="grid w-full grid-cols-[minmax(0,1fr)_5rem] items-center gap-x-4 gap-y-1 px-1 py-1.5 text-left hover:bg-[var(--mo-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)] sm:grid-cols-[minmax(0,11rem)_1fr_5rem_6.5rem]">
+                    <span className="truncate font-sans text-caption text-ink">{c.name.trim()}</span>
+                    <span className={`${s.runway} order-last col-span-2 sm:order-none sm:col-span-1`} aria-hidden="true" style={{ height: 4 }}><span className={s.runwayFill} style={{ display: 'block', width: `${Math.max(3, life.fraction * 100)}%`, boxShadow: 'none' }} /></span>
+                    <span className="text-right font-sans text-caption tabular" style={{ color: life.urgent ? 'var(--mo-danger)' : 'var(--mo-ink)' }}>{life.hoursLeft?.toFixed(0)} h</span>
+                    <span className="hidden text-right font-sans text-caption tabular text-ink-muted sm:block">to {life.next} h</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center justify-between pt-1.5">
+              {items.length > 6
+                ? <button type="button" onClick={() => setAll(a => !a)} className="rounded-[4px] font-sans text-caption text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">{all ? 'Show fewer' : `Show all ${items.length}`}</button>
+                : <span />}
+              <DownloadButton data={servicesFromRegister(items.map(x => x.c)) as unknown as Record<string, unknown>[]} columns={SERVICES_COLUMNS} filename={exportFilename('Compressor_Upcoming_Services')} title="Upcoming compressor services" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+export default function CompressorFloorPage() {
+  return <AppShell migrated><CompressorFloor /></AppShell>;
 }

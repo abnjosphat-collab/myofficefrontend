@@ -56,7 +56,7 @@ function ReliabilityContent() {
         onRetry={refresh}
         empty={<EmptyState icon="analytics" title="No breakdowns recorded yet" description="Reliability figures are calculated from breakdown records. They appear here as soon as breakdowns are logged." />}
       >
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-5">
           <MetricGrid compact>
             <MetricTile compact label="Fleet MTBF" value={`${fleet.mtbf} days`} detail="Mean time between failures" loading={pending} unavailable={unavailable} />
             <MetricTile compact label="Fleet MTTR" value={`${fleet.mttr} h`} detail="Mean time to repair" loading={pending} unavailable={unavailable} />

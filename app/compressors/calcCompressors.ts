@@ -10,7 +10,7 @@
 import { toLocalISODate } from '@/lib/dates';
 
 /** Service intervals in running hours; the next one a compressor has not yet reached is its next service. */
-export const SERVICE_INTERVALS = [1000, 2000, 4000, 8000, 16000];
+export const SERVICE_INTERVALS = [400, 800, 1000, 2000, 4000, 8000]; // Owner, 13 Oct 2026 — must match backend SERVICE_MILESTONES
 
 export function calculateEfficiency(running: number, loaded: number): number {
   return !running ? 0 : parseFloat(((loaded / running) * 100).toFixed(1));

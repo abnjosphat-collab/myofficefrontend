@@ -9,8 +9,8 @@ import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { SERVICE_INTERVALS, localDateString, readingProblems } from './calcCompressors';
 import type {
-  AddCompressorFormData, ComparisonResult, Compressor, CompressorStats, ManagementSummary,
-  PerformanceMetric, PreviousReading, TrendsResult, UpcomingService,
+  ComparisonResult, Compressor, CompressorStats, ManagementSummary,
+  PerformanceMetric, PreviousReading, ReadingRow, TrendsResult, UpcomingService,
 } from './types';
 
 export { SERVICE_INTERVALS };
@@ -67,28 +67,31 @@ export function useCompressorsData(date: string) {
   // The reading before the chosen date, per compressor. A compressor whose history could not be read is
   // listed in `previousFailed`, so its card says so instead of treating the history as empty.
   const idKey = useMemo(() => compressors.map(c => c.id).join(','), [compressors]);
-  const [previous, setPrevious] = useState<{ byId: Record<number, PreviousReading>; failed: number[]; loading: boolean }>({ byId: {}, failed: [], loading: false });
+  // `todayIds`: compressors that already have a reading on the chosen date. `history`: each compressor's readings, oldest first.
+  const [previous, setPrevious] = useState<{ byId: Record<number, PreviousReading>; failed: number[]; loading: boolean; todayIds: number[]; history: Record<number, ReadingRow[]> }>({ byId: {}, failed: [], loading: false, todayIds: [], history: {} });
   const prevRequest = useRef(0);
   useEffect(() => {
-    if (!idKey) { setPrevious({ byId: {}, failed: [], loading: false }); return; }
+    if (!idKey) { setPrevious({ byId: {}, failed: [], loading: false, todayIds: [], history: {} }); return; }
     const request = ++prevRequest.current;
     setPrevious(p => ({ ...p, loading: true }));
     Promise.all(compressors.map(async c => {
       try {
-        const r = await api.get<{ data?: Array<{ date: string; total_running_hours: number; total_loaded_hours: number }> }>(`/api/compressors/readings/${c.id}/detailed`);
-        const rows = r.data ?? [];
-        if (!rows.length) return { id: c.id, reading: undefined };
+        const r = await api.get<{ data?: ReadingRow[] }>(`/api/compressors/readings/${c.id}/detailed`);
+        const rows = [...(r.data ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+        if (!rows.length) return { id: c.id, reading: undefined, today: false, rows };
+        const today = rows.some(x => x.date === date);
         const prior = rows.filter(x => x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
         const reading: PreviousReading = prior
           ? { total_running_hours: prior.total_running_hours, total_loaded_hours: prior.total_loaded_hours, date: prior.date }
           : { total_running_hours: c.initial_total_running || 0, total_loaded_hours: c.initial_total_loaded || 0, date: 'Initial' };
-        return { id: c.id, reading };
-      } catch { return { id: c.id, reading: undefined, failed: true }; }
+        return { id: c.id, reading, today, rows };
+      } catch { return { id: c.id, reading: undefined, failed: true, today: false, rows: [] as ReadingRow[] }; }
     })).then(results => {
       if (request !== prevRequest.current) return;
       const byId: Record<number, PreviousReading> = {};
-      for (const r of results) if (r.reading) byId[r.id] = r.reading;
-      setPrevious({ byId, failed: results.filter(r => 'failed' in r && r.failed).map(r => r.id), loading: false });
+      const history: Record<number, ReadingRow[]> = {};
+      for (const r of results) { if (r.reading) byId[r.id] = r.reading; history[r.id] = r.rows; }
+      setPrevious({ byId, failed: results.filter(r => 'failed' in r && r.failed).map(r => r.id), loading: false, todayIds: results.filter(r => r.today).map(r => r.id), history });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idKey, date, version]);
@@ -105,51 +108,25 @@ export function useCompressorsData(date: string) {
     await refresh();
   };
 
-  const addCompressor = async (data: AddCompressorFormData) => {
-    try { await api.post('/api/compressors/compressors', data); } catch (e) { throw new Error(messageOf(e, 'The compressor could not be added.')); }
-    await refresh();
-  };
-
   const changeStatus = async (id: number, status: string) => {
     try { await api.patch(`/api/compressors/compressors/${id}/status`, { status }); } catch (e) { throw new Error(messageOf(e, 'The status could not be changed.')); }
     await refresh();
   };
 
-  /** Records the service, then sets the running meter to the interval (the page's established behaviour). */
+  /** Records the service at the compressor's actual meter. The meter is never rewritten: the next service is
+      whatever interval sits past the current reading, so forcing it back to the interval only corrupts history. */
   const completeService = async (id: number, interval: number) => {
     const c = compressors.find(x => x.id === id);
     if (!c) throw new Error('That compressor is no longer in the register.');
     try {
-      await api.post('/api/compressors/service-records', { compressor_id: id, service_type: `${interval} Hour Service`, service_date: localDateString(new Date()), running_hours_at_service: interval, description: `Completed ${interval} hour service`, is_completed: true });
+      await api.post('/api/compressors/service-records', { compressor_id: id, service_type: `${interval} Hour Service`, service_date: localDateString(new Date()), running_hours_at_service: c.total_running_hours, description: `Completed ${interval} hour service`, is_completed: true });
     } catch (e) { throw new Error(messageOf(e, 'The service could not be recorded.')); }
-    try {
-      await api.post('/api/compressors/daily-entries/cumulative', { compressor_id: id, date, current_total_running: interval, current_total_loaded: c.total_loaded_hours, pressure: 0, temperature: 0, notes: `${interval} hour service completed` });
-    } catch (e) {
-      await refresh();
-      throw new Error(`The service was recorded, but the running hours were not updated: ${messageOf(e, 'unknown error')}`);
-    }
     await refresh();
-  };
-
-  const exportCsv = async () => {
-    const end = new Date();
-    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const blob = await api.blob('/api/compressors/export', 'POST', { start_date: localDateString(start), end_date: localDateString(end), format: 'csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `compressor-report-${localDateString(end)}.csv`; a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const importCsv = async (file: File) => {
-    const fd = new FormData(); fd.append('file', file);
-    const result = await api.post<{ errors?: unknown[]; imported_count?: number }>('/api/compressors/import', fd);
-    await refresh();
-    return { imported: result.imported_count ?? 0, errors: result.errors?.length ?? 0 };
   };
 
   return {
     register, compressors, stats, services, metrics, trends, comparison, summary, previous,
     period, setPeriod, metric, setMetric,
-    refresh, saveReading, addCompressor, changeStatus, completeService, exportCsv, importCsv,
+    refresh, saveReading, changeStatus, completeService,
   };
 }
