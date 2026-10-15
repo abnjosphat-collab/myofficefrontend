@@ -51,23 +51,21 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       g.lineCap = 'round';
       // A flat net standing like a wall, turned a little so its right side recedes in perspective: near cells open on the left, closing in
       // towards the right. It fills the whole background. Lines and points are thin and fade slightly with distance.
-      const yaw = 0.92; const pitch = -0.06;
+      const yaw = Math.PI / 3; const pitch = -0.04; // the wall is turned 60 degrees into the background
       const cyw = Math.cos(yaw); const syw = Math.sin(yaw); const cp = Math.cos(pitch); const sp = Math.sin(pitch);
-      const focal = 2.0 * Math.max(width, height * 1.3);
-      const cx = width * 0.5; const cy = height * 0.5;
-      const STEP = 0.05; const NX = 300; const NY = 200; const DEPTH = 3.2;
-      const TURN = Math.PI / 4; const ct = Math.cos(TURN); const st = Math.sin(TURN); // the whole wall is turned 45 degrees on the screen
+      const focal = 1.7 * Math.max(width, height * 1.3);
+      const cx = width * 0.1; const cy = height * 0.5;
+      const STEP = 0.07; const NX = 200; const NY = 90; const DEPTH = 1.9;
       const project = (i: number, j: number) => {
-        const u = (i - 40) * STEP; const v = (j - NY / 2) * STEP;
+        const u = (i - 10) * STEP; const v = (j - NY / 2) * STEP;
         const x1 = u * cyw; const z1 = u * syw;
         const y2 = v * cp - z1 * sp; const z2 = v * sp + z1 * cp;
         const depth = DEPTH + z2;
         const s = depth > 0.2 ? focal / depth : 0;
-        const dx = x1 * s; const dy = y2 * s;
-        return { x: width * 0.5 + (cx - width * 0.5 + dx) * ct - (cy - height * 0.5 + dy) * st, y: height * 0.5 + (cx - width * 0.5 + dx) * st + (cy - height * 0.5 + dy) * ct, d: depth, ok: depth > 0.2 };
+        return { x: cx + x1 * s, y: cy + y2 * s, d: depth, ok: depth > 0.2 };
       };
       const smooth = (lo: number, hi: number, x: number) => { const k = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return k * k * (3 - 2 * k); };
-      const fade = (d: number) => (1 - smooth(4.0, 7.2, d)) * (1 + 0.2 * (1 - smooth(2.6, 3.1, d))); // the far right dissolves into the horizon
+      const fade = (d: number) => (1 - smooth(3.4, 8.0, d)) * (1 + 0.3 * (1 - smooth(1.7, 2.4, d))); // the far right dissolves into the horizon
       g.strokeStyle = lineColor; g.lineWidth = 0.75;
       const seg = (i0: number, j0: number, i1: number, j1: number) => {
         const a = project(i0, j0); const c = project(i1, j1);
@@ -85,7 +83,7 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
           const q = project(i, j);
           if (!q.ok || q.x < -6 || q.x > width + 6 || q.y < -6 || q.y > height + 6) continue;
           const f = fade(q.d);
-          const r = Math.min(1.6, 0.35 + 3.4 / (q.d * q.d));
+          const r = Math.min(1.9, 0.35 + 2.6 / (q.d * q.d));
           if (f < 0.12 || r < 0.5) continue;
           g.globalAlpha = Math.min(1, 0.8 * f);
           g.beginPath(); g.arc(q.x, q.y, r, 0, 6.2832); g.fill();
@@ -96,7 +94,7 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
     const drawStage = () => {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (quiet) { ctx.globalAlpha = 0.3; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
+      if (quiet) { ctx.globalAlpha = 0.13; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
       if (reduced) { ctx.globalAlpha = 0.55; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
       ctx.globalAlpha = dark ? 0.36 : 0.3; ctx.drawImage(lit, 0, 0); // the net at rest: quiet but present
       const cycle = (clock % SWEEP_SECONDS) / SWEEP_SECONDS;
