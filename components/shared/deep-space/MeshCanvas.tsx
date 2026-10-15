@@ -91,28 +91,34 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       }
       g.globalAlpha = 1;
     };
+    const comp = document.createElement('canvas'); // one wall with its light, composed once per frame, then shown twice
     const drawStage = () => {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (quiet) { ctx.globalAlpha = 0.13; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
-      if (reduced) { ctx.globalAlpha = 0.55; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
-      ctx.globalAlpha = dark ? 0.36 : 0.3; ctx.drawImage(lit, 0, 0); // the net at rest: quiet but present
-      const cycle = (clock % SWEEP_SECONDS) / SWEEP_SECONDS;
-      const progress = cycle / SWEEP_ACTIVE;
-      if (progress > 1) { ctx.globalAlpha = 1; return; } // resting between passes
-      const half = 0.3 * canvas.width;
-      const centre = (-0.3 + 1.6 * progress) * canvas.width; // from just off the left edge to just off the right
-      const b = band.getContext('2d');
-      if (!b) return;
-      band.width = canvas.width; band.height = canvas.height;
-      b.drawImage(lit, 0, 0);
-      const grad = b.createLinearGradient(centre - half, 0, centre + half, 0);
-      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(0.5, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
-      b.globalCompositeOperation = 'destination-in';
-      b.fillStyle = grad; b.fillRect(0, 0, band.width, band.height);
-      ctx.globalAlpha = 0.8; ctx.drawImage(band, 0, 0); // the lit net inside the band
-      ctx.globalAlpha = 0.3; ctx.filter = 'blur(7px)'; ctx.drawImage(band, 0, 0); ctx.filter = 'none'; // and a soft glow round it
-      ctx.globalAlpha = 1;
+      const c = comp.getContext('2d');
+      if (!c) return;
+      comp.width = canvas.width; comp.height = canvas.height;
+      if (quiet) { c.globalAlpha = 0.13; c.drawImage(lit, 0, 0); }
+      else if (reduced) { c.globalAlpha = 0.55; c.drawImage(lit, 0, 0); }
+      else {
+        c.globalAlpha = dark ? 0.36 : 0.3; c.drawImage(lit, 0, 0); // the net at rest: quiet but present
+        const cycle = (clock % SWEEP_SECONDS) / SWEEP_SECONDS;
+        const progress = cycle / SWEEP_ACTIVE;
+        const b = band.getContext('2d');
+        if (progress <= 1 && b) { // (between passes the net rests)
+          const half = 0.3 * canvas.width;
+          const centre = (-0.3 + 1.6 * progress) * canvas.width; // from just off the left edge to just off the right
+          band.width = canvas.width; band.height = canvas.height;
+          b.drawImage(lit, 0, 0);
+          const grad = b.createLinearGradient(centre - half, 0, centre + half, 0);
+          grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(0.5, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
+          b.globalCompositeOperation = 'destination-in';
+          b.fillStyle = grad; b.fillRect(0, 0, band.width, band.height);
+          c.globalAlpha = 0.8; c.drawImage(band, 0, 0); // the lit net inside the band
+          c.globalAlpha = 0.3; c.filter = 'blur(7px)'; c.drawImage(band, 0, 0); c.filter = 'none'; // and a soft glow round it
+        }
+      }
+      ctx.drawImage(comp, 0, 0);
     };
 
     // ---------------------------------------------------------------- floor: a faint plane swaying slowly
