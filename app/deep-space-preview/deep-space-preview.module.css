@@ -1,0 +1,276 @@
+/* app/deep-space-preview/deep-space-preview.module.css — the whole look of the /deep-space-preview
+   prototype. Deliberately self-contained: no ui-system components, floor tokens, Tailwind colour classes or
+   global design tokens. The palette is defined once as custom properties on .page (all hex in this file only —
+   the local/no-hex-colour rule covers TS/TSX, and the canvas reads these values via getComputedStyle). */
+
+.page {
+  --dsp-canvas: #0d0e15;
+  --dsp-teal: #00f2fe;
+  --dsp-purple: #4facfe;
+  --dsp-ink: #ffffff;
+  --dsp-muted: #a0aec0;
+  --dsp-card: rgba(255, 255, 255, 0.05);
+  --dsp-line: rgba(255, 255, 255, 0.12);
+  --dsp-font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Opaque full-viewport ground: the app body behind this route never shows through. Positioned above the
+     app-wide floor backdrop (z-index -1) without touching it. */
+  position: relative;
+  z-index: 0;
+  min-height: 100vh;
+  background: var(--dsp-canvas);
+  color: var(--dsp-ink);
+  font-family: var(--dsp-font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- 3D vector background ---- */
+.canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+  display: block;
+}
+
+/* ---- Floating foreground layer ---- */
+.stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  max-width: 540px;
+  padding: 3rem;
+  border-radius: 24px;
+  background: var(--dsp-card);
+  border: 1px solid var(--dsp-line);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 12px 24px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Tabbed navigation ---- */
+.tabs {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 30px;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+  margin: 0 0 2rem 0;
+  box-sizing: border-box;
+}
+
+.tab {
+  flex: 1 1 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dsp-muted);
+  font-family: var(--dsp-font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 26px;
+  padding: 0.65rem 0.5rem;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.tab svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.tab:hover {
+  color: var(--dsp-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+  color: var(--dsp-ink);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--dsp-teal);
+  outline-offset: 2px;
+}
+
+/* ---- Panel heading & body ---- */
+.title {
+  font-family: var(--dsp-font);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--dsp-ink);
+  margin: 0 0 1.5rem 0;
+}
+
+.lead {
+  font-family: var(--dsp-font);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--dsp-muted);
+  margin: 0 0 1.75rem 0;
+}
+
+/* ---- Form ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 1.75rem 0;
+}
+
+.field label {
+  font-family: var(--dsp-font);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--dsp-muted);
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.inputWrap svg {
+  position: absolute;
+  left: 1rem;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.inputWrap input {
+  width: 100%;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--dsp-line);
+  border-radius: 12px;
+  padding: 0 1rem 0 2.75rem;
+  margin: 0;
+  font-family: var(--dsp-font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--dsp-ink);
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.inputWrap input::placeholder {
+  color: rgba(160, 174, 192, 0.7);
+  font-weight: 400;
+  opacity: 1;
+}
+
+.inputWrap input:focus {
+  outline: none;
+  border-color: var(--dsp-teal);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ---- Action buttons ----
+   Contrast: white on solid #00f2fe is ~1.4:1, so the primary is a dark teal-tinted fill with a bright
+   teal border — white text on the near-black result is ~14:1. */
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  flex: 1 1 0;
+  min-width: 140px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--dsp-font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 12px;
+  padding: 0 1.5rem;
+  margin: 0;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.primary {
+  background: rgba(0, 242, 254, 0.14);
+  border: 1px solid var(--dsp-teal);
+  color: var(--dsp-ink);
+}
+
+.primary:hover {
+  background: rgba(0, 242, 254, 0.26);
+  box-shadow: 0 0 16px rgba(0, 242, 254, 0.35);
+  transform: translateY(-1px);
+}
+
+.primary:active {
+  transform: translateY(0);
+  opacity: 0.9;
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--dsp-line);
+  color: var(--dsp-muted);
+}
+
+.secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: var(--dsp-ink);
+}
+
+.secondary:active {
+  opacity: 0.85;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--dsp-teal);
+  outline-offset: 2px;
+}

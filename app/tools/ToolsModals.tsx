@@ -9,6 +9,8 @@ import { BulkIssueForm } from './BulkIssueForm';
 import { ToolsDialog, EvidencePicker, type AddEvidence } from './ToolsUI';
 import { ToolsCustomize } from './ToolsCustomize';
 import { ToolsAuth } from './ToolsAuth';
+import { DeepSpaceStage } from '@/components/shared/deep-space/DeepSpaceStage';
+import { AuthCard } from '@/components/app-shell/auth/AuthLayout';
 import { ToolsFeedback } from './ToolsFeedback';
 import { ToolsImport } from './ToolsImport';
 import { ToolsExport } from './ToolsExport';
@@ -54,7 +56,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   const close = () => w.setModal(null);
   const body = (() => {
     if (!modal) return null;
-    if (modal.kind === 'customize') return <ToolsCustomize options={w.options} setOptions={w.setOptions} iconPack={w.sidebarNav.iconPack} onIconPack={iconPack => w.setSidebarNav(state => ({ ...state, iconPack }))} />;
+    if (modal.kind === 'customize') return <ToolsCustomize options={w.options} setOptions={w.setOptions} />;
     if (modal.kind === 'auth') return <ToolsAuth accounts={w.accounts} currentAccount={w.currentAccount} onCreate={w.createAccount} onLogin={w.login} onLogout={w.signOut} onCancel={() => { if (!w.authenticationRequired) close(); }} allowCancel={!w.authenticationRequired} />;
     if (modal.kind === 'feedback') return <ToolsFeedback onSubmit={w.submitFeedback} onCancel={close} />;
     if (modal.kind === 'import') return <ToolsImport onApply={w.applyImport} onCancel={close} />;
@@ -66,7 +68,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     }
     if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => void w.saveAttachments(modal.tool, files)} />;
     if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => void w.markToolReady(modal.tool, note)} onCancel={close} />;
-    if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => void w.saveBulkIssue(input)} />;
+    if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => w.saveBulkIssue(input)} />;
     if ('tool' in modal) {
       return (
         <MovementForm key={`${modal.kind}-${modal.tool?.id || 'select'}-${('employee' in modal ? modal.employee?.id : '') || ''}`} kind={modal.kind}
@@ -77,6 +79,14 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     }
     return null;
   })();
+  // Signed out: the workspace is closed until sign-in, so the sign-in is a full screen over the deep-space field, not a dialog.
+  if (modal?.kind === 'auth' && w.authenticationRequired) {
+    return (
+      <DeepSpaceStage>
+        <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title">{body}</AuthCard>
+      </DeepSpaceStage>
+    );
+  }
   return (
     <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }}
       wide={['customize', 'feedback', 'import', 'export', 'bulk-issue'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>

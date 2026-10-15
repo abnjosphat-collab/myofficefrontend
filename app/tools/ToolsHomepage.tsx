@@ -26,7 +26,7 @@ const SECTION_DESCRIPTIONS: Partial<Record<ToolsTab, string>> = {
 
 const MOVEMENTS_OPEN_KEY = 'myoffice.tools.movementsOpen';
 
-export function ToolsHomepage({ stats, attention, movements, historyFailed, attentionFailed, historyLoading = false, attentionLoading = false, sections, scopeLabel, onNavigate, onRetry }: {
+export function ToolsHomepage({ stats, attention, movements, historyFailed, attentionFailed, historyLoading = false, attentionLoading = false, sections, scopeLabel, onNavigate, onRetry, onIssue, canIssue }: {
   stats: HomepageStat[];
   attention: HomepageAttention[];
   movements: HomepageMovement[];
@@ -39,6 +39,9 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
   scopeLabel: string;
   onNavigate: (tab: ToolsTab, filter: Status | 'all') => void;
   onRetry: () => void;
+  /** Issuing is the workspace's central action, so the overview carries it too. */
+  onIssue: () => void;
+  canIssue: boolean;
 }) {
   const [movementsChosen, setMovementsChosen] = useState(() => { try { return typeof window !== 'undefined' && window.localStorage.getItem(MOVEMENTS_OPEN_KEY) === '1'; } catch { return false; } });
   const toggleMovements = () => setMovementsChosen(open => { const next = !open; try { window.localStorage.setItem(MOVEMENTS_OPEN_KEY, next ? '1' : '0'); } catch { /* storage unavailable */ } return next; });
@@ -47,7 +50,10 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
   const movementsChip = historyLoading ? 'Loading…' : historyFailed ? 'Unavailable' : String(movements.length);
   return (
     <div className="flex flex-col gap-5">
-      <p className="font-sans text-body-sm text-ink-muted">{scopeLabel}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-sans text-body-sm text-ink-muted">{scopeLabel}</p>
+        <Button variant="primary" onClick={onIssue} disabled={!canIssue}>Issue tools</Button>
+      </div>
       <MetricGrid compact>
         {stats.map(stat => (
           <MetricTile key={stat.key} compact label={stat.label} value={stat.value} loading={stat.loading} unavailable={stat.unavailable}

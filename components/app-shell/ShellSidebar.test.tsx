@@ -92,4 +92,12 @@ describe('ShellSidebar', () => {
     render(<TooltipProvider><ShellSidebar {...base} collapsed search={search} /></TooltipProvider>);
     expect(screen.queryByRole('textbox', { name: 'Search modules and pages' })).not.toBeInTheDocument();
   });
+
+  it('offers a search button on the collapsed rail that expands back to the field', async () => {
+    const user = userEvent.setup();
+    const onSearchExpand = vi.fn();
+    render(<TooltipProvider><ShellSidebar {...base} collapsed search={<input aria-label="Search modules and pages" />} onSearchExpand={onSearchExpand} /></TooltipProvider>);
+    await user.click(screen.getByRole('button', { name: 'Search' }));
+    expect(onSearchExpand).toHaveBeenCalledTimes(1);
+  });
 });

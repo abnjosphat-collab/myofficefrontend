@@ -13,10 +13,10 @@ const ICON: Record<ConditionState, { name: IconMeaning; className: string }> = {
   attention: { name: 'warning', className: 'text-warning' },
 };
 
-export function ToolConditions({ tool, employee, preUseChecked = false, kind = 'issue' }: {
-  tool: Tool; employee?: Employee | null; preUseChecked?: boolean; kind?: 'issue' | 'transfer';
+export function ToolConditions({ tool, employee }: {
+  tool: Tool; employee?: Employee | null;
 }) {
-  const rows = toolConditions(tool, employee, { preUseChecked, kind });
+  const rows = toolConditions(tool, employee);
   return (
     <section aria-label={`Conditions for ${tool.name}`} className="flex flex-col gap-2 rounded-card border border-line-subtle bg-surface-subtle/50 p-3">
       <h3 className="font-sans text-label font-semibold text-ink">Conditions for this tool</h3>

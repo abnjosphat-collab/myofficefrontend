@@ -1,0 +1,145 @@
+/* components/shared/deep-space/deep-space.module.css — the sign-in surface. Light is the app's own sage canvas with the sage tokens as they
+   are; `.dark` re-maps those tokens inside the stage to a dark sage version, so the shared Input, Button, Field and Segmented controls follow
+   with no per-control styling. The canvas reads its line and node colours from --ds-line / --ds-node via getComputedStyle. Hex values for the
+   dark variant live in this file only. */
+
+.stage {
+  --ds-line: var(--mo-focus);
+  --ds-node: var(--mo-action);
+  /* The cloth: one colour, a milky white linen (light); the same single colour in low light (dark). */
+  --ds-silk-base: #f8f6f1;
+  --ds-silk-shade: #d3cec3;
+  --ds-silk-hi: #ffffff;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--mo-z-modal, 50);
+  overflow-y: auto;
+  background: var(--mo-canvas);
+  color: var(--mo-ink);
+  font-family: var(--mo-font-body, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* Dark sage: the app's sage green taken dark for the ground, its lighter tints for the mesh and the accent. */
+.dark {
+  /* The reference design's own colours, measured from it: deep navy ground, bright cyan points, blue lines, a dark navy glass card. */
+  --ds-canvas: #0a0d16;
+  --ds-accent: #3df2ff;
+  --ds-line: #3f67b3;
+  --ds-node: #3df2ff;
+  --ds-silk-base: #1a2440;
+  --ds-silk-shade: #070a12;
+  --ds-silk-hi: #7fb4ff;
+
+  --mo-canvas: var(--ds-canvas);
+  --mo-paper: rgba(255, 255, 255, 0.04);
+  --mo-surface: #0b1224;
+  --mo-surface-raised: #0e1730;
+  --mo-surface-subtle: #09101f;
+  --mo-surface-muted: #121c38;
+  --mo-soft: #152142;
+  --mo-surface-interactive: #1a2850;
+  --mo-surface-interactive-hover: #223362;
+  --mo-ink: #ffffff;
+  --mo-ink-muted: #a0aec0;
+  --mo-ink-subtle: #8896ab;
+  --mo-line: rgba(140, 175, 255, 0.16);
+  --mo-line-subtle: rgba(140, 175, 255, 0.09);
+  --mo-line-control: rgba(160, 190, 255, 0.38);
+  --mo-line-strong: rgba(160, 190, 255, 0.5);
+  --mo-action: var(--ds-accent);
+  --mo-action-hover: #7df6ff;
+  --mo-action-pressed: #20c9dc;
+  --mo-action-ink: #03212a;
+  --mo-action-soft: rgba(61, 242, 255, 0.14);
+  --mo-action-soft-hover: rgba(61, 242, 255, 0.24);
+  --mo-focus: var(--ds-accent);
+  --mo-danger: #ff8a93;
+  --mo-danger-soft: rgba(255, 138, 147, 0.12);
+  --mo-danger-line: rgba(255, 138, 147, 0.4);
+  --mo-ring: 0 0 0 2px var(--ds-canvas), 0 0 0 4px var(--ds-accent);
+  --mo-shadow-dialog: 0 20px 50px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+
+/* A soft pool of light behind the net (upper left, where the light comes from) and a hint of shade in the far corner: depth for the eye,
+   drawn under the canvas. */
+.stage::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 75% 65% at 32% 38%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(ellipse 70% 60% at 100% 100%, rgba(40, 70, 55, 0.07), rgba(40, 70, 55, 0) 70%);
+}
+.dark::before {
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 40%, rgba(61, 242, 255, 0.05), rgba(61, 242, 255, 0) 70%),
+    radial-gradient(ellipse 70% 60% at 100% 100%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 70%);
+}
+
+.canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.layer {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+/* The card is real glass, as in the reference: nearly see-through, so the net shows behind it, blurred; a hairline edge and a deep, soft shadow
+   lift it off the background. Light: frosted white. Dark: the reference's 5% white. */
+.glass {
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: 0 20px 50px rgba(30, 55, 45, 0.18), 0 2px 6px rgba(30, 55, 45, 0.06);
+  border-radius: 16px;
+}
+.dark .glass {
+  background: rgba(6, 11, 26, 0.7);
+  border: 1px solid rgba(140, 175, 255, 0.12);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+/* The light/dark switch: quiet until hovered or focused. */
+.toggle {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--mo-line);
+  background: color-mix(in srgb, var(--mo-surface) 70%, transparent);
+  color: var(--mo-ink-muted);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+.toggle:hover,
+.toggle:focus-visible { opacity: 1; color: var(--mo-ink); }
+.toggle:focus-visible { outline: 2px solid var(--mo-focus); outline-offset: 2px; }
+.toggle svg { width: 1.1rem; height: 1.1rem; }

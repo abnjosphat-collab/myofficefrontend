@@ -13,10 +13,18 @@ export interface ToolCondition {
   blocker: boolean;
 }
 
-const employeeIds = (employee: Employee) => [employee.backendId, employee.employeeNumber].filter(Boolean) as string[];
+const employeeIds = (employee: { backendId?: string; employeeNumber: string }) => [employee.backendId, employee.employeeNumber].filter(Boolean) as string[];
 
-export function toolConditions(tool: Tool, employee?: Employee | null, opts?: { preUseChecked?: boolean; kind?: 'issue' | 'transfer' }): ToolCondition[] {
-  const kind = opts?.kind ?? 'issue';
+/** One predicate for "may this person take this tool", shared by the conditions panel and both issue forms. */
+export function isEligibleForTool(tool: Tool, employee: { backendId?: string; employeeNumber: string }): boolean {
+  if (tool.competencyRequired === false) return true;
+  const eligible = tool.eligibleEmployees;
+  if (eligible === undefined) return true;
+  const ids = employeeIds(employee);
+  return eligible.some(item => ids.includes(item.id) || ids.includes(item.employeeNumber));
+}
+
+export function toolConditions(tool: Tool, employee?: Employee | null): ToolCondition[] {
   const rows: ToolCondition[] = [];
 
   if (tool.archived) {
@@ -30,14 +38,14 @@ export function toolConditions(tool: Tool, employee?: Employee | null, opts?: { 
   }
 
   const eligible = tool.eligibleEmployees;
-  if (eligible === undefined) {
+  if (tool.competencyRequired === false) {
+    rows.push({ key: 'competency', label: 'No training needed for this item', detail: 'Any active employee may take it.', state: 'info', blocker: false });
+  } else if (eligible === undefined) {
     rows.push({ key: 'competency', label: 'No competency list', detail: 'Any active employee may take it.', state: 'info', blocker: false });
   } else if (!employee) {
     rows.push({ key: 'competency', label: 'Competency unchecked', detail: 'Pick an employee to check training, qualification and authorization.', state: 'info', blocker: false });
   } else {
-    const ids = employeeIds(employee);
-    const ok = eligible.some(item => ids.includes(item.id) || ids.includes(item.employeeNumber));
-    rows.push(ok
+    rows.push(isEligibleForTool(tool, employee)
       ? { key: 'competency', label: 'Trained, qualified and authorized', state: 'met', blocker: false }
       : { key: 'competency', label: 'Not qualified for this equipment', detail: 'Update the Compliance register first.', state: 'unmet', blocker: true });
   }
@@ -50,10 +58,8 @@ export function toolConditions(tool: Tool, employee?: Employee | null, opts?: { 
     rows.push({ key: 'inspections', label: `${names} check overdue`, detail: 'Complete it, or go ahead anyway with a written reason.', state: 'unmet', blocker: true });
   }
 
-  if (kind === 'issue' && tool.preUseCheckRequired === true) {
-    rows.push(opts?.preUseChecked
-      ? { key: 'pre-use', label: 'Pre-use inspection confirmed', state: 'met', blocker: false }
-      : { key: 'pre-use', label: 'Pre-use inspection must be confirmed', state: 'unmet', blocker: true });
+  if (tool.preUseCheckRequired === true) {
+    rows.push({ key: 'pre-use', label: 'Pre-use inspection follows issue', detail: 'The borrower records it after receiving the tool.', state: 'info', blocker: false });
   }
 
   if (tool.calibrationRequired) {

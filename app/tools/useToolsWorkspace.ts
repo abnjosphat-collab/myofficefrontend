@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { notify } from '@/lib/notify';
 import { API_BASE } from '@/lib/config';
 import { formatDateTime } from '@/lib/format';
 import { type AddEvidence } from './ToolsUI';
@@ -20,7 +20,7 @@ import { ToolsApiError, toolsApi, toolsLoginErrorMessage } from './toolsApi';
 import { countTools, selectVisibleActivity, selectVisibleTools, type ToolsTab } from './toolSelectors';
 import { buildWorkspaceSearchIndex, searchWorkspace, type WorkspaceSearchResult } from './toolsSearch';
 import { parseToolsPreferences, saveToolsPreferences, TOOLS_PREFERENCES_KEY } from './toolsPreferences';
-import { DEFAULT_ICON_PACK, loadSidebarNav, saveSidebarNav, type SidebarNavState } from './sidebarNav';
+import { loadSidebarNav, saveSidebarNav, type SidebarNavState } from './sidebarNav';
 import { SEED_TOOLS, SEED_ACTIVITY, DEPARTMENTS, STATUS, departmentOf, type Status, type Tool, type Movement, type ActionKind, type Employee, type Evidence, type WorkspaceAccount } from './prototype';
 import { toolFromServer } from './toolFromServer';
 import { loadToolsWorkspace, mapAnalytics, type ServerTool, type ToolNotification, type WorkspaceSource, type WorkspaceSourceResult } from './workspaceLoad';
@@ -62,7 +62,7 @@ export function useToolsWorkspace() {
   const [modal, setModal] = useState<Modal>(null);
   const [feedback, setFeedback] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const [sidebarNav,setSidebarNav]=useState<SidebarNavState>({iconsOpen:true,iconPack:DEFAULT_ICON_PACK});
+  const [sidebarNav,setSidebarNav]=useState<SidebarNavState>({iconsOpen:true});
   const reloadRef = useRef<(account?:WorkspaceAccount|null)=>Promise<void>>(async()=>{});
   const loadRequestId = useRef(0);
   const loadAbortRef = useRef<AbortController|null>(null);
@@ -95,8 +95,8 @@ export function useToolsWorkspace() {
           saveToolsSession(window.localStorage,updated);setCurrentAccount(updated);
         } catch(error) {
           clearToolsSession(window.localStorage);
-          if(error instanceof ToolsApiError&&error.status===401) toast.error('Your saved Tools session expired. Please sign in again.');
-          else toast.error('Your saved Tools session could not be checked.',{description:error instanceof Error?error.message:undefined});
+          if(error instanceof ToolsApiError&&error.status===401) notify.error('Your saved Tools session expired. Please sign in again.');
+          else notify.error('Your saved Tools session could not be checked.',{description:error instanceof Error?error.message:undefined});
         }
       }
       else clearToolsSession(window.localStorage);
@@ -141,7 +141,7 @@ export function useToolsWorkspace() {
     if(account.role!=='admin') { setUsage([]);setClientErrors([]);setFeedbackRecords([]);setAccounts([]); }
   }
   reloadRef.current=reloadWorkspace;
-  useEffect(()=>{ if (!currentAccount?.token) return; void reloadRef.current(currentAccount).catch(error=>{if(error instanceof ToolsApiError&&error.status===401){signOut(false);toast.error('Your saved session expired. Please sign in again.');return;}toast.error(error instanceof Error?error.message:'Could not load Tools & Equipment.');}); },[currentAccount]);
+  useEffect(()=>{ if (!currentAccount?.token) return; void reloadRef.current(currentAccount).catch(error=>{if(error instanceof ToolsApiError&&error.status===401){signOut(false);notify.error('Your saved session expired. Please sign in again.');return;}notify.error(error instanceof Error?error.message:'Could not load Tools & Equipment.');}); },[currentAccount]);
   useEffect(()=>{
     if (!sessionChecking && !currentAccount) setModal(current=>current?.kind==='auth'?current:{kind:'auth'});
   },[sessionChecking,currentAccount]);
@@ -169,7 +169,7 @@ export function useToolsWorkspace() {
   const selected = tools.find(t => t.id === selectedId);
   const selectedFacts:Array<[string,string]> = selected ? [
     ['Register number',selected.id],['Make / model',selected.make||'Not recorded'],['Serial number',selected.serial||'Not recorded'],['Category',selected.category],['Equipment type',selected.kind.replaceAll('-',' ')],['Ownership',selected.ownershipType==='contractor'?`Contractor · ${selected.contractorName||'Not recorded'}`:'Company owned'],['OEM manual / checklist',selected.oemManualRef||'Not recorded'],['Department',departmentOf(selected)],['Section',selected.section||'Not recorded'],['Current location',selected.location],['Designated storage',selected.homeStorageLocation||selected.location],['Storage conditions',selected.storageConditions||'Not recorded'],['Maintenance requirements',selected.maintenanceRequirements||'Not recorded'],['Required PPE',selected.requiredPpe?.join(', ')||'Not recorded'],['Criticality',selected.criticality?.replaceAll('_',' ')||'Standard'],['Safeguards',[selected.cctvRequired&&'CCTV',selected.gpsRequired&&'GPS'].filter(Boolean).join(' · ')||'Standard locked storage'],['Condition',selected.condition],['Working status',selected.workingStatus==='working'?'Working':selected.workingStatus==='not_working'?'Not working':'Not recorded'],['Date of purchase',selected.purchaseDate||'Not recorded'],['Procurement cost',selected.procurementCost!=null?`USD ${selected.procurementCost.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`:'Not recorded'],['Insured',selected.insured==null?'Not recorded':selected.insured?'Yes':'No'],['Last verified',selected.lastVerified||'Not recorded'],['With',selected.holder||'Tool room'],
-    ...(selected.holder?[['Expected return',selected.due||'Not recorded'],...(selected.originalDue&&selected.originalDue!==selected.due?[['Original deadline',selected.originalDue] as [string,string]]:[]),['Work order',selected.job||'Not recorded'],['Used for',selected.assignedEquipment?.join(', ')||'Not recorded']] as Array<[string,string]>:[]),
+    ...(selected.holder?[['Expected return',selected.due||'Not recorded'],...(selected.originalDue&&selected.originalDue!==selected.due?[['Original deadline',selected.originalDue] as [string,string]]:[]),['Work order',selected.job||'Not recorded'],['Used for',selected.assignedEquipment?.join(', ')||'Not recorded'],['Pre-use check',selected.preUsePending?'Still due':'Recorded']] as Array<[string,string]>:[]),
     ...Object.entries(selected.specifications||{}),...(selected.calibration?[['Calibration',selected.calibration] as [string,string]]:[]),...(selected.approvalRef?[['Register approval',selected.approvalRef] as [string,string]]:[]),['Checks due',selected.inspectionDue?.map(item=>item.replaceAll('_',' ')).join(', ')||'None'],
   ] : [];
   const workspaceSearchIndex = useMemo(() => buildWorkspaceSearchIndex(tools,employees,activity,sourceRegisters), [tools,employees,activity,sourceRegisters]);
@@ -180,12 +180,12 @@ export function useToolsWorkspace() {
   const activeRefinements = tab === 'activity' ? 0 : activeFilters + Number(sort !== 'register');
   const clearFilters = () => { setSearch(''); setStatus('all'); setCategory('all'); setLocation('all'); };
   const resetRefinements = () => { clearFilters(); setSort('register'); };
-  const openManageModal = (next: Exclude<Modal,null>) => { if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); toast.error('Sign in with an administrator or Issuer account to manage records.'); return; } setSelectedId(null); setModal(next); };
-  const openSourceRegister = () => { if (!currentAccount) { setModal({kind:'auth'}); toast.error('Sign in to preserve a source register.'); return; } setModal({kind:'source-register'}); };
+  const openManageModal = (next: Exclude<Modal,null>) => { if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); notify.error('Sign in with an administrator or Issuer account to manage records.'); return; } setSelectedId(null); setModal(next); };
+  const openSourceRegister = () => { if (!currentAccount) { setModal({kind:'auth'}); notify.error('Sign in to preserve a source register.'); return; } setModal({kind:'source-register'}); };
   const openAction = (kind: ActionKind, tool?: Tool, employee?:Employee) => {
-    if (currentAccount?.role!=='issuer') { setSelectedId(null); setModal({kind:'auth'}); toast.error('Only an Issuer account can record equipment movements.'); return; }
+    if (currentAccount?.role!=='issuer') { setSelectedId(null); setModal({kind:'auth'}); notify.error('Only an Issuer account can record equipment movements.'); return; }
     const targetDepartment=tool?departmentOf(tool):employee?.department;
-    if (targetDepartment&&targetDepartment!==currentAccount.department) { toast.error(`This Issuer can work only with ${currentAccount.department} records.`); return; }
+    if (targetDepartment&&targetDepartment!==currentAccount.department) { notify.error(`This Issuer can work only with ${currentAccount.department} records.`); return; }
     setSelectedId(null); setModal({kind,tool,employee});
   };
   const filterTo = (next: Status | 'all', nextTab: ToolsTab = 'register') => { clearFilters(); setStatus(next); setTab(nextTab); };
@@ -199,27 +199,27 @@ export function useToolsWorkspace() {
     try {
       if (!current?.backendId) throw new Error('This equipment record has not been saved yet.');
       const employee=employees.find(item=>item.id===input.person||item.name===input.person||`${item.name} · ${item.employeeNumber}`===input.person);
-      await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:input.kind,employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,assigned_equipment:input.assignedEquipment||[],condition:input.condition,notes:input.notes,approval_ref:input.approvalRef,calibration:input.calibration,pre_use_check_completed:input.preUseCheckCompleted,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,idempotency_key:crypto.randomUUID()});
-      await reloadWorkspace(); setModal(null); setFeedback('Change saved.'); toast.success('Change saved');
-    } catch(error) { toast.error(error instanceof Error?error.message:'The movement could not be saved.'); }
+      await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:input.kind,employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,assigned_equipment:input.assignedEquipment||[],condition:input.condition,notes:input.notes,approval_ref:input.approvalRef,calibration:input.calibration,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,idempotency_key:crypto.randomUUID()});
+      await reloadWorkspace(); setModal(null); setFeedback('Change saved.'); notify.success('Change saved');
+    } catch(error) { notify.error(error instanceof Error?error.message:'The movement could not be saved.'); }
   }
   // Issues each picked tool with its own idempotent command; one refusal does not stop the rest, and the
   // summary names what failed so it can be retried.
   async function saveBulkIssue(input: BulkIssueInput) {
-    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); toast.error('Only an Issuer or administrator account can issue equipment.'); return; }
+    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); notify.error('Only an Issuer or administrator account can issue equipment.'); return; }
     const employee=employees.find(item=>item.id===input.person||item.name===input.person||`${item.name} · ${item.employeeNumber}`===input.person);
     const failed:string[]=[]; let done=0;
     for (const toolId of input.toolIds) {
       const current=tools.find(item=>item.id===toolId);
       try {
         if (!current?.backendId) throw new Error('This equipment record has not been saved yet.');
-        await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:'issue',employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,pre_use_check_completed:input.preUseCheckCompleted,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,idempotency_key:crypto.randomUUID()});
+        await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:'issue',employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job||undefined,condition:input.condition,notes:input.notes||undefined,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,idempotency_key:crypto.randomUUID()});
         done+=1;
       } catch { failed.push(toolId); }
     }
     await reloadWorkspace();
-    if (failed.length) { setModal(null); toast.error(`${done} issued. ${failed.length} could not be issued: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`); }
-    else { setModal(null); setFeedback(`Issued ${done} ${done===1?'tool':'tools'}.`); toast.success(`Issued ${done} ${done===1?'tool':'tools'}`); }
+    if (failed.length) { setModal(null); notify.error(`${done} issued. ${failed.length} could not be issued: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`); }
+    else { setModal(null); setFeedback(`Issued ${done} ${done===1?'tool':'tools'}.`); notify.success(`Issued ${done} ${done===1?'tool':'tools'}`); }
   }
   async function uploadNewEvidence(tool:Tool,files:Evidence[]) {
     const fresh=files.filter(file=>file.url.startsWith('blob:'));
@@ -229,61 +229,61 @@ export function useToolsWorkspace() {
     await toolsApi.post(`/tools/${tool.backendId}/evidence`,requireToken(),body);
   }
   async function saveAttachments(tool:Tool,files:Evidence[]) {
-    try { await uploadNewEvidence(tool,files); await reloadWorkspace(); setModal(null); toast.success('Attachments saved'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'Attachments could not be saved.'); }
+    try { await uploadNewEvidence(tool,files); await reloadWorkspace(); setModal(null); notify.success('Attachments saved'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'Attachments could not be saved.'); }
   }
   async function saveTool(tool: Tool) {
     try {
       const editing=modal?.kind==='edit';
-      const payload={register_number:tool.id||undefined,name:tool.name,make_model:tool.make,serial_number:tool.serial,category:tool.category,equipment_kind:tool.kind,storage_location:tool.location,department:departmentOf(tool),section:tool.section,condition:tool.condition,notes:tool.notes,approval_ref:tool.approvalRef,calibration:tool.calibration,specifications:tool.specifications||{},home_storage_location:tool.homeStorageLocation,storage_conditions:tool.storageConditions,maintenance_requirements:tool.maintenanceRequirements,pre_use_check_required:tool.preUseCheckRequired,weekly_inspection_required:tool.weeklyInspectionRequired,monthly_inspection_required:tool.monthlyInspectionRequired,quarterly_inspection_required:tool.quarterlyInspectionRequired,calibration_required:tool.calibrationRequired,calibration_frequency_days:tool.calibrationFrequencyDays,replacement_value:tool.replacementValue,criticality:tool.criticality,cctv_required:tool.cctvRequired,gps_required:tool.gpsRequired,required_ppe:tool.requiredPpe||[],ownership_type:tool.ownershipType||'company',contractor_name:tool.contractorName,oem_manual_ref:tool.oemManualRef,purchase_date:tool.purchaseDate||undefined,procurement_cost:tool.procurementCost,insured:tool.insured,last_verified:tool.lastVerified||undefined,working_status:tool.workingStatus};
+      const payload={register_number:tool.id||undefined,name:tool.name,make_model:tool.make,serial_number:tool.serial,category:tool.category,equipment_kind:tool.kind,storage_location:tool.location,department:departmentOf(tool),section:tool.section,condition:tool.condition,notes:tool.notes,approval_ref:tool.approvalRef,calibration:tool.calibration,specifications:tool.specifications||{},home_storage_location:tool.homeStorageLocation,storage_conditions:tool.storageConditions,maintenance_requirements:tool.maintenanceRequirements,pre_use_check_required:tool.preUseCheckRequired,competency_required:tool.competencyRequired,weekly_inspection_required:tool.weeklyInspectionRequired,monthly_inspection_required:tool.monthlyInspectionRequired,quarterly_inspection_required:tool.quarterlyInspectionRequired,calibration_required:tool.calibrationRequired,calibration_frequency_days:tool.calibrationFrequencyDays,replacement_value:tool.replacementValue,criticality:tool.criticality,cctv_required:tool.cctvRequired,gps_required:tool.gpsRequired,required_ppe:tool.requiredPpe||[],ownership_type:tool.ownershipType||'company',contractor_name:tool.contractorName,oem_manual_ref:tool.oemManualRef,purchase_date:tool.purchaseDate||undefined,procurement_cost:tool.procurementCost,insured:tool.insured,last_verified:tool.lastVerified||undefined,working_status:tool.workingStatus};
       let saved:ServerTool;
       if (editing) { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); saved=await toolsApi.patch(`/tools/${tool.backendId}`,requireToken(),payload); }
       else saved=await toolsApi.post('/tools',requireToken(),payload);
       const mapped=toolFromServer(saved); await uploadNewEvidence(mapped,tool.evidence||[]);
-      await reloadWorkspace(); setModal(null); clearFilters(); setTab('register'); setDepartment(departmentOf(tool)); toast.success(editing?'Equipment updated':'Equipment added');
-    } catch(error) { toast.error(error instanceof Error?error.message:'The equipment could not be saved.'); }
+      await reloadWorkspace(); setModal(null); clearFilters(); setTab('register'); setDepartment(departmentOf(tool)); notify.success(editing?'Equipment updated':'Equipment added');
+    } catch(error) { notify.error(error instanceof Error?error.message:'The equipment could not be saved.'); }
   }
   async function archiveTool(tool:Tool) {
-    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setSelectedId(null); setModal({kind:'auth'}); toast.error('An administrator or Issuer account is required to archive equipment.'); return; }
-    try { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); await toolsApi.post(`/tools/${tool.backendId}/archive`,requireToken()); await reloadWorkspace(); setSelectedId(null); toast.success(tool.archived?'Equipment restored':'Equipment archived'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The equipment could not be archived.'); }
+    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setSelectedId(null); setModal({kind:'auth'}); notify.error('An administrator or Issuer account is required to archive equipment.'); return; }
+    try { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); await toolsApi.post(`/tools/${tool.backendId}/archive`,requireToken()); await reloadWorkspace(); setSelectedId(null); notify.success(tool.archived?'Equipment restored':'Equipment archived'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The equipment could not be archived.'); }
   }
   // Archives each ticked item in turn (the route toggles, so only active, un-issued items are sent); one failure does not stop the rest.
   async function archiveTools(list:Tool[]) {
-    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); toast.error('An administrator or Issuer account is required to archive equipment.'); return; }
+    if (!currentAccount||!['admin','issuer'].includes(currentAccount.role)) { setModal({kind:'auth'}); notify.error('An administrator or Issuer account is required to archive equipment.'); return; }
     const failed:string[]=[]; let done=0;
     for (const tool of list.filter(item=>item.backendId&&!item.archived&&!item.holder)) {
       try { await toolsApi.post(`/tools/${tool.backendId}/archive`,requireToken()); done+=1; } catch { failed.push(tool.id); }
     }
     await reloadWorkspace();
-    if (failed.length) toast.error(`${done} archived. ${failed.length} could not be archived: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`);
-    else toast.success(`${done} ${done===1?'item':'items'} archived`);
+    if (failed.length) notify.error(`${done} archived. ${failed.length} could not be archived: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`);
+    else notify.success(`${done} ${done===1?'item':'items'} archived`);
   }
   async function markToolReady(tool:Tool,resolutionNote:string) {
-    try { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); await toolsApi.post(`/tools/${tool.backendId}/mark-ready`,requireToken(),{resolution_note:resolutionNote}); await reloadWorkspace(); setModal(null); setSelectedId(tool.id); setFeedback('Tool marked ready for use.'); toast.success('Tool is ready for use'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The tool could not be marked ready.'); }
+    try { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); await toolsApi.post(`/tools/${tool.backendId}/mark-ready`,requireToken(),{resolution_note:resolutionNote}); await reloadWorkspace(); setModal(null); setSelectedId(tool.id); setFeedback('Tool marked ready for use.'); notify.success('Tool is ready for use'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The tool could not be marked ready.'); }
   }
   async function saveSourceRegister(file:File,sourceDepartment:string,notes:string) {
-    try { const body=new FormData(); body.append('department',sourceDepartment); body.append('notes',notes); body.append('file',file); await toolsApi.post('/source-registers',requireToken(),body); await reloadWorkspace(); setModal(null); setTab('sources'); setSearch(''); toast.success('Source register stored permanently'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The source register could not be uploaded.'); }
+    try { const body=new FormData(); body.append('department',sourceDepartment); body.append('notes',notes); body.append('file',file); await toolsApi.post('/source-registers',requireToken(),body); await reloadWorkspace(); setModal(null); setTab('sources'); setSearch(''); notify.success('Source register stored permanently'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The source register could not be uploaded.'); }
   }
   async function saveEmployee(employee:Employee) {
-    try { await toolsApi.post('/employees',requireToken(),{employee_number:employee.employeeNumber,name:employee.name,department:employee.department,job_title:employee.jobTitle,supervisor_name:employee.supervisorName}); await reloadWorkspace(); setModal(null); setTab('employees'); toast.success(`${employee.name} added`); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The employee could not be saved.'); }
+    try { await toolsApi.post('/employees',requireToken(),{employee_number:employee.employeeNumber,name:employee.name,department:employee.department,job_title:employee.jobTitle,supervisor_name:employee.supervisorName}); await reloadWorkspace(); setModal(null); setTab('employees'); notify.success(`${employee.name} added`); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The employee could not be saved.'); }
   }
   async function createAccount(account:WorkspaceAccount) {
-    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/register',{name:account.name,username:account.username,password:account.password}); const saved:WorkspaceAccount={...account,id:data.account.id,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,saved); setCurrentAccount(saved); setModal(null); toast.success(`Welcome, ${saved.name}`); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The account could not be created.'); }
+    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/register',{name:account.name,username:account.username,password:account.password}); const saved:WorkspaceAccount={...account,id:data.account.id,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,saved); setCurrentAccount(saved); setModal(null); notify.success(`Welcome, ${saved.name}`); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The account could not be created.'); }
   }
   async function login(username:string,password:string):Promise<true|string> {
-    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,account); setCurrentAccount(account); setModal(null); toast.success(`Signed in as ${account.name}`); return true; }
+    try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,account); setCurrentAccount(account); setModal(null); notify.success(`Signed in as ${account.name}`); return true; }
     catch(error) { return toolsLoginErrorMessage(error); }
   }
-  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)toast.success('Signed out'); }
+  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)notify.success('Signed out'); }
   function track(name:string,detail?:string) { const event={id:crypto.randomUUID(),name,detail,at:new Date().toISOString()}; setUsage(current=>[event,...current]); if(currentAccount?.token)void toolsApi.post('/analytics/usage',currentAccount.token,{event:name,detail}).catch(()=>{}); }
   async function updateAccountRole(accountId:string,role:WorkspaceAccount['role'],assignedDepartment?:string,approvalRoles:ApprovalRole[]=[] ) {
-    try { await toolsApi.patch(`/accounts/${accountId}`,requireToken(),{role,department:assignedDepartment,approval_roles:approvalRoles}); await reloadWorkspace(); toast.success(role==='issuer'?`Issuer access granted for ${assignedDepartment}`:'Account access updated'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The account role could not be updated.'); }
+    try { await toolsApi.patch(`/accounts/${accountId}`,requireToken(),{role,department:assignedDepartment,approval_roles:approvalRoles}); await reloadWorkspace(); notify.success(role==='issuer'?`Issuer access granted for ${assignedDepartment}`:'Account access updated'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The account role could not be updated.'); }
   }
   // Deactivates each ticked person in turn; one refusal (for example someone who still holds equipment) does not stop the rest.
   async function deactivateEmployees(list:Employee[]) {
@@ -292,29 +292,29 @@ export function useToolsWorkspace() {
       try { await toolsApi.patch(`/employees/${employee.backendId}`,requireToken(),{active:false}); done+=1; } catch { failed.push(employee.name); }
     }
     await reloadWorkspace();
-    if (failed.length) toast.error(`${done} deactivated. ${failed.length} could not be deactivated: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`);
-    else toast.success(`${done} ${done===1?'person':'people'} deactivated`);
+    if (failed.length) notify.error(`${done} deactivated. ${failed.length} could not be deactivated: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`);
+    else notify.success(`${done} ${done===1?'person':'people'} deactivated`);
   }
   async function setEmployeeActive(employee:Employee,active:boolean) {
     if (!employee.backendId) return;
-    try { await toolsApi.patch(`/employees/${employee.backendId}`,requireToken(),{active});await reloadWorkspace();toast.success(active?`${employee.name} is active again`:`${employee.name} is deactivated`); }
-    catch(error){toast.error(error instanceof Error?error.message:'The employee could not be changed.');}
+    try { await toolsApi.patch(`/employees/${employee.backendId}`,requireToken(),{active});await reloadWorkspace();notify.success(active?`${employee.name} is active again`:`${employee.name} is deactivated`); }
+    catch(error){notify.error(error instanceof Error?error.message:'The employee could not be changed.');}
   }
   async function saveCompetency(value:{employee_id:string;tool_id:string;trained:boolean;qualified:boolean;authorized:boolean;authorized_by?:string;training_certificate_ref?:string;training_expires_at?:string;qualification_ref?:string;qualification_expires_at?:string;authorization_expires_at?:string;notes?:string}) {
-    try { await toolsApi.post('/competencies',requireToken(),value);await reloadWorkspace();toast.success('Competency record saved'); }
-    catch(error){toast.error(error instanceof Error?error.message:'The competency record could not be saved.');}
+    try { await toolsApi.post('/competencies',requireToken(),value);await reloadWorkspace();notify.success('Competency record saved'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The competency record could not be saved.');}
   }
   async function recordInspection(toolId:string,value:{inspection_type:InspectionType;outcome:'passed'|'conditional'|'failed';next_due_at?:string;condition?:string;defects?:string;notes?:string;repair_quote?:number;new_equipment_price?:number}) {
-    try { await toolsApi.post(`/tools/${toolId}/inspections`,requireToken(),value);await reloadWorkspace();toast.success(value.outcome==='failed'?'Inspection recorded and equipment held':'Inspection recorded'); }
-    catch(error){toast.error(error instanceof Error?error.message:'The inspection could not be saved.');}
+    try { await toolsApi.post(`/tools/${toolId}/inspections`,requireToken(),value);await reloadWorkspace();notify.success(value.outcome==='failed'?'Inspection recorded and equipment held':'Inspection recorded'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The inspection could not be saved.');}
   }
   async function reportIncident(toolId:string,value:{incident_type:'lost'|'damaged'|'stolen'|'missing_components'|'late_return';occurred_at:string;employee_id?:string;explanation:string}) {
-    try { await toolsApi.post(`/tools/${toolId}/incidents`,requireToken(),value);await reloadWorkspace();toast.success('Incident reported and investigation opened'); }
-    catch(error){toast.error(error instanceof Error?error.message:'The incident could not be reported.');}
+    try { await toolsApi.post(`/tools/${toolId}/incidents`,requireToken(),value);await reloadWorkspace();notify.success('Incident reported and investigation opened'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The incident could not be reported.');}
   }
   async function closeIncident(incidentId:string,value:{investigation_outcome:string;negligence_confirmed:boolean;replacement_cost?:number;recovery_months?:number}) {
-    try { await toolsApi.post(`/incidents/${incidentId}/close`,requireToken(),value);await reloadWorkspace();toast.success('Investigation closed'); }
-    catch(error){toast.error(error instanceof Error?error.message:'The investigation could not be closed.');}
+    try { await toolsApi.post(`/incidents/${incidentId}/close`,requireToken(),value);await reloadWorkspace();notify.success('Investigation closed'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The investigation could not be closed.');}
   }
   function chooseSearchResult(result:WorkspaceSearchResult) {
     track('used workspace search',result.kind);
@@ -322,7 +322,7 @@ export function useToolsWorkspace() {
     if(target.type==='tool'){setTab('register');setSearch('');setSelectedId(target.toolId);return;}
     if(target.type==='tab'){
       if(['accounts','analytics','feedback'].includes(target.tab)&&currentAccount?.role!=='admin'){
-        toast.error('This area is available to administrators.');
+        notify.error('This area is available to administrators.');
         return;
       }
       setTab(target.tab);setStatus('all');setSearch(target.query||'');return;
@@ -330,12 +330,12 @@ export function useToolsWorkspace() {
     if(target.type==='modal'){setSearch('');if(target.modal==='source-register')openSourceRegister();else setModal({kind:target.modal});}
   }
   async function submitFeedback(text:string,audio?:Blob) {
-    try { const body=new FormData(); body.append('text',text); if(audio){const extension=audio.type==='audio/mp4'?'m4a':audio.type==='audio/ogg'?'ogg':audio.type==='audio/mpeg'?'mp3':audio.type.includes('wav')?'wav':'webm';body.append('audio',audio,`feedback.${extension}`);} await toolsApi.post('/feedback',requireToken(),body); await reloadWorkspace(); setModal(null); toast.success('Thank you — feedback saved.'); }
-    catch(error) { toast.error(error instanceof Error?error.message:'Feedback could not be saved.'); }
+    try { const body=new FormData(); body.append('text',text); if(audio){const extension=audio.type==='audio/mp4'?'m4a':audio.type==='audio/ogg'?'ogg':audio.type==='audio/mpeg'?'mp3':audio.type.includes('wav')?'wav':'webm';body.append('audio',audio,`feedback.${extension}`);} await toolsApi.post('/feedback',requireToken(),body); await reloadWorkspace(); setModal(null); notify.success('Thank you — feedback saved.'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'Feedback could not be saved.'); }
   }
   async function applyImport(target:'equipment'|'employees',nextTools:Tool[],nextEmployees:Employee[]) {
-    try { const rows=target==='equipment'?nextTools.map(item=>({register_number:item.id,name:item.name,make_model:item.make,serial_number:item.serial,category:item.category,equipment_kind:item.kind,storage_location:item.location,department:departmentOf(item),section:item.section,condition:item.condition,notes:item.notes})):nextEmployees.map(item=>({employee_number:item.employeeNumber,name:item.name,department:item.department,job_title:item.jobTitle,supervisor_name:item.supervisorName})); const result=await toolsApi.post<{accepted_count:number;rejected_count:number}>('/imports/commit',requireToken(),{target,rows}); await reloadWorkspace(); setModal(null); setTab(target==='equipment'?'register':'employees'); toast.success(`${result.accepted_count} ${result.accepted_count===1?'record':'records'} imported`,result.rejected_count?{description:`${result.rejected_count} rows need correction.`}:undefined); }
-    catch(error) { toast.error(error instanceof Error?error.message:'The import could not be saved.'); }
+    try { const rows=target==='equipment'?nextTools.map(item=>({register_number:item.id,name:item.name,make_model:item.make,serial_number:item.serial,category:item.category,equipment_kind:item.kind,storage_location:item.location,department:departmentOf(item),section:item.section,condition:item.condition,notes:item.notes})):nextEmployees.map(item=>({employee_number:item.employeeNumber,name:item.name,department:item.department,job_title:item.jobTitle,supervisor_name:item.supervisorName})); const result=await toolsApi.post<{accepted_count:number;rejected_count:number}>('/imports/commit',requireToken(),{target,rows}); await reloadWorkspace(); setModal(null); setTab(target==='equipment'?'register':'employees'); notify.success(`${result.accepted_count} ${result.accepted_count===1?'record':'records'} imported`,result.rejected_count?{description:`${result.rejected_count} rows need correction.`}:undefined); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The import could not be saved.'); }
   }
   const exportData:ExportTable = tab==='employees'?{title:'Tools employee register',headers:['Employee number','Name','Department','Job title'],rows:employees.map(item=>[item.employeeNumber,item.name,item.department,item.jobTitle||''])}:tab==='activity'?{title:'Tools issue and return history',headers:['Equipment','Event','Details','Recorded by','Date'],rows:visibleActivity.map(item=>[item.toolId,item.title,item.detail,item.recordedBy||'',item.time])}:tab==='analytics'?{title:'Tools usage analytics',headers:['Event','Details','Date'],rows:usage.map(item=>[item.name,item.detail||'',formatDateTime(item.at)])}:{title:'Tools and equipment register',subtitle:`${department==='all'?'All departments':department} · ${visibleTools.length} ${visibleTools.length===1?'item':'items'}${status==='archived'?' · archived':''}${category!=='all'?` · ${category}`:''}`,headers:['Register number','Name','Category','Department','Status','Condition','Working status','Date of purchase','Procurement cost (USD)','Insured','Last verified','Held by','Location','Expected return'],rows:visibleTools.map(item=>[item.id,item.name,item.category,departmentOf(item),item.archived?'Archived':STATUS[item.status],item.condition||'',item.workingStatus==='working'?'Working':item.workingStatus==='not_working'?'Not working':'',item.purchaseDate||'',item.procurementCost!=null?item.procurementCost.toFixed(2):'',item.insured==null?'':item.insured?'Yes':'No',item.lastVerified||'',item.holder||'',item.location,item.due||''])};
   async function markNotificationsViewed() {
@@ -343,7 +343,7 @@ export function useToolsWorkspace() {
     if (!keys.length||!currentAccount?.token) return;
     setNotificationAlerts(current=>current.map(alert=>keys.includes(alert.key)?{...alert,read:true}:alert));
     try { await toolsApi.post('/notifications/read',currentAccount.token,{keys}); }
-    catch(error) { setNotificationAlerts(current=>current.map(alert=>keys.includes(alert.key)?{...alert,read:false}:alert)); toast.error(error instanceof Error?error.message:'Notifications could not be marked as viewed.'); }
+    catch(error) { setNotificationAlerts(current=>current.map(alert=>keys.includes(alert.key)?{...alert,read:false}:alert)); notify.error(error instanceof Error?error.message:'Notifications could not be marked as viewed.'); }
   }
 
   const homeIncidents=complianceData.incidents.filter(incident=>incident.status!=='closed');

@@ -2,7 +2,7 @@
 // sidebar (desktop panel and mobile drawer), not in the top bar: one home for search in every shell.
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DestinationSearch, type DestinationResult } from '@/components/ui-system';
 import { clearSearchHistory, getSearchHistory, trackSearch } from '@/lib/usage';
@@ -19,14 +19,17 @@ const toResult = (module: Module, category: Category): ModuleResult => ({
   icon: module.icon,
 });
 
-export function ShellSearch({ value, onValueChange, visibleCategories }: {
+export function ShellSearch({ value, onValueChange, visibleCategories, focusSignal = 0 }: {
   value: string;
   onValueChange: (value: string) => void;
   visibleCategories: Category[];
+  /** Each bump focuses the field (the collapsed rail's search button expands first, then bumps this). */
+  focusSignal?: number;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [history, setHistory] = useState<string[]>([]);
+  useEffect(() => { if (focusSignal > 0) inputRef.current?.focus(); }, [focusSignal]);
 
   const matches = useMemo<ModuleResult[]>(() => {
     const query = value.trim().toLowerCase();

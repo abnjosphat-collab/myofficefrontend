@@ -11,6 +11,7 @@ import { tomorrowAt } from '@/lib/dates';
 import { EmployeePicker } from './ToolsEmployeePicker';
 import { EvidencePicker, ToolsPreferences, type AddEvidence } from './ToolsUI';
 import { ToolConditions } from './ToolConditionsPanel';
+import { isEligibleForTool } from './toolConditions';
 
 /** Hint text under a field; the "Show helpful hints" setting hides it. */
 export function useHint() {
@@ -28,13 +29,13 @@ const Section = ({ title, note, children }: { title: string; note?: string; chil
 );
 
 /** Free text with suggestions from a list (the shared Combobox with free text; the person may type anything). */
-export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false, emptyMessage }: {
-  label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean; emptyMessage?: ReactNode;
+export function SuggestField({ label, options, value, onChange, onSelect, required = true, hint, disabled = false, emptyMessage, historyKey }: {
+  label: string; options: string[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; required?: boolean; hint?: string; disabled?: boolean; emptyMessage?: ReactNode; historyKey?: string;
 }) {
   const hintFor = useHint();
   return (
     <Field label={label} optional={!required} description={hint ? hintFor(hint) : undefined}>
-      <Combobox aria-label={label} value={value} allowCustomValue disabled={disabled}
+      <Combobox aria-label={label} value={value} allowCustomValue disabled={disabled} historyKey={historyKey}
         placeholder={`Search ${label.toLowerCase()}…`} searchPlaceholder={`Search ${label.toLowerCase()}…`}
         emptyMessage={emptyMessage ?? 'No matches — press Tab to use what you typed.'}
         onValueChange={next => { onChange(next); if (options.includes(next)) onSelect?.(next); }}
@@ -69,7 +70,7 @@ export const TITLES: Record<ActionKind, string> = { issue: 'Issue tool', return:
 function isFuture(value: string) { const time = Date.parse(value); return Number.isFinite(time) && time > Date.now(); }
 
 export function MovementForm({ kind, initialTool, initialEmployee, tools, employees = [], locationSuggestions = [], equipmentSuggestions = [], issuerDepartment, addFiles, onSave, onCancel }: {
-  kind: ActionKind; initialTool?: Tool; initialEmployee?: Employee; tools: Tool[]; employees?: Employee[]; locationSuggestions?: string[]; equipmentSuggestions?: string[]; issuerDepartment?: string; addFiles: AddEvidence; onSave: (input: Movement) => void; onCancel: () => void;
+  kind: ActionKind; initialTool?: Tool; initialEmployee?: Employee; tools: Tool[]; employees?: Employee[]; locationSuggestions?: string[]; equipmentSuggestions?: string[]; issuerDepartment?: string; addFiles: AddEvidence; onSave: (input: Movement) => void | Promise<void>; onCancel: () => void;
 }) {
   const hintFor = useHint();
   const initialEmployeeIds = new Set(initialEmployee ? [initialEmployee.backendId, initialEmployee.employeeNumber].filter(Boolean) : []);
@@ -100,16 +101,15 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const [movementScope, setMovementScope] = useState('Within the operation');
   const [gatePass, setGatePass] = useState('');
   const [approvalRef, setApprovalRef] = useState('');
-  const [preUseCheckCompleted, setPreUseCheckCompleted] = useState(false);
   const [overrideDue, setOverrideDue] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const [department, setDepartment] = useState(initialTool ? departmentOf(initialTool) : initialEmployee?.department || issuerDepartment || 'Engineering');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
   const toolBlocked = tool !== undefined && !availableForAction(tool);
-  const eligibleIds = new Set((tool?.eligibleEmployees || []).flatMap(employee => [employee.id, employee.employeeNumber]));
   const departmentEmployees = employees.filter(employee => employee.active && (!issuerDepartment || employee.department === issuerDepartment));
-  const eligibleEmployees = departmentEmployees.filter(employee => !tool || tool.eligibleEmployees === undefined || eligibleIds.has(employee.backendId || '') || eligibleIds.has(employee.employeeNumber));
+  const eligibleEmployees = departmentEmployees.filter(employee => !tool || isEligibleForTool(tool, employee));
   const employeeChoices = eligibleEmployees.map(employee => ({ label: `${employee.name} · ${employee.employeeNumber}`, detail: [employee.jobTitle, employee.department].filter(Boolean).join(' · ') }));
   const employeeOptions = employeeChoices.map(choice => choice.label);
   const employeeEmptyMessage = tool && departmentEmployees.length
@@ -124,25 +124,33 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const needsOverride = dueChecks.length > 0;
   const needsCalibration = !!tool && ['digital-multimeter', 'clamp-meter', 'torque-wrench', 'test-instrument'].includes(tool.kind);
   const notesRequired = kind === 'extend' || (kind === 'return' && condition !== 'Good');
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const due = String(new FormData(event.currentTarget).get('due') || '');
     if (!tool) return setError('Choose a tool from the suggestions.');
     if (toolBlocked) return setError(kind === 'issue' ? 'That tool is not ready to issue. Pick a ready tool, or transfer its open loan.' : 'That tool is not out on loan.');
-    if (['issue', 'transfer'].includes(kind) && !employeeOptions.includes(person)) return setError('Choose an employee from this workspace register.');
-    if (kind !== 'extend' && !location.trim()) return setError('Add the work or return location.');
-    if (['issue', 'transfer'].includes(kind) && !job.trim()) return setError('Add the work order or job reference.');
+    if (['issue', 'transfer'].includes(kind) && !employeeOptions.includes(person)) {
+      const named = person.trim() ? employees.find(employee => `${employee.name} · ${employee.employeeNumber}` === person) : undefined;
+      if (named && tool) return setError(`${named.name} is not currently trained, qualified and authorized for ${tool.name}. Update the Compliance register first.`);
+      return setError('Choose an eligible employee from the list.');
+    }
+    if (kind === 'return' && !location.trim()) return setError('Add the return location.');
+
     if (['issue', 'extend'].includes(kind) && !isFuture(due)) return setError('Choose a return time in the future.');
     if (kind === 'extend' && tool.dueISO && Date.parse(due) <= Date.parse(tool.dueISO)) return setError('The new return time must be later than the current deadline.');
     if (needsOverride && !overrideDue) return setError(`The ${dueChecks.map(item => item.replace('_', ' ')).join(', ')} check is overdue. Complete it, or tick "Go ahead anyway" and give a reason.`);
     if (needsOverride && overrideReason.trim().length < 5) return setError('Give a short reason (at least 5 characters) for going ahead with an overdue check.');
-    if (kind === 'issue' && tool.preUseCheckRequired === true && !preUseCheckCompleted) return setError('Confirm that the employee completed the pre-use inspection.');
     if (notesRequired && !notes.trim()) return setError('Add a short note so the next person has the context.');
     if (kind === 'transfer' && (!gatePass.trim() || !approvalRef.trim())) return setError('Record the gate pass and existing approval reference.');
     const displayDue = due ? formatDateTime(due) : '';
     if (location.trim()) storeValue('myoffice.tools.last-location', location.trim());
     if (job.trim()) storeValue('myoffice.tools.last-job', job.trim());
-    onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, preUseCheckCompleted, overrideDueChecks: needsOverride && overrideDue, overrideReason: needsOverride && overrideDue ? overrideReason.trim() : undefined });
+    setSaving(true);
+    try {
+      await onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, overrideDueChecks: needsOverride && overrideDue, overrideReason: needsOverride && overrideDue ? overrideReason.trim() : undefined });
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -157,7 +165,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </p>
       )}
       {tool && ['issue', 'transfer'].includes(kind) && (
-        <ToolConditions tool={tool} employee={selectedEmployee ?? null} preUseChecked={preUseCheckCompleted} kind={kind === 'transfer' ? 'transfer' : 'issue'} />
+        <ToolConditions tool={tool} employee={selectedEmployee ?? null} />
       )}
       {needsOverride && (
         <>
@@ -186,20 +194,20 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </p>
       )}
       <Row>
-        {kind !== 'extend' && <SuggestField label={kind === 'return' ? 'Return location' : 'Current work location'} options={locationSuggestions} value={location} onChange={setLocation} hint="Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently." />}
-        {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" options={[]} value={job} onChange={setJob} hint="Enter the work order number or the job reference from the paper record." />}
+        {kind !== 'extend' && <SuggestField label={kind === 'return' ? 'Return location' : 'Current work location'} required={kind === 'return'} options={locationSuggestions} value={location} onChange={setLocation} historyKey={kind === 'return' ? 'tools.return_location' : 'tools.work_location'} hint={kind === 'return' ? 'Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently.' : 'If known — a work location is not required to issue or transfer.'} />}
+        {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" required={false} options={[]} value={job} onChange={setJob} historyKey="tools.job_reference" hint="If there is one — a work order is not required." />}
         {['issue', 'extend'].includes(kind) && (
           <Field label="Expected return" description={hintFor('Choose the local date and time.')}>
             <Input aria-label="Expected return" name="due" type="datetime-local" required defaultValue={kind === 'issue' ? tomorrowAt() : undefined} />
           </Field>
         )}
       </Row>
-      {kind === 'issue' && tool?.preUseCheckRequired === true && <Checkbox label="Pre-use inspection completed" description="The employee checked the tool before use and found it fit for the intended job." checked={preUseCheckCompleted} onChange={event => setPreUseCheckCompleted(event.target.checked)} />}
+
       {['issue', 'transfer'].includes(kind) && <MultiSuggestField label="Equipment being worked on" options={equipmentSuggestions} value={assignedEquipment} onChange={setAssignedEquipment} hint="Add one or more machines or fixed assets this portable tool will be used on. Type a new name or choose a previous entry." />}
       {kind === 'transfer' && (
         <Section title="Movement references" note="Record an existing approval; this form does not grant approval.">
           <Row>
-            <SuggestField label="Receiving department" options={DEPARTMENTS} value={department} onChange={setDepartment} />
+            <SuggestField label="Receiving department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" />
             <Field label="Movement"><Select aria-label="Movement" value={movementScope} onValueChange={setMovementScope} options={['Within the operation', 'Outside the operation'].map(value => ({ value, label: value }))} /></Field>
             <Field label="Gate pass reference"><Input aria-label="Gate pass reference" required value={gatePass} onChange={e => setGatePass(e.target.value)} placeholder="Existing gate pass number" /></Field>
             <Field label={`${movementScope.startsWith('Outside') ? 'GM' : 'HOS'} approval reference`} description={hintFor('Internal movement requires HOS approval and external movement requires GM approval.')}>
@@ -208,10 +216,10 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
           </Row>
         </Section>
       )}
-      {kind === 'return' && (
+      {['issue', 'return'].includes(kind) && (
         <>
-          <Segmented label="Condition on return" value={condition} onValueChange={setCondition} options={['Good', 'Damaged', 'Missing parts'].map(c => ({ value: c, label: c }))} />
-          {needsCalibration && (
+          <Segmented label={kind === 'issue' ? 'Condition at issue' : 'Condition on return'} value={condition} onValueChange={setCondition} options={['Good', 'Damaged', 'Missing parts'].map(c => ({ value: c, label: c }))} />
+          {kind === 'return' && needsCalibration && (
             <Field label="Calibration check" description={hintFor('Record the check against the existing certificate or calibration matrix. Unknown or expired calibration keeps this instrument on hold.')}>
               <Select aria-label="Calibration check" value={calibration} onValueChange={setCalibration} options={['Not verified', 'Verified current', 'Expired'].map(value => ({ value, label: value }))} />
             </Field>
@@ -232,7 +240,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </div>
       </details>
       {error && <p role="alert" className="flex items-start gap-1.5 font-sans text-body-sm font-medium text-danger"><Icon name="warning" size="sm" />{error}</p>}
-      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary">{TITLES[kind]}</Button></Footer>
+      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Saving…' : TITLES[kind]}</Button></Footer>
       <p className="font-sans text-caption text-ink-muted">This action is saved in the equipment history.</p>
     </form>
   );
@@ -252,6 +260,8 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const [homeStorageLocation, setHomeStorageLocation] = useState(initialTool?.homeStorageLocation || initialTool?.location || '');
   const [storageConditions, setStorageConditions] = useState(initialTool?.storageConditions || 'Locked, dry, clean and protected from damage or contamination.');
   const [maintenanceRequirements, setMaintenanceRequirements] = useState(initialTool?.maintenanceRequirements || 'Maintain and clean in accordance with the OEM instructions.');
+  const [preUseCheckRequired, setPreUseCheckRequired] = useState(initialTool?.preUseCheckRequired !== false);
+  const [competencyRequired, setCompetencyRequired] = useState(initialTool?.competencyRequired !== false);
   const [weeklyInspectionRequired, setWeeklyInspectionRequired] = useState(initialTool?.weeklyInspectionRequired || false);
   const [monthlyInspectionRequired, setMonthlyInspectionRequired] = useState(initialTool?.monthlyInspectionRequired !== false);
   const [quarterlyInspectionRequired, setQuarterlyInspectionRequired] = useState(initialTool?.quarterlyInspectionRequired !== false);
@@ -286,7 +296,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
     const specifications = Object.fromEntries(specificationText.split('\n').map(line => { const colon = line.indexOf(':'); return colon < 0 ? [line, ''] : [line.slice(0, colon), line.slice(colon + 1)]; }).filter(parts => parts[0]?.trim() && parts[1]?.trim()).map(parts => [parts[0].trim(), parts[1].trim()]));
     onSave({
       ...initialTool, id: id.trim(), name: name.trim(), make: make.trim(), serial: serial.trim() || 'Not recorded', department: department.trim(), section: section.trim(), category, kind: equipmentKind, location,
-      homeStorageLocation: homeStorageLocation.trim() || location.trim(), storageConditions: storageConditions.trim(), maintenanceRequirements: maintenanceRequirements.trim(), preUseCheckRequired: true,
+      homeStorageLocation: homeStorageLocation.trim() || location.trim(), storageConditions: storageConditions.trim(), maintenanceRequirements: maintenanceRequirements.trim(), preUseCheckRequired, competencyRequired,
       weeklyInspectionRequired, monthlyInspectionRequired, quarterlyInspectionRequired, calibrationRequired, calibrationFrequencyDays: calibrationRequired ? Number(calibrationFrequencyDays) : undefined,
       replacementValue: replacementValue ? Number(replacementValue) : undefined, criticality: criticality as Tool['criticality'], cctvRequired: cctvRequired || Number(replacementValue) > 5000, gpsRequired,
       requiredPpe: requiredPpe.split(',').map(item => item.trim()).filter(Boolean), ownershipType, contractorName: ownershipType === 'contractor' ? contractorName.trim() : undefined,
@@ -300,7 +310,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
       <Row>
         <Field label="Tool name"><Input aria-label="Tool name" value={name} required pattern=".*\S.*" onChange={e => setName(e.target.value)} placeholder="Cordless impact driver" /></Field>
         <Field label="Make & model"><Input aria-label="Make and model" value={make} required pattern=".*\S.*" onChange={e => setMake(e.target.value)} placeholder="Bosch GDX 18V" /></Field>
-        <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} hint="The department that owns this record. Start with Engineering; add other departments as they join." />
+        <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" hint="The department that owns this record. Start with Engineering; add other departments as they join." />
         <Field label="Category"><Select aria-label="Category" value={category} onValueChange={changeCategory} options={CATEGORIES.map(value => ({ value, label: value }))} /></Field>
         <Field label="Equipment type" description={hintFor('Choose the closest physical form. Test instruments ask for a calibration check when they are returned.')}>
           <Select aria-label="Equipment type" value={equipmentKind} onValueChange={value => setEquipmentKind(value as EquipmentKind)} options={equipmentTypes} />
@@ -345,6 +355,8 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
 
       <Section title="Inspection and maintenance plan" note="Issue is blocked when required checks expire">
         <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <Checkbox label="Training, qualification and authorization required" description="Turn off for simple items anyone may use, like a tape measure." checked={competencyRequired} onChange={event => setCompetencyRequired(event.target.checked)} />
+          <Checkbox label="Pre-use check" description="The borrower records it after receiving the tool." checked={preUseCheckRequired} onChange={event => setPreUseCheckRequired(event.target.checked)} />
           <Checkbox label="Weekly check" checked={weeklyInspectionRequired} onChange={event => setWeeklyInspectionRequired(event.target.checked)} />
           <Checkbox label="Monthly inspection" checked={monthlyInspectionRequired} onChange={event => setMonthlyInspectionRequired(event.target.checked)} />
           <Checkbox label="Quarterly colour inspection" checked={quarterlyInspectionRequired} onChange={event => setQuarterlyInspectionRequired(event.target.checked)} />
@@ -399,7 +411,7 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
       <Row>
         <Field label="Full name"><Input aria-label="Full name" required value={name} onChange={event => setName(event.target.value)} placeholder="Employee name" /></Field>
         <Field label="Employee ID / number"><Input aria-label="Employee ID or number" required value={employeeNumber} onChange={event => setEmployeeNumber(event.target.value)} placeholder="EMP-001" /></Field>
-        <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} />
+        <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" />
         <Field label="Job title" optional><Input aria-label="Job title" value={jobTitle} onChange={event => setJobTitle(event.target.value)} placeholder="Artisan, supervisor…" /></Field>
         <Field label="Supervisor name" optional><Input aria-label="Supervisor name" value={supervisorName} onChange={event => setSupervisorName(event.target.value)} placeholder="Immediate supervisor" /></Field>
       </Row>

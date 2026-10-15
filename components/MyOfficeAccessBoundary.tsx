@@ -22,7 +22,7 @@ export function MyOfficeAccessBoundary({ children }: { children: React.ReactNode
   if (!user) {
     return (
       <AuthPage back>
-        <AuthCard title="Sign in to MyOffice" description="Tools & Equipment stays open as its own workspace. The other modules need an authorised account." headingId="myoffice-access-title">
+        <AuthCard title="Sign in to MyOffice" headingId="myoffice-access-title">
           <AuthForm defaultMode="login" redirectTo={pathname} />
         </AuthCard>
       </AuthPage>

@@ -78,9 +78,18 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; username?: string; password?: string }>({});
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
+    // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's orange bubble.
+    const problems: { name?: string; username?: string; password?: string } = {};
+    if (mode === 'create' && name.trim().length < 2) problems.name = 'Enter your name.';
+    if (username.trim().length < 3) problems.username = 'Enter your username or email.';
+    if (!password) problems.password = 'Enter your password.';
+    else if (password.length < 6) problems.password = 'Use at least 6 characters.';
+    setFieldErrors(problems);
+    if (Object.keys(problems).length > 0) return;
     if (mode === 'login') { const result = await onLogin(username, password); if (result !== true) setError(result); return; }
     if (accounts.some(account => account.username.toLowerCase() === username.trim().toLowerCase())) { setError('That username is already in use.'); return; }
     await onCreate({ id: crypto.randomUUID(), name: name.trim(), username: username.trim().toLowerCase(), password, role: 'viewer', canIssue: false });
@@ -102,17 +111,17 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
     );
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit}>
-      <Segmented label="Account" value={mode} onValueChange={next => { setMode(next); setError(''); }} options={[{ value: 'login', label: 'Sign in' }, { value: 'create', label: 'Sign up' }]} />
-      {mode === 'create' && <Field label="Your name"><Input aria-label="Your name" required minLength={2} value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field>}
-      <Field label="Username or email"><Input aria-label="Username or email" required minLength={3} value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" /></Field>
-      <Field label="Password"><Input aria-label="Password" required minLength={6} type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      <Segmented label="Account" value={mode} onValueChange={next => { setMode(next); setError(''); setFieldErrors({}); }} options={[{ value: 'login', label: 'Sign in' }, { value: 'create', label: 'Create account' }]} />
+      {mode === 'create' && <Field label="Your name" error={fieldErrors.name}><Input aria-label="Your name" value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field>}
+      <Field label="Username or email" error={fieldErrors.username}><Input aria-label="Username or email" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" /></Field>
+      <Field label="Password" error={fieldErrors.password}><Input aria-label="Password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
       {mode === 'create' && <p className="font-sans text-caption text-ink-muted">New accounts start as Viewers. An administrator assigns the department and any issuing rights.</p>}
       {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
       <p className="font-sans text-caption text-ink-muted">Your password is verified by the backend and is never stored in this browser.</p>
       <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
         {allowCancel && <Button type="button" onClick={onCancel}>Cancel</Button>}
-        <Button type="submit" variant="primary">{mode === 'login' ? 'Sign in' : 'Sign up'}</Button>
+        <Button type="submit" variant="primary">{mode === 'login' ? 'Sign in' : 'Create account'}</Button>
       </div>
     </form>
   );

@@ -167,10 +167,10 @@ describe('mergeEffectiveTimesheets — overtime vs standby', () => {
       statusLabel,
     });
     expect(merged[0].overtime_hours).toBe(2);
-    expect(merged[0].nightshift_hours).toBe(12);
+    expect(merged[0].nightshift_hours).toBe(10); // night allowance is the shift's 18:00-04:00 only; the 04:00-06:00 OT is paid as overtime
     expect(calcEmployeeTotals('10', merged, {
       earlyMorningOtDates: new Set(['2026-08-17']),
-    }).nightAllowanceBonus).toBe(12);
+    }).nightAllowanceBonus).toBe(10);
   });
 
   it('matches module OT when mine number casing differs (c1 vs C0001)', () => {
@@ -211,5 +211,61 @@ describe('mergeEffectiveTimesheets — overtime vs standby', () => {
     expect(merged.every(r => r.standby_allowance)).toBe(true);
     expect(merged.every(r => (r.overtime_hours || 0) === 0)).toBe(true);
     expect(calcEmployeeTotals('10', merged).standbyBonus).toBe(8);
+  });
+});
+
+describe('mergeEffectiveTimesheets � worked public holiday', () => {
+  const base = { approvedLeaves: [], approvedOvertime: [], shiftAssignments: [], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: {}, statusLabel };
+
+  it('mirrors the hours into 2.0x on 15 September and keeps them in the normal column', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...base, dayStrs: ['2026-09-15'], rosterIds: ['10'],
+      timesheets: [{ id: 1, employee_id: 10, date: '2026-09-15', status: 'work', regular_hours: 10, overtime_hours: 0, holiday_overtime_hours: 0 }],
+    });
+    expect(merged[0].status).toBe('work');
+    expect(merged[0].regular_hours).toBe(10);
+    expect(merged[0].holiday_overtime_hours).toBe(10);
+    const totals = calcEmployeeTotals('10', merged);
+    expect(totals.ot20).toBe(10);
+    expect(totals.actual).toBe(10);
+  });
+
+  it('keeps a 2.0x figure that is already there, and leaves off days and ordinary days alone', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...base, dayStrs: ['2026-09-15', '2026-09-16'], rosterIds: ['10'],
+      timesheets: [
+        { id: 1, employee_id: 10, date: '2026-09-15', status: 'work', regular_hours: 10, overtime_hours: 0, holiday_overtime_hours: 12 },
+        { id: 2, employee_id: 10, date: '2026-09-16', status: 'work', regular_hours: 10, overtime_hours: 0, holiday_overtime_hours: 0 },
+      ],
+    });
+    expect(merged.find(e => e.date === '2026-09-15')?.holiday_overtime_hours).toBe(12);
+    expect(merged.find(e => e.date === '2026-09-16')?.holiday_overtime_hours).toBe(0);
+  });
+});
+
+describe('mergeEffectiveTimesheets - all holiday hours go to 2.0x', () => {
+  const holidayBase = { approvedLeaves: [], shiftAssignments: [], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: {}, statusLabel };
+
+  it('puts all 13 worked hours in 2.0x, not just the 3 that a holiday overtime record adds', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...holidayBase, dayStrs: ['2026-09-15'], rosterIds: ['10'],
+      timesheets: [{ id: 1, employee_id: 10, date: '2026-09-15', status: 'work', regular_hours: 13, overtime_hours: 0, holiday_overtime_hours: 0, start_time: '18:00', end_time: '07:00' }],
+      approvedOvertime: [{ id: 9, employee_id: 'C1', overtime_type: 'holiday', date: '2026-09-15', status: 'approved', hours: 3, start_time: '04:00', end_time: '07:00' }],
+    });
+    expect(merged[0].holiday_overtime_hours).toBe(13);
+    expect(calcEmployeeTotals('10', merged).ot20).toBe(13);
+  });
+});
+
+describe('mergeEffectiveTimesheets - holiday overtime outside the shift adds to the 2.0x day', () => {
+  const holidayBase = { approvedLeaves: [], shiftAssignments: [], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: {}, statusLabel };
+
+  it('counts 10h shift + 2h holiday overtime after it as 12h at 2.0x', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...holidayBase, dayStrs: ['2026-09-15'], rosterIds: ['10'],
+      timesheets: [{ id: 1, employee_id: 10, date: '2026-09-15', status: 'work', regular_hours: 10, overtime_hours: 0, holiday_overtime_hours: 0, start_time: '07:00', end_time: '17:00' }],
+      approvedOvertime: [{ id: 9, employee_id: 'C1', overtime_type: 'holiday', date: '2026-09-15', status: 'approved', hours: 2, start_time: '17:00', end_time: '19:00' }],
+    });
+    expect(merged[0].holiday_overtime_hours).toBe(12);
   });
 });

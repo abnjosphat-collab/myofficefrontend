@@ -3,27 +3,26 @@ import { ImageResponse } from "next/og";
 export const size = { width: 64, height: 64 };
 export const contentType = "image/png";
 
-/** Global app icon. Kept consistent with the thin equipment iconography in Tools. */
+/** Global app icon: the sign-in mesh as a small mark, in the app's sage greens (same as public/icons/myoffice-icon.svg). */
 export default function Icon() {
   return new ImageResponse(
     (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 14,
-          background: "#f8f7fb",
-          border: "1px solid #ded9e8",
-        }}
-      >
-        <svg width="46" height="46" viewBox="0 0 512 512">
-          <rect x="88" y="194" width="336" height="224" rx="42" fill="#ffffff" stroke="#24202e" strokeWidth="18" />
-          <path d="M190 194v-42c0-32 26-58 58-58h16c32 0 58 26 58 58v42" fill="none" stroke="#24202e" strokeWidth="18" strokeLinecap="round" />
-          <path d="M88 274h336" fill="none" stroke="#24202e" strokeWidth="18" />
-          <path d="M222 274v38c0 10 8 18 18 18h32c10 0 18-8 18-18v-38" fill="#f8f7fb" stroke="#6f4fd6" strokeWidth="16" strokeLinejoin="round" />
+      <div style={{ width: "100%", height: "100%", display: "flex", borderRadius: 14, background: "#233b31" }}>
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <g fill="none" stroke="#7fb59a" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+            <polyline points="14,18 25,17 36,18 47,22" />
+            <polyline points="13,28 25,27 37,28 48,31" />
+            <polyline points="12,39 25,38 38,39 49,40" />
+            <polyline points="14,18 13,28 12,39" />
+            <polyline points="25,17 25,27 25,38" />
+            <polyline points="36,18 37,28 38,39" />
+            <polyline points="47,22 48,31 49,40" />
+          </g>
+          <g fill="#cfeadc">
+            <circle cx="14" cy="18" r="2" /><circle cx="25" cy="17" r="2" /><circle cx="36" cy="18" r="1.7" /><circle cx="47" cy="22" r="1.3" />
+            <circle cx="13" cy="28" r="2" /><circle cx="25" cy="27" r="2" /><circle cx="37" cy="28" r="1.7" /><circle cx="48" cy="31" r="1.3" />
+            <circle cx="12" cy="39" r="2" /><circle cx="25" cy="38" r="2" /><circle cx="38" cy="39" r="1.7" /><circle cx="49" cy="40" r="1.3" />
+          </g>
         </svg>
       </div>
     ),

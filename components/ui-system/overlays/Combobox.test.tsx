@@ -1,23 +1,26 @@
 import { useState } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Combobox, type ComboboxOption } from './Combobox';
+import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 
 const OPTIONS: ComboboxOption[] = [
   { value: 'eng', label: 'Engineering' },
   { value: 'ops', label: 'Operations' },
 ];
 
-function Harness({ allowCustomValue = false, onValueChange }: { allowCustomValue?: boolean; onValueChange: (v: string) => void }) {
+function Harness({ allowCustomValue = false, historyKey, onValueChange }: { allowCustomValue?: boolean; historyKey?: string; onValueChange: (v: string) => void }) {
   const [value, setValue] = useState('');
   return (
-    <Combobox aria-label="Department" value={value} allowCustomValue={allowCustomValue}
+    <Combobox aria-label="Department" value={value} allowCustomValue={allowCustomValue} historyKey={historyKey}
       placeholder="Search department…" searchPlaceholder="Search department…"
       options={OPTIONS}
       onValueChange={next => { setValue(next); onValueChange(next); }} />
   );
 }
+
+beforeEach(() => { window.localStorage.clear(); });
 
 async function open(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('combobox', { name: 'Department' }));
@@ -122,5 +125,47 @@ describe('Combobox', () => {
       <Combobox aria-label="Department" value="Zebra" allowCustomValue options={OPTIONS} onValueChange={onValueChange} />,
     );
     expect(screen.getByRole('combobox', { name: 'Department' })).toHaveTextContent('Zebra');
+  });
+
+  it('Tab takes the highlighted suggestion, not the raw text', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(<Harness allowCustomValue onValueChange={onValueChange} />);
+    await open(user);
+    await user.type(searchBox(), 'engi');
+    await user.tab();
+    expect(onValueChange).toHaveBeenCalledWith('eng');
+    await waitFor(() => expect(screen.queryByPlaceholderText('Search department…')).not.toBeInTheDocument());
+  });
+
+  it('Tab with nothing typed moves on without committing', async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(<Harness onValueChange={onValueChange} />);
+    await open(user);
+    await user.tab();
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('with historyKey, previously committed values are offered back first', async () => {
+    const user = userEvent.setup();
+    recordInput('y-test', 'North Shaft');
+    recordInput('y-test', 'Engineering');
+    render(<Harness allowCustomValue historyKey="y-test" onValueChange={() => {}} />);
+    await open(user);
+    const list = screen.getByRole('listbox');
+    const names = within(list).getAllByRole('option').map(option => option.textContent);
+    expect(names[0]).toContain('North Shaft');
+    // Already an option: offered once, not doubled.
+    expect(names.filter(name => name?.includes('Engineering'))).toHaveLength(1);
+  });
+
+  it('with historyKey, committing a value remembers it for next time', async () => {
+    const user = userEvent.setup();
+    render(<Harness allowCustomValue historyKey="y-test" onValueChange={() => {}} />);
+    await open(user);
+    await user.type(searchBox(), 'Zebra');
+    await user.tab();
+    expect(getInputSuggestions('y-test')).toEqual(['Zebra']);
   });
 });

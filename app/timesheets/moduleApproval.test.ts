@@ -47,10 +47,10 @@ describe('night roster vs callout', () => {
     expect(calcEmployeeTotals('10', [row], { earlyMorningOtDates: dates }).nightAllowanceBonus).toBe(0);
   });
 
-  it('retains full allowance for explicitly recorded night-shift tails with missing roster clocks', () => {
+  it('pays no night allowance for an explicitly recorded night-shift OT tail with missing roster clocks', () => {
     const tail = { ...ot, start_time: '04:00', end_time: '06:00', reason: 'Night Shift' };
     const [row] = mergeEffectiveTimesheets({ ...input, approvedOvertime: [tail] });
-    expect(row.nightshift_hours).toBe(12);
+    expect(row.nightshift_hours ?? 0).toBe(0); // an early-morning OT tail is paid as overtime, not as night allowance
     expect(buildEarlyMorningOtDatesForEmployee('C1', [tail]).has(base.date)).toBe(true);
   });
 

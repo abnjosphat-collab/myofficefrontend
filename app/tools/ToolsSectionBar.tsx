@@ -21,7 +21,6 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
   const noun = tab === 'activity' ? (total === 1 ? 'history record' : 'history records') : tab === 'employees' ? (total === 1 ? 'employee' : 'employees') : (total === 1 ? 'item' : 'items');
   const items: MoreMenuItem[] = [
     ...(tab !== 'activity' && tab !== 'employees' ? [{ label: 'Record return', icon: 'back' as const, disabled: !counts.issued, onSelect: () => w.openAction('return') }] : []),
-    ...(tab === 'register' ? [{ label: 'Issue tools', disabled: !counts.available, onSelect: () => w.openManageModal({ kind: 'bulk-issue' }) }] : []),
     { label: 'Import', icon: 'upload', onSelect: () => w.openManageModal({ kind: 'import' }) },
     { label: 'Download', icon: 'download', onSelect: () => w.setModal({ kind: 'export' }) },
   ];
@@ -65,7 +64,8 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
             {tools_ && <ViewToggle value={view} onValueChange={w.setView} options={VIEW_GRID_LIST} />}
             <MoreMenu items={items} label="Actions" />
             {tab === 'employees' && <Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button>}
-            {tools_ && <Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add equipment</Button>}
+            {tab === 'register' && <Button variant="primary" onClick={() => w.openManageModal({ kind: 'bulk-issue' })} disabled={!counts.available}>Issue tools</Button>}
+            {tools_ && <Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add equipment</Button>}
           </>
         )}
       >

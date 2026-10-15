@@ -37,6 +37,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
         sections={w.visibleTabs.filter(item => item.value !== 'homepage')}
         scopeLabel={`Showing ${w.departmentOptions.find(option => option.value === w.department)?.label ?? 'All departments'}`}
         onNavigate={(next, filter) => w.filterTo(filter, next)} onRetry={w.retryWorkspace}
+        onIssue={() => w.openManageModal({ kind: 'bulk-issue' })} canIssue={w.counts.available > 0}
       />
     );
   }

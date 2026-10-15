@@ -19,7 +19,7 @@ const SPEC_DIR = path.join(root, 'scripts', 'route-specs');
 // Routes covered by scripts/verify-registers.mjs (it predates the spec-driven runner).
 const REGISTER_SCRIPT_ROUTES = ['/contractors', '/competency', '/compliance-register'];
 // Routes that deliberately keep their own chrome rather than the shared shell.
-const OWN_CHROME = { '/tools': 'Tools & Equipment workspace (its own layout; the visual standard)', '/login': 'sign-in page', '/auth/callback': 'auth redirect handler', '/auth/set-password': 'password setup' };
+const OWN_CHROME = { '/tools': 'Tools & Equipment workspace (its own layout; the visual standard)', '/login': 'sign-in page', '/auth/callback': 'auth redirect handler', '/auth/set-password': 'password setup', '/deep-space-preview': 'standalone prototype (glass card over 3D particles; own layout, no shell)', '/login-preview': 'standalone prototype (sign-in over an Icelandic landscape with drifting clouds; own layout, no shell)' };
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {

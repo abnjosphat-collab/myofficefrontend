@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**57 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 4. Browser verified: 50.
+**60 routes.** Migrated: 50. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 50.
 
 | Column | Meaning |
 |---|---|
@@ -31,6 +31,7 @@
 | `/compressors` | Migrated | Yes | 4 | Yes, 2026-10-10 | The redesigned floor (3D backdrop with flat cards, figure strip as filter, side panel per unit, week and month views, services, analytics, fleet; Excel and PDF downloads) replaced the earlier page on 2026-10-10. Compressors come from the Equipment register; service completion belongs to Maintenance. Reduced-motion users get a still page. |
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
+| `/deep-space-preview` | Own chrome | Yes | No | Not checked | standalone prototype (glass card over 3D particles; own layout, no shell) |
 | `/documents` | Migrated | Yes | 1 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
 | `/drivers` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by department, table, add/edit/delete. |
 | `/employees` | Migrated | Yes | 4 | Yes, 2026-10-04 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
@@ -44,6 +45,7 @@
 | `/leave-management` | Redirect | No | No | Yes, 2026-10-04 | Retired demo prototype (sample data, no backend; owner decision 4 Oct 2026); replaced by a redirect to /leaves. |
 | `/leaves` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
 | `/login` | Own chrome | No | No | Not checked | sign-in page |
+| `/login-preview` | Own chrome | No | No | Not checked | standalone prototype (sign-in over an Icelandic landscape with drifting clouds; own layout, no shell) |
 | `/maintenance` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns. |
 | `/near_miss` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table with section tiles as filters, detail dialog, add/edit/delete; failed save keeps input; failed load is not shown as empty. Inline row expansion dropped (the detail dialog shows the same fields). |
 | `/noticeboard` | Migrated | Yes | 2 | Yes, 2026-10-03 | Pinned and other notices as cards or a table, status/pinned tiles as filters, server-side filters and a debounced search (one request per finished word), detail dialog with attachment thumbnails and download links, optimistic pin with revert, archive-all-expired and unpin-all now ask first, hide-expired stays a view-only toggle, add/edit/delete with multi-file attachment upload (failures shown in place and the save waits for uploads). Tiles count the current view and say so when filters are on. The list route is unbounded (CrudRouter) and not paged. The shell's active-notices popup was rebuilt on the UI system and moved to the bottom (it covered the top bar and page title on phones and the header actions on desktop). |
@@ -67,8 +69,14 @@
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 17 | unverified (2026-10-08) | NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
-| `/tools` | Own chrome | Yes | 20 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/timesheets - Copy` | Migrated | No | 17 | Not checked |  |
+| `/tools` | Own chrome | Yes | 21 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |
 | `/work_stoppage` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, tiles for action status, detail dialog listing corrective actions, add/edit/delete; failed save keeps input; a record with an unrecognised section renders instead of crashing. The form is one scrolling dialog (the Details/Action plan/Summary tabs were dropped so validation errors are never hidden on another tab); progress shows above the action list. Inline row expansion and Expand/Collapse all dropped. |
+
+## Inconsistencies
+
+- /timesheets - Copy: migrated but has no entry in docs/migration-verification.json (record what was actually rendered, or mark it explicitly unverified)
+- /timesheets - Copy: migrated but no automated route spec (scripts/route-specs)

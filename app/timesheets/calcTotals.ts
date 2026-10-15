@@ -69,10 +69,6 @@ export type RosterNightAllowanceEntry = Pick<
   holiday_overtime_hours?: number;
 };
 
-function moduleOtHoursOnRow(e: RosterNightAllowanceEntry): number {
-  return (e.overtime_hours || 0) + (e.holiday_overtime_hours || 0);
-}
-
 /** Module OT that starts before 06:00 — tail of a night roster on this payroll date. */
 export function isEarlyMorningOvertimeStart(start?: string): boolean {
   if (!start?.trim()) return false;
@@ -102,19 +98,16 @@ export function buildEarlyMorningOtDatesForEmployee(
 }
 
 /**
- * Shift clock span for night overlap — roster end plus module OT worked **after** recorded
- * end (e.g. 18:00–04:00 + 2h OT → through 06:00 → 12h night allowance).
+ * Shift clock span for night overlap: the rostered shift only (start and end as recorded; with no end, start plus the regular hours).
+ * Overtime from the Overtime module is NOT part of it: night allowance is paid on shift hours, overtime is paid as overtime.
  */
 export function resolveShiftTimesForNight(e: RosterNightAllowanceEntry): { start: string; end: string } | null {
   const st = e.start_time?.trim();
   if (!st) return null;
-  const ot = moduleOtHoursOnRow(e);
   let en = e.end_time?.trim() || '';
-  if (!en && (e.regular_hours || 0) + ot > 0) {
-    en = endTimeFromStartAndHours(st, (e.regular_hours || 0) + ot);
-  } else if (en && ot > 0) {
-    en = endTimeFromStartAndHours(en, ot);
-  }
+  const reg = e.regular_hours || 0;
+  if (!en && reg > 0) en = endTimeFromStartAndHours(st, reg);
+  else if (en && isPostMidnightShiftEnd(en) && reg > shiftClockHours(st, en) + 0.01) en = endTimeFromStartAndHours(st, reg); // regular hours are the shift: a stale end time does not shorten it
   if (!en) return null;
   return { start: st, end: en };
 }
@@ -146,37 +139,18 @@ export function entryForNightAllowanceCalc(
 }
 
 /**
- * Night shift allowance: any 18:00–06:00 hours from a **rostered shift** (start/end).
- * Uses the **longer** of (a) start + regular+OT span or (b) explicit end + OT after end.
- * Scan/import may store hours without times when `nightshift_allowance` is set.
- * Ad-hoc breakdown work → `callout_overtime_hours`, not here.
+ * Night shift allowance: the hours of a **rostered shift** (start/end) that fall inside 18:00–06:00 (14:00–22:00 → 4h, 22:00–06:00 → 8h,
+ * 18:00–06:00 → 12h). It never counts overtime from the Overtime module (that is paid under overtime) and never a callout.
+ * Scan/import may store hours without times when `nightshift_allowance` is set; those stored hours are used only when there are no times.
+ * `opts` is accepted for older callers and ignored: an early-morning overtime record no longer completes the night window.
  */
 export function rosterNightAllowanceHours(
   e: RosterNightAllowanceEntry,
-  opts?: NightAllowanceCalcOpts,
+  _opts?: NightAllowanceCalcOpts,
 ): number {
   if (LEAVE_STATUSES.has(e.status) || ZERO_HOUR_STATUSES.has(e.status)) return 0;
-  const st = e.start_time?.trim();
-  let best = 0;
-  if (st) {
-    const ot = moduleOtHoursOnRow(e);
-    const reg = e.regular_hours || 0;
-    const times = resolveShiftTimesForNight(e);
-    if (times) best = calcNightHours(times.start, times.end);
-    const explicitEnd = e.end_time?.trim() || '';
-    if (ot > 0 && reg + ot > 0) {
-      best = Math.max(best, calcNightHours(st, endTimeFromStartAndHours(st, reg + ot)));
-    } else if (explicitEnd && isPostMidnightShiftEnd(explicitEnd) && reg > shiftClockHours(st, explicitEnd) + 0.01) {
-      best = Math.max(best, calcNightHours(st, endTimeFromStartAndHours(st, reg)));
-    } else if (!explicitEnd && reg + ot > 0) {
-      best = Math.max(best, calcNightHours(st, endTimeFromStartAndHours(st, reg + ot)));
-    }
-  }
-  const rosterStartsBeforeDawn = !!st && isEarlyMorningOvertimeStart(st);
-  if (opts?.earlyMorningModuleOt && !rosterStartsBeforeDawn && best < FULL_NIGHT_ALLOWANCE_HOURS - 0.01) {
-    best = Math.max(best, FULL_NIGHT_ALLOWANCE_HOURS);
-  }
-  if (best > 0) return best;
+  const times = resolveShiftTimesForNight(e);
+  if (times) return calcNightHours(times.start, times.end);
   const nh = e.nightshift_hours || 0;
   if (nh > 0 && e.nightshift_allowance) return nh;
   return 0;

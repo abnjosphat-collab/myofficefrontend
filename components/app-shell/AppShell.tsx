@@ -29,6 +29,7 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
   const s = useAppShellState();
   const { appearance } = useAppearance();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
 
   // App-wide: clicking anywhere in a date/time input opens the native picker (not just
   // the tiny calendar glyph). Delegated so it covers every page's date fields without
@@ -67,7 +68,8 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
             recentModules={NO_RECENT_MODULES}
             onToggleFavorite={s.toggleFavorite}
             visibleCategories={s.visibleCategories}
-            search={<ShellSearch value={s.searchQuery} onValueChange={s.setSearchQuery} visibleCategories={s.visibleCategories} />}
+            search={<ShellSearch value={s.searchQuery} onValueChange={s.setSearchQuery} visibleCategories={s.visibleCategories} focusSignal={searchFocusSignal} />}
+            onSearchExpand={() => { s.setSidebarCollapsed(false); setSearchFocusSignal(n => n + 1); }}
           />
         )}
       >

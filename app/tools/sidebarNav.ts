@@ -1,28 +1,17 @@
 export const SIDEBAR_NAV_KEY = 'myoffice.tools.sidebar.v1';
-/** The looks the sidebar icons can take; the choice is made in Settings. */
-export const ICON_PACKS = [
-  { id: 'phosphor-solid', label: 'Phosphor Solid' },
-  { id: 'tabler', label: 'Tabler' },
-] as const;
-export type IconPackId = typeof ICON_PACKS[number]['id'];
-export const DEFAULT_ICON_PACK: IconPackId = 'phosphor-solid';
-export const isIconPack = (value: unknown): value is IconPackId => ICON_PACKS.some(pack => pack.id === value);
 
-// G3: the sidebar keeps its fixed tab order — recency reordering moved destinations
-// under the pointer. A `recent` list left in storage by an older version is ignored.
-export type SidebarNavState = { iconsOpen: boolean; iconPack: IconPackId };
+// The sidebar keeps its fixed tab order and the universal icon set — the old per-device icon-pack choice
+// was removed, and a stored `iconPack` (or a `recent` list from an older version) is ignored.
+export type SidebarNavState = { iconsOpen: boolean };
 
 export function loadSidebarNav(storage: Pick<Storage, 'getItem'>): SidebarNavState {
   try {
     const raw = storage.getItem(SIDEBAR_NAV_KEY);
-    if (!raw) return { iconsOpen: true, iconPack: DEFAULT_ICON_PACK };
+    if (!raw) return { iconsOpen: true };
     const value = JSON.parse(raw) as Partial<SidebarNavState>;
-    return {
-      iconsOpen: value.iconsOpen !== false,
-      iconPack: isIconPack(value.iconPack) ? value.iconPack : DEFAULT_ICON_PACK,
-    };
+    return { iconsOpen: value.iconsOpen !== false };
   } catch {
-    return { iconsOpen: true, iconPack: DEFAULT_ICON_PACK };
+    return { iconsOpen: true };
   }
 }
 

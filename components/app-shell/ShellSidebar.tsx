@@ -25,7 +25,7 @@ const recordOfBooleans = (raw: unknown): Record<string, boolean> | undefined => 
 };
 
 export function ShellSidebar({
-  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories, search,
+  open, onOpenChange, collapsed, onToggleCollapsed, favoriteModules, recentModules, onToggleFavorite, visibleCategories, search, onSearchExpand,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -36,6 +36,7 @@ export function ShellSidebar({
   onToggleFavorite: (href: string) => void;
   visibleCategories: Category[];
   search?: ReactNode;
+  onSearchExpand?: () => void;
 }) {
   const pathname = usePathname();
   const desktop = useMediaQuery(DESKTOP_QUERY, true);
@@ -135,6 +136,7 @@ export function ShellSidebar({
       onToggleCollapsed={onToggleCollapsed}
       spotlight={<ShellBrand compact={rail} />}
       search={search}
+      onSearchExpand={onSearchExpand}
       footer={footer}
       drawerBrand={<ShellBrand />}
       strip={(

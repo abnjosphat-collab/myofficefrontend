@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
@@ -34,6 +34,47 @@ describe('Tools interaction controls', () => {
     fireEvent.click(screen.getByRole('button',{name:'Issue tool'}));
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({toolId:SEED_TOOLS[0].id,person:PEOPLE[0],dueISO:new Date('2050-09-25T16:00').toISOString()});
+  });
+  it('issues a tool with no work location and still requires a return location', async () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    const onSave = vi.fn();
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    fireEvent.change(screen.getByLabelText('Expected return'), { target: { value: '2050-09-25T16:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ toolId: SEED_TOOLS[0].id, location: '' });
+  });
+  it('names the person when they are not eligible for the picked tool', () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    const onSave = vi.fn();
+    const restricted = { ...SEED_TOOLS[0], eligibleEmployees: [{ id: 'x', employeeNumber: 'E-999', name: 'Z. Zed', department: 'Engineering' }] };
+    render(<MovementForm kind="issue" initialTool={restricted} tools={[restricted, ...SEED_TOOLS.slice(1)]} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Alex Morgan is not currently trained, qualified and authorized for Cordless drill');
+  });
+  it('shows the Issue button saving while the movement is stored', async () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    let release!: () => void;
+    const onSave = vi.fn(() => new Promise<void>(resolve => { release = resolve; }));
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    fireEvent.change(screen.getByLabelText('Expected return'), { target: { value: '2050-09-25T16:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(await screen.findByRole('button', { name: 'Saving…' })).toBeDisabled();
+    await act(async () => { release(); });
+    expect(screen.getByRole('button', { name: 'Issue tool' })).toBeEnabled();
+  });
+  it('refuses a return with no return location', () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    const onReturn = vi.fn();
+    const out = { ...SEED_TOOLS[0], status: 'issued' as const, holder: PEOPLE[0] };
+    render(<MovementForm kind="return" initialTool={out} tools={[out, ...SEED_TOOLS.slice(1)]} employees={placeholderPeople} addFiles={() => []} onSave={onReturn} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Record a return' }));
+    expect(onReturn).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Add the return location.');
   });
   it('does not let signed-out visitors dismiss the required authentication dialog', async () => {
     const user=userEvent.setup();
@@ -146,6 +187,22 @@ describe('Tools interaction controls', () => {
     await user.click(equipmentType);
     expect(await screen.findByRole('listbox')).toBeInTheDocument();
     expect(screen.queryByRole('option',{name:'Cordless drill / driver'})).not.toBeInTheDocument();
+  });
+  it('lets simple items opt out of training and the pre-use check', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: /Training, qualification and authorization required/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Pre-use check/ })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: /Training, qualification and authorization required/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Pre-use check/ }));
+    fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Tape measure' } });
+    fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Stanley' } });
+    fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
+    fireEvent.change(screen.getByLabelText('Designated storage place'), { target: { value: 'Tool crib' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add tool' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ competencyRequired: false, preUseCheckRequired: false });
   });
   it('requires a repair or inspection note before returning equipment to service', () => {
     const onSave=vi.fn();

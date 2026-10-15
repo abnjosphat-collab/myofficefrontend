@@ -10,7 +10,7 @@ const eligible = PEOPLE.map(p => ({ id: p.id, employee_number: p.employee_number
 const tool = (n, name, status, extra = {}) => ({ id: `id${n}`, register_number: `T-00${n}`, name, make_model: 'Bosch GSR', serial_number: `S${n}`, category: 'Power tools', storage_location: 'Main workshop', department: 'Engineering', status, eligible_employees: eligible, inspection_due: [], ...extra });
 const TOOLS = [
   tool(1, 'Cordless drill', 'available', { inspection_due: ['monthly'] }),
-  tool(2, 'Angle grinder', 'issued', { custody: { employee_name: 'A. Moyo', expected_return_at: iso(2), job_reference: 'WO-2408' } }),
+  tool(2, 'Angle grinder', 'issued', { custody: { employee_name: 'A. Moyo', expected_return_at: iso(2), job_reference: 'WO-2408', pre_use_pending: true } }),
   tool(3, 'Rotary hammer', 'overdue', { custody: { employee_name: 'B. Dube', expected_return_at: iso(-3), job_reference: 'WO-2412' } }),
   tool(4, 'Torque wrench', 'available', { category: 'Hand tools', notes: 'Needs calibration' }),
 ];
@@ -49,6 +49,15 @@ const spec = {
     await page.getByRole('button', { name: /Return overdue\s*1/ }).click();
     await shot(page, 'register@1440');
 
+    // An open loan whose pre-use check is still due says so in the panel, with the recording form.
+    await pods.filter({ hasText: 'Angle grinder' }).click();
+    const loanPanel = page.getByRole('dialog', { name: 'Angle grinder' });
+    await loanPanel.waitFor();
+    check(await loanPanel.getByText('Pre-use check still due').isVisible(), 'an open loan states its due pre-use check');
+    check(await loanPanel.getByRole('button', { name: 'Record pre-use check' }).isVisible(), 'and offers the post-issue recording form');
+    await shot(page, 'tool-preuse@1440');
+    await page.keyboard.press('Escape');
+
     // One tool's panel: what it can do next, then issue it against an overdue monthly check (reason required).
     await pods.filter({ hasText: 'Cordless drill' }).click();
     const panel = page.getByRole('dialog', { name: 'Cordless drill' });
@@ -68,7 +77,7 @@ const spec = {
       if (await useRow.count() > 0) await useRow.click();
       else await page.getByRole('option', { name: text }).click();
     };
-    await fillSuggest(form, 'Current work location', 'Main workshop');
+    // The work location is left blank on purpose: it is not required to issue.
     await fillSuggest(form, 'Work order / job', 'WO-1');
     await form.getByLabel('Expected return').fill('2000-01-01T16:00');
     await form.getByRole('checkbox', { name: /Go ahead anyway/ }).check();
@@ -80,30 +89,35 @@ const spec = {
     await form.getByRole('button', { name: 'Issue tool' }).click();
     await page.waitForTimeout(800);
     const post = calls.filter(c => c.method === 'POST' && c.pathname.endsWith('/tools/id1/commands')).pop();
-    check(post?.body.kind === 'issue' && post.body.employee_name === 'A. Moyo' && post.body.job_reference === 'WO-1' && post.body.override_due_checks === true, 'issuing sends the movement with the override reason', JSON.stringify(post?.body).slice(0, 160));
+    check(post?.body.kind === 'issue' && post.body.employee_name === 'A. Moyo' && post.body.job_reference === 'WO-1' && post.body.override_due_checks === true && !post.body.location, 'issuing sends the movement with the override reason and no forced location', JSON.stringify(post?.body).slice(0, 160));
 
     // Bulk issue: two tools, one borrower, one command each; tools that are out stay greyed out.
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Actions' }).click();
-    await page.getByRole('menuitem', { name: 'Issue tools' }).click();
+    await page.getByRole('button', { name: 'Issue tools', exact: true }).click();
     const bulk = page.getByRole('dialog', { name: 'Issue tools' });
     await bulk.waitFor();
     check(await bulk.getByRole('checkbox', { name: /T-002/ }).isDisabled(), 'a tool that is out is greyed out with its holder stated');
     await bulk.getByRole('checkbox', { name: /T-001/ }).check();
     await bulk.getByRole('checkbox', { name: /T-004/ }).check();
-    await shot(page, 'bulk-issue@1440');
-    check(await bulk.getByText('monthly check overdue').isVisible(), 'the picked tools show their conditions');
+    await bulk.getByRole('button', { name: 'Next', exact: true }).click();
     await bulk.getByRole('combobox', { name: 'Employee' }).fill('A. Moyo');
     await bulk.getByRole('combobox', { name: 'Employee' }).press('Enter');
+    check(await bulk.getByText(/already holds/).isVisible(), 'the borrower step states what they already hold');
+    await bulk.getByRole('button', { name: 'Next', exact: true }).click();
+    await shot(page, 'bulk-issue@1440');
+    check(await bulk.getByText('monthly check overdue').isVisible(), 'the picked tools show their conditions');
+    await bulk.getByRole('checkbox', { name: /Go ahead anyway/ }).check();
+    await bulk.getByRole('textbox', { name: 'Reason for going ahead' }).fill('Shutdown cover this week');
+    await bulk.getByRole('button', { name: 'Next', exact: true }).click();
     await fillSuggest(bulk, 'Current work location', 'Main workshop');
     await fillSuggest(bulk, 'Work order / job', 'WO-9');
     await bulk.getByLabel('Expected return').fill('2050-10-01T16:00');
-    await bulk.getByRole('checkbox', { name: /Go ahead anyway/ }).check();
-    await bulk.getByRole('textbox', { name: 'Reason for going ahead' }).fill('Shutdown cover this week');
+    await bulk.getByRole('textbox', { name: 'Comments' }).fill('Both sound, drill chuck worn');
     await bulk.getByRole('button', { name: 'Issue 2 tools' }).click();
     await page.waitForTimeout(800);
     const bulkPosts = calls.filter(c => c.method === 'POST' && /\/tools\/id[14]\/commands$/.test(c.pathname) && c.body?.job_reference === 'WO-9');
     check(bulkPosts.length === 2 && bulkPosts.every(p => p.body.kind === 'issue' && p.body.employee_name === 'A. Moyo'), 'bulk issuing sends one command per tool', `${bulkPosts.length} posts`);
+    check(bulkPosts.every(p => p.body.condition === 'Good' && (p.body.notes || '').includes('chuck worn')), 'the issue records the condition and comments', JSON.stringify(bulkPosts[0]?.body).slice(0, 120));
 
     // The table, then the other sections.
     await page.getByRole('button', { name: 'List view' }).click();
@@ -114,12 +128,14 @@ const spec = {
     check(await page.getByRole('table', { name: 'Inspections by equipment' }).isVisible(), 'compliance opens on the inspections that are overdue');
     await shot(page, 'compliance@1440');
 
-    // Settings: the shared typeface, text size and hints, then the Tools-only choices.
+    // Settings: the shared typeface, text size and hints, then the Tools-only choices. The sidebar icons are the
+    // app-wide set now, so there is no icon-style picker left to assert — the sidebar nav itself is the proof.
     await page.getByRole('button', { name: 'Settings' }).click();
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await settings.waitFor();
     check(await settings.getByRole('combobox', { name: 'Typeface' }).isVisible(), 'settings carry the shared typeface choice');
-    check(await settings.getByRole('radiogroup', { name: 'Sidebar icon style' }).isVisible(), 'and the sidebar icon style');
+    check(await settings.getByRole('radiogroup', { name: 'Sidebar icon style' }).count() === 0, 'and no Tools-only icon style remains');
+    check(await settings.getByRole('checkbox', { name: 'Notification sounds' }).isVisible(), 'and the notification sound switch');
     await shot(page, 'settings@1440');
     await page.keyboard.press('Escape');
   },

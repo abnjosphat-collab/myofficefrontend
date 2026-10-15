@@ -57,6 +57,16 @@ export interface MergeEffectiveTimesheetsInput {
   statusLabel: (status: StatusKey) => string;
 }
 
+/** Is an overtime window (start to end) inside a shift's own times? Overnight on either side is handled; no shift times means it is not inside. */
+function insideShift(shiftStart?: string, shiftEnd?: string, otStart?: string, otEnd?: string): boolean {
+  const mins = (v?: string) => { const m = /^(\d{1,2}):(\d{2})/.exec(v ?? ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const s = mins(shiftStart); let e = mins(shiftEnd); const os = mins(otStart); let oe = mins(otEnd);
+  if (s === null || e === null || os === null || oe === null) return false;
+  if (e <= s) e += 1440;
+  if (oe <= os) oe += 1440;
+  return (os >= s && oe <= e) || (os + 1440 >= s && oe + 1440 <= e);
+}
+
 export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): TimesheetEntry[] {
   const {
     timesheets, approvedLeaves, approvedOvertime, shiftAssignments,
@@ -111,6 +121,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
   // Do not add on top of saved row overtime_hours (that double-counts when rows already persisted module OT).
   type ModuleOtDay = { ot15: number; ot20: number; tags: string[]; approval?: TimesheetEntry['_moduleApproval'] };
   const moduleOtByKey = new Map<string, ModuleOtDay>();
+  const holidayOtWindows = new Map<string, Array<{ start?: string; end?: string; hours: number }>>();
   const seenOvertimeIds = new Set<number>();
   approvedOvertime.forEach(ot => {
     if (!moduleRecordIncluded(ot.status)) return;
@@ -126,8 +137,10 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     if (hours <= 0) return;
     const key = `${dbId}:${ot.date}`;
     const acc = moduleOtByKey.get(key) ?? { ot15: 0, ot20: 0, tags: [] };
-    if (bucket === 'ot20') acc.ot20 += hours;
-    else acc.ot15 += hours;
+    if (bucket === 'ot20') {
+      acc.ot20 += hours;
+      holidayOtWindows.set(key, [...(holidayOtWindows.get(key) ?? []), { start: ot.start_time, end: ot.end_time, hours }]);
+    } else acc.ot15 += hours;
     acc.approval = addModuleApproval(acc.approval, ot.status);
     if (ot.reason?.trim()) {
       const tag = `OT (${ot.overtime_type}): ${ot.reason.trim()}`;
@@ -235,7 +248,18 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
     earlyMorningOtKeys.add(`${dbId}:${ot.date}`);
   });
 
-  return [...merged.values()].map(e => {
+  return [...merged.values()].map(raw => {
+    // Worked public holiday: every hour worked is paid at 2.0x, so the 2.0x column carries the whole day, never just the extra. The hours
+    // also stay in the normal column, which counts the shift. The day is the shift (regular hours, plus module 1.5x) and any holiday overtime
+    // that falls outside the shift's own times; overtime inside the shift (a night shift's 04:00 to 07:00 tail) is already in those hours.
+    // A larger figure already in 2.0x (a scan's) is kept. Leave, off days, the auto paid holiday and weekend/holiday statuses are untouched.
+    const rawKey = `${raw.employee_id}:${raw.date}`;
+    const outsideOt20 = (holidayOtWindows.get(rawKey) ?? []).reduce((sum, w) => sum + (insideShift(raw.start_time, raw.end_time, w.start, w.end) ? 0 : w.hours), 0);
+    const worked = (raw.regular_hours || 0) + (raw.overtime_hours || 0) + outsideOt20;
+    const mirror = raw.status === 'work' && !!zimHolidayName(raw.date) && worked > 0 && (raw.holiday_overtime_hours || 0) < worked;
+    const e: TimesheetEntry = mirror
+      ? { ...raw, holiday_overtime_hours: worked, total_hours: (raw.regular_hours || 0) + (raw.overtime_hours || 0) + worked + (raw.nightshift_hours || 0) + (raw.callout_overtime_hours || 0) }
+      : raw;
     const key = `${e.employee_id}:${e.date}`;
     const mod = moduleOtByKey.get(key);
     return syncRosterNightFields(e, {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockingConditions, toolConditions } from './toolConditions';
+import { blockingConditions, isEligibleForTool, toolConditions } from './toolConditions';
 import type { Employee, Tool } from './prototype';
 
 const tool = (over: Partial<Tool> = {}): Tool => ({
@@ -34,17 +34,29 @@ describe('toolConditions', () => {
     expect(stranger.find(r => r.key === 'competency')).toMatchObject({ state: 'unmet', blocker: true });
     expect(toolConditions(tool({ eligibleEmployees: list })).find(r => r.key === 'competency')).toMatchObject({ state: 'info', blocker: false });
   });
+  it('shares one eligibility predicate with the issue forms', () => {
+    const list = [{ id: 'b1', employeeNumber: 'E-001', name: 'A. Moyo', department: 'Engineering' }];
+    expect(isEligibleForTool(tool(), employee())).toBe(true);
+    expect(isEligibleForTool(tool({ eligibleEmployees: list }), employee())).toBe(true);
+    expect(isEligibleForTool(tool({ eligibleEmployees: list }), employee({ backendId: 'other', employeeNumber: 'E-001', name: 'Same number' }))).toBe(true);
+    expect(isEligibleForTool(tool({ eligibleEmployees: list }), employee({ backendId: 'b9', employeeNumber: 'E-009', name: 'Z. Zed' }))).toBe(false);
+    expect(isEligibleForTool(tool({ eligibleEmployees: [] }), employee())).toBe(false);
+  });
   it('flags overdue inspections and clears them with the override', () => {
     const rows = toolConditions(tool({ inspectionDue: ['monthly', 'quarterly'] }));
     expect(rows.find(r => r.key === 'inspections')).toMatchObject({ state: 'unmet', blocker: true });
     expect(blockingConditions(rows).map(r => r.key)).toContain('inspections');
     expect(blockingConditions(rows, true).map(r => r.key)).not.toContain('inspections');
   });
-  it('requires the pre-use check only for issues, and only when the tool asks for it', () => {
-    expect(toolConditions(tool({ preUseCheckRequired: true })).find(r => r.key === 'pre-use')).toMatchObject({ state: 'unmet', blocker: true });
-    expect(toolConditions(tool({ preUseCheckRequired: true }), null, { preUseChecked: true }).find(r => r.key === 'pre-use')).toMatchObject({ state: 'met' });
-    expect(toolConditions(tool({ preUseCheckRequired: true }), null, { kind: 'transfer' }).find(r => r.key === 'pre-use')).toBeUndefined();
+  it('states the pre-use check as information — it is recorded after issue, never a blocker', () => {
+    expect(toolConditions(tool({ preUseCheckRequired: true })).find(r => r.key === 'pre-use')).toMatchObject({ state: 'info', blocker: false, label: 'Pre-use inspection follows issue' });
     expect(toolConditions(tool()).find(r => r.key === 'pre-use')).toBeUndefined();
+    expect(blockingConditions(toolConditions(tool({ preUseCheckRequired: true })))).toEqual([]);
+  });
+  it('needs no training for simple items, whatever the list says', () => {
+    const rows = toolConditions(tool({ competencyRequired: false, eligibleEmployees: [] }), employee({ backendId: 'b9', employeeNumber: 'E-009', name: 'Z. Zed' }));
+    expect(rows.find(r => r.key === 'competency')).toMatchObject({ state: 'info', blocker: false, label: 'No training needed for this item' });
+    expect(isEligibleForTool(tool({ competencyRequired: false, eligibleEmployees: [] }), employee())).toBe(true);
   });
   it('surfaces calibration, PPE, tracking and criticality as information, never blockers', () => {
     const rows = toolConditions(tool({ calibrationRequired: true, calibrationFrequencyDays: 90, requiredPpe: ['Goggles', 'Gloves'], cctvRequired: true, criticality: 'safety_critical' }));

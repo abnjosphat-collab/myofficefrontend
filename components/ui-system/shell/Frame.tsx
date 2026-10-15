@@ -23,7 +23,7 @@ const STRIP_HEIGHT = 'calc(57px + var(--mo-safe-top))';
  * Callers render the same `children` in both modes, so navigation is identical at every width; pass `collapsed`
  * only for the desktop rail (the drawer never renders collapsed).
  */
-export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed, spotlight, strip, children, search, footer, drawerBrand, label = 'Main navigation' }: {
+export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed, spotlight, strip, children, search, onSearchExpand, footer, drawerBrand, label = 'Main navigation' }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collapsed: boolean;
@@ -35,6 +35,8 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   children: ReactNode;
   /** Pinned above the destinations (desktop panel and drawer); hidden on the collapsed rail, which has no room for a field. */
   search?: ReactNode;
+  /** What the rail's search button does (expand and focus the field). Without it the rail shows no search button. */
+  onSearchExpand?: () => void;
   /** Toggle row inside the bottom of the navigation panel (desktop and drawer). */
   footer?: ReactNode;
   /** Brand shown at the top of the drawer. */
@@ -68,6 +70,9 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
       >
         <div className={cn('relative mb-[15px] flex min-h-[38px] items-center gap-[9px] border-b border-line pb-[15px]', collapsed ? 'justify-center px-0' : 'px-1.5')}>
           {spotlight}
+          {collapsed && search && onSearchExpand && (
+            <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-7 rounded-[7px]" />
+          )}
           <IconButton
             icon="chevron-left"
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

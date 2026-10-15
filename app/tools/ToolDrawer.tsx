@@ -2,15 +2,32 @@
 // transfer, extend, mark ready), who may take it, its full record, recent activity and condition evidence.
 'use client';
 
-import { Button, Dialog, Notice, StatusBadge } from '@/components/ui-system';
+import { useState } from 'react';
+import { Button, Dialog, Field, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
 import { EligibleEmployeesList } from './ToolsEligibility';
 import { EvidenceGallery } from './ToolsUI';
 import { departmentOf } from './prototype';
 import { statusAccent, statusLabel, statusTone, whereIs } from './toolLook';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
+function PreUseForm({ w, toolId }: { w: ToolsWorkspace; toolId: string }) {
+  const [outcome, setOutcome] = useState<'passed' | 'conditional' | 'failed'>('passed');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  return (
+    <form className="flex flex-col gap-3" onSubmit={event => { event.preventDefault(); setSaving(true); void w.recordInspection(toolId, { inspection_type: 'pre_use', outcome, notes: notes.trim() || undefined }).finally(() => setSaving(false)); }}>
+      <Segmented label="Pre-use result" value={outcome} onValueChange={setOutcome} options={[{ value: 'passed', label: 'Passed' }, { value: 'conditional', label: 'Passed with notes' }, { value: 'failed', label: 'Failed' }]} />
+      <Field label="Check notes" optional>
+        <Textarea aria-label="Check notes" rows={2} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Anything the next person should know." />
+      </Field>
+      <div><Button type="submit" variant="primary" size="sm" pending={saving}>Record pre-use check</Button></div>
+    </form>
+  );
+}
+
 export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
   const { selected: tool, selectedFacts, activity, employees, currentAccount, options } = w;
+  const manage = !!currentAccount && ['admin', 'issuer'].includes(currentAccount.role);
   const history = tool ? activity.filter(a => a.toolId === tool.id) : [];
   const accent = tool ? statusAccent(tool.status) : 'var(--mo-neutral)';
   const movable = tool && !tool.archived;
@@ -46,6 +63,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
             {tool.status === 'overdue' && <Notice tone="danger" title="Return overdue">Receive this tool or record an approved extension.</Notice>}
             {tool.status === 'attention' && <Notice tone="warning" title="Held for attention">{tool.notes || 'Check the condition and supporting records before making this tool available.'}</Notice>}
             {!!tool.inspectionDue?.length && <Notice tone="warning" title="Scheduled checks overdue">{tool.inspectionDue.map(item => item.replaceAll('_', ' ')).join(', ')}. Issue and transfer are blocked.</Notice>}
+            {out && tool.preUsePending && <Notice tone="warning" title="Pre-use check still due">The borrower has not recorded the pre-use check for this loan yet.</Notice>}
           </section>
 
           {movable && (
@@ -66,6 +84,13 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
                   </>
                 )}
               </div>
+            </section>
+          )}
+
+          {out && tool.preUsePending && tool.backendId && manage && (
+            <section aria-label="Pre-use check" className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] pt-5">
+              <h3 className="font-sans text-caption font-medium text-ink-muted">Pre-use check — done after issuing</h3>
+              <PreUseForm key={tool.id} w={w} toolId={tool.backendId} />
             </section>
           )}
 

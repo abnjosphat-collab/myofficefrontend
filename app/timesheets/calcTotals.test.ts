@@ -87,6 +87,34 @@ describe('calcEmployeeTotals — standby allowance (flat 8h per contiguous run)'
   });
 });
 
+describe('night shift allowance — the owner\'s NEC rule (hours inside 18:00–06:00)', () => {
+  const night = (start: string, end: string, hours: number) => calcEmployeeTotals('1', [entry({
+    start_time: start, end_time: end, regular_hours: hours, nightshift_hours: 0,
+  })]).nightAllowanceBonus;
+
+  it('pays only the shift hours that fall inside 18:00–06:00', () => {
+    expect(night('14:00', '22:00', 8)).toBe(4);
+    expect(night('22:00', '06:00', 8)).toBe(8);
+    expect(night('18:00', '06:00', 12)).toBe(12);
+    expect(night('07:00', '19:00', 12)).toBe(1);
+  });
+
+  it('pays nothing for a day shift', () => {
+    expect(night('07:00', '17:00', 10)).toBe(0);
+  });
+
+  it('pays no night allowance on a callout (callouts are separate hours with no shift times)', () => {
+    const t = calcEmployeeTotals('1', [entry({ regular_hours: 0, callout_overtime_hours: 5, nightshift_hours: 0 })]);
+    expect(t.nightAllowanceBonus).toBe(0);
+  });
+
+  it('keeps the flat 8h for standby only, not for a night shift', () => {
+    const standby = calcEmployeeTotals('1', [entry({ regular_hours: 0, standby_allowance: true })]);
+    expect(standby.standbyBonus).toBe(8);
+    expect(night('22:00', '06:00', 8)).not.toBe(8 + 8);
+  });
+});
+
 describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat bonus)', () => {
   it('sums the real nightshift_hours from roster shift times instead of a flat 8h (the reported bug)', () => {
     const t = calcEmployeeTotals('1', [entry({
@@ -123,7 +151,7 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
     expect(t.nightAllowanceBonus).toBe(12);
   });
 
-  it('extends night allowance when module OT continues after roster shift end (10h + 2h OT → 12h night)', () => {
+  it('does not extend night allowance with module OT after the shift end (10h shift + 2h OT stays 10h night; the OT is paid as overtime)', () => {
     const t = calcEmployeeTotals('1', [entry({
       start_time: '18:00',
       end_time: '04:00',
@@ -131,10 +159,10 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
       overtime_hours: 2,
       nightshift_hours: 0,
     })]);
-    expect(t.nightAllowanceBonus).toBe(12);
+    expect(t.nightAllowanceBonus).toBe(10);
   });
 
-  it('uses moduleOt15ByDate when row overtime_hours is missing (18:00–04:00 + 2h module OT)', () => {
+  it('ignores moduleOt15ByDate for night allowance (the module OT is paid as overtime)', () => {
     const t = calcEmployeeTotals('1', [entry({
       start_time: '18:00',
       end_time: '04:00',
@@ -142,7 +170,7 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
       overtime_hours: 0,
       nightshift_hours: 0,
     })], { moduleOt15ByDate: { '2026-08-10': 2 } });
-    expect(t.nightAllowanceBonus).toBe(12);
+    expect(t.nightAllowanceBonus).toBe(10);
   });
 
   it('counts 12h night when regular_hours includes post-shift OT but end_time still 04:00', () => {
@@ -156,7 +184,7 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
     expect(t.nightAllowanceBonus).toBe(12);
   });
 
-  it('reaches 12h night when module OT starts before 06:00 but shift times were not saved as night roster', () => {
+  it('gives a day shift no night allowance even when module OT starts before 06:00', () => {
     const t = calcEmployeeTotals('1', [entry({
       date: '2026-09-10',
       start_time: '07:00',
@@ -165,7 +193,7 @@ describe('calcEmployeeTotals — night shift allowance (actual hours, not a flat
       overtime_hours: 2,
       nightshift_hours: 0,
     })], { earlyMorningOtDates: new Set(['2026-09-10']) });
-    expect(t.nightAllowanceBonus).toBe(12);
+    expect(t.nightAllowanceBonus).toBe(0);
   });
 });
 

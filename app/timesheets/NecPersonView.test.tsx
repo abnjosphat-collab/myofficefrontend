@@ -53,10 +53,10 @@ describe('NecPersonView', () => {
     expect(screen.getByRole('heading', { name: /Nkosana Moyo/ })).toBeInTheDocument();
     expect(screen.getByText('C007')).toBeInTheDocument();
     // The folded bar shows the payable total; the buckets open on demand.
-    expect(screen.getByText('231.0h')).toBeInTheDocument();
+    expect(screen.getByText('230.0h')).toBeInTheDocument();
     expect(screen.queryByText('40.0h')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Show Period totals' }));
-    // Actual 40.0h, Reg floored to 208, OT 2.0h, night 13.0h (12 roster + 1 OT past 18:00), standby 8.0h.
+    // Actual 40.0h, Reg floored to 208, OT 2.0h, night 12.0h (the roster shift only: overtime past 18:00 is paid as overtime), standby 8.0h.
     expect(screen.getByText('40.0h')).toBeInTheDocument();
     expect(screen.getAllByText('Regular floored to 208 (no absence this period).')).toHaveLength(2);
   });
@@ -69,12 +69,12 @@ describe('NecPersonView', () => {
       'Date', 'Day', 'Status', 'Normal', 'OT 1.5', 'OT 2.0', 'Night', 'Standby', 'In', 'Out', '',
     ]);
     expect(screen.getByText('Totals')).toBeInTheDocument();
-    // The standby day flags SB; the night roster shows its 12h allowance in the row, 13.0h in the foot with the OT hour past 18:00.
+    // The standby day flags SB; the night roster shows its 12h allowance in the row, 12.0h in the foot too (overtime past 18:00 is not night allowance).
     expect(screen.getByText('SB')).toBeInTheDocument();
-    expect(screen.getAllByText('12.0')).toHaveLength(1);
+    expect(screen.getAllByText('12.0')).toHaveLength(2); // the night day's row and the foot
     const table2 = screen.getByRole('table', { name: /Nkosana Moyo's days/ });
     const foot2 = within(table2).getByText('Totals').closest('tr')!;
-    expect(within(foot2).getAllByRole('cell')[3]).toHaveTextContent('13.0');
+    expect(within(foot2).getAllByRole('cell')[3]).toHaveTextContent('12.0');
   });
 
   it('breaks a day down to its overtime record, leave and holiday lines', async () => {

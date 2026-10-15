@@ -42,6 +42,14 @@ export function tomorrowAt(hour = 16, minute = 0): string {
   return `${toLocalISODate(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** N days from today at the given local time, as a datetime-local input value. Powers return-date presets. */
+export function daysFromNowAt(days: number, hour = 16, minute = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, minute, 0, 0);
+  return `${toLocalISODate(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 /** Whole days from today to `dateStr` (YYYY-MM-DD). Negative = in the past, 0 = today.
  *  Compares local midnight to local midnight, so it doesn't drift with the time of day or
  *  the UTC offset — unlike `(new Date(dateStr) - Date.now()) / 86400000`, which flips an

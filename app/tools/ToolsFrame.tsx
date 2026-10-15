@@ -12,17 +12,18 @@ import {
 import { AnimatedText } from '@/components/shared/floor/motion';
 import { ToolsNotifications } from './ToolsNotifications';
 import { ToolsProfileMenu } from './ToolsProfileMenu';
-import { SidebarIcon, type SidebarIconName } from './ToolsSidebarIcon';
-import type { IconPackId } from './sidebarNav';
+import { Icon, type IconMeaning } from '@/components/ui-system';
 import { abbreviateDepartment } from './prototype';
 import { tabs, type ToolsWorkspace } from './useToolsWorkspace';
 
-// Glyph components are cached so a destination keeps one identity between renders (NavItem takes a component).
-const navGlyphs = new Map<string, ElementType>();
-function navGlyph(pack: IconPackId, name: SidebarIconName): ElementType {
-  const key = `${pack}:${name}`;
-  let glyph = navGlyphs.get(key);
-  if (!glyph) { glyph = function NavGlyphIcon() { return <SidebarIcon pack={pack} name={name} size={18} />; }; navGlyphs.set(key, glyph); }
+// One glyph component per meaning, cached so a destination keeps one identity between renders (NavItem takes
+// a component). The glyphs are the app-wide set — Tools uses the same icons as every other module.
+const TAB_MEANINGS: Record<string, IconMeaning> = { home: 'home', box: 'equipment', out: 'recipients', user: 'employees', check: 'compliance', history: 'history', upload: 'upload', accounts: 'accounts', analytics: 'analytics', edit: 'edit' };
+const navGlyphs = new Map<IconMeaning, ElementType>();
+function navGlyph(tabIcon: string): ElementType {
+  const meaning = TAB_MEANINGS[tabIcon] ?? 'app';
+  let glyph = navGlyphs.get(meaning);
+  if (!glyph) { glyph = function NavGlyphIcon() { return <Icon name={meaning} size={18} />; }; navGlyphs.set(meaning, glyph); }
   return glyph;
 }
 export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: ReactNode }) {
@@ -37,7 +38,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
     <>
       {/* G3: fixed order, like the sections nav — recency reordering moved items under the pointer. */}
       {sidebarNav.iconsOpen && visibleTabs.filter(item => item.value !== tab).map(item => (
-        <NavItem key={item.value} label={item.label} icon={navGlyph(sidebarNav.iconPack, item.icon as SidebarIconName)} active={item.value === tab}
+        <NavItem key={item.value} label={item.label} icon={navGlyph(item.icon)} active={item.value === tab}
           collapsed={sidebarCollapsed} onClick={() => go(item.value)} onNavigate={() => setNavOpen(false)} />
       ))}
     </>
@@ -53,7 +54,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => w.setSidebarCollapsed(value => !value)}
           label="Tools navigation"
-          spotlight={<NavSpotlight label={current.label} icon={navGlyph(sidebarNav.iconPack, current.icon as SidebarIconName)} href="/tools" collapsed={sidebarCollapsed} onNavigate={() => w.setSearch('')} />}
+          spotlight={<NavSpotlight label={current.label} icon={navGlyph(current.icon)} href="/tools" collapsed={sidebarCollapsed} onNavigate={() => w.setSearch('')} />}
           search={(
             <DestinationSearch
               value={search}
@@ -66,6 +67,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
               inputRef={w.searchRef}
             />
           )}
+          onSearchExpand={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }}
           strip={<><IconButton icon="sidebar" label="Open navigation" variant="ghost" onClick={() => setNavOpen(true)} /><IconButton icon="search" label="Search" variant="ghost" onClick={() => setNavOpen(true)} /><h1 className="font-sans text-body-sm font-semibold text-ink sm:hidden">{current.label}</h1></>}
           drawerBrand={<strong className="font-sans text-body-sm text-ink">Equipment E-System</strong>}
         >
