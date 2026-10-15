@@ -26,6 +26,7 @@ function navGlyph(tabIcon: string): ElementType {
   if (!glyph) { glyph = function NavGlyphIcon() { return <Icon name={meaning} size={18} />; }; navGlyphs.set(meaning, glyph); }
   return glyph;
 }
+function SearchGlyph() { return <Icon name="search" size={18} />; }
 export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const { tab, visibleTabs, sidebarNav, sidebarCollapsed, department, departmentOptions, search, currentAccount } = w;
@@ -37,6 +38,9 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
   const nav = (
     <>
       {/* G3: fixed order, like the sections nav — recency reordering moved items under the pointer. */}
+      {sidebarCollapsed && (
+        <NavItem label="Search" icon={SearchGlyph} active={false} collapsed onClick={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }} onNavigate={() => undefined} />
+      )}
       {sidebarNav.iconsOpen && visibleTabs.filter(item => item.value !== tab).map(item => (
         <NavItem key={item.value} label={item.label} icon={navGlyph(item.icon)} active={item.value === tab}
           collapsed={sidebarCollapsed} onClick={() => go(item.value)} onNavigate={() => setNavOpen(false)} />

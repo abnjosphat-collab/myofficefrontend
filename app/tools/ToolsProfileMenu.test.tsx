@@ -21,7 +21,6 @@ describe('ToolsProfileMenu', () => {
     await user.click(screen.getByRole('button', { name: 'Account: Audit Admin' }));
     expect(screen.getByText('Audit Admin')).toBeInTheDocument();
     expect(screen.getByText('audit-admin')).toBeInTheDocument();
-    expect(screen.getByText('AA')).toBeInTheDocument();
     expect(screen.getByText('Administrator')).toBeInTheDocument();
     expect(screen.queryByText('Department')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sign out' }));

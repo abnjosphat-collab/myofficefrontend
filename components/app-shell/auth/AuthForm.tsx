@@ -66,18 +66,16 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
         <span className="h-px flex-1 bg-line" /><span className="font-sans text-caption text-ink-muted">{mode === 'login' ? 'or sign in with your email' : 'or create an account with your email'}</span><span className="h-px flex-1 bg-line" />
       </div>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
-        {mode === 'signup' && <Field label="Full name" error={fieldErrors.name}><Input type="text" autoComplete="name" placeholder="As on official documents" value={name} onChange={e => setName(e.target.value)} /></Field>}
+        {mode === 'signup' && <Field label="Full name" error={fieldErrors.name}><Input type="text" autoComplete="name" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></Field>}
         <Field label="Email address" error={fieldErrors.email}><Input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} /></Field>
         <Field label="Password" error={fieldErrors.password}><Input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={e => setPassword(e.target.value)} /></Field>
         {error && <Notice tone="danger" title={mode === 'login' ? 'Could not sign in' : 'Could not create the account'}>{error}</Notice>}
-        <Button type="submit" variant="primary" fullWidth pending={loading}>{mode === 'login' ? 'Sign in' : 'Create account'}</Button>
+        {mode === 'login' && <p className="-mt-1 text-right font-sans text-caption text-ink-muted">Forgot password?</p>}
+        <div className="flex justify-center gap-3 pt-1">
+          <Button type={mode === 'login' ? 'submit' : 'button'} variant={mode === 'login' ? 'primary' : 'secondary'} pending={loading && mode === 'login'} onClick={mode === 'login' ? undefined : () => { setMode('login'); setError(''); setFieldErrors({}); }}>{loading && mode === 'login' ? 'Signing in…' : 'Sign in'}</Button>
+          <Button type={mode === 'signup' ? 'submit' : 'button'} variant={mode === 'signup' ? 'primary' : 'secondary'} pending={loading && mode === 'signup'} onClick={mode === 'signup' ? undefined : () => { setMode('signup'); setError(''); setFieldErrors({}); }}>{loading && mode === 'signup' ? 'Creating your account…' : 'Create account'}</Button>
+        </div>
       </form>
-      <p className="text-center font-sans text-body-sm text-ink-muted">
-        {mode === 'login' ? 'New here? ' : 'Already have an account? '}
-        <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setFieldErrors({}); }} className="focus-ring rounded-xs font-medium text-action hover:underline">
-          {mode === 'login' ? 'Create an account' : 'Sign in'}
-        </button>
-      </p>
     </div>
   );
 }

@@ -2,15 +2,10 @@
 // sign-in button.
 'use client';
 
-import { Button, IconButton, Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui-system';
+import { Button, Icon, IconButton, Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui-system';
 import type { WorkspaceAccount } from './prototype';
 
 const ROLE_LABELS = { admin: 'Administrator', issuer: 'Issuer', viewer: 'Viewer' } as const;
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?';
-}
 
 export function ToolsProfileMenu({ account, onSignIn, onSignOut }: { account: WorkspaceAccount | null; onSignIn: () => void; onSignOut: () => void }) {
   if (!account) return <IconButton icon="user" variant="ghost" label="Sign in" onClick={onSignIn} />;
@@ -19,7 +14,7 @@ export function ToolsProfileMenu({ account, onSignIn, onSignOut }: { account: Wo
       <PopoverTrigger asChild><IconButton icon="user" variant="ghost" label={`Account: ${account.name}`} /></PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-4" aria-label="Your profile">
         <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--mo-action-soft)] font-sans text-body-sm font-semibold text-ink">{initials(account.name)}</span>
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--mo-action-soft)] font-sans text-body-sm font-semibold text-ink"><Icon name="user" size="md" /></span>
           <div className="min-w-0">
             <strong className="block truncate font-sans text-body-sm font-semibold text-ink">{account.name}</strong>
             <small className="block truncate font-sans text-caption text-ink-muted">{account.username}</small>

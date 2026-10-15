@@ -2,7 +2,7 @@
 // failed state, never a misleading empty one), then shows the section.
 'use client';
 
-import { Button, DataTable, EmptyState, LoadingPulse, Notice } from '@/components/ui-system';
+import { Button, DataTable, DestinationSearch, EmptyState, LoadingPulse, Notice } from '@/components/ui-system';
 import { ToolsAccountAccess } from './ToolsAuth';
 import { ToolsAnalytics } from './ToolsAnalytics';
 import { ToolsCompliance } from './ToolsCompliance';
@@ -30,6 +30,15 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
   if (tab === 'homepage') {
     if (currentAccount && !sourceState.tools.loaded && !sourceState.tools.error) return <LoadingPulse label="Loading the overview" />;
     return (
+      <div className="flex flex-col gap-5">
+      {/* The same workspace search as the sidebar, here at the top of the overview, so it is one step away even when the sidebar is folded. */}
+      <div className="w-full max-w-xs">
+      <DestinationSearch
+        value={w.search} onValueChange={w.setSearch} results={w.workspaceSearchResults}
+        onChoose={result => { const original = w.workspaceSearchResults.find(item => item.id === result.id); if (original) w.chooseSearchResult(original); }}
+        placeholder="Search…" label="Search the Tools workspace"
+      />
+      </div>
       <ToolsHomepage
         stats={w.homeStats as HomepageStat[]} attention={w.homeAttention as HomepageAttention[]}
         movements={w.activity.slice(0, 5).map(event => ({ id: event.id, title: event.title, detail: event.detail, time: event.time }))}
@@ -39,6 +48,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
         onNavigate={(next, filter) => w.filterTo(filter, next)} onRetry={w.retryWorkspace}
         onIssue={() => w.openManageModal({ kind: 'bulk-issue' })} canIssue={w.counts.available > 0}
       />
+      </div>
     );
   }
   if (currentAccount && !activeSourceState.loaded) return <DataState title={activeSourceTitle} state={activeSourceState} onRetry={w.retryWorkspace} />;

@@ -5,20 +5,19 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, Icon, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { ROLE_LABELS } from '@/lib/roles';
 import { AuthForm } from './auth/AuthForm';
 import { SecurityPanel } from './mfa-ui';
 
-function Avatar({ name, url, size = 'md' }: { name: string; url: string | null; size?: 'md' | 'lg' }) {
-  const initials = name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
+function Avatar({ url, size = 'md' }: { url: string | null; size?: 'md' | 'lg' }) {
   const box = size === 'lg' ? 'size-10 text-label' : 'size-8 text-caption';
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element -- remote avatar of arbitrary origin; sized by the box
     <img src={url} alt="" className={`${box} shrink-0 rounded-full object-cover`} />
   ) : (
-    <span aria-hidden="true" className={`${box} inline-flex shrink-0 items-center justify-center rounded-full bg-action font-sans font-semibold text-action-ink`}>{initials}</span>
+    <span aria-hidden="true" className={`${box} inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--mo-surface-interactive)] text-ink`}><Icon name="user" size="md" /></span>
   );
 }
 
@@ -55,7 +54,7 @@ export function AccountMenu({ onOpenSettings }: { onOpenSettings: () => void }) 
         </MenuTrigger>
         <MenuContent align="end" className="w-64">
           <div className="flex items-center gap-3 px-2.5 py-2">
-            <Avatar name={displayName} url={profile?.avatar_url ?? null} size="lg" />
+            <Avatar url={profile?.avatar_url ?? null} size="lg" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-sans text-label font-semibold text-ink">{displayName}</p>
               <p className="truncate font-sans text-caption text-ink-muted">{user.email}</p>

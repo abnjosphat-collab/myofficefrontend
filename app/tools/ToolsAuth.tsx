@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Button, Checkbox, Field, Icon, Input, MetricGrid, MetricTile, Notice, Segmented, Select } from '@/components/ui-system';
+import { Button, Checkbox, Field, Icon, Input, MetricGrid, MetricTile, Notice, Select } from '@/components/ui-system';
 import type { ApprovalRole } from './complianceTypes';
 import type { AccountRole, WorkspaceAccount } from './prototype';
 
@@ -79,6 +79,7 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; username?: string; password?: string }>({});
+  const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
@@ -90,9 +91,12 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
     else if (password.length < 6) problems.password = 'Use at least 6 characters.';
     setFieldErrors(problems);
     if (Object.keys(problems).length > 0) return;
+    setBusy(true);
+    try {
     if (mode === 'login') { const result = await onLogin(username, password); if (result !== true) setError(result); return; }
     if (accounts.some(account => account.username.toLowerCase() === username.trim().toLowerCase())) { setError('That username is already in use.'); return; }
     await onCreate({ id: crypto.randomUUID(), name: name.trim(), username: username.trim().toLowerCase(), password, role: 'viewer', canIssue: false });
+    } finally { setBusy(false); }
   }
   if (currentAccount) {
     return (
@@ -112,16 +116,19 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
   }
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <Segmented label="Account" value={mode} onValueChange={next => { setMode(next); setError(''); setFieldErrors({}); }} options={[{ value: 'login', label: 'Sign in' }, { value: 'create', label: 'Create account' }]} />
-      {mode === 'create' && <Field label="Your name" error={fieldErrors.name}><Input aria-label="Your name" value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field>}
-      <Field label="Username or email" error={fieldErrors.username}><Input aria-label="Username or email" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" /></Field>
-      <Field label="Password" error={fieldErrors.password}><Input aria-label="Password" type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
+      {mode === 'create' && <Field label="Your name" error={fieldErrors.name}><Input aria-label="Your name" placeholder="Your full name" value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field>}
+      <Field label="Username or email" error={fieldErrors.username}><Input aria-label="Username or email" placeholder="Your username or email" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" /></Field>
+      <Field label="Password" error={fieldErrors.password}><Input aria-label="Password" type="password" placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
       {mode === 'create' && <p className="font-sans text-caption text-ink-muted">New accounts start as Viewers. An administrator assigns the department and any issuing rights.</p>}
       {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
       <p className="font-sans text-caption text-ink-muted">Your password is verified by the backend and is never stored in this browser.</p>
-      <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
-        {allowCancel && <Button type="button" onClick={onCancel}>Cancel</Button>}
-        <Button type="submit" variant="primary">{mode === 'login' ? 'Sign in' : 'Create account'}</Button>
+      {mode === 'login' && <p className="-mt-2 text-right font-sans text-caption text-ink-muted">Forgot password?</p>}
+      <div className="flex flex-col items-center gap-2 pt-2">
+        <div className="flex justify-center gap-3">
+          <Button type={mode === 'login' ? 'submit' : 'button'} variant={mode === 'login' ? 'primary' : 'secondary'} pending={busy && mode === 'login'} onClick={mode === 'login' ? undefined : () => { setMode('login'); setError(''); setFieldErrors({}); }}>{busy && mode === 'login' ? 'Signing in…' : 'Sign in'}</Button>
+          <Button type={mode === 'create' ? 'submit' : 'button'} variant={mode === 'create' ? 'primary' : 'secondary'} pending={busy && mode === 'create'} onClick={mode === 'create' ? undefined : () => { setMode('create'); setError(''); setFieldErrors({}); }}>{busy && mode === 'create' ? 'Creating your account…' : 'Create account'}</Button>
+        </div>
+        {allowCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
       </div>
     </form>
   );

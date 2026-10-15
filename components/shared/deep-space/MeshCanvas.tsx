@@ -49,62 +49,46 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, width, height);
       g.lineCap = 'round';
-      // A woven sheet laid out like a hammock: a net on the ground plane seen from above and in front, its sides lifting towards you and its far
-      // edge receding to a soft horizon, with a gentle swell running through it. Cells are about the same size across, smaller only as they go
-      // back. Nothing in it is random: it is the same every time, so the page looks the same on every visit.
-      const STEP = 0.115; const NX = 190; const NY = 130;
-      const pitch = 0.62; const camH = 1.9; const camBack = 3.6;
-      const f = 0.8 * Math.max(width, height * 1.5);
-      const cx = width * 0.5; const cy = height * 0.3;
-      const cp = Math.cos(pitch); const sp = Math.sin(pitch);
-      const C = NX + 1; const N = C * (NY + 1);
-      const px = new Float32Array(N); const py = new Float32Array(N); const pz = new Float32Array(N); const hh = new Float32Array(N); const ok = new Uint8Array(N);
-      for (let j = 0; j <= NY; j++) {
-        for (let i = 0; i <= NX; i++) {
-          const k = j * C + i;
-          const u = (i - NX / 2) * STEP; const v = (j - 30) * STEP;
-          // The sides lift (u squared), the far end lifts a little, and a slow swell crosses the sheet.
-          const far = Math.max(0, v + 1.5); // the folds grow towards the horizon, like a swell rolling away
-          const h = 0.05 * u * u + 0.07 * Math.sin(u * 0.9 + v * 0.55) + (0.12 + 0.045 * far) * Math.sin(v * 0.95 + u * 0.28) + 0.05 * Math.sin(u * 1.9 - v * 1.1 + 1.4);
-          const Y = h - camH; const Z = v + camBack;
-          const yc = Y * cp + Z * sp; const zc = -Y * sp + Z * cp;
-          if (zc < 0.35) { ok[k] = 0; continue; }
-          px[k] = cx + (u * f) / zc; py[k] = cy - (yc * f) / zc; pz[k] = zc; hh[k] = h; ok[k] = 1;
-        }
-      }
-      const light = new Float32Array(N);
-      for (let j = 0; j <= NY; j++) {
-        for (let i = 0; i <= NX; i++) {
-          const i0 = Math.max(i - 1, 0); const i1 = Math.min(i + 1, NX); const j0 = Math.max(j - 1, 0); const j1 = Math.min(j + 1, NY);
-          const dx = hh[j * C + i1] - hh[j * C + i0]; const dy = hh[j1 * C + i] - hh[j0 * C + i];
-          light[j * C + i] = Math.max(0.2, Math.min(1, 0.6 - 2.2 * dx - 2.6 * dy)); // light from the upper left: the folds catch it on one side
-        }
-      }
-      const smooth = (lo: number, hi: number, x: number) => { const q = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return q * q * (3 - 2 * q); };
-      // The far end dissolves into the haze; nearer to you the lines are fuller.
-      const haze = (k: number) => 1 - 0.8 * smooth(9, 22, pz[k]);
-      const dim = lineColor;
-      g.strokeStyle = dim; g.lineWidth = 0.75;
-      const seg = (a: number, b: number) => {
-        if (!ok[a] || !ok[b]) return;
-        if ((px[a] < -40 && px[b] < -40) || (px[a] > width + 40 && px[b] > width + 40) || (py[a] > height + 60 && py[b] > height + 60)) return;
-        const alpha = 0.95 * (0.45 + 0.55 * (light[a] + light[b]) / 2) * ((haze(a) + haze(b)) / 2);
-        if (alpha < 0.03) return;
-        g.globalAlpha = alpha;
-        g.beginPath(); g.moveTo(px[a], py[a]); g.lineTo(px[b], py[b]); g.stroke();
+      // A flat net standing like a wall, turned a little so its right side recedes in perspective: near cells open on the left, closing in
+      // towards the right. It fills the whole background. Lines and points are thin and fade slightly with distance.
+      const yaw = 0.92; const pitch = -0.06;
+      const cyw = Math.cos(yaw); const syw = Math.sin(yaw); const cp = Math.cos(pitch); const sp = Math.sin(pitch);
+      const focal = 2.0 * Math.max(width, height * 1.3);
+      const cx = width * 0.5; const cy = height * 0.5;
+      const STEP = 0.05; const NX = 300; const NY = 200; const DEPTH = 3.2;
+      const TURN = Math.PI / 4; const ct = Math.cos(TURN); const st = Math.sin(TURN); // the whole wall is turned 45 degrees on the screen
+      const project = (i: number, j: number) => {
+        const u = (i - 40) * STEP; const v = (j - NY / 2) * STEP;
+        const x1 = u * cyw; const z1 = u * syw;
+        const y2 = v * cp - z1 * sp; const z2 = v * sp + z1 * cp;
+        const depth = DEPTH + z2;
+        const s = depth > 0.2 ? focal / depth : 0;
+        const dx = x1 * s; const dy = y2 * s;
+        return { x: width * 0.5 + (cx - width * 0.5 + dx) * ct - (cy - height * 0.5 + dy) * st, y: height * 0.5 + (cx - width * 0.5 + dx) * st + (cy - height * 0.5 + dy) * ct, d: depth, ok: depth > 0.2 };
       };
-      for (let j = 0; j <= NY; j++) for (let i = 0; i < NX; i++) seg(j * C + i, j * C + i + 1);
-      for (let i = 0; i <= NX; i++) for (let j = 0; j < NY; j++) seg(j * C + i, (j + 1) * C + i);
+      const smooth = (lo: number, hi: number, x: number) => { const k = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return k * k * (3 - 2 * k); };
+      const fade = (d: number) => (1 - smooth(4.0, 7.2, d)) * (1 + 0.2 * (1 - smooth(2.6, 3.1, d))); // the far right dissolves into the horizon
+      g.strokeStyle = lineColor; g.lineWidth = 0.75;
+      const seg = (i0: number, j0: number, i1: number, j1: number) => {
+        const a = project(i0, j0); const c = project(i1, j1);
+        if (!a.ok || !c.ok) return;
+        if ((a.x < -50 && c.x < -50) || (a.x > width + 50 && c.x > width + 50) || (a.y < -50 && c.y < -50) || (a.y > height + 50 && c.y > height + 50)) return;
+        g.globalAlpha = Math.min(1, 0.7 * fade((a.d + c.d) / 2));
+        if (g.globalAlpha < 0.03) return;
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(c.x, c.y); g.stroke();
+      };
+      for (let j = 0; j <= NY; j++) for (let i = 0; i < NX; i++) seg(i, j, i + 1, j);
+      for (let i = 0; i <= NX; i++) for (let j = 0; j < NY; j++) seg(i, j, i, j + 1);
       g.fillStyle = nodeColor;
-      for (let j = 0; j <= NY; j++) {
-        for (let i = 0; i <= NX; i++) {
-          const k = j * C + i;
-          if (!ok[k] || px[k] < -6 || px[k] > width + 6 || py[k] < -6 || py[k] > height + 6) continue;
-          const a = (0.5 + 0.5 * light[k]) * haze(k);
-          const r = Math.min(1.8, 0.4 + 3.2 / pz[k]) * (0.8 + 0.3 * light[k]);
-          if (a < 0.1 || r < 0.5) continue;
-          g.globalAlpha = Math.min(1, a);
-          g.beginPath(); g.arc(px[k], py[k], r, 0, 6.2832); g.fill();
+      for (let j = 0; j <= NY; j += 2) {
+        for (let i = 0; i <= NX; i += 2) {
+          const q = project(i, j);
+          if (!q.ok || q.x < -6 || q.x > width + 6 || q.y < -6 || q.y > height + 6) continue;
+          const f = fade(q.d);
+          const r = Math.min(1.6, 0.35 + 3.4 / (q.d * q.d));
+          if (f < 0.12 || r < 0.5) continue;
+          g.globalAlpha = Math.min(1, 0.8 * f);
+          g.beginPath(); g.arc(q.x, q.y, r, 0, 6.2832); g.fill();
         }
       }
       g.globalAlpha = 1;
@@ -114,7 +98,7 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (quiet) { ctx.globalAlpha = 0.3; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
       if (reduced) { ctx.globalAlpha = 0.55; ctx.drawImage(lit, 0, 0); ctx.globalAlpha = 1; return; }
-      ctx.globalAlpha = dark ? 0.5 : 0.42; ctx.drawImage(lit, 0, 0); // the net at rest: quiet but present
+      ctx.globalAlpha = dark ? 0.36 : 0.3; ctx.drawImage(lit, 0, 0); // the net at rest: quiet but present
       const cycle = (clock % SWEEP_SECONDS) / SWEEP_SECONDS;
       const progress = cycle / SWEEP_ACTIVE;
       if (progress > 1) { ctx.globalAlpha = 1; return; } // resting between passes
@@ -128,8 +112,8 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(0.5, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
       b.globalCompositeOperation = 'destination-in';
       b.fillStyle = grad; b.fillRect(0, 0, band.width, band.height);
-      ctx.globalAlpha = 1; ctx.drawImage(band, 0, 0); // the lit net, at full strength inside the band
-      ctx.globalAlpha = 0.55; ctx.filter = 'blur(7px)'; ctx.drawImage(band, 0, 0); ctx.filter = 'none'; // and a soft glow round it
+      ctx.globalAlpha = 0.8; ctx.drawImage(band, 0, 0); // the lit net inside the band
+      ctx.globalAlpha = 0.3; ctx.filter = 'blur(7px)'; ctx.drawImage(band, 0, 0); ctx.filter = 'none'; // and a soft glow round it
       ctx.globalAlpha = 1;
     };
 
