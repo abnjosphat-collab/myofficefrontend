@@ -1,5 +1,6 @@
 // /pachedu: care observations register (cards, table, detail with status change, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const REPORTS = [
   { id: 'c1', location: 'Workshop 1', date: iso(-3), activityObserved: 'Changing a pump seal', whatDidYouSee: 'A worker alone under a raised load.', reasons: 'Short staffed', behaviourType: 'Intentional', impacts: ['Serious injury', 'Increased Cost'], whatDidYouDo: 'Stopped the job and brought a second person.', observerName: 'Ann Alpha', dept: 'Engineering', sdwt: '12', sectionChoice: 'Mechanical', checklist: ['Lockout system', 'Time pressure'], status: 'submitted', created_at: iso(-3) },
   { id: 'c2', location: 'Substation 3', date: iso(-20), activityObserved: 'Walking past an open board', whatDidYouSee: 'A cover left off.', reasons: '', behaviourType: 'Unintentional', impacts: ['Minor injury'], whatDidYouDo: 'Refitted the cover and told the foreman.', observerName: '', dept: 'Mining', sdwt: '', sectionChoice: 'Electrical', checklist: [], status: 'closed', created_at: iso(-20) },

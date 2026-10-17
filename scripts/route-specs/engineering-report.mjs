@@ -1,5 +1,6 @@
 // /engineering_report: monthly report; each of five sources fails independently and is never shown as zero.
-const ym = new Date().toISOString().slice(0, 7);
+const pad2 = n => String(n).padStart(2, '0');
+const ym = (() => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; })(); // local month
 const day = n => `${ym}-${String(n).padStart(2, '0')}`;
 const BREAKDOWNS = [{ id: 1, equipment_name: 'Fixture Crusher', downtime_hours: 6, breakdown_date: day(2) }, { id: 2, equipment_name: 'Fixture Crusher', downtime_hours: 2, breakdown_date: day(3) }];
 const JOB_CARDS = [{ id: 1, status: 'completed', created_at: day(2) }, { id: 2, status: 'open', created_at: day(3) }];

@@ -10,8 +10,8 @@ import { Icon, controlClasses } from '@/components/ui-system';
 export type PickerChoice = { label: string; detail?: string };
 
 
-export function EmployeePicker({ label, choices, value, onChange, onSelect, hint, emptyMessage }: {
-  label: string; choices: PickerChoice[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; hint?: string; emptyMessage: string;
+export function EmployeePicker({ label, choices, value, onChange, onSelect, hint, emptyMessage, error }: {
+  label: string; choices: PickerChoice[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; hint?: string; emptyMessage: string; error?: string;
 }) {
   const id = useId();
   const listId = `${id}-list`;
@@ -31,7 +31,7 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
         {choices.length > 0 && <span className="font-sans text-caption text-ink-muted">{choices.length} eligible</span>}
       </div>
       <input
-        id={id} role="combobox" aria-label={label} aria-expanded aria-controls={listId} aria-autocomplete="list" aria-activedescendant={matches[current] ? `${id}-option-${current}` : undefined}
+        id={id} role="combobox" aria-label={label} aria-expanded aria-controls={listId} aria-autocomplete="list" aria-activedescendant={matches[current] ? `${id}-option-${current}` : undefined} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         autoComplete="off" spellCheck={false} value={value} placeholder="Search by name, number or job title"
         className={controlClasses + ' h-10'}
         onChange={event => { onChange(event.target.value); setActive(0); }}
@@ -60,7 +60,13 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
         {!choices.length && <li role="presentation" className="px-3 py-3 font-sans text-body-sm text-ink-muted">{emptyMessage}</li>}
         {choices.length > 0 && !matches.length && <li role="presentation" className="px-3 py-3 font-sans text-body-sm text-ink-muted">No eligible person matches “{value.trim()}”.</li>}
       </ul>
-      {hint && <p className="font-sans text-caption text-ink-muted">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="font-sans text-caption text-ink-muted">{hint}</p>}
+      {error && (
+        <p id={`${id}-error`} role="alert" className="flex items-start gap-1.5 font-sans text-caption font-medium text-danger">
+          <Icon name="warning" size="xs" weight="emphasis" className="mt-0.5" />
+          <span>{error}</span>
+        </p>
+      )}
     </div>
   );
 }

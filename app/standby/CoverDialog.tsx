@@ -5,8 +5,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Combobox, Field, FormDialog, Input, Segmented, Select } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
+import { Field, FormDialog, Input, PersonPicker, Segmented, Select } from '@/components/ui-system';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
 import type { CoverPreset, DutyRotation, RotationCover, RotationKind, StandbyRotation } from './types';
 
@@ -58,7 +58,6 @@ export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotatio
   onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState<Form>(() => blank(preset));
   const [touched, setTouched] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -74,14 +73,7 @@ export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotatio
     return list.map(r => ({ value: String(r.id), label: r.name }));
   }, [form.kind, standbyRotations, dutyRotations]);
 
-  const employeeOptions = useMemo(() => employees.map(e => ({
-    value: String(e.id),
-    label: `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.employee_id || 'Employee'),
-    description: [e.designation || e.position, e.department].filter(Boolean).join(' · '),
-  })), [employees]);
-
-  const pick = (id: string, role: 'absent' | 'cover') => {
-    const e = employees.find(x => String(x.id) === id);
+  const pick = (e: EmployeeLookup | null, role: 'absent' | 'cover') => {
     if (!e) return;
     const snapshot = {
       employee_id: String(e.employee_id || e.id),
@@ -130,10 +122,10 @@ export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotatio
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Away" required error={err(bad.absent, 'Choose who is away.')}>
-            <Combobox aria-label="Away" value={employeeOptions.find(o => o.label === form.absent_employee_name)?.value ?? ''} onValueChange={id => pick(id, 'absent')} options={employeeOptions} placeholder={form.absent_employee_name || 'Search employees'} searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." />
+            <PersonPicker label="Away" name={form.absent_employee_name} employeeId={form.absent_employee_id} onPick={e => pick(e, 'absent')} />
           </Field>
           <Field label="Holding in their place" required error={err(bad.cover, samePerson ? 'Nobody holds in place of themselves.' : 'Choose who holds.')}>
-            <Combobox aria-label="Holding in their place" value={employeeOptions.find(o => o.label === form.cover_employee_name)?.value ?? ''} onValueChange={id => pick(id, 'cover')} options={employeeOptions} placeholder={form.cover_employee_name || 'Search employees'} searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." />
+            <PersonPicker label="Holding in their place" name={form.cover_employee_name} employeeId={form.cover_employee_id} onPick={e => pick(e, 'cover')} />
           </Field>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -9,7 +9,6 @@
 @import "../components/ui-system/foundations/theme.css";
 @import "../components/ui-system/foundations/base.css";
 
-@custom-variant dark (&:is(.dark *));
 
 /* Body typeface, deliberately UNLAYERED so it beats Tailwind's preflight, which sets the default stack on <html> from inside
    @layer base; without it body copy would fall back to the system font while only headings use the webfont. */

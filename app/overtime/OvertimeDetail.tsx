@@ -8,9 +8,10 @@ import { overtimeCostCentre } from './calcOvertime';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { recordHours, timeSpan } from './overtimeLogic';
 import type { OTRecord } from './types';
+import type { TakenLieuLeave } from './useOvertimeData';
 
-export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, onReject }: {
-  record: OTRecord | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void;
+export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, onApprove, onReject, onTakeAsLeave }: {
+  record: OTRecord | null; takenLeave?: TakenLieuLeave | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void; onTakeAsLeave?: (r: OTRecord) => void;
 }) {
   const r = record;
   const hours = r ? recordHours(r) : 0;
@@ -25,6 +26,7 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
       footer={r && (
         <DetailActions onDelete={() => onDelete(r)} onClose={onClose} onEdit={() => onEdit(r)}>
           {r.status === 'pending' && <><Button icon="close" onClick={() => onReject(r)}>Reject</Button><Button variant="primary" icon="success" onClick={() => onApprove(r)}>Approve</Button></>}
+          {r.status === 'approved' && r.payout_method === 'lieu' && !takenLeave && onTakeAsLeave && <Button variant="primary" icon="clock" onClick={() => onTakeAsLeave(r)}>Mark as leave taken</Button>}
         </DetailActions>
       )}
     >
@@ -34,7 +36,8 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             <StatusBadge tone={type.tone}>{type.label}</StatusBadge>
             {planning && <StatusBadge tone={planning.tone}>{planning.label}</StatusBadge>}
-            {payout && <StatusBadge tone={payout.tone}>{payout.label}</StatusBadge>}
+            {payout && !takenLeave && <StatusBadge tone={payout.tone}>{payout.label}</StatusBadge>}
+            {r.payout_method === 'lieu' && takenLeave && <StatusBadge tone="success">Leave taken {fmtDate(takenLeave.start_date)}{takenLeave.end_date !== takenLeave.start_date ? ` → ${fmtDate(takenLeave.end_date)}` : ''}</StatusBadge>}
           </div>
           <FactList>
             <Fact label="Date">{fmtDate(r.date)}</Fact>
@@ -44,6 +47,7 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
             <Fact label="Department">{r.department}</Fact>
             <Fact label="Contact">{r.contact_number}</Fact>
             <Fact label="Applied">{r.created_at ? fmtDate(r.created_at) : ''}</Fact>
+            <Fact label="Notes" wide>{r.notes ?? ''}</Fact>
           </FactList>
           <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">Reason</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{r.reason || 'No reason given'}</p></div>
           {!!r.spares_used?.length && (
@@ -56,7 +60,7 @@ export function OvertimeDetail({ record, onClose, onEdit, onDelete, onApprove, o
               </ul>
             </div>
           )}
-          {r.notes && <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">Notes</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{r.notes}</p></div>}
+
         </div>
       )}
     </Dialog>

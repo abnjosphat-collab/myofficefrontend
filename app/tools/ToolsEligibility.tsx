@@ -5,16 +5,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, EmptyState, Icon, SearchField } from '@/components/ui-system';
+import { Button, Checkbox, EmptyState, Icon, SearchField } from '@/components/ui-system';
 import { SuggestField } from './ToolsForms';
-import type { Employee, Tool } from './prototype';
+import { employeeLabel as personLabel, type Employee, type Tool } from './prototype';
 import { groupEmployeesByDepartment, type Eligibility } from './toolEligibility';
 import type { CompetencyRecord } from './complianceTypes';
 
 export type GrantCompetency = (value: { employee_id: string; tool_id: string; trained: boolean; qualified: boolean; authorized: boolean; authorized_by?: string }) => Promise<void>;
 
 const toolLabel = (tool: Tool) => `${tool.id} · ${tool.name}`;
-const personLabel = (employee: Employee) => `${employee.name} · ${employee.employeeNumber}`;
+
 
 /** A remove button that asks once more before it takes eligibility away. */
 function RemoveButton({ label, onConfirm, disabled, labelText = 'Remove', confirmText = 'Yes, remove' }: { label: string; onConfirm: () => void; disabled?: boolean; labelText?: string; confirmText?: string }) {
@@ -60,8 +60,8 @@ export function EligibilityByPerson({ employees, tools, eligibility, competencie
       {group.employees.map(employee => {
         const eligible = (employee.backendId && eligibility.forEmployee.get(employee.backendId)) || [];
         const reason = selection?.blocked(employee);
-        const pick = selection && <span className="pl-4"><input type="checkbox" className="size-4 accent-[var(--mo-action)]" aria-label={`Select ${employee.name}`} title={reason} disabled={!!reason} checked={selection.picked.includes(employee.id)} onChange={event => selection.onToggle(employee, event.target.checked)} /></span>;
-        return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
+        const pick = selection && <span className="pl-4"><Checkbox aria-label={`Select ${employee.name}`} title={reason} disabled={!!reason} checked={selection.picked.includes(employee.id)} onChange={event => selection.onToggle(employee, event.target.checked)} /></span>;
+        return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber ?? 'Not recorded'}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
           <PersonBody ready={ready} allowDeactivate={allowDeactivate} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
         </Accordion>;
       })}
@@ -139,7 +139,7 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   const [busy, setBusy] = useState(false);
   const eligibleIds = new Set(people.map(person => person.id));
   const addable = employees.filter(employee => employee.active && employee.backendId && !eligibleIds.has(employee.id) && (!tool.department || employee.department === tool.department));
-  const shown = people.filter(person => `${person.name} ${person.employeeNumber} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
+  const shown = people.filter(person => `${person.name} ${person.employeeNumber ?? ''} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
   const authorisedBy = (person: Employee) => competencies.find(record => record.employee_id === person.backendId && record.tool_id === tool.backendId && record.authorized)?.authorized_by;
   const change = async (person: Employee, on: boolean) => {
     if (!person.backendId || !tool.backendId) return;
@@ -151,7 +151,7 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
     {people.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible for this equipment yet, so it cannot be issued.</p> : <>
       {people.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter the people for this equipment" />}
       <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]" aria-label={`People eligible for ${tool.name}`}>
-        {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber}{authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
+        {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber ?? 'Not recorded'}{authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
     </>}
@@ -159,14 +159,14 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   </>;
 }
 
-type EligiblePerson = { id: string; employeeNumber: string; name: string; department?: string; jobTitle?: string };
+type EligiblePerson = { id: string; employeeNumber: string | null; name: string; department?: string; jobTitle?: string };
 
 /** Everyone who may be issued this equipment, as a readable list in the tool's details. With `onIssue`, each row can start the issue straight away. */
 export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void }) {
   const [filter, setFilter] = useState('');
   if (people === undefined) return null;
   const sorted = [...people].sort((a, b) => a.name.localeCompare(b.name));
-  const shown = sorted.filter(person => `${person.name} ${person.employeeNumber} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
+  const shown = sorted.filter(person => `${person.name} ${person.employeeNumber ?? ''} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
   return (
     <section aria-label="Eligible employees" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
       <div className="flex items-baseline justify-between gap-2">

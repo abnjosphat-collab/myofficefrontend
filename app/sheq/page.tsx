@@ -3,11 +3,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, Card, ChartPanel, DataRegion, DataTable, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
+  Button, Card, Chart, ChartPanel, DataRegion, DataTable, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
   Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, useConfirm, useMediaQuery, usePersistentState,
   type Column, type IconMeaning, type Tone,
 } from '@/components/ui-system';
@@ -273,15 +273,15 @@ function SheqContent() {
                 summary={`Reports per month: ${trend.map(t => `${t.month} ${t.reports}`).join(', ')}.${delta === null ? '' : ` ${delta >= 0 ? 'Up' : 'Down'} ${Math.abs(delta)} on the previous month.`}`}
               >
                 {delta !== null && <p className="mb-2 font-sans text-body-sm text-ink-muted">{delta >= 0 ? '+' : ''}{delta} compared with the previous month</p>}
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart accessibilityLayer={false} data={trend} barSize={26}>
+                <Chart height={220}>
+                  <BarChart data={trend} barSize={26}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                     <Tooltip {...chartTheme.tooltip} />
                     <Bar dataKey="reports" name="Reports" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
                   </BarChart>
-                </ResponsiveContainer>
+                </Chart>
               </ChartPanel>
             </div>
             <section aria-labelledby="sheq-monthly">
@@ -314,15 +314,15 @@ function SheqContent() {
 
           <TabsContent value="analytics" className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartPanel title="Reports by module" summary={`Reports by module: ${summarise(reportsByModule)}.`}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart accessibilityLayer={false} data={reportsByModule} barSize={26}>
+              <Chart height={240}>
+                <BarChart data={reportsByModule} barSize={26}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="name" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval={0} angle={narrow ? -40 : 0} textAnchor={narrow ? 'end' : 'middle'} height={narrow ? 60 : 30} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <Tooltip {...chartTheme.tooltip} />
                   <Bar dataKey="value" name="Reports" fill={chartColor(2)} radius={[6, 6, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </Chart>
             </ChartPanel>
             <ChartPanel title="Action items" description="Across work stoppage, VFL and PTO" summary={`Corrective actions: ${summarise(actionRows)} of ${totals.totalActions}.`}>
               {totals.totalActions === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No actions recorded in this period.</p> : <Distribution rows={actionRows} />}

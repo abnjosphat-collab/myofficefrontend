@@ -4,9 +4,7 @@
 // What stops a save is listed above the days; a refused save stays here with its reason.
 'use client';
 
-import { useMemo } from 'react';
-import { Button, Combobox, Field, Notice, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, usePersistentState } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
+import { Button, Field, Notice, PersonPicker, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, lookupName, usePersistentState } from '@/components/ui-system';
 import { getCompiledBySignatureReuse } from './collectTimesheetSignatures';
 import { DayCards } from './DayCards';
 import { QuickView } from './QuickView';
@@ -29,17 +27,8 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
   const reuse = getCompiledBySignatureReuse(draft.compiled_by_signature);
   const set = (patch: Partial<ArtisanTimesheetDraft>) => onChange({ ...draft, ...patch });
   const [daysView, setDaysView] = usePersistentState<'cards' | 'quick'>('myoffice_artisan_dayview_v2', 'quick', raw => (raw === 'cards' || raw === 'quick' ? raw : undefined));
-  // Sign-off names come strictly from the employee register (same dedupe as PersonInput); a legacy free-typed name on an
-  // old save is kept as a one-off option so it still shows until someone reselects.
-  const employees = useEmployees();
-  const registerNames = useMemo(() => {
-    const seen = new Set<string>();
-    return employees.map(e => (e.full_name || e.name || `${e.first_name || ''} ${e.last_name || ''}`).trim()).filter(n => n && !seen.has(n) && !!seen.add(n)).sort();
-  }, [employees]);
-  const optionsFor = (current: string) => {
-    const base = registerNames.map(n => ({ value: n, label: n }));
-    return current && !registerNames.includes(current) ? [{ value: current, label: current }, ...base] : base;
-  };
+  // Sign-off names come strictly from the employee register; a legacy free-typed name on an
+  // old save still shows (as the picker's placeholder) until someone reselects.
   return (
     <div className="flex flex-col gap-4">
       <section aria-label="This timesheet" className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card">
@@ -49,7 +38,7 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
         </div>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {([['Mine number', draft.employee_id], ['ID number', draft.id_number], ['Month', periodLabel(draft.year, draft.month)]] as const).map(([k, v]) => (
-            <div key={k} className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v || 'Not recorded'}</dd></div>
+            <div key={k} className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v || <span className="italic text-ink-muted">Not recorded</span>}</dd></div>
           ))}
         </dl>
       </section>
@@ -79,7 +68,7 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {APPROVALS.map(a => (
           <section key={a.name} aria-label={a.label} className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card">
-            <Field label={a.label} optional><Combobox aria-label={a.label} value={draft[a.name]} onValueChange={v => set({ [a.name]: v })} options={optionsFor(draft[a.name])} placeholder="Select from the register" clearLabel="None" /></Field>
+            <Field label={a.label} optional><PersonPicker label={a.label} name={draft[a.name]} onPick={e => set({ [a.name]: e ? lookupName(e) : '' })} placeholder="Select from the register" clearLabel="None" /></Field>
             <div className="flex flex-col gap-1"><span className="font-sans text-caption text-ink-muted">Signature</span><SignatureField label={`${a.label}, signature`} signerName={draft[a.name] || draft.employee_name} value={draft[a.sig]} onChange={v => set({ [a.sig]: v })} /></div>
           </section>
         ))}

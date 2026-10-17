@@ -3,8 +3,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Field, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
+import { Button, Dialog, Field, FieldGroup, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
 import { EligibleEmployeesList } from './ToolsEligibility';
+import { RecordCheckDialog } from './ToolsResolve';
 import { EvidenceGallery } from './ToolsUI';
 import { departmentOf } from './prototype';
 import { statusAccent, statusLabel, statusTone, whereIs } from './toolLook';
@@ -16,7 +17,9 @@ function PreUseForm({ w, toolId }: { w: ToolsWorkspace; toolId: string }) {
   const [saving, setSaving] = useState(false);
   return (
     <form className="flex flex-col gap-3" onSubmit={event => { event.preventDefault(); setSaving(true); void w.recordInspection(toolId, { inspection_type: 'pre_use', outcome, notes: notes.trim() || undefined }).finally(() => setSaving(false)); }}>
-      <Segmented label="Pre-use result" value={outcome} onValueChange={setOutcome} options={[{ value: 'passed', label: 'Passed' }, { value: 'conditional', label: 'Passed with notes' }, { value: 'failed', label: 'Failed' }]} />
+      <FieldGroup label="Pre-use result">
+        <Segmented label="Pre-use result" value={outcome} onValueChange={setOutcome} options={[{ value: 'passed', label: 'Passed' }, { value: 'conditional', label: 'Passed with notes' }, { value: 'failed', label: 'Failed' }]} />
+      </FieldGroup>
       <Field label="Check notes" optional>
         <Textarea aria-label="Check notes" rows={2} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Anything the next person should know." />
       </Field>
@@ -34,7 +37,9 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
   const out = tool && (tool.status === 'issued' || tool.status === 'overdue');
   const close = () => w.setSelectedId(null);
   const canIssueTo = tool?.status === 'available' && !tool.archived && currentAccount?.role === 'issuer';
+  const [recordingCheck, setRecordingCheck] = useState(false);
   return (
+    <>
     <Dialog
       open={!!tool}
       onOpenChange={o => { if (!o) close(); }}
@@ -62,7 +67,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
             </div>
             {tool.status === 'overdue' && <Notice tone="danger" title="Return overdue">Receive this tool or record an approved extension.</Notice>}
             {tool.status === 'attention' && <Notice tone="warning" title="Held for attention">{tool.notes || 'Check the condition and supporting records before making this tool available.'}</Notice>}
-            {!!tool.inspectionDue?.length && <Notice tone="warning" title="Scheduled checks overdue">{tool.inspectionDue.map(item => item.replaceAll('_', ' ')).join(', ')}. Issue and transfer are blocked.</Notice>}
+            {!!tool.inspectionDue?.length && <Notice tone="warning" title="Scheduled checks overdue" action={manage && tool.backendId ? <Button size="sm" onClick={() => setRecordingCheck(true)}>Record check</Button> : undefined}>{tool.inspectionDue.map(item => item.replaceAll('_', ' ')).join(', ')}. Issue and transfer are blocked.</Notice>}
             {out && tool.preUsePending && <Notice tone="warning" title="Pre-use check still due">The borrower has not recorded the pre-use check for this loan yet.</Notice>}
           </section>
 
@@ -95,7 +100,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
           )}
 
           <EligibleEmployeesList people={tool.eligibleEmployees}
-            onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || item.employeeNumber === person.employeeNumber)) : undefined} />
+            onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || (item.employeeNumber != null && item.employeeNumber === person.employeeNumber))) : undefined} />
 
           <section aria-label="Full record" className="border-t border-[var(--mo-line-subtle)] pt-5">
             <h3 className="mb-3 font-sans text-caption font-medium text-ink-muted">Full record</h3>
@@ -133,5 +138,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
         </div>
       )}
     </Dialog>
+    <RecordCheckDialog tool={recordingCheck ? tool ?? null : null} onClose={() => setRecordingCheck(false)} onSave={async (t, input) => { if (t.backendId) await w.recordInspection(t.backendId, input); setRecordingCheck(false); }} />
+    </>
   );
 }

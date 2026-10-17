@@ -5,8 +5,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ChartPanel, Distribution, MetricGrid, MetricTile, Tabs, TabsContent, TabsList, TabsTrigger, chartColor, chartTheme, type Column } from '@/components/ui-system';
+import { Bar, BarChart, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from 'recharts';
+import { Chart, ChartPanel, Distribution, MetricGrid, MetricTile, Tabs, TabsContent, TabsList, TabsTrigger, chartColor, chartTheme, type Column } from '@/components/ui-system';
 import { priorityMeta, statusMeta, typeMeta } from '../breakdownMeta';
 import { HourDayHeatmap } from './HourDayHeatmap';
 import { DAYS_LONG, busiest, duration, line, money, monthLabel } from './insightsLogic';
@@ -45,15 +45,15 @@ const PARTS: Column<Part>[] = [
 
 function Bars({ data, x }: { data: { name: string; value: number }[]; x: string }) {
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <BarChart accessibilityLayer={false} data={data} margin={{ left: 0, right: 8 }}>
+    <Chart height={240}>
+      <BarChart data={data} margin={{ left: 0, right: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
         <XAxis dataKey={x} tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
         <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
         <Tooltip {...chartTheme.tooltip} formatter={(v: unknown) => [String(v), 'Breakdowns']} />
         <Bar dataKey="value" name="Breakdowns" fill={chartColor(1)} radius={[4, 4, 0, 0]} maxBarSize={36} />
       </BarChart>
-    </ResponsiveContainer>
+    </Chart>
   );
 }
 
@@ -95,8 +95,8 @@ export function BreakdownInsights({ data }: { data: HeatmapData }) {
           <ChartPanel title="By kind of fault" description="Number of breakdowns" summary={`Breakdowns by kind: ${line(types)}.`}><Distribution rows={types} /></ChartPanel>
           <ChartPanel title="By department" description="Breakdowns, and the downtime they caused" summary={`Departments: ${depts.map(d => `${d.department} ${d.count} breakdowns, ${duration(d.downtime)} downtime`).join('; ') || 'none'}.`}>
             {depts.length ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <ComposedChart accessibilityLayer={false} data={depts} margin={{ left: 0, right: 8 }}>
+              <Chart height={240}>
+                <ComposedChart data={depts} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="department" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="l" tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
@@ -105,7 +105,7 @@ export function BreakdownInsights({ data }: { data: HeatmapData }) {
                   <Bar yAxisId="l" dataKey="count" name="Breakdowns" fill={chartColor(1)} radius={[4, 4, 0, 0]} maxBarSize={36} />
                   <Line yAxisId="r" dataKey="downtime" name="Downtime (min)" stroke={chartColor(3)} strokeWidth={2} dot={{ r: 3 }} />
                 </ComposedChart>
-              </ResponsiveContainer>
+              </Chart>
             ) : <p className="py-4 font-sans text-body-sm text-ink-muted">No departments.</p>}
           </ChartPanel>
         </div>

@@ -5,7 +5,7 @@ const local = offset => { const d = new Date(); d.setDate(d.getDate() + offset);
 const row = (id, over = {}) => ({ id, employee_name: 'Jane Doe', employee_id: 'C1', position: 'Fitter', department: 'Mining', cost_centre: 'Engineering', overtime_type: 'regular', planning_status: 'planned', payout_method: 'cash', date: local(-2), start_time: '17:00', end_time: '20:00', hours: null, reason: 'Burnet daily checks', status: 'pending', contact_number: '', spares_used: [], created_at: `${local(-2)}T08:00:00Z`, ...over });
 const RECORDS = [
   row(1),
-  row(2, { employee_name: 'Bo Ng', employee_id: 'C2', overtime_type: 'weekend', date: local(-3), start_time: null, end_time: null, hours: 4, reason: '', status: 'approved' }),
+  row(2, { employee_name: 'Bo Ng', employee_id: 'C2', overtime_type: 'weekend', date: local(-3), start_time: null, end_time: null, hours: 4, reason: '', status: 'approved', payout_method: 'lieu' }),
   // A legacy type the form no longer offers, unclassified planning, time in lieu, charged to another department.
   row(3, { employee_name: 'Cy Wu', employee_id: 'C3', overtime_type: 'emergency', planning_status: null, payout_method: 'lieu', cost_centre: 'Projects', date: local(-9), reason: 'Crusher breakdown' }),
   // A legacy record with no times, no hours and an unknown type must render rather than crash.
@@ -29,7 +29,7 @@ const ANALYSIS = {
   recommendations: [{ priority: 'immediate', action: 'Roster the daily checks into the shift', rationale: 'It recurs on most days', target: 'Mechanical section' }],
   _records_analysed: 3, generated_at: new Date().toISOString(),
 };
-let failSave = false; let failAnalysis = false; let refuseFor = null;
+let failSave = false; let failAnalysis = false; let refuseFor = null; let takenLieu = null;
 
 const spec = {
   route: '/overtime',
@@ -42,6 +42,13 @@ const spec = {
     'DELETE /api/overtime/4': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
     'DELETE /api/overtime/3': {},
     'POST /api/overtime/analyze': () => (failAnalysis ? { __status: 500, body: { detail: 'Analysis is down (fixture)' } } : ANALYSIS),
+    'POST /api/overtime/bulk-edit': { succeeded: 4, failed: 0, errors: [], updated: RECORDS },
+    '/api/leaves': () => (takenLieu ? [takenLieu] : []),
+    'POST /api/overtime/2/take-as-leave': request => {
+      const body = request.postDataJSON();
+      takenLieu = { id: 9, overtime_id: 2, status: 'approved', start_date: body.start_date, end_date: body.end_date };
+      return { created: true, leave: takenLieu };
+    },
     '/api/employees': EMPLOYEES,
     '/api/spares': [{ id: 1, description: 'Bearing 6204', stock_code: 'B-6204', unit_price: 12.5, current_quantity: 4, category: 'Bearings' }],
   },
@@ -72,6 +79,22 @@ const spec = {
     await page.keyboard.press('Escape');
     check(!calls.some(c => c.pathname === '/api/overtime/bulk-status'), 'dismissing the signature step approves nothing');
     await bulk.getByRole('button', { name: 'Clear selection' }).click();
+
+    // bulk edit: locked fields are never sent, decided records warn they need a manager
+    await table.getByRole('checkbox', { name: 'Select all rows on this page' }).check();
+    await bulk.getByRole('button', { name: 'Edit' }).click();
+    const be = dialog('Edit 4 requests');
+    await be.waitFor({ timeout: 5000 });
+    check(await be.getByText('Some need a manager').isVisible(), 'the bulk editor warns that decided records need a manager');
+    await be.getByRole('button', { name: 'Apply to selected' }).click();
+    check(await be.getByText(/Unlock at least one field/).isVisible(), 'submitting fully locked explains itself');
+    await be.getByRole('button', { name: 'Unlock Cost centre' }).click();
+    await be.getByRole('combobox', { name: 'Cost centre' }).click();
+    await page.getByRole('option', { name: 'Projects' }).click();
+    await be.getByRole('button', { name: 'Apply to selected' }).click();
+    await page.getByText('Updated 4 requests.').waitFor({ timeout: 5000 });
+    const editCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/overtime/bulk-edit').pop();
+    check(editCall?.body.cost_centre === 'Projects' && editCall?.body.ids.length === 4 && !('reason' in (editCall?.body ?? {})), 'bulk edit posts only the unlocked field for every selected id', JSON.stringify(editCall?.body).slice(0, 120));
     await page.getByRole('button', { name: 'Card view' }).click();
 
     // month and employee scope
@@ -126,9 +149,29 @@ const spec = {
     await page.getByText(/Manager role required/).first().waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText(/The request was not deleted: Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
+    // lieu: an approved lieu request offers mark-as-taken; the taken leave links back and the button is gone
+    await page.getByRole('button', { name: /^Open the request from Bo Ng/ }).click();
+    const lieu = dialog('Bo Ng');
+    await lieu.waitFor({ timeout: 5000 });
+    check(await lieu.getByText('To be taken as leave').isVisible(), 'an approved lieu request says it is still to be taken');
+    check(await lieu.getByRole('button', { name: 'Mark as leave taken' }).isVisible(), 'and offers to mark the leave taken');
+    await lieu.getByRole('button', { name: 'Mark as leave taken' }).click();
+    const take = dialog('Mark as leave taken');
+    await take.waitFor({ timeout: 5000 });
+    check((await take.getByLabel('First day').inputValue()) === local(-3) && (await take.getByLabel('Last day').inputValue()) === local(-3), 'the taken days default to the overtime date');
+    await take.getByLabel('First day').fill(local(-1));
+    await take.getByLabel('Last day').fill(local(-1));
+    await take.getByRole('button', { name: 'Record leave taken' }).click();
+    await page.getByText('Leave recorded in the Leaves module.').waitFor({ timeout: 5000 });
+    const takeCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/overtime/2/take-as-leave').pop();
+    check(takeCall?.body.start_date === local(-1) && takeCall?.body.end_date === local(-1), 'marking taken posts the taken range', JSON.stringify(takeCall?.body));
+    await take.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    check(await lieu.getByText(/Leave taken/).isVisible() && await lieu.getByRole('button', { name: 'Mark as leave taken' }).count() === 0, 'the detail then shows the taken leave instead of the button');
+    await shot(page, 'lieu-taken@1440');
+    await page.keyboard.press('Escape');
+
     // bulk entry: one refused person stays with the reason, the saved one leaves the list
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: 'Bulk entry' }).click();
+    await page.getByRole('button', { name: 'Bulk entry' }).click();
     const bk = dialog('Bulk overtime');
     await bk.waitFor({ timeout: 5000 });
     await bk.getByRole('button', { name: 'Submit' }).click();

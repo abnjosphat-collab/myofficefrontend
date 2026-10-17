@@ -2,7 +2,7 @@
 // Offence records are held on the person and edited in the form, but are not displayed here.
 'use client';
 
-import { Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeDesignation, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay, telHref } from '@/lib/phone';
@@ -12,7 +12,7 @@ import type { Employee } from './types';
 
 function Chips({ title, items }: { title: string; items?: string[] }) {
   if (!items?.length) return null;
-  return <section aria-label={title} className="flex flex-col gap-1.5"><h3 className="font-sans text-label font-semibold text-ink">{title}</h3><ul className="flex flex-wrap gap-1.5">{items.map((q, i) => <li key={`${q}-${i}`}><StatusBadge tone="neutral">{q}</StatusBadge></li>)}</ul></section>;
+  return <FactSection title={title}><ul className="flex flex-wrap gap-1.5">{items.map((q, i) => <li key={`${q}-${i}`}><StatusBadge tone="neutral">{q}</StatusBadge></li>)}</ul></FactSection>;
 }
 
 export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { employee: Employee | null; onClose: () => void; onEdit: (e: Employee) => void; onDelete: (e: Employee) => void }) {

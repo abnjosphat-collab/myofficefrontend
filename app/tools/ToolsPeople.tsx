@@ -63,7 +63,7 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
   );
 }
 
-export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
+export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onEditNumber, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
   employees: Employee[];
   tools: Tool[];
   competencies: CompetencyRecord[];
@@ -73,6 +73,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   canManage: boolean;
   onAdd: () => void;
   onIssue: (employee: Employee) => void;
+  onEditNumber?: (employee: Employee) => void;
   onSaveCompetency: SaveCompetency;
   /** Deactivate or reactivate a person: nothing is deleted, they simply stop being offered. */
   onSetActive: (employee: Employee, active: boolean) => Promise<void>;
@@ -95,7 +96,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const eligibility = useMemo(() => buildEligibility(employees, tools, competencies), [employees, tools, competencies]);
   const query = search.trim().toLowerCase();
   const inactiveCount = employees.filter(employee => !employee.active).length;
-  const visible = employees.filter(employee => (showInactive || employee.active) && `${employee.name} ${employee.employeeNumber} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
+  const visible = employees.filter(employee => (showInactive || employee.active) && `${employee.name} ${employee.employeeNumber ?? ''} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
   const blockedReason = (employee: Employee) => !employee.active ? 'Already inactive.' : tools.some(tool => tool.holder === employee.name || tool.holder?.startsWith(`${employee.name} ·`)) ? 'Receive their equipment before deactivating them.' : undefined;
   const pickable = visible.filter(employee => !blockedReason(employee));
   const chosen = pickable.filter(employee => picked.includes(employee.id));
@@ -124,6 +125,8 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
     .filter(tool => !tool.archived && tool.backendId && (!tool.department || tool.department === selected.department))
     .filter(tool => `${tool.id} ${tool.name} ${tool.category}`.toLowerCase().includes(toolSearch.trim().toLowerCase())) : [], [selected, toolSearch, tools]);
   const eligibleTools = selected ? tools.filter(tool => isCurrentCompetency(competencyForEmployeeTool(selected, tool, competencies))) : [];
+  // The open card re-reads the person from the fresh register, so a number saved while it is open shows at once.
+  const shown = selected?.backendId ? employees.find(employee => employee.backendId === selected.backendId) ?? selected : selected;
 
   if (!employees.length) {
     return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools and equipment. This register is separate from MyOffice." action={<Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button>} />;
@@ -149,15 +152,18 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
               onGrant={onSaveCompetency} onOpenApprovals={employee => { setSelected(employee); setToolSearch(''); }} onIssue={onIssue} onSetActive={onSetActive} allowDeactivate={allowDeactivate} />
           : <EmptyState icon="search" title="No matching employees" description="Try a name, employee number, supervisor or department." />)
         : <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} search={search} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} />}
-      <ToolsDialog open={!!selected} onClose={() => setSelected(null)} title={selected?.name || 'Employee details'} description={selected ? `${selected.employeeNumber} · ${selected.department}` : ''} wide>
-        {selected && (
+      <ToolsDialog open={!!selected} onClose={() => setSelected(null)} title={shown?.name || 'Employee details'} description={shown ? `${shown.employeeNumber ?? 'Not recorded'} · ${shown.department}` : ''} wide>
+        {shown && (
           <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-[var(--mo-action-soft)] text-ink"><Icon name="user" size="md" /></span>
               <div className="min-w-0 flex-1">
-                <strong className="block font-sans text-body-sm font-semibold text-ink">{selected.jobTitle || 'Job title not recorded'}</strong>
-                <p className="font-sans text-caption text-ink-muted">{selected.active ? 'Active employee' : 'Inactive employee'} · {selected.department}</p>
-                {selected.supervisorName && <p className="font-sans text-caption text-ink-muted">Supervisor: {selected.supervisorName}</p>}
+                <strong className="block font-sans text-body-sm font-semibold text-ink">{shown.jobTitle || 'Job title not recorded'}</strong>
+                <p className="font-sans text-caption text-ink-muted">{shown.active ? 'Active employee' : 'Inactive employee'} · {shown.department}</p>
+                {shown.supervisorName && <p className="font-sans text-caption text-ink-muted">Supervisor: {shown.supervisorName}</p>}
+                <p className="flex items-center gap-2 font-sans text-caption text-ink-muted">Mine number: {shown.employeeNumber ?? 'Not recorded'}
+                  {canManage && onEditNumber && <Button type="button" variant="ghost" size="sm" onClick={() => onEditNumber(shown)}>{shown.employeeNumber ? 'Edit number' : 'Add number'}</Button>}
+                </p>
               </div>
               <span className="text-right"><strong className="block font-display text-title text-ink">{eligibleTools.length}</strong><small className="font-sans text-caption text-ink-muted">approved {eligibleTools.length === 1 ? 'item' : 'items'}</small></span>
             </div>
@@ -174,15 +180,15 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
               </div>
               <SearchField label="Find equipment" placeholder="Find equipment by name, ID or category…" value={toolSearch} onValueChange={setToolSearch} />
               <div className="flex flex-col gap-2">
-                {employeeTools.map(tool => { const record = competencyForEmployeeTool(selected, tool, competencies); return <EmployeeToolEligibilityRow key={`${selected.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={selected} tool={tool} record={record} canManage={canManage} onSave={onSaveCompetency} />; })}
-                {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No equipment in {selected.department} matches this search.</p>}
+                {employeeTools.map(tool => { const record = competencyForEmployeeTool(shown, tool, competencies); return <EmployeeToolEligibilityRow key={`${shown.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={shown} tool={tool} record={record} canManage={canManage} onSave={onSaveCompetency} />; })}
+                {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No equipment in {shown.department} matches this search.</p>}
               </div>
               {!canManage && <p className="font-sans text-caption text-ink-muted">Only an administrator or issuer can update competency approvals.</p>}
             </section>
             <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
               <Button onClick={() => setSelected(null)}>Close</Button>
-              <Button variant="primary" disabled={!selected.active || !eligibleTools.length} title={!selected.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one equipment item first.' : undefined}
-                onClick={() => { const employee = selected; setSelected(null); onIssue(employee); }}>Issue a tool</Button>
+              <Button variant="primary" disabled={!shown.active || !eligibleTools.length} title={!shown.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one equipment item first.' : undefined}
+                onClick={() => { const employee = shown; setSelected(null); onIssue(employee); }}>Issue a tool</Button>
             </div>
           </div>
         )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockingConditions, isEligibleForTool, toolConditions } from './toolConditions';
+import { blockingConditions, isEligibleForTool, needsAttention, toolConditions } from './toolConditions';
 import type { Employee, Tool } from './prototype';
 
 const tool = (over: Partial<Tool> = {}): Tool => ({
@@ -58,6 +58,24 @@ describe('toolConditions', () => {
     expect(rows.find(r => r.key === 'competency')).toMatchObject({ state: 'info', blocker: false, label: 'No training needed for this item' });
     expect(isEligibleForTool(tool({ competencyRequired: false, eligibleEmployees: [] }), employee())).toBe(true);
   });
+  it('blocks a not-working tool exactly like the backend register does', () => {
+    expect(needsAttention(tool({ workingStatus: 'not_working' }))).toBe(true);
+    expect(needsAttention(tool({ condition: 'Defective' }))).toBe(true);
+    expect(needsAttention(tool({ condition: 'Damaged' }))).toBe(true);
+    expect(needsAttention(tool({ condition: 'Missing' }))).toBe(true);
+    expect(needsAttention(tool())).toBe(false);
+    expect(needsAttention(tool({ workingStatus: 'working' }))).toBe(false);
+    const rows = toolConditions(tool({ workingStatus: 'not_working' }));
+    expect(rows.find(r => r.key === 'availability')).toMatchObject({ state: 'unmet', blocker: true });
+    expect(blockingConditions(rows).map(r => r.key)).toContain('availability');
+  });
+  it('offers the resolving action on every actionable blocker row', () => {
+    expect(toolConditions(tool({ status: 'issued', holder: 'B. Moyo · E-002' })).find(r => r.key === 'availability')?.actions).toEqual(['receive', 'transfer']);
+    expect(toolConditions(tool({ status: 'attention' })).find(r => r.key === 'availability')?.actions).toEqual(['record-repair']);
+    expect(toolConditions(tool({ workingStatus: 'not_working' })).find(r => r.key === 'availability')?.actions).toEqual(['record-repair']);
+    expect(toolConditions(tool({ inspectionDue: ['monthly'] })).find(r => r.key === 'inspections')?.actions).toEqual(['record-check']);
+    expect(toolConditions(tool()).find(r => r.key === 'availability')?.actions).toBeUndefined();
+  });
   it('surfaces calibration, PPE, tracking and criticality as information, never blockers', () => {
     const rows = toolConditions(tool({ calibrationRequired: true, calibrationFrequencyDays: 90, requiredPpe: ['Goggles', 'Gloves'], cctvRequired: true, criticality: 'safety_critical' }));
     expect(rows.find(r => r.key === 'calibration')).toMatchObject({ state: 'info', blocker: false });
@@ -65,5 +83,13 @@ describe('toolConditions', () => {
     expect(rows.find(r => r.key === 'cctv')).toMatchObject({ state: 'info' });
     expect(rows.find(r => r.key === 'criticality')).toMatchObject({ state: 'attention', blocker: false });
     expect(blockingConditions(rows)).toEqual([]);
+  });
+  it('matches a numberless person by id only, never by another missing number', () => {
+    const list = [{ id: 'b1', employeeNumber: 'E-001', name: 'A. Moyo', department: 'Engineering' }];
+    expect(isEligibleForTool(tool({ eligibleEmployees: list }), employee({ employeeNumber: null }))).toBe(true);
+    expect(isEligibleForTool(tool({ eligibleEmployees: list }), employee({ backendId: 'b9', employeeNumber: null, name: 'Z. Zed' }))).toBe(false);
+    const nullList = [{ id: 'b2', employeeNumber: null, name: 'N. One', department: 'Engineering' }];
+    expect(isEligibleForTool(tool({ eligibleEmployees: nullList }), employee({ backendId: 'b9', employeeNumber: null, name: 'Z. Zed' }))).toBe(false);
+    expect(toolConditions(tool({ eligibleEmployees: nullList }), employee({ backendId: 'b9', employeeNumber: null, name: 'Z. Zed' })).find(r => r.key === 'competency')).toMatchObject({ state: 'unmet', blocker: true });
   });
 });

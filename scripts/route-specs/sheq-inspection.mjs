@@ -1,5 +1,6 @@
 // /sheq_inspection: inspections register (cards, table, detail with findings and photos, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
 const INSPECTIONS = [
   { id: 's1', inspectors: 'Ann Alpha, Ben Beta', title: 'Monthly safety audit', place: 'Workshop 1', date: iso(-6), time: '08:30', department: 'Engineering', section: 'mechanical', hodName: 'Cat Gamma', sheqOfficialName: '', status: 'submitted',

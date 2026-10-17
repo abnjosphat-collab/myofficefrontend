@@ -77,8 +77,34 @@ export async function bulkUpdateOTStatus(body: {
     ids: body.ids.map(id => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter(n => !Number.isNaN(n)),
   });
 }
+export interface BulkOTEditResult {
+  succeeded: number;
+  failed: number;
+  errors: string[];
+  updated: OTRecord[];
+}
+
+/** Rewrite the same unlocked fields on many records in one API call. */
+export async function bulkEditOT(ids: (number | string)[], patch: Record<string, unknown>): Promise<BulkOTEditResult> {
+  return api.post<BulkOTEditResult>('/api/overtime/bulk-edit', {
+    ids: ids.map(id => (typeof id === 'number' ? id : parseInt(String(id), 10))).filter(n => !Number.isNaN(n)),
+    ...patch,
+  });
+}
 export async function deleteOT(id: number | string): Promise<void> {
   await api.delete(`/api/overtime/${id}`);
+}
+
+export interface TakenLieuLeave { id: number; start_date: string; end_date: string; status: string }
+export interface TakeLieuLeaveResult { created: boolean; leave: TakenLieuLeave }
+/** Mark approved lieu overtime as taken: the server creates the approved "Leave in Lieu of Overtime" request linked to this record. Idempotent — a second call returns the existing leave instead of duplicating it. */
+export async function takeLieuAsLeave(id: number | string, range: { start_date: string; end_date: string }): Promise<TakeLieuLeaveResult> {
+  return api.post<TakeLieuLeaveResult>(`/api/overtime/${id}/take-as-leave`, range);
+}
+/** The leave a lieu record transferred into, if it has been taken yet. */
+export async function fetchTakenLieuLeave(overtimeId: number | string): Promise<TakenLieuLeave | null> {
+  const rows = await api.get<TakenLieuLeave[]>(`/api/leaves?overtime_id=${overtimeId}`);
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
 }
 
 /** On-demand — the frontend sends whatever it currently has filtered, so analysis is

@@ -4,13 +4,13 @@
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
-import { Button, Checkbox, Field, Icon, IconButton, Input, Notice, SearchField, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from '@/components/ui-system';
+import { Button, Checkbox, Field, FieldGroup, Icon, IconButton, Input, Notice, SearchField, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from '@/components/ui-system';
 import { formatDateTime } from '@/lib/format';
 import { daysFromNowAt, tomorrowAt } from '@/lib/dates';
-import { departmentOf, type Employee, type Tool } from './prototype';
+import { departmentOf, employeeLabel, type Employee, type Tool } from './prototype';
 import { EmployeePicker } from './ToolsEmployeePicker';
 import { SuggestField, useHint } from './ToolsForms';
-import { blockingConditions, isEligibleForTool, toolConditions } from './toolConditions';
+import { blockingConditions, CONDITION_ACTION_LABELS, isEligibleForTool, needsAttention, toolConditions, type ConditionAction } from './toolConditions';
 
 export interface BulkIssueInput {
   toolIds: string[];
@@ -30,17 +30,17 @@ type Step = 'tools' | 'borrower' | 'conditions' | 'details';
 const STEPS: Step[] = ['tools', 'borrower', 'conditions', 'details'];
 
 const isFuture = (value: string) => { const time = Date.parse(value); return Number.isFinite(time) && time > Date.now(); };
-const employeeLabel = (employee: Employee) => `${employee.name} · ${employee.employeeNumber}`;
 const holderName = (tool: Tool) => tool.holder?.split(' · ')[0] ?? '';
 
 const DUE_PRESETS = [{ label: 'Tomorrow', days: 1 }, { label: 'In 3 days', days: 3 }, { label: 'Next week', days: 7 }];
 
-export function BulkIssueForm({ tools, employees, issuerDepartment, locationSuggestions, onSave }: {
+export function BulkIssueForm({ tools, employees, issuerDepartment, locationSuggestions, onSave, onResolveAction }: {
   tools: Tool[];
   employees: Employee[];
   issuerDepartment: string;
   locationSuggestions: string[];
   onSave: (input: BulkIssueInput) => void | Promise<void>;
+  onResolveAction?: (action: ConditionAction, tool: Tool) => void;
 }) {
   const [step, setStep] = useState<Step>('tools');
   const [query, setQuery] = useState('');
@@ -90,7 +90,9 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
   const anyDue = perTool.some(({ rows }) => rows.some(row => row.key === 'inspections' && row.state === 'unmet'));
 
   const toggle = (id: string) => { setPicked(current => (current.includes(id) ? current.filter(x => x !== id) : [...current, id])); setError(''); };
-  const selectAll = () => { setPicked(scoped.filter(t => t.status === 'available').map(t => t.id)); setError(''); };
+  const readyToIssue = (t: Tool) => t.status === 'available' && !needsAttention(t);
+  const resolveActions = (t: Tool): ConditionAction[] => [...new Set(toolConditions(t).flatMap(row => row.actions ?? []))];
+  const selectAll = () => { setPicked(scoped.filter(readyToIssue).map(t => t.id)); setError(''); };
   const go = (next: Step) => { setError(''); setStep(next); };
 
   const validate = (at: Step): string => {
@@ -143,7 +145,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
   );
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       <Tabs value={step} onValueChange={value => go(value as Step)}>
         <TabsList aria-label="Issue steps">
           <TabsTrigger value="tools" count={pickedTools.length} countTone={pickedTools.length > 0 ? 'brand' : 'neutral'}>Tools</TabsTrigger>
@@ -163,17 +165,22 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
           ) : (
             <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-card border border-line-subtle p-2">
               {visible.map(tool => {
-                const ready = tool.status === 'available';
+                const ready = readyToIssue(tool);
                 const status = ready ? tool.location : tool.holder ? `With ${holderName(tool)}` : 'Needs attention';
                 return (
-                  <li key={tool.id}>
-                    <Checkbox
-                      label={`${tool.id} · ${tool.name}`}
-                      description={ready ? status : `${status} — cannot be issued`}
-                      checked={picked.includes(tool.id)}
-                      disabled={!ready}
-                      onChange={() => toggle(tool.id)}
-                    />
+                  <li key={tool.id} className="flex items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                      <Checkbox
+                        label={`${tool.id} · ${tool.name}`}
+                        description={ready ? status : `${status} — cannot be issued`}
+                        checked={picked.includes(tool.id)}
+                        disabled={!ready}
+                        onChange={() => toggle(tool.id)}
+                      />
+                    </div>
+                    {onResolveAction && !ready && resolveActions(tool).map(action => (
+                      <Button key={action} type="button" size="sm" variant="secondary" className="shrink-0" onClick={() => onResolveAction(action, tool)}>{CONDITION_ACTION_LABELS[action]}</Button>
+                    ))}
                   </li>
                 );
               })}
@@ -220,8 +227,11 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
                     ) : (
                       <ul className="mt-1 flex flex-col gap-1">
                         {open.map(row => (
-                          <li key={row.key} className="font-sans text-body-sm text-ink-muted">
-                            <strong className="font-medium text-ink">{row.label}</strong>{row.detail ? ` — ${row.detail}` : ''}
+                          <li key={row.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-body-sm text-ink-muted">
+                            <span><strong className="font-medium text-ink">{row.label}</strong>{row.detail ? ` — ${row.detail}` : ''}</span>
+                            {onResolveAction && row.actions?.map(action => (
+                              <Button key={action} type="button" size="sm" variant="secondary" onClick={() => onResolveAction(action, tool)}>{CONDITION_ACTION_LABELS[action]}</Button>
+                            ))}
                           </li>
                         ))}
                       </ul>
@@ -237,7 +247,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
               <Checkbox label="Go ahead anyway" checked={overrideDue} onChange={event => setOverrideDue(event.target.checked)} />
               {overrideDue && (
                 <Field label="Reason for going ahead">
-                  <Textarea aria-label="Reason for going ahead" rows={2} required value={overrideReason} onChange={event => setOverrideReason(event.target.value)} placeholder="For example: breakdown repair, the inspection is booked for tomorrow." />
+                  <Textarea aria-label="Reason for going ahead" rows={2} value={overrideReason} onChange={event => setOverrideReason(event.target.value)} placeholder="For example: breakdown repair, the inspection is booked for tomorrow." />
                 </Field>
               )}
             </>
@@ -270,10 +280,12 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
                   </Button>
                 ))}
               </div>
-              <Input aria-label="Expected return" name="due" type="datetime-local" required value={due} onChange={event => setDue(event.target.value)} />
+              <Input aria-label="Expected return" name="due" type="datetime-local" value={due} onChange={event => setDue(event.target.value)} />
             </div>
           </Field>
-          <Segmented label="Condition at issue" value={condition} onValueChange={setCondition} options={['Good', 'Damaged', 'Missing parts'].map(c => ({ value: c, label: c }))} />
+          <FieldGroup label="Condition at issue">
+            <Segmented label="Condition at issue" value={condition} onValueChange={setCondition} options={['Good', 'Damaged', 'Missing parts'].map(c => ({ value: c, label: c }))} />
+          </FieldGroup>
           <Field label="Comments" optional description={hintFor('Anything about the state the tools went out in — marks, worn parts, missing accessories.')}>
             <Textarea aria-label="Comments" rows={2} value={notes} onChange={event => setNotes(event.target.value)} placeholder="For example: grinder guard scratched, otherwise sound." />
           </Field>

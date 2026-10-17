@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Combobox, DataRegion, Drawer, Field, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
+import { Button, Combobox, DataRegion, Drawer, Field, FieldGroup, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import type { ApiListState } from '@/lib/useApiList';
@@ -56,7 +56,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Requested by" optional><PersonInput value={header.requester} onChange={v => set({ requester: v })} placeholder="Type to search employees" /></Field>
           <Field label="Required for" optional><Input value={header.required_for} onChange={e => set({ required_for: e.target.value })} placeholder="Pump 1 service" /></Field>
-          <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Urgency</span><Segmented label="Urgency" value={header.urgency} onValueChange={v => set({ urgency: v as ReqHeader['urgency'] })} options={URGENCY} /></div>
+          <FieldGroup label="Urgency"><Segmented label="Urgency" value={header.urgency} onValueChange={v => set({ urgency: v as ReqHeader['urgency'] })} options={URGENCY} /></FieldGroup>
           <Field label="Priority"><Select aria-label="Priority" value={header.priority} onValueChange={v => set({ priority: v as ReqHeader['priority'] })} options={PRIORITIES} /></Field>
           <Field label="Reason" optional className="sm:col-span-2"><Textarea rows={2} value={header.reason} onChange={e => set({ reason: e.target.value })} placeholder="Why these parts are needed" /></Field>
         </div>

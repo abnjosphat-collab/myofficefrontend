@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -177,7 +177,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             <Fact label="Observer">{report.observerName}</Fact>
             <Fact label="Designation">{report.designation || 'Not specified'}</Fact>
             <Fact label="Date">{formatDate(report.date)}</Fact>
-            <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
+            <Fact label="Time">{fmtTime(report.time)}</Fact>
             <Fact label="Department or section">{report.departmentSection || 'Not specified'}</Fact>
             <Fact label="Coaching technique">{coachingLabel(report.coachingTechnique)}</Fact>
           </FactList>
@@ -187,8 +187,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             <p className="mt-2 whitespace-pre-wrap font-sans text-body text-ink">{report.description || 'No description recorded.'}</p>
           </div>
           {report.actions?.length > 0 && (
-            <section aria-labelledby="vfl-detail-actions">
-              <h3 id="vfl-detail-actions" className="mb-2 font-sans text-caption text-ink-muted">Action plan ({report.actions.length})</h3>
+            <FactSection title={`Action plan (${report.actions.length})`}>
               <ol className="flex flex-col gap-2">
                 {report.actions.map((a, i) => (
                   <li key={a.id} className="rounded-card border border-line p-3">
@@ -198,7 +197,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
                   </li>
                 ))}
               </ol>
-            </section>
+            </FactSection>
           )}
         </div>
       )}

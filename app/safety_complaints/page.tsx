@@ -2,10 +2,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
@@ -159,8 +159,8 @@ function Analytics({ items, closureRate, overdue }: { items: Complaint[]; closur
         </ChartPanel>
         <ChartPanel title="Monthly trend" description="Last six months with complaints" summary={`Complaints per month: ${trend.map(t => `${t.month} ${t.total} raised, ${t.closed} closed`).join('; ') || 'no data'}.`}>
           {trend.length === 0 ? <p className="py-4 font-sans text-body-sm text-ink-muted">No data</p> : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart accessibilityLayer={false} data={trend} barSize={18}>
+            <Chart height={220}>
+              <BarChart data={trend} barSize={18}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
@@ -169,7 +169,7 @@ function Analytics({ items, closureRate, overdue }: { items: Complaint[]; closur
                 <Bar dataKey="total" name="Raised" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
                 <Bar dataKey="closed" name="Closed" fill={chartColor(2)} radius={[6, 6, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </Chart>
           )}
         </ChartPanel>
         <ChartPanel title="By category" summary={`Complaints by category: ${summarise(byCategory)}.`}><Distribution rows={byCategory} /></ChartPanel>

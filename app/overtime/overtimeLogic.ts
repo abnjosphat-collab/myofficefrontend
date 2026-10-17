@@ -145,3 +145,11 @@ export function weeklyView(records: OTRecord[], employees: EmployeeLookup[], fro
   });
   return { rows, days, dayTotals, totals, people, excluded: records.length - engineering.length, topShare: totals.all > 0 && people[0] ? Math.round((people[0].total / totals.all) * 100) : 0 };
 }
+
+/** Same person: the personnel number when both records carry one, otherwise the name. Two anonymous records never match. */
+const samePerson = (a: Pick<OTRecord, 'employee_id' | 'employee_name'>, b: Pick<OTRecord, 'employee_id' | 'employee_name'>): boolean =>
+  a.employee_id && b.employee_id ? a.employee_id === b.employee_id : !!a.employee_name && a.employee_name === b.employee_name;
+
+/** Requests from the same person on the same day, for "select similar" before a bulk edit. */
+export const similarRecords = (records: OTRecord[], r: Pick<OTRecord, 'employee_id' | 'employee_name' | 'date'>): OTRecord[] =>
+  records.filter(x => x.date === r.date && samePerson(x, r));

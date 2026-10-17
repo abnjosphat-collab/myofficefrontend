@@ -16,14 +16,19 @@ function SetPasswordForm() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirm?: string }>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
-    if (password !== confirm) { setError('Passwords do not match.'); return; }
+    // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
+    const problems: { password?: string; confirm?: string } = {};
+    if (password.length < 6) problems.password = 'Use at least 6 characters.';
+    else if (password !== confirm) problems.confirm = 'Enter the same password again.';
+    setFieldErrors(problems);
+    if (Object.keys(problems).length > 0) return;
 
     setSubmitting(true);
     const { error: updateError } = await supabase.auth.updateUser({ password });
@@ -36,9 +41,9 @@ function SetPasswordForm() {
   return (
     <AuthPage>
       <AuthCard title="Set your password" description="Choose a password to finish signing in to MyOffice.">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <Field label="New password"><Input type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} minLength={6} required /></Field>
-          <Field label="Confirm password"><Input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} minLength={6} required /></Field>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
+          <Field label="New password" error={fieldErrors.password}><Input type="password" autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setFieldErrors(f => ({ ...f, password: undefined })); }} /></Field>
+          <Field label="Confirm password" error={fieldErrors.confirm}><Input type="password" autoComplete="new-password" value={confirm} onChange={e => { setConfirm(e.target.value); setFieldErrors(f => ({ ...f, confirm: undefined })); }} /></Field>
           {error && <Notice tone="danger" title="Password not saved">{error}</Notice>}
           <Button type="submit" variant="primary" fullWidth pending={submitting}>Save password and continue</Button>
         </form>

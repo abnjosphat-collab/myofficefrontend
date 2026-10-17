@@ -71,7 +71,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
         <>{failed}<ToolsSectionBar w={w} />
           <ToolsPeople onDeactivateMany={w.options.showRemoval ? w.deactivateEmployees : undefined} allowDeactivate={w.options.showRemoval} employees={w.employees} tools={w.tools} competencies={w.complianceData.competencies}
             approvals={{ state: sourceState.compliance.loaded ? 'ready' : sourceState.compliance.error ? 'failed' : 'loading', message: sourceState.compliance.error || undefined, onRetry: () => { void w.reloadWorkspace(); } }}
-            search={w.search} canManage={manage} onAdd={() => w.openManageModal({ kind: 'employee' })} onIssue={employee => w.openAction('issue', undefined, employee)} onSaveCompetency={w.saveCompetency} onSetActive={w.setEmployeeActive} />
+            search={w.search} canManage={manage} onAdd={() => w.openManageModal({ kind: 'employee' })} onIssue={employee => w.openAction('issue', undefined, employee)} onEditNumber={employee => w.openManageModal({ kind: 'edit-employee-number', employee })} onSaveCompetency={w.saveCompetency} onSetActive={w.setEmployeeActive} />
         </>
       );
     case 'activity':

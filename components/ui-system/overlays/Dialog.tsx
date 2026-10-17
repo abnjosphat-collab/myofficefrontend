@@ -6,6 +6,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { IconButton } from '../primitives/Button';
+import { firstDialogField } from './dialogFocus';
 
 const panelVariants = cva(
   [
@@ -51,7 +52,7 @@ export interface DialogProps extends VariantProps<typeof panelVariants> {
   /** Intercept every close attempt (Escape, outside, ✕). Call onOpenChange(false) yourself to proceed. */
   onRequestClose?: () => void;
   className?: string;
-  /** Start with focus on the title, so a long form is announced from its name before its first field. */
+  /** Focus on open: true = the title; false = the first control; omitted = the first field when the body has one, else the title. */
   focusTitle?: boolean;
   /** A surface that dresses dialogs its own way (the Tools workspace). See DialogSkin. */
   skin?: DialogSkin;
@@ -74,7 +75,7 @@ export type DialogSkin = {
  * body between a fixed header and footer, and responsive sizing.
  */
 export function Dialog({
-  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className, focusTitle = false, skin,
+  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className, focusTitle, skin,
 }: DialogProps) {
   const opener = useRef<HTMLElement | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -93,7 +94,7 @@ export function Dialog({
           {...skin?.attrs}
           onOpenAutoFocus={event => {
             opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-            if (focusTitle) { event.preventDefault(); titleRef.current?.focus(); }
+            if (focusTitle !== false) { event.preventDefault(); const root = titleRef.current?.closest('[role="dialog"]'); (focusTitle ? titleRef.current : (firstDialogField(root instanceof HTMLElement ? root : null) ?? titleRef.current))?.focus(); }
           }}
           onCloseAutoFocus={event => {
             const target = opener.current;
@@ -109,7 +110,7 @@ export function Dialog({
         >
           <header className={skin?.header ?? 'flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6'}>
             <div className={skin ? undefined : 'min-w-0 flex-1'}>
-              <DialogPrimitive.Title ref={titleRef} tabIndex={focusTitle ? -1 : undefined} className={skin?.title ?? cn(type.sectionTitle, 'tracking-tight outline-none')}>{title}</DialogPrimitive.Title>
+              <DialogPrimitive.Title ref={titleRef} tabIndex={focusTitle === false ? undefined : -1} className={skin?.title ?? cn(type.sectionTitle, 'tracking-tight focus-ring')}>{title}</DialogPrimitive.Title>
               {description ? (
                 <DialogPrimitive.Description className={skin?.description ?? 'mt-1 font-sans text-body-sm text-ink-muted'}>{description}</DialogPrimitive.Description>
               ) : (
@@ -125,7 +126,7 @@ export function Dialog({
             )}
           </header>
           <div className={skin?.body ?? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6'}>{children}</div>
-          {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line-subtle px-5 py-3.5 sm:px-6">{footer}</footer>}
+          {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line-subtle px-5 py-3.5 sm:px-6 max-sm:flex-col-reverse max-sm:flex-nowrap max-sm:items-stretch max-sm:[&>*]:w-full">{footer}</footer>}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

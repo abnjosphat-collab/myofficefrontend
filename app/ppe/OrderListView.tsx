@@ -50,7 +50,7 @@ export function OrderListView({ entries, onRemove, onClear, onIssue }: { entries
         <Select aria-label="Urgency" className="w-40" value={urgency} onValueChange={v => setUrgency(v as OrderListUrgency)} options={URGENCY} />
         <Select aria-label="Sort by" className="w-36" value={sort} onValueChange={v => setSort(v as OrderListSortKey)} options={SORTS} />
         {filtered && <Button variant="ghost" icon="close" onClick={() => { setSearch(''); setType(ALL); setSize(ALL); setUrgency('all'); }}>Clear filters</Button>}
-        <Button variant="danger" icon="delete" className="ml-auto" onClick={clear}>Clear the list</Button>
+        <Button variant="danger-quiet" icon="delete" className="ml-auto" onClick={clear}>Clear the list</Button>
       </div>
 
       <DataRegion status={rows.length ? 'ready' : 'empty'} subject="order list" empty={<EmptyState icon="search" title="Nothing matches" description="Try fewer filters." />}>

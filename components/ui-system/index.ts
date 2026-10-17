@@ -27,7 +27,7 @@ export { Button, IconButton, Spinner, buttonVariants, floatingActionClass, iconB
 export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './primitives/Button';
 export { StatusBadge, Tag, CountBadge } from './primitives/Badge';
 export type { Tone } from './primitives/Badge';
-export { Field, useFieldProps, controlClasses } from './primitives/Field';
+export { Field, FieldGroup, useFieldProps, controlClasses } from './primitives/Field';
 export { Input, Textarea, NativeSelect } from './primitives/Input';
 export { Checkbox } from './primitives/Checkbox';
 export { SearchField } from './primitives/SearchField';
@@ -61,7 +61,7 @@ export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';
-export { Fact, FactList } from './patterns/Fact';
+export { Fact, FactList, FactSection } from './patterns/Fact';
 export { DetailActions, RowActions } from './patterns/RecordActions';
 export { DataTable } from './patterns/DataTable';
 export type { Column, DataTableProps } from './patterns/DataTable';
@@ -69,6 +69,7 @@ export { Pagination } from './patterns/Pagination';
 export { ViewToggle, useViewPreference, VIEW_GRID_LIST, VIEW_CARDS_TABLE } from './patterns/ViewToggle';
 export { DataRegion, EmptyState, Notice, StatusLine } from './patterns/DataRegion';
 export { DestinationSearch } from './patterns/DestinationSearch';
+export { Chart } from './patterns/Chart';
 export { ChartPanel } from './patterns/ChartPanel';
 export { Distribution } from './patterns/Distribution';
 export { FormDialog } from './patterns/FormDialog';
@@ -79,6 +80,10 @@ export { deriveDataStatus, isTransientStatus } from './patterns/dataStatus';
 export type { DataStatus, DataStatusInput } from './patterns/dataStatus';
 export { nextSort, sortRows, selectionState, toggleAllVisible, toggleOne, pruneSelection, pageSlice, pageCount, pageRangeLabel, clampPage } from './patterns/tableLogic';
 export type { SortState, SortDirection } from './patterns/tableLogic';
+export { PersonPicker, PeoplePicker, useEmployeeOptions, lookupName } from './patterns/PeoplePicker';
+export type { PickedPerson, EmployeeOption } from './patterns/PeoplePicker';
+export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/BulkEdit';
+export type { BulkField } from './patterns/BulkEdit';
 
 // Hooks
 export { usePersistentState, oneOf, asString, readStored, storeValue } from './hooks/usePersistentState';

@@ -6,9 +6,9 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Checkbox, Field, Icon, Input, Notice, Segmented, Select, Textarea } from '@/components/ui-system';
 import { ApprovalsView, IncidentsView, InspectionsView, INCIDENT_NAMES } from './ToolsComplianceViews';
 import type { CompetencyRecord, IncidentRecord, InspectionRecord, InspectionType } from './complianceTypes';
-import type { Employee, Tool } from './prototype';
+import { employeeLabel, type Employee, type Tool } from './prototype';
 
-const INSPECTION_LABELS: Record<InspectionType, string> = { pre_use: 'Pre-use check', weekly: 'Weekly check', monthly: 'Monthly inspection', quarterly: 'Quarterly colour inspection', calibration: 'Calibration', maintenance: 'Maintenance', storage_audit: 'Storage audit', repair: 'Repair verification' };
+export const INSPECTION_LABELS: Record<InspectionType, string> = { pre_use: 'Pre-use check', weekly: 'Weekly check', monthly: 'Monthly inspection', quarterly: 'Quarterly colour inspection', calibration: 'Calibration', maintenance: 'Maintenance', storage_audit: 'Storage audit', repair: 'Repair verification' };
 export const INCIDENT_LABELS = INCIDENT_NAMES;
 
 type InspectionInput = { inspection_type: InspectionType; outcome: 'passed' | 'conditional' | 'failed'; next_due_at?: string; condition?: string; defects?: string; notes?: string; repair_quote?: number; new_equipment_price?: number };
@@ -81,13 +81,22 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
   const [negligenceConfirmed, setNegligenceConfirmed] = useState(false);
   const [replacementCost, setReplacementCost] = useState('');
   const [recoveryMonths, setRecoveryMonths] = useState('6');
+  // Checked here, not by the browser (the forms are noValidate): a quiet message under the field instead of the browser's bubble.
+  const [defectsError, setDefectsError] = useState<string | undefined>(undefined);
+  const [repairQuoteError, setRepairQuoteError] = useState<string | undefined>(undefined);
+  const [newPriceError, setNewPriceError] = useState<string | undefined>(undefined);
+  const [occurredAtError, setOccurredAtError] = useState<string | undefined>(undefined);
+  const [explanationError, setExplanationError] = useState<string | undefined>(undefined);
+  const [outcomeError, setOutcomeError] = useState<string | undefined>(undefined);
+  const [costError, setCostError] = useState<string | undefined>(undefined);
+  const [monthsError, setMonthsError] = useState<string | undefined>(undefined);
   const employeeById = useMemo(() => new Map(employees.map(employee => [employee.backendId, employee])), [employees]);
   const toolById = useMemo(() => new Map(activeTools.map(tool => [tool.backendId, tool])), [activeTools]);
   const dueTools = activeTools.filter(tool => (tool.inspectionDue || []).length);
   const eligibleCount = competencies.filter(item => item.trained && item.qualified && item.authorized).length;
   const repairPercentage = repairQuote && newPrice && Number(newPrice) > 0 ? Number(repairQuote) / Number(newPrice) * 100 : undefined;
   const toolOptions = activeTools.map(item => ({ value: item.backendId!, label: `${item.id} · ${item.name}` }));
-  const employeeOptions = activeEmployees.map(item => ({ value: item.backendId!, label: `${item.name} · ${item.employeeNumber}` }));
+  const employeeOptions = activeEmployees.map(item => ({ value: item.backendId!, label: employeeLabel(item) }));
 
   async function submitCompetency(event: FormEvent) {
     event.preventDefault();
@@ -97,18 +106,29 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
   async function submitInspection(event: FormEvent) {
     event.preventDefault();
     if (!inspectionToolId) return;
+    if (outcome === 'failed' && !defects.trim()) { setDefectsError('Describe the defects.'); return; }
+    if (inspectionType === 'repair' && !repairQuote.trim()) { setRepairQuoteError('Enter the repair quotation.'); return; }
+    if (inspectionType === 'repair' && Number(repairQuote) < 0) { setRepairQuoteError('Enter 0 or more.'); return; }
+    if (inspectionType === 'repair' && !newPrice.trim()) { setNewPriceError('Enter the new-equipment price.'); return; }
+    if (inspectionType === 'repair' && Number(newPrice) < 0.01) { setNewPriceError('Enter 0.01 or more.'); return; }
     await onRecordInspection(inspectionToolId, { inspection_type: inspectionType, outcome, next_due_at: nextDue ? at(nextDue) : undefined, defects: defects || undefined, notes: inspectionNotes || undefined, repair_quote: inspectionType === 'repair' && repairQuote ? Number(repairQuote) : undefined, new_equipment_price: inspectionType === 'repair' && newPrice ? Number(newPrice) : undefined });
     setDefects(''); setInspectionNotes(''); setRepairQuote(''); setNewPrice('');
   }
   async function submitIncident(event: FormEvent) {
     event.preventDefault();
-    if (!incidentToolId || !occurredAt || !explanation.trim()) return;
+    if (!incidentToolId) return;
+    if (!occurredAt) { setOccurredAtError('Enter when it happened.'); return; }
+    if (explanation.trim().length < 5) { setExplanationError(explanation.trim() ? 'Use at least 5 characters.' : 'Describe what happened.'); return; }
     await onReportIncident(incidentToolId, { incident_type: incidentType, occurred_at: new Date(occurredAt).toISOString(), employee_id: incidentEmployeeId || undefined, explanation: explanation.trim() });
     setExplanation(''); setOccurredAt('');
   }
   async function submitCloseIncident(event: FormEvent) {
     event.preventDefault();
-    if (!closingIncidentId || !investigationOutcome.trim()) return;
+    if (!closingIncidentId) return;
+    if (investigationOutcome.trim().length < 5) { setOutcomeError(investigationOutcome.trim() ? 'Use at least 5 characters.' : 'Describe the investigation outcome.'); return; }
+    if (negligenceConfirmed && !replacementCost.trim()) { setCostError('Enter the replacement cost.'); return; }
+    if (negligenceConfirmed && Number(replacementCost) < 0) { setCostError('Enter 0 or more.'); return; }
+    if (negligenceConfirmed && (!recoveryMonths.trim() || Number(recoveryMonths) < 1 || Number(recoveryMonths) > 6)) { setMonthsError('Enter 1 to 6.'); return; }
     await onCloseIncident(closingIncidentId, { investigation_outcome: investigationOutcome.trim(), negligence_confirmed: negligenceConfirmed, replacement_cost: negligenceConfirmed && replacementCost ? Number(replacementCost) : undefined, recovery_months: negligenceConfirmed ? Number(recoveryMonths) : undefined });
     setInvestigationOutcome(''); setNegligenceConfirmed(false); setReplacementCost(''); setRecoveryMonths('6');
   }
@@ -135,7 +155,7 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
       {section === 'record' && canManage && (
         <div className="flex flex-col gap-3">
           <FormCard name="competency" open={openForm === 'competency'} onToggle={toggleForm} title="Training and authorization" note="All three criteria are required before issue">
-            <form className="flex flex-col gap-4" onSubmit={submitCompetency}>
+            <form className="flex flex-col gap-4" onSubmit={submitCompetency} noValidate>
               <Row>
                 <Field label="Employee"><Select aria-label="Competency employee" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} /></Field>
                 <Field label="Equipment"><Select aria-label="Competency equipment" value={toolId} onValueChange={setToolId} options={toolOptions} /></Field>
@@ -158,18 +178,18 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
           </FormCard>
 
           <FormCard name="inspection" open={openForm === 'inspection'} onToggle={toggleForm} title="Record inspection or maintenance" note="Failed checks place equipment on hold">
-            <form className="flex flex-col gap-4" onSubmit={submitInspection}>
+            <form className="flex flex-col gap-4" onSubmit={submitInspection} noValidate>
               <Row>
                 <Field label="Equipment"><Select aria-label="Inspection equipment" value={inspectionToolId} onValueChange={setInspectionToolId} options={toolOptions} /></Field>
-                <Field label="Check type"><Select aria-label="Inspection type" value={inspectionType} onValueChange={value => setInspectionType(value as InspectionType)} options={Object.entries(INSPECTION_LABELS).map(([value, text]) => ({ value, label: text }))} /></Field>
-                <Field label="Outcome"><Select aria-label="Inspection outcome" value={outcome} onValueChange={value => setOutcome(value as typeof outcome)} options={[{ value: 'passed', label: 'Passed · fit for use' }, { value: 'conditional', label: 'Conditional · follow-up required' }, { value: 'failed', label: 'Failed · quarantine' }]} /></Field>
+                <Field label="Check type"><Select aria-label="Inspection type" value={inspectionType} onValueChange={value => { setInspectionType(value as InspectionType); setRepairQuoteError(undefined); setNewPriceError(undefined); }} options={Object.entries(INSPECTION_LABELS).map(([value, text]) => ({ value, label: text }))} /></Field>
+                <Field label="Outcome"><Select aria-label="Inspection outcome" value={outcome} onValueChange={value => { setOutcome(value as typeof outcome); setDefectsError(undefined); }} options={[{ value: 'passed', label: 'Passed · fit for use' }, { value: 'conditional', label: 'Conditional · follow-up required' }, { value: 'failed', label: 'Failed · quarantine' }]} /></Field>
                 <Field label="Next due" optional><Input type="date" value={nextDue} onChange={event => setNextDue(event.target.value)} /></Field>
-                <Field label="Defects" description="Required if failed"><Input required={outcome === 'failed'} value={defects} onChange={event => setDefects(event.target.value)} /></Field>
+                <Field label="Defects" description="Required if failed" error={defectsError}><Input value={defects} onChange={event => { setDefects(event.target.value); setDefectsError(undefined); }} /></Field>
                 <Field label="Work completed or notes"><Input value={inspectionNotes} onChange={event => setInspectionNotes(event.target.value)} /></Field>
                 {inspectionType === 'repair' && (
                   <>
-                    <Field label="Repair quotation"><Input required type="number" min="0" step="0.01" value={repairQuote} onChange={event => setRepairQuote(event.target.value)} /></Field>
-                    <Field label="New equipment price"><Input required type="number" min="0.01" step="0.01" value={newPrice} onChange={event => setNewPrice(event.target.value)} /></Field>
+                    <Field label="Repair quotation" error={repairQuoteError}><Input type="number" min="0" step="0.01" value={repairQuote} onChange={event => { setRepairQuote(event.target.value); setRepairQuoteError(undefined); }} /></Field>
+                    <Field label="New equipment price" error={newPriceError}><Input type="number" min="0.01" step="0.01" value={newPrice} onChange={event => { setNewPrice(event.target.value); setNewPriceError(undefined); }} /></Field>
                   </>
                 )}
               </Row>
@@ -181,27 +201,27 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
           </FormCard>
 
           <FormCard name="incident" open={openForm === 'incident'} onToggle={toggleForm} title="Report loss, damage or theft" note="Investigation is due within 24 hours">
-            <form className="flex flex-col gap-4" onSubmit={submitIncident}>
+            <form className="flex flex-col gap-4" onSubmit={submitIncident} noValidate>
               <Row>
                 <Field label="Equipment"><Select aria-label="Incident equipment" value={incidentToolId} onValueChange={setIncidentToolId} options={toolOptions} /></Field>
                 <Field label="Incident type"><Select aria-label="Incident type" value={incidentType} onValueChange={value => setIncidentType(value as IncidentRecord['incident_type'])} options={Object.entries(INCIDENT_LABELS).map(([value, text]) => ({ value, label: text }))} /></Field>
-                <Field label="Occurred at"><Input required type="datetime-local" value={occurredAt} onChange={event => setOccurredAt(event.target.value)} /></Field>
+                <Field label="Occurred at" error={occurredAtError}><Input type="datetime-local" value={occurredAt} onChange={event => { setOccurredAt(event.target.value); setOccurredAtError(undefined); }} /></Field>
                 <Field label="Employee involved" optional><Select aria-label="Employee involved" value={incidentEmployeeId} onValueChange={setIncidentEmployeeId} options={[{ value: '', label: 'Not assigned' }, ...employeeOptions]} /></Field>
               </Row>
-              <Field label="Immediate report"><Textarea required minLength={5} rows={4} value={explanation} onChange={event => setExplanation(event.target.value)} placeholder="What happened, where, when, and what immediate action was taken?" /></Field>
+              <Field label="Immediate report" error={explanationError}><Textarea rows={4} value={explanation} onChange={event => { setExplanation(event.target.value); setExplanationError(undefined); }} placeholder="What happened, where, when, and what immediate action was taken?" /></Field>
               <Submit disabled={!incidentToolId || !occurredAt || explanation.trim().length < 5}>Report incident</Submit>
             </form>
           </FormCard>
 
           <FormCard name="close" open={openForm === 'close'} onToggle={toggleForm} title="Close investigation" note="Record accountability and recovery terms">
-            <form className="flex flex-col gap-4" onSubmit={submitCloseIncident}>
+            <form className="flex flex-col gap-4" onSubmit={submitCloseIncident} noValidate>
               <Field label="Open incident"><Select aria-label="Open incident" value={closingIncidentId} onValueChange={setClosingIncidentId} options={openIncidents.map(item => ({ value: item.id, label: `${toolById.get(item.tool_id)?.id || 'Equipment'} · ${INCIDENT_LABELS[item.incident_type]}` }))} /></Field>
-              <Field label="Investigation outcome"><Textarea required minLength={5} rows={4} value={investigationOutcome} onChange={event => setInvestigationOutcome(event.target.value)} /></Field>
-              <Checkbox label="Negligence confirmed" description="Replacement recovery may be scheduled over no more than six months." checked={negligenceConfirmed} onChange={event => setNegligenceConfirmed(event.target.checked)} />
+              <Field label="Investigation outcome" error={outcomeError}><Textarea rows={4} value={investigationOutcome} onChange={event => { setInvestigationOutcome(event.target.value); setOutcomeError(undefined); }} /></Field>
+              <Checkbox label="Negligence confirmed" description="Replacement recovery may be scheduled over no more than six months." checked={negligenceConfirmed} onChange={event => { setNegligenceConfirmed(event.target.checked); setCostError(undefined); setMonthsError(undefined); }} />
               {negligenceConfirmed && (
                 <Row>
-                  <Field label="Replacement cost"><Input required type="number" min="0" step="0.01" value={replacementCost} onChange={event => setReplacementCost(event.target.value)} /></Field>
-                  <Field label="Recovery period"><Input required type="number" min="1" max="6" value={recoveryMonths} onChange={event => setRecoveryMonths(event.target.value)} /></Field>
+                  <Field label="Replacement cost" error={costError}><Input type="number" min="0" step="0.01" value={replacementCost} onChange={event => { setReplacementCost(event.target.value); setCostError(undefined); }} /></Field>
+                  <Field label="Recovery period" error={monthsError}><Input type="number" min="1" max="6" value={recoveryMonths} onChange={event => { setRecoveryMonths(event.target.value); setMonthsError(undefined); }} /></Field>
                 </Row>
               )}
               <Submit disabled={!closingIncidentId || investigationOutcome.trim().length < 5 || (negligenceConfirmed && !replacementCost)}>Close investigation</Submit>

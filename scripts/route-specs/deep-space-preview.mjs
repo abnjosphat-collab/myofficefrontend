@@ -5,7 +5,8 @@ const spec = {
   h1: 'Explore the deep field',
   data: {},
   async ready(page, calls, { check, shot }) {
-    check(await page.locator('canvas[aria-hidden="true"]').count() === 1, 'the particle canvas renders');
+    // The preview's own particle canvas plus the app-wide floor canvas behind it (one quiet backdrop on every route).
+    check(await page.locator('canvas[aria-hidden="true"]').count() === 2, 'the particle canvas renders');
     check(await page.getByRole('main', { name: 'Deep space preview card' }).isVisible(), 'the floating card renders');
     check(await page.getByRole('navigation').count() === 0, 'no shell chrome renders');
     await page.getByRole('tab', { name: 'Analytics' }).click();

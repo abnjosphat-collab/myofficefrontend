@@ -9,7 +9,7 @@ import { syncRosterNightFields } from './calcTotals';
 import { normalizeTimesheetEmployeeCode, timesheetEmployeeCodesMatch } from './employeeCode';
 import { addModuleApproval, moduleRecordIncluded } from './moduleApproval';
 import { isNightRosterTail } from './nightRosterOvertime';
-import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, StatusKey, TimesheetEntry } from './types';
+import { isTransferredLieuLeave, type ApprovedLeaveRecord, type ApprovedOvertimeRecord, type StatusKey, type TimesheetEntry } from './types';
 
 function resolveDbEmployeeId(humanCode: string, employeeIdByHuman: Map<string, string>): string | undefined {
   const norm = normalizeTimesheetEmployeeCode(humanCode);
@@ -82,6 +82,7 @@ export function mergeEffectiveTimesheets(input: MergeEffectiveTimesheetsInput): 
   const seenLeaveIds = new Set<number>();
   approvedLeaves.forEach(lv => {
     if (!moduleRecordIncluded(lv.status)) return;
+    if (isTransferredLieuLeave(lv)) return;
     if (lv.id != null) {
       if (seenLeaveIds.has(lv.id)) return;
       seenLeaveIds.add(lv.id);

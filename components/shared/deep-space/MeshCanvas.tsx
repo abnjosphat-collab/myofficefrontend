@@ -2,8 +2,8 @@
 //   'stage' — the sign-in net: a flat grid with a thin point at each crossing, turned a little so the right closes in, in perspective.
 //             The geometry is still. What moves is the light: the net sits faint, and a soft band of light sweeps slowly
 //             from the left edge to the right, "switching the net on" as it passes, then it rests and begins again. Nothing reacts to the pointer.
-//   'floor' — the quiet in-app version: a faint, wide floor receding to a horizon low on the page, swaying very slowly (pair it with a CSS fade
-//             at the horizon).
+//   'floor' — the quiet in-app version: the same net at low opacity with no sweep, drawn once per size with no
+//             animation loop (pair it with a CSS fade at the horizon).
 // Colours come from the theme (--ds-line / --mo-focus for lines, --ds-node / --mo-action for nodes), so it follows the sage tokens and the dark
 // sign-in variant. Honours prefers-reduced-motion (the net is drawn lit and still), pauses when the tab is hidden, cleans up on unmount.
 'use client';
@@ -15,21 +15,12 @@ export type MeshLook = 'stage' | 'floor';
 const SWEEP_SECONDS = 13; // one pass of the light, left to right, then a rest
 const SWEEP_ACTIVE = 0.78; // the share of that time the band is crossing the screen
 
-// floor (plane): a flat sheet tipped forward into a receding floor.
-const F_COLS = 40;
-const F_ROWS = 28;
-const F_STEP = 0.2;
-const F_TILT = -1.0;
-const F_DEPTH = 3.4;
-const BREEZE_DIR = [0.94, 0.34] as const; // the way the floor's swell travels
-
 export function MeshCanvas({ look = 'stage', className, dark = false }: { look?: MeshLook; className?: string; dark?: boolean }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const stage = true; // both looks draw the same net; 'floor' is the quiet in-app version: fainter, with no sweep of light
     const quiet = look === 'floor';
     const css = getComputedStyle(canvas);
     const lineColor = (css.getPropertyValue('--ds-line') || css.getPropertyValue('--mo-focus')).trim();
@@ -121,77 +112,30 @@ export function MeshCanvas({ look = 'stage', className, dark = false }: { look?:
       ctx.drawImage(comp, 0, 0);
     };
 
-    // ---------------------------------------------------------------- floor: a faint plane swaying slowly
-    const FN = F_COLS * F_ROWS;
-    const fx = new Float32Array(FN); const fy = new Float32Array(FN); const fd = new Float32Array(FN);
-    let phase = 0; let ffocal = 0; let fcx = 0; let fcy = 0;
-    const [wx, wy] = BREEZE_DIR;
-    const cp = Math.cos(F_TILT); const sp = Math.sin(F_TILT);
-    const drawFloor = (now: number) => {
-      const dt = Math.min(3, Math.max(0.25, (now - last) / 16.667));
-      phase += (dt / 60) * 0.16;
-      for (let j = 0; j < F_ROWS; j++) {
-        for (let i = 0; i < F_COLS; i++) {
-          const k = j * F_COLS + i;
-          const u = (i - (F_COLS - 1) / 2) * F_STEP; const v = (j - (F_ROWS - 1) / 2) * F_STEP;
-          const along = u * wx + v * wy; const across = -u * wy + v * wx;
-          const left = Math.max(0.15, Math.min(1, 0.5 - u / (F_COLS * F_STEP)));
-          const z = (0.05 + 0.2 * left) * 0.7 * (Math.sin(along * 1.2 - phase * 2) + 0.5 * Math.sin(across * 1.9 + clock * 0.8 + 1));
-          const y2 = v * cp - z * sp; const z2 = v * sp + z * cp;
-          const depth = Math.max(0.35, F_DEPTH + z2);
-          const sc = ffocal / depth;
-          fx[k] = fcx + u * sc; fy[k] = fcy + y2 * sc; fd[k] = depth;
-        }
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle = lineColor; ctx.lineWidth = 1; ctx.globalAlpha = 0.2;
-      for (let j = 0; j < F_ROWS; j++) {
-        ctx.beginPath();
-        for (let i = 0; i < F_COLS; i++) { const k = j * F_COLS + i; if (i) ctx.lineTo(fx[k], fy[k]); else ctx.moveTo(fx[k], fy[k]); }
-        ctx.stroke();
-      }
-      for (let i = 0; i < F_COLS; i++) {
-        ctx.beginPath();
-        for (let j = 0; j < F_ROWS; j++) { const k = j * F_COLS + i; if (j) ctx.lineTo(fx[k], fy[k]); else ctx.moveTo(fx[k], fy[k]); }
-        ctx.stroke();
-      }
-      ctx.fillStyle = nodeColor; ctx.globalAlpha = 0.4;
-      for (let k = 0; k < FN; k++) {
-        if (fx[k] < -10 || fx[k] > width + 10 || fy[k] < -10 || fy[k] > height + 10) continue;
-        const r = Math.min(1.3, 2.6 / fd[k]);
-        if (r < 0.5) continue;
-        ctx.beginPath(); ctx.arc(fx[k], fy[k], r, 0, 6.2832); ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    };
-
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = window.innerWidth; height = window.innerHeight;
       canvas.width = Math.floor(width * dpr); canvas.height = Math.floor(height * dpr);
-      if (stage) { drawStageNet(); drawStage(); }
-      else { ffocal = 0.52 * Math.max(width, height * 1.2); fcx = width / 2; fcy = height * 0.62; }
+      drawStageNet(); drawStage();
     };
     const tick = (now: number) => {
       if (!running) return;
       clock += Math.min(0.1, (now - last) / 1000);
-      if (stage) drawStage(); else drawFloor(now);
+      drawStage();
       last = now;
       raf = requestAnimationFrame(tick);
     };
     const onVisibility = () => {
       if (document.hidden) { running = false; return; }
       running = true; last = performance.now();
-      raf = requestAnimationFrame(tick);
+      if (!quiet && !reduced) raf = requestAnimationFrame(tick); else running = false;
     };
 
     window.addEventListener('resize', resize);
     document.addEventListener('visibilitychange', onVisibility);
     resize();
-    clock = stage ? 0.8 : 0; // the first pass of light starts at once, just inside the left edge
-    if (reduced) { if (!stage) drawFloor(last + 16.667); }
-    else raf = requestAnimationFrame(tick);
+    clock = 0.8; // the first pass of light starts at once, just inside the left edge
+    if (!reduced && !quiet) raf = requestAnimationFrame(tick);
     return () => {
       running = false;
       cancelAnimationFrame(raf);

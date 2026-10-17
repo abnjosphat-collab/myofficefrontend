@@ -1,5 +1,6 @@
 // /near_miss: near miss register (table, filters, detail, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const REPORTS = [
   { id: 'a1', department: 'Mining', section: 'Mechanical', date: iso(-3), time: '09:15', location: 'North pit ramp', description: 'A guard came loose on a conveyor during inspection.', witnessDetails: 'Ben Beta', reporterName: 'Ann Alpha', submittedAt: iso(-3) },
   { id: 'a2', department: 'Engineering', section: 'Electrical', date: iso(-10), time: '', location: 'Workshop 2', description: 'Flash seen at a distribution board.', witnessDetails: '', reporterName: '', submittedAt: iso(-10) },

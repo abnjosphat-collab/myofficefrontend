@@ -70,7 +70,7 @@ const spec = {
     const call = page.getByRole('link', { name: /Call Ann Alpha/ });
     check(await call.getAttribute('href') === 'tel:+263771111111', 'tap-to-call dials the holder', await call.getAttribute('href'));
     check(await page.getByRole('link', { name: /WhatsApp Ann Alpha/ }).getAttribute('href') === 'https://wa.me/263771111111', 'WhatsApp opens a wa.me chat with the holder');
-    check(await page.getByText('Crew One').isVisible(), 'the crew backing the holder is listed');
+    check(await page.getByText('Crew One', { exact: true }).isVisible(), 'the crew backing the holder is listed');
     const seq = page.getByRole('list', { name: /Electrical sequence/ });
     check(await seq.getByText('Bob Beta').isVisible(), 'the next holder is named in the sequence');
     check(await seq.getByText(/Cycle restarts with Ann Alpha/).isVisible(), 'the sequence ends where the cycle restarts');
@@ -152,11 +152,11 @@ const spec = {
     requiredText: 'Give the rotation a name.',
     async before(page) { await page.getByRole('tab', { name: 'Rotations' }).click(); },
     async fill(dialog, page) {
-      await dialog.getByLabel('Name', { exact: true }).fill('Nightly');
+      await dialog.getByLabel('Name').fill('Nightly');
       await dialog.getByRole('combobox', { name: 'Add member' }).click();
       await page.getByRole('option', { name: /Eve Epsilon/ }).click();
     },
-    async kept(dialog) { return (await dialog.getByLabel('Name', { exact: true }).inputValue()) === 'Nightly'; },
+    async kept(dialog) { return (await dialog.getByLabel('Name').inputValue()) === 'Nightly'; },
     body: b => b.name === 'Nightly' && b.members.length === 1 && b.members[0].employee_id === 'E31' && b.members[0].employee_name === 'Eve Epsilon' && b.week_length_days === 7 && /^\d{4}-\d{2}-\d{2}$/.test(b.cycle_start_date),
   },
   empty: {

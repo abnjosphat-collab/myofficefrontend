@@ -30,7 +30,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   // A long form can be scrolled away from the message: bring a new save failure into view.
-  useEffect(() => { if (error) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [error]);
+  useEffect(() => { if (error) errorRef.current?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }, [error]);
 
   const close = (next: boolean) => {
     if (saving) return;

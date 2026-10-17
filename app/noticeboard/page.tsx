@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
@@ -169,8 +169,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
             {notice.updated_at && <Fact label="Last updated">{formatDateTime(notice.updated_at)}</Fact>}
           </FactList>
           {!!notice.attachments?.length && (
-            <section aria-labelledby="nb-attachments">
-              <h3 id="nb-attachments" className="mb-2 font-sans text-caption text-ink-muted">Attachments ({notice.attachments.length})</h3>
+            <FactSection title={`Attachments (${notice.attachments.length})`}>
               <ul className="flex flex-col gap-2">
                 {notice.attachments.map((a, i) => (
                   <li key={`${a.url}-${i}`} className="flex items-center gap-3 rounded-card border border-line p-2.5">
@@ -180,7 +179,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
                   </li>
                 ))}
               </ul>
-            </section>
+            </FactSection>
           )}
           <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             <Button icon="external" onClick={share}>Share</Button>

@@ -1,5 +1,6 @@
 // /reliability: every figure derives from breakdown records; there is no demo data.
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const BREAKDOWNS = [
   { id: 1, equipment_name: 'Fixture Crusher', section: 'Crushing', downtime_hours: 20, breakdown_date: iso(-60) },
   { id: 2, equipment_name: 'Fixture Crusher', section: 'Crushing', downtime_hours: 10, breakdown_date: iso(-20) },

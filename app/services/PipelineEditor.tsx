@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Field, Icon, Input, StatusBadge, Textarea, cn, useConfirm } from '@/components/ui-system';
+import { Button, Field, FieldGroup, Icon, Input, StatusBadge, Textarea, cn, useConfirm } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
@@ -57,7 +57,7 @@ function StageRow({ stage, record, isNext, who, signature, onSave }: {
       {open && (
         <div id={panel} className="flex flex-col gap-3 border-t border-line-subtle px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label={stage.key === 'payment' ? 'Paid by' : 'Approved by'}><p className="flex min-h-10 items-center font-sans text-body text-ink">{draft.done && draft.by ? draft.by : <span className="text-ink-muted">Recorded from your signature</span>}</p></Field>
+            <FieldGroup label={stage.key === 'payment' ? 'Paid by' : 'Approved by'}><p className="flex min-h-10 items-center font-sans text-body text-ink">{draft.done && draft.by ? draft.by : <span className="text-ink-muted">Recorded from your signature</span>}</p></FieldGroup>
             <Field label={stage.key === 'payment' ? 'Date of payment' : 'Date approved'}><Input type="date" value={draft.date} onChange={e => set({ date: e.target.value })} /></Field>
             {stage.extra && <Field label={stage.extra.label} optional className="sm:col-span-2"><Input value={draft.extra} onChange={e => set({ extra: e.target.value })} placeholder={stage.extra.placeholder} /></Field>}
             <Field label="Comments" optional className="sm:col-span-2"><Textarea rows={2} value={draft.comments} onChange={e => set({ comments: e.target.value })} placeholder="Handed to whom, what is still awaited" /></Field>

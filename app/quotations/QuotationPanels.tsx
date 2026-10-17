@@ -4,7 +4,7 @@
 'use client';
 
 import { useId, useState, type ReactNode } from 'react';
-import { Button, Field, IconButton, Input, Segmented, Select, Textarea } from '@/components/ui-system';
+import { Button, Field, FieldGroup, IconButton, Input, Segmented, Select, Textarea } from '@/components/ui-system';
 import { DELIVERY_TIMES, CURRENCIES, PAYMENT_TERMS, THEMES, amountOf, blankLine, money, type Company, type Draft, type Line, type Party } from './quotationLogic';
 
 export function Section({ title, description, children, actions }: { title: string; description?: string; children: ReactNode; actions?: ReactNode }) {
@@ -97,7 +97,7 @@ export function DetailsPanel({ draft, onChange }: { draft: Draft; onChange: (pat
         </div>
         <Field label="Payment terms"><Select aria-label="Payment terms" value={draft.paymentTerms} onValueChange={v => onChange({ paymentTerms: v })} options={PAYMENT_TERMS.map(v => ({ value: v, label: v }))} /></Field>
         <Field label="Delivery"><Select aria-label="Delivery" value={draft.deliveryTime} onValueChange={v => onChange({ deliveryTime: v })} options={DELIVERY_TIMES.map(v => ({ value: v, label: v }))} /></Field>
-        <div className="sm:col-span-2"><Segmented label="Document colour" value={draft.theme} onValueChange={v => onChange({ theme: v })} options={THEMES.map(t => ({ value: t.id, label: t.name }))} /></div>
+        <div className="sm:col-span-2"><FieldGroup label="Document colour"><Segmented label="Document colour" value={draft.theme} onValueChange={v => onChange({ theme: v })} options={THEMES.map(t => ({ value: t.id, label: t.name }))} /></FieldGroup></div>
       </div>
     </Section>
   );

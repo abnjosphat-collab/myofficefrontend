@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MovementForm, ToolForm, MarkReadyForm } from './ToolsForms';
+import { MovementForm, ToolForm, MarkReadyForm, EmployeeForm, EmployeeNumberForm } from './ToolsForms';
+import { ToolsCompliance } from './ToolsCompliance';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
 import { PEOPLE, LOCATIONS, JOBS } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
@@ -127,7 +128,7 @@ describe('Tools interaction controls', () => {
     const employees=[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Mining',active:true}];
     const due={...SEED_TOOLS[0],inspectionDue:['monthly','quarterly']};
     render(<MovementForm kind="issue" initialTool={due} tools={[due]} employees={employees} locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={onSave} onCancel={()=>{}}/>);
-    const statements = screen.getAllByText('monthly, quarterly check overdue');
+    const statements = screen.getAllByText('Monthly, quarterly check overdue');
     expect(statements).toHaveLength(2);
     statements.forEach(statement => expect(statement).toBeVisible());
     await user.type(screen.getByRole('combobox',{name:'Employee'}),'Mina'); await user.keyboard('{Enter}');
@@ -221,5 +222,172 @@ describe('Tools interaction controls', () => {
     await user.keyboard('{Escape}');
     await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
+  });
+});
+describe('Tools form validation messages', () => {
+  // The forms are noValidate and check themselves: a quiet message under the field, never the browser's bubble.
+  it('checks the movement form itself and puts an empty issue under the Tool field', () => {
+    const onSave = vi.fn();
+    const scrollSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollSpy;
+    const { container } = render(<MovementForm kind="issue" tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    expect(container.querySelector('form')).toHaveAttribute('novalidate');
+    fireEvent.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Choose a tool from the suggestions.')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Tool' })).toHaveAttribute('aria-invalid', 'true');
+    expect(scrollSpy).toHaveBeenCalled();
+  });
+  it('blocks an empty employee with messages under both fields', () => {
+    const onSave = vi.fn();
+    render(<EmployeeForm onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add employee' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter the full name.')).toBeVisible();
+    expect(screen.getByText('Enter the employee ID or number.')).toBeVisible();
+  });
+  it('records an employee with no mine number yet instead of a made-up one', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EmployeeForm onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'N. One' } });
+    await user.click(screen.getByRole('checkbox', { name: /No mine number yet/ }));
+    expect(screen.getByLabelText('Employee ID or number')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add employee' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ name: 'N. One', employeeNumber: null });
+  });
+  it('issues to a numberless employee picked by name, shown as not recorded', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const employees = [{ id: 'e9', backendId: 'b9', employeeNumber: null, name: 'N. One', department: 'Engineering', active: true }];
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={employees} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: 'N. One · Not recorded' } });
+    fireEvent.change(screen.getByLabelText('Expected return'), { target: { value: '2050-09-25T16:00' } });
+    await user.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ person: 'N. One · Not recorded' });
+    expect(screen.getByLabelText('Selected employee details')).toHaveTextContent('N. One · Not recorded');
+  });
+  it('adds the mine number later, or keeps it unknown', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const person = { id: 'e9', backendId: 'b9', employeeNumber: null, name: 'N. One', department: 'Engineering', active: true };
+    render(<EmployeeNumberForm employee={person} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: /No mine number yet/ })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Save number' }));
+    expect(onSave).toHaveBeenCalledWith(null);
+    await user.click(screen.getByRole('checkbox', { name: /No mine number yet/ }));
+    fireEvent.change(screen.getByLabelText('Employee ID or number'), { target: { value: 'E-900' } });
+    await user.click(screen.getByRole('button', { name: 'Save number' }));
+    expect(onSave).toHaveBeenCalledWith('E-900');
+  });
+  it('blocks an empty tool with messages under the missing fields', () => {
+    const onSave = vi.fn();
+    const scrollSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollSpy;
+    render(<ToolForm defaultDepartment="" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add tool' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(scrollSpy).toHaveBeenCalled();
+    expect(screen.getByText('Enter the tool name.')).toBeVisible();
+    expect(screen.getByText('Enter the make and model.')).toBeVisible();
+    expect(screen.getByText('Choose the department that owns this record.')).toBeVisible();
+    expect(screen.getByText('Enter the storage location.')).toBeVisible();
+    expect(screen.getByText('Enter the designated storage place.')).toBeVisible();
+  });
+  it('asks for a longer note before returning equipment to service', () => {
+    const onSave = vi.fn();
+    render(<MarkReadyForm tool={{ ...SEED_TOOLS[0], status: 'attention' }} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Repair or inspection completed'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark ready for use' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Use at least 2 characters.')).toBeVisible();
+  });
+  it('says when an incident happened instead of failing silently', async () => {
+    const user = userEvent.setup();
+    const onReportIncident = vi.fn();
+    const tools = [{ ...SEED_TOOLS[0], backendId: 'tool-1', archived: false }];
+    render(<ToolsCompliance tools={tools} employees={[]} competencies={[]} inspections={[]} incidents={[]} canManage onSaveCompetency={async () => {}} onRecordInspection={async () => {}} onReportIncident={onReportIncident} onCloseIncident={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Record' }));
+    // The button is normally disabled until the form is valid; drive the submit directly to prove the guard explains itself.
+    fireEvent.submit(screen.getByRole('button', { name: 'Report incident', hidden: true }).closest('form')!);
+    expect(onReportIncident).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter when it happened.')).toBeInTheDocument();
+  });
+  it('asks for defects when a check fails', async () => {
+    const user = userEvent.setup();
+    const onRecordInspection = vi.fn();
+    const tools = [{ ...SEED_TOOLS[0], backendId: 'tool-1', archived: false }];
+    render(<ToolsCompliance tools={tools} employees={[]} competencies={[]} inspections={[]} incidents={[]} canManage onSaveCompetency={async () => {}} onRecordInspection={onRecordInspection} onReportIncident={async () => {}} onCloseIncident={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Record' }));
+    await user.click(screen.getByRole('combobox', { name: 'Outcome', hidden: true }));
+    await user.click(await screen.findByRole('option', { name: /Failed/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record check', hidden: true }));
+    expect(onRecordInspection).not.toHaveBeenCalled();
+    expect(screen.getByText('Describe the defects.')).toBeInTheDocument();
+  });
+  it('names a greyed-out tool to preview it with its resolving actions', async () => {
+    const user = userEvent.setup();
+    const onResolveAction = vi.fn();
+    render(<MovementForm kind="issue" tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={() => {}} onCancel={() => {}} onResolveAction={onResolveAction} />);
+    await user.click(screen.getByRole('combobox', { name: 'Tool' }));
+    await user.type(screen.getByPlaceholderText('Search by tool name or ID…'), 'grinder');
+    expect(screen.getByRole('region', { name: 'Conditions for Angle grinder' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Receive' }));
+    expect(onResolveAction).toHaveBeenCalledWith('receive', expect.objectContaining({ id: 'ENG-AG-02' }));
+    await user.click(screen.getByRole('button', { name: 'Transfer' }));
+    expect(onResolveAction).toHaveBeenCalledWith('transfer', expect.objectContaining({ id: 'ENG-AG-02' }));
+  });
+  it('previews nothing when the search matches several blocked tools', async () => {
+    const user = userEvent.setup();
+    render(<MovementForm kind="issue" tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={() => {}} onCancel={() => {}} onResolveAction={() => {}} />);
+    await user.click(screen.getByRole('combobox', { name: 'Tool' }));
+    await user.type(screen.getByPlaceholderText('Search by tool name or ID…'), 'ENG-');
+    expect(screen.queryByRole('button', { name: 'Receive' })).not.toBeInTheDocument();
+  });
+  it('refuses a not-working tool with the resolving actions, not a dead end', async () => {
+    const user = userEvent.setup();
+    const broken = { ...SEED_TOOLS[0], workingStatus: 'not_working' as const };
+    render(<MovementForm kind="issue" initialTool={broken} tools={[broken]} employees={placeholderPeople} addFiles={() => []} onSave={() => {}} onCancel={() => {}} onResolveAction={() => {}} />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    fireEvent.change(screen.getByLabelText('Expected return'), { target: { value: '2050-09-25T16:00' } });
+    await user.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('not ready to issue');
+    expect(screen.getByRole('button', { name: 'Record repair' })).toBeInTheDocument();
+  });
+  it('commits the lone equipment suggestion on Tab and sends it with the issue', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'Convey');
+    await user.tab();
+    expect(screen.getByText('Conveyor CV-01')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    fireEvent.change(screen.getByLabelText('Expected return'), { target: { value: '2050-09-25T16:00' } });
+    await user.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave.mock.calls[0][0]).toMatchObject({ assignedEquipment: ['Conveyor CV-01'] });
+  });
+  it('commits typed-new equipment on Tab and a highlighted suggestion on Enter', async () => {
+    const user = userEvent.setup();
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'New crusher CR-9');
+    await user.tab();
+    expect(screen.getByText('New crusher CR-9')).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'Pump');
+    await user.keyboard('{Enter}');
+    expect(screen.getByText('Pump P-12')).toBeInTheDocument();
+  });
+  it('never commits the first equipment row on an empty Tab', async () => {
+    const user = userEvent.setup();
+    render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
+    await user.tab();
+    expect(screen.queryByRole('button', { name: 'Remove Conveyor CV-01' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Pump P-12' })).not.toBeInTheDocument();
   });
 });

@@ -93,6 +93,18 @@ describe('ToolsPeople', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
+  it('offers to add the mine number from the employee card while it is unknown', async () => {
+    const user = userEvent.setup();
+    const onEditNumber = vi.fn();
+    render(<ToolsPeople {...props} onEditNumber={onEditNumber} employees={[{ ...employees[1], employeeNumber: null }]} tools={tools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
+    await user.click(screen.getByRole('button', { name: 'Detailed approvals' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getAllByText(/Not recorded/).length).toBeGreaterThan(0);
+    await user.click(within(dialog).getByRole('button', { name: 'Add number' }));
+    expect(onEditNumber).toHaveBeenCalledWith(expect.objectContaining({ name: 'Alex Moyo' }));
+  });
+
   it('still saves all three requirements from the detailed approvals', async () => {
     const user = userEvent.setup();
     const onSaveCompetency = vi.fn(async () => {});

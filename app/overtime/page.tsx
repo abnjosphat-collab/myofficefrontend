@@ -2,10 +2,10 @@
 // the pattern of overtime, and roll a week up per person.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, MoreMenu, LoadingPulse } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -15,13 +15,15 @@ import { overtimeCostCentre, recordsForEngineeringCostCentreExport } from './cal
 import { BulkOvertimeForm } from './BulkOvertimeForm';
 import { EmployeePicks, type PickedPerson } from './EmployeePicks';
 import { InsightsView } from './insights/InsightsView';
+import { OTBulkEditDialog } from './OTBulkEditDialog';
 import { OvertimeDetail } from './OvertimeDetail';
 import { OvertimeForm } from './OvertimeForm';
-import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
+import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, similarRecords, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
 import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { WeeklySummary } from './WeeklySummary';
-import { bulkUpdateOTStatus, createOT, deleteOT, updateOT, useOvertime } from './useOvertimeData';
+import { TakeLieuLeaveDialog } from './TakeLieuLeaveDialog';
+import { bulkUpdateOTStatus, createOT, deleteOT, fetchTakenLieuLeave, updateOT, useOvertime, type TakeLieuLeaveResult, type TakenLieuLeave } from './useOvertimeData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
@@ -78,7 +80,10 @@ function OvertimeContent() {
   const [pageSize, setPageSize] = useState(50);
   const [formFor, setFormFor] = useState<{ record: OTRecord | null } | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [takeFor, setTakeFor] = useState<OTRecord | null>(null);
+  const [takenLookup, setTakenLookup] = useState<{ id: string; leave: TakenLieuLeave | null } | null>(null);
   const [gate, setGate] = useState<{ kind: 'approve' | 'reject'; ids: string[] } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const register = useRegisterCheck();
@@ -89,6 +94,18 @@ function OvertimeContent() {
   const filtered = unmatchedOnly || isFiltered(effective);
 
   const viewing = useMemo(() => records.find(r => String(r.id) === viewingId) ?? null, [records, viewingId]);
+  const takenLeave = viewing && takenLookup && String(viewing.id) === takenLookup.id ? takenLookup.leave : null;
+  useEffect(() => {
+    if (!viewing || viewing.status !== 'approved' || viewing.payout_method !== 'lieu') return;
+    let live = true;
+    fetchTakenLieuLeave(viewing.id).then(leave => { if (live) setTakenLookup({ id: String(viewing.id), leave }); }).catch(() => { if (live) setTakenLookup({ id: String(viewing.id), leave: null }); });
+    return () => { live = false; };
+  }, [viewing]);
+  const taken = (result: TakeLieuLeaveResult, record: OTRecord) => {
+    setTakenLookup({ id: String(record.id), leave: result.leave });
+    toast.success(result.created ? 'Leave recorded in the Leaves module.' : `Leave was already recorded (${fmtDate(result.leave.start_date)}${result.leave.end_date !== result.leave.start_date ? ` → ${fmtDate(result.leave.end_date)}` : ''}).`);
+    setTakeFor(null);
+  };
   const unmatched = useMemo(() => records.filter(r => register.matchOf(r) !== 'linked'), [records, register]);
   const matches = useMemo(() => filterRecords(unmatchedOnly ? unmatched : records, effective, order), [records, unmatched, unmatchedOnly, effective, order]);
   const rows = useMemo(() => sortRows(matches, sort, (r, id) => (id === 'hours' ? recordHours(r) : id === 'date' ? r.date : id === 'employee' ? r.employee_name.toLowerCase() : String(r[id as keyof OTRecord] ?? '').toLowerCase())), [matches, sort]);
@@ -99,6 +116,18 @@ function OvertimeContent() {
   const engineering = useMemo(() => recordsForEngineeringCostCentreExport(records), [records]);
   const pending = useMemo(() => records.filter(r => r.status === 'pending' && selected.has(String(r.id))), [records, selected]);
   const gateRecords = useMemo(() => (gate ? records.filter(r => gate.ids.includes(String(r.id))) : []), [gate, records]);
+  const selectedRecords = useMemo(() => records.filter(r => selected.has(String(r.id))), [records, selected]);
+  const selectSimilar = (r: OTRecord) => {
+    const same = similarRecords(rows, r);
+    setSelected(new Set(same.map(x => String(x.id))));
+    toast.success(same.length === 1 ? 'Only this request matches that person and day.' : `Selected ${same.length} requests from ${r.employee_name} on ${fmtDate(r.date)}.`);
+  };
+  const appliedBulkEdit = (updated: OTRecord[], result: { succeeded: number; failed: number; errors: string[] }) => {
+    list.setItems(prev => { const m = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => m.set(String(u.id), u)); return [...m.values()]; });
+    if (result.failed > 0) toast.warning(result.errors[0] ?? `${result.failed} could not be changed.`);
+    if (result.succeeded > 0) toast.success(`Updated ${result.succeeded} ${result.succeeded === 1 ? 'request' : 'requests'}.`);
+    setSelected(new Set());
+  };
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: matches.length, transient: isTransientStatus(list.errorStatus) });
   const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
   const clear = () => { setFilters(NO_FILTERS); setPeople([]); setUnmatchedOnly(false); setPage(1); };
@@ -143,7 +172,9 @@ function OvertimeContent() {
         <IconButton icon="success" size="sm" variant="ghost" label={`Approve the request from ${r.employee_name}, ${fmtDate(r.date)}`} onClick={() => openGate('approve', [r])} />
         <IconButton icon="close" size="sm" variant="ghost" label={`Reject the request from ${r.employee_name}, ${fmtDate(r.date)}`} onClick={() => openGate('reject', [r])} />
       </>}
+      {r.status === 'approved' && r.payout_method === 'lieu' && <IconButton icon="clock" size="sm" variant="ghost" label={`Mark the leave as taken for the request from ${r.employee_name}, ${fmtDate(r.date)}`} onClick={() => setTakeFor(r)} />}
       <IconButton icon="edit" size="sm" variant="ghost" label={`Edit the request from ${r.employee_name}, ${fmtDate(r.date)}`} onClick={() => setFormFor({ record: r })} />
+      <IconButton icon="select-similar" size="sm" variant="ghost" label={`Select similar requests to the one from ${r.employee_name}, ${fmtDate(r.date)} (same person, same day)`} onClick={() => selectSimilar(r)} />
       <IconButton icon="delete" size="sm" variant="ghost" label={`Delete the request from ${r.employee_name}, ${fmtDate(r.date)}`} onClick={() => remove(r)} />
     </span>
   );
@@ -167,7 +198,7 @@ function OvertimeContent() {
           <>
             <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
-            <MoreMenu items={[{ label: 'Bulk entry', icon: 'employees', disabled: !list.loaded, onSelect: () => setBulkOpen(true) }]} />
+            <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Bulk entry</Button>
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
           </>
         )}
@@ -223,11 +254,12 @@ function OvertimeContent() {
             />
           )}
 
-          {view === 'table' && selected.size > 0 && (
+          {selected.size > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">
               <span className="font-sans text-label font-semibold text-ink">{selected.size} selected, {pending.length} pending</span>
               <Button size="sm" icon="success" disabled={pending.length === 0} onClick={() => openGate('approve', pending)}>Approve</Button>
               <Button size="sm" icon="close" disabled={pending.length === 0} onClick={() => openGate('reject', pending)}>Reject</Button>
+              <Button size="sm" icon="edit" onClick={() => setBulkEditOpen(true)}>Edit</Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>Clear selection</Button>
             </div>
           )}
@@ -282,9 +314,11 @@ function OvertimeContent() {
         </TabsContent>
       </Tabs>
 
-      <OvertimeDetail record={viewing} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} />
+      <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} />
+      <TakeLieuLeaveDialog record={takeFor} open={!!takeFor} onOpenChange={o => { if (!o) setTakeFor(null); }} onTaken={taken} />
       <OvertimeForm open={!!formFor} record={formFor?.record ?? null} records={records} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
       <BulkOvertimeForm open={bulkOpen} initial={people} records={records} onOpenChange={setBulkOpen} onCreated={() => list.refetch()} />
+      <OTBulkEditDialog open={bulkEditOpen} records={selectedRecords} onOpenChange={setBulkEditOpen} onApplied={appliedBulkEdit} />
       {gate && (
         <ApprovalGate
           title={gate.ids.length === 1 ? (gate.kind === 'approve' ? 'Approve overtime request' : 'Reject overtime request') : `${gate.kind === 'approve' ? 'Approve' : 'Reject'} ${gate.ids.length} overtime requests`}

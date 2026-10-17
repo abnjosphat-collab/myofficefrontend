@@ -4,8 +4,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui-system';
-import { EmployeeForm, MarkReadyForm, MovementForm, ToolForm, TITLES } from './ToolsForms';
+import { EmployeeForm, EmployeeNumberForm, MarkReadyForm, MovementForm, ToolForm, TITLES, type RecordCheckInput } from './ToolsForms';
 import { BulkIssueForm } from './BulkIssueForm';
+import { RecordCheckDialog, RecordRepairDialog } from './ToolsResolve';
+import type { ConditionAction } from './toolConditions';
 import { ToolsDialog, EvidencePicker, type AddEvidence } from './ToolsUI';
 import { ToolsCustomize } from './ToolsCustomize';
 import { ToolsAuth } from './ToolsAuth';
@@ -33,7 +35,7 @@ function titleOf(w: ToolsWorkspace): string {
   if (!kind) return '';
   const names: Record<string, string> = {
     customize: 'Settings', new: 'Add equipment', employee: 'Add an employee', feedback: 'Feedback & suggestions', import: 'Import a register',
-    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit equipment details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools',
+    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit equipment details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number',
   };
   if (kind === 'auth') return w.currentAccount ? 'Your profile' : 'Sign in or sign up';
   return names[kind] ?? TITLES[kind as keyof typeof TITLES] ?? '';
@@ -44,7 +46,7 @@ function descriptionOf(w: ToolsWorkspace): string {
     customize: 'Display and workspace preferences.', attachments: 'Keep photos and supporting documents with the item.',
     employee: 'Add a person to this workspace’s independent register.', feedback: 'Tell us what would make the product clearer, faster or more useful.',
     import: 'Preview and validate Excel, CSV or Word records before adding them.', 'source-register': 'Permanently preserve the original file before updating the live database.',
-    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.',
+    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.', 'edit-employee-number': 'Add the mine number that was unknown when this person was recorded.',
   };
   const kind = w.modal?.kind;
   if (kind === 'auth') return w.currentAccount ? 'Your identity and access for this workspace.' : 'Use your workspace account or create one to continue.';
@@ -53,7 +55,28 @@ function descriptionOf(w: ToolsWorkspace): string {
 
 export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   const { modal } = w;
-  const close = () => w.setModal(null);
+  // Inline unblocking from the issue flows: receive/transfer replace the dialog with that movement; a check or
+  // repair records over the top and the reloaded scope re-evaluates the issue form underneath.
+  const [checkToolId, setCheckToolId] = useState<string | null>(null);
+  const [repairToolId, setRepairToolId] = useState<string | null>(null);
+  const close = () => { setCheckToolId(null); setRepairToolId(null); w.setModal(null); };
+  const checkTool = checkToolId ? w.tools.find(t => t.id === checkToolId) ?? null : null;
+  const repairTool = repairToolId ? w.tools.find(t => t.id === repairToolId) ?? null : null;
+  const resolveAction = (action: ConditionAction, tool: Tool) => {
+    if (action === 'receive') w.openAction('return', tool);
+    else if (action === 'transfer') w.openAction('transfer', tool);
+    else if (action === 'record-check') setCheckToolId(tool.id);
+    else setRepairToolId(tool.id);
+  };
+  const saveCheck = async (tool: Tool, input: RecordCheckInput) => {
+    if (!tool.backendId) return;
+    await w.recordInspection(tool.backendId, input);
+    setCheckToolId(null);
+  };
+  const saveRepair = async (tool: Tool, note: string) => {
+    await w.markToolReady(tool, note, true);
+    setRepairToolId(null);
+  };
   const body = (() => {
     if (!modal) return null;
     if (modal.kind === 'customize') return <ToolsCustomize options={w.options} setOptions={w.setOptions} />;
@@ -63,18 +86,19 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (modal.kind === 'source-register') return <SourceRegisterForm departments={w.departments} onSave={w.saveSourceRegister} onCancel={close} />;
     if (modal.kind === 'export') return <ToolsExport data={w.exportData} onDone={() => { close(); w.track('downloaded report', w.tab); }} />;
     if (modal.kind === 'employee') return <EmployeeForm onSave={w.saveEmployee} onCancel={close} />;
+    if (modal.kind === 'edit-employee-number') return <EmployeeNumberForm employee={modal.employee} onSave={number => w.saveEmployeeNumber(modal.employee, number)} onCancel={close} />;
     if (modal.kind === 'new' || modal.kind === 'edit') {
       return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} />;
     }
     if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => void w.saveAttachments(modal.tool, files)} />;
     if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => void w.markToolReady(modal.tool, note)} onCancel={close} />;
-    if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => w.saveBulkIssue(input)} />;
+    if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => w.saveBulkIssue(input)} onResolveAction={resolveAction} />;
     if ('tool' in modal) {
       return (
         <MovementForm key={`${modal.kind}-${modal.tool?.id || 'select'}-${('employee' in modal ? modal.employee?.id : '') || ''}`} kind={modal.kind}
           initialTool={modal.tool} initialEmployee={'employee' in modal ? modal.employee : undefined} tools={w.scope} employees={w.employees}
           locationSuggestions={w.locationSuggestions} equipmentSuggestions={w.equipmentSuggestions} issuerDepartment={w.currentAccount?.department}
-          addFiles={w.addFiles} onSave={w.saveMovement} onCancel={close} />
+          addFiles={w.addFiles} onSave={w.saveMovement} onCancel={close} onResolveAction={resolveAction} />
       );
     }
     return null;
@@ -88,9 +112,13 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     );
   }
   return (
-    <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }}
-      wide={['customize', 'feedback', 'import', 'export', 'bulk-issue'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>
-      {body}
-    </ToolsDialog>
+    <>
+      <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }}
+        wide={['customize', 'feedback', 'import', 'export', 'bulk-issue'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>
+        {body}
+      </ToolsDialog>
+      <RecordCheckDialog tool={checkTool} onClose={() => setCheckToolId(null)} onSave={saveCheck} />
+      <RecordRepairDialog tool={repairTool} onClose={() => setRepairToolId(null)} onSave={saveRepair} />
+    </>
   );
 }

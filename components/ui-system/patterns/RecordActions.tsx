@@ -24,7 +24,7 @@ export function DetailActions({ onDelete, deleteLabel = 'Delete', onClose, onEdi
   const edit = onEdit && <Button variant={editLeads ? 'primary' : 'secondary'} icon="edit" onClick={onEdit}>{editLabel}</Button>;
   return (
     <>
-      {onDelete && <Button variant="danger" icon="delete" className="mr-auto" onClick={onDelete}>{deleteLabel}</Button>}
+      {onDelete && <Button variant="danger-quiet" icon="delete" className="mr-auto" onClick={onDelete}>{deleteLabel}</Button>}
       {onClose && <Button onClick={onClose}>Close</Button>}
       {editLeads ? <>{children}{edit}</> : <>{edit}{children}</>}
     </>

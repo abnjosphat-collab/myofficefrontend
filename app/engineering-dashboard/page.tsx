@@ -2,10 +2,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
+  Button, Chart, ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
   deriveDataStatus, isTransientStatus, type Column, type Tone,
 } from '@/components/ui-system';
 import { useEngineeringDashboardData, type OpenJobCard } from './useEngineeringDashboardData';
@@ -57,15 +57,15 @@ function EngineeringDashboardContent() {
       <DataRegion status={bdStatus} subject="breakdown activity" error={breakdowns.error} onRetry={() => breakdowns.refetch()} empty={<EmptyState icon="analytics" title="No breakdowns recorded yet" description="Breakdown charts appear as soon as breakdowns are logged." />}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChartPanel title="Breakdowns per month" description="Last six months" summary={monthlySummary}>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart accessibilityLayer={false} data={monthly} barSize={28}>
+            <Chart height={220}>
+              <BarChart data={monthly} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <Tooltip {...chartTheme.tooltip} />
                 <Bar dataKey="failures" name="Breakdowns" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </Chart>
           </ChartPanel>
           <ChartPanel title="Repeat failures" description="Equipment with the most breakdowns, last six months" summary={topSummary}>
             {topFailures.length === 0 ? (

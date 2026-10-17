@@ -46,3 +46,31 @@ describe('BulkIssueForm borrower step', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ toolIds: ['ENG-CD-01'], person: PEOPLE[0], location: '' });
   });
 });
+
+describe('BulkIssueForm resolving actions', () => {
+  it('offers receive and transfer beside a tool that is out, and record actions on one held for attention', async () => {
+    const user = userEvent.setup();
+    const onResolveAction = vi.fn();
+    const tools: Tool[] = [{ ...SEED_TOOLS[1] }, { ...SEED_TOOLS[8], inspectionDue: ['monthly'] }];
+    render(<BulkIssueForm tools={tools} employees={employees} issuerDepartment="Engineering" locationSuggestions={[]} onSave={() => {}} onResolveAction={onResolveAction} />);
+    expect(screen.getByRole('checkbox', { name: /ENG-AG-02/ })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Receive' }));
+    expect(onResolveAction).toHaveBeenCalledWith('receive', expect.objectContaining({ id: 'ENG-AG-02' }));
+    await user.click(screen.getByRole('button', { name: 'Record check' }));
+    expect(onResolveAction).toHaveBeenCalledWith('record-check', expect.objectContaining({ id: 'ENG-IW-09' }));
+    await user.click(screen.getByRole('button', { name: 'Record repair' }));
+    expect(onResolveAction).toHaveBeenCalledWith('record-repair', expect.objectContaining({ id: 'ENG-IW-09' }));
+  });
+  it('offers record-check from the conditions step for a picked tool with due checks', async () => {
+    const user = userEvent.setup();
+    const onResolveAction = vi.fn();
+    const tools: Tool[] = [{ ...SEED_TOOLS[0], inspectionDue: ['monthly'] }];
+    render(<BulkIssueForm tools={tools} employees={employees} issuerDepartment="Engineering" locationSuggestions={[]} onSave={() => {}} onResolveAction={onResolveAction} />);
+    await user.click(screen.getByRole('checkbox', { name: /ENG-CD-01/ }));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Record check' }));
+    expect(onResolveAction).toHaveBeenCalledWith('record-check', expect.objectContaining({ id: 'ENG-CD-01' }));
+  });
+});

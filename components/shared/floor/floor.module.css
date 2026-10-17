@@ -74,31 +74,6 @@
     linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--mo-action) 8.5%, transparent) 100%),
     linear-gradient(180deg, color-mix(in srgb, var(--mo-canvas) 55%, white) 0%, var(--mo-canvas) 36%, var(--mo-canvas) 100%); }
 
-.floor { position: absolute; left: -70%; right: -70%; top: 34%; bottom: -10%; perspective: 560px; perspective-origin: 50% 0; }
-.floorPlane {
-  position: absolute; inset: 0 0 auto 0; height: 260%;
-  transform-origin: 50% 0; transform: rotateX(74deg);
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--mo-action) 12%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--mo-action) 12%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--mo-action) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--mo-action) 6%, transparent) 1px, transparent 1px);
-  background-size: 280px 280px, 280px 280px, 70px 70px, 70px 70px;
-  /* Lines melt into the distance at the horizon and darken progressively toward the viewer; faint enough to read
-     as depth, never as content. */
-  mask-image: linear-gradient(to bottom, transparent 0%, black 55%, black 100%);
-  animation: floorIn 1.2s var(--mo-ease-emphasized) 1 both;
-}
-/* The seam where floor meets distance. */
-.horizonLine { position: absolute; left: 0; right: 0; top: 34%; height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--mo-action) 13%, transparent) 20%, color-mix(in srgb, var(--mo-action) 13%, transparent) 80%, transparent); }
-
-/* Two faint glass planes at different depths, tilted in space; decoration only. */
-.plate { position: absolute; border: 1px solid color-mix(in srgb, var(--mo-action) 14%, transparent); border-radius: 6px;
-  background: linear-gradient(135deg, color-mix(in srgb, white 38%, transparent), color-mix(in srgb, white 4%, transparent)); }
-.plateA { width: 380px; height: 240px; right: 6%; top: 14%; transform: perspective(1000px) rotateY(-24deg) rotateX(8deg) rotateZ(-3deg); }
-.plateB { width: 260px; height: 170px; left: 3%; top: 48%; opacity: .7; transform: perspective(1000px) rotateY(22deg) rotateX(-6deg) rotateZ(4deg); }
-
 .ripple {
   position: absolute; left: 50%; top: 52%; width: 40px; height: 40px; margin-left: -20px;
   border-radius: 999px; border: 2px solid var(--pulse, var(--mo-action));
@@ -119,7 +94,6 @@
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-@keyframes floorIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spinUp { 0% { transform: rotate(0); } 100% { transform: rotate(1080deg); } }
 @keyframes attentionHover { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
 
@@ -129,7 +103,7 @@
 @keyframes attention { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .fan[data-running], .saved::before, .urgent, .floorPlane, .ripple[data-pulse], .viewEnter > * > *,
+  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse], .viewEnter > * > *,
   :global(.group):hover .fan[data-running='true'], :global(.group):hover .urgent { animation: none; }
   .slab { transition: none; }
 }
@@ -139,7 +113,7 @@
 .rowIn { animation: riseIn .4s var(--mo-ease-emphasized) both; }
 @media (prefers-reduced-motion: reduce) { .rowIn { animation: none; } }
 
-/* The in-app 3D floor (Tools pages): a faint wireframe plane receding to a horizon low on the page. It fades out towards the horizon, so it
+/* The in-app 3D floor (every page): a faint wireframe plane receding to a horizon low on the page. It fades out towards the horizon, so it
    is only a soft texture under the working screens. Nothing for print. */
 .meshFloor {
   position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block;

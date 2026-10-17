@@ -2,7 +2,7 @@
 // offers its actions in a menu: view, edit, mark not required (or active again), add to the order list, delete.
 'use client';
 
-import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList } from '@/components/ui-system';
+import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeSection } from '@/lib/sections';
 import { STANDING_LABEL, standing, type Standing } from './ppeLogic';
@@ -41,7 +41,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions }: { emp
   return (
     <Dialog
       open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e?.employee_name ?? 'Employee'} description={e ? [e.employee_id, e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
-      footer={e && (<><Button onClick={onClose}>Close</Button><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></>)}
+      footer={e && (<DetailActions onClose={onClose}><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></DetailActions>)}
     >
       {e && (
         <ul className="flex flex-col gap-2" aria-label={`PPE held by ${e.employee_name}`}>
@@ -65,7 +65,7 @@ export function PPEItemDetail({ item: r, onClose, onEdit }: { item: PPERecord | 
   const cond = r ? conditionMeta(r.condition) : null;
   return (
     <Dialog open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="md" title={r ? typeName(r.ppe_type) : 'PPE item'} description={r ? `${r.employee_name}, ${r.employee_id}` : undefined}
-      footer={r && (<><Button onClick={onClose}>Close</Button><Button icon="edit" onClick={() => onEdit(r)}>Edit</Button></>)}>
+      footer={r && (<DetailActions onClose={onClose} onEdit={() => onEdit(r)} />)}>
       {r && cond && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2"><StandingBadge r={r} /><StatusBadge tone={cond.tone}>{cond.label}</StatusBadge></div>
@@ -74,7 +74,7 @@ export function PPEItemDetail({ item: r, onClose, onEdit }: { item: PPERecord | 
             <Fact label="Issued">{fmtDate(r.issue_date)}</Fact><Fact label="Expires">{r.expiry_date ? fmtDate(r.expiry_date) : 'Does not expire'}</Fact>
             <Fact label="Position">{r.position}</Fact><Fact label="Section">{r.mine_section}</Fact>
             <Fact label="Issued by">{r.issued_by}</Fact><Fact label="Location">{r.location}</Fact>
-            {r.notes && <div className="sm:col-span-2"><Fact label="Notes">{r.notes}</Fact></div>}
+            {r.notes && <Fact label="Notes" wide>{r.notes}</Fact>}
           </FactList>
         </div>
       )}

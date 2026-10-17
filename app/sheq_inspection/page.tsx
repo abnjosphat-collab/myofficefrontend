@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -172,8 +172,7 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
             <Fact label="Section"><SectionBadgeFor section={inspection.section} /></Fact>
             <Fact label="Status"><InspectionBadge status={inspection.status} /></Fact>
           </FactList>
-          <section aria-labelledby="si-detail-findings">
-            <h3 id="si-detail-findings" className="mb-2 font-sans text-caption text-ink-muted">Findings and actions ({inspection.findings?.length || 0})</h3>
+          <FactSection title={`Findings and actions (${inspection.findings?.length || 0})`}>
             {inspection.findings?.length ? (
               <ol className="flex flex-col gap-2">
                 {inspection.findings.map((f, i) => (
@@ -189,15 +188,14 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
                 ))}
               </ol>
             ) : <p className="font-sans text-body-sm text-ink-muted">No findings recorded for this inspection.</p>}
-          </section>
+          </FactSection>
           {(inspection.before_photos?.length || 0) + (inspection.after_photos?.length || 0) > 0 && (
-            <section aria-labelledby="si-detail-photos" className="flex flex-col gap-3">
-              <h3 id="si-detail-photos" className="font-sans text-caption text-ink-muted">Photos</h3>
+            <FactSection title="Photos">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {inspection.before_photos?.length > 0 && <PhotoUpload label="Before inspection" photos={inspection.before_photos} onChange={() => {}} disabled />}
                 {inspection.after_photos?.length > 0 && <PhotoUpload label="After inspection" photos={inspection.after_photos} onChange={() => {}} disabled />}
               </div>
-            </section>
+            </FactSection>
           )}
           <FactList>
             {[{ label: 'Head of department', name: inspection.hodName, sig: inspection.hodSignature }, { label: 'SHEQ official', name: inspection.sheqOfficialName, sig: inspection.sheqSignature }].map(({ label, name, sig }) => (

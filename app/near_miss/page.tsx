@@ -119,7 +119,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: NearMissR
             <Fact label="Department">{report.department}</Fact>
             <Fact label="Section"><SectionBadge section={report.section} label={SECTION_META[report.section]?.label} /></Fact>
             <Fact label="Date">{formatDate(report.date)}</Fact>
-            <Fact label="Time">{fmtTime(report.time) || 'Not recorded'}</Fact>
+            <Fact label="Time">{fmtTime(report.time)}</Fact>
             <Fact label="Location">{report.location}</Fact>
             <Fact label="Reporter">{report.reporterName || 'Anonymous'}</Fact>
           </FactList>

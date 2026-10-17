@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea, LoadingPulse, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { PeoplePicker } from './PeoplePicker';
 import { addComment, listComments } from './useTasksEventsData';
@@ -88,39 +88,38 @@ export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onT
       {item && (
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2">
-            <StatusBadge tone={item.status === 'completed' ? 'success' : 'warning'} icon={item.status === 'completed' ? 'success' : 'pending'}>{item.status === 'completed' ? 'Completed' : 'Pending'}</StatusBadge>
-            <StatusBadge tone={TYPE_TONE[item.task_type] ?? 'neutral'}>{item.task_type}</StatusBadge>
-            <StatusBadge tone={PRIORITY_TONE[item.priority] ?? 'neutral'}>{item.priority}</StatusBadge>
-            {isOverdue(item) && <StatusBadge tone="danger" icon="warning">Overdue</StatusBadge>}
+            <StatusBadge tone={item.status === 'completed' ? 'success' : isOverdue(item) ? 'danger' : 'info'}>{item.status === 'completed' ? 'Completed' : isOverdue(item) ? 'Overdue' : 'Open'}</StatusBadge>
+            <StatusBadge tone={TYPE_TONE[item.task_type]}>{item.task_type}</StatusBadge>
+            <StatusBadge tone={PRIORITY_TONE[item.priority]}>{item.priority} priority</StatusBadge>
           </div>
           <FactList>
-            <Fact label="Date">{item.event_date ? fmtDate(item.event_date) : 'Not set'}</Fact>
-            <Fact label="Due date">{item.due_date ? fmtDate(item.due_date) : 'Not set'}</Fact>
-            <Fact label="Responsible">{item.responsible_people?.length ? item.responsible_people.join(', ') : 'Unassigned'}</Fact>
-            <Fact label="Completed by">{item.completed_by || 'Not completed'}</Fact>
+            <Fact label="Date">{item.event_date ? fmtDate(item.event_date) : ''}</Fact>
+            <Fact label="Due date">{item.due_date ? fmtDate(item.due_date) : ''}</Fact>
+            <Fact label="Responsible">{(item.responsible_people || []).join(', ')}</Fact>
+            {item.completed_at && <Fact label="Completed">{fmtDateTime(item.completed_at)}</Fact>}
           </FactList>
-          {item.description && <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{item.description}</p></div>}
-          <section aria-labelledby="te-comments" className="flex flex-col gap-3">
-            <h3 id="te-comments" className="font-sans text-label font-semibold text-ink">Progress comments</h3>
-            {state === 'loading' && <LoadingPulse compact label="Loading progress comments" />}
-            {state === 'error' && <Notice tone="danger" title="Comments could not be loaded" action={<Button size="sm" icon="refresh" onClick={load}>Try again</Button>}>{error}</Notice>}
-            {state === 'ready' && (comments.length === 0
-              ? <p className="font-sans text-body-sm text-ink-muted">No comments yet.</p>
-              : (
+          {item.description && (
+            <FactSection title="Description"><p className="whitespace-pre-wrap font-sans text-body text-ink">{item.description}</p></FactSection>
+          )}
+          <FactSection title="Progress comments">
+              {state === 'loading' && <LoadingPulse compact label="Loading comments" />}
+              {state === 'error' && <Notice tone="danger" title="Comments did not load">{error} <Button variant="ghost" size="sm" onClick={load}>Try again</Button></Notice>}
+              {state === 'ready' && comments.length === 0 && <p className="font-sans text-body-sm text-ink-muted">No comments yet. Add the first note below.</p>}
+              {comments.length > 0 && (
                 <ul className="flex max-h-56 flex-col gap-2 overflow-y-auto">
                   {comments.map(c => (
-                    <li key={c.id} className="rounded-control bg-surface-subtle p-3">
-                      <div className="flex items-center justify-between gap-2"><span className="font-sans text-label font-medium text-ink">{c.author || 'Someone'}</span><span className="font-sans text-caption text-ink-muted">{fmtDateTime(c.created_at)}</span></div>
-                      <p className="mt-0.5 font-sans text-body text-ink [overflow-wrap:anywhere]">{c.text}</p>
+                    <li key={c.id} className="rounded-control border border-line bg-surface-subtle px-3 py-2">
+                      <p className="whitespace-pre-wrap font-sans text-body-sm text-ink [overflow-wrap:anywhere]">{c.text}</p>
+                      <p className="mt-1 font-sans text-caption text-ink-muted">{c.author || 'Someone'} · {fmtDateTime(c.created_at)}</p>
                     </li>
                   ))}
                 </ul>
-              ))}
-            <form className="flex gap-2" onSubmit={e => { e.preventDefault(); post(); }}>
-              <Input aria-label="Add a progress update" value={draft} onChange={e => setDraft(e.target.value)} placeholder="Add a progress update" />
-              <Button type="submit" variant="primary" pending={posting} disabled={!draft.trim()}>Post</Button>
-            </form>
-          </section>
+              )}
+              <div className="flex items-end gap-2">
+                <Field label="Add a progress update" labelClassName="sr-only"><Textarea rows={2} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write an update" /></Field>
+                <Button variant="primary" onClick={post} disabled={!draft.trim() || posting}>{posting ? 'Posting…' : 'Post'}</Button>
+              </div>
+          </FactSection>
         </div>
       )}
     </Dialog>

@@ -1,5 +1,6 @@
 // /safety_complaints: complaints register (table, filters, analytics tab, detail, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const COMPLAINTS = [
   { id: 'c1', date: iso(-4), raisedBy: 'Ann Alpha', issueRaised: 'Guard missing from a rotating shaft.', category: 'Safety', priority: 'critical', section: 'Mechanical', location: 'Workshop 1', actionPlan: 'Isolate and fit a guard.', byWho: 'Ben Beta', byWhen: iso(2), supervisorName: 'Cat Gamma', supervisorSignature: 'C.G.', dateClosed: null, status: 'open', submittedAt: iso(-4) },
   { id: 'c2', date: iso(-12), raisedBy: '', issueRaised: 'Poor lighting on the haul road.', category: 'Health', priority: 'medium', section: 'General', location: 'Haul road', actionPlan: '', byWho: '', byWhen: '', supervisorName: '', supervisorSignature: '', dateClosed: null, status: 'overdue', submittedAt: iso(-12) },

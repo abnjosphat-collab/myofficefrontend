@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -146,13 +146,13 @@ function IssuesContent() {
       <Dialog
         open={!!viewing} onOpenChange={o => { if (!o) setViewingId(null); }}
         title={viewing ? `Issue to ${viewing.recipient_name}` : 'Issue'} description={viewing ? fmtDateTime(viewing.issued_at) : undefined} size="lg"
-        footer={viewing && (<><Button variant="danger" icon="delete" onClick={() => remove(viewing)}>Delete</Button><Button onClick={() => setViewingId(null)}>Close</Button></>)}
+        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} />)}
       >
         {viewing && (
           <div className="flex flex-col gap-4">
             <FactList>
-              <Fact label="Issued by">{viewing.issued_by || 'Not recorded'}</Fact>
-              <Fact label="Recipient ID">{viewing.recipient_id || 'Not recorded'}</Fact>
+              <Fact label="Issued by">{viewing.issued_by}</Fact>
+              <Fact label="Recipient ID">{viewing.recipient_id}</Fact>
             </FactList>
             <ul className="flex flex-col gap-2" aria-label="Items issued">
               {(viewing.items ?? []).map((it, n) => (

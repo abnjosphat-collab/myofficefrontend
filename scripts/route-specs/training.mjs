@@ -1,5 +1,6 @@
 // /training: certification register, refreshers, analytics, add/edit/delete.
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const CERTS = [
   { id: 1, employee_name: 'Ann Alpha', employee_id: 'E1', department: 'Safety', certification_name: 'First aid', expiry_date: iso(-10), required_refresher: 'BLS', status: 'Expired', certificate_url: 'https://example.invalid/a.pdf' },
   { id: 2, employee_name: 'Ben Beta', employee_id: 'E2', department: 'Mining', certification_name: 'Blasting', expiry_date: iso(40), required_refresher: '', status: 'Due Soon', certificate_url: null },

@@ -5,10 +5,10 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Card, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, Chart, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches, usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
@@ -188,8 +188,8 @@ function UsageAnalyzerContent() {
               summary={`Module opens and page views per ${granularity}: ${overTime.map(p => `${p.label} ${p.opens + p.views}`).join(', ')}.`}
               controls={<Segmented label="Time grouping" value={granularity} onValueChange={setGranularity} options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />}
             >
-              <ResponsiveContainer width="100%" height={240} minWidth={320}>
-                <LineChart accessibilityLayer={false} data={overTime} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
+              <Chart height={240} minWidth={320}>
+                <LineChart data={overTime} margin={{ top: 8, right: 12, bottom: 0, left: -18 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="label" tick={chartTheme.axisTick} tickLine={false} axisLine={false} interval={granularity === 'day' ? 4 : 0} />
                   <YAxis tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
@@ -198,26 +198,26 @@ function UsageAnalyzerContent() {
                   <Line type="monotone" dataKey="opens" name="Module opens" stroke={chartColor(1)} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                   <Line type="monotone" dataKey="views" name="Page views" stroke={chartColor(2)} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
-              </ResponsiveContainer>
+              </Chart>
             </ChartPanel>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <ChartPanel title="Most-used modules" summary={modules.length ? `Module opens: ${modules.map(m => `${m.label} ${m.count}`).join(', ')}.` : 'No module opens yet.'}>
                 {modules.length === 0 ? <NoData /> : (
-                  <ResponsiveContainer width="100%" height={Math.max(180, modules.length * 30)} minWidth={280}>
-                    <BarChart accessibilityLayer={false} data={modules} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
+                  <Chart height={Math.max(180, modules.length * 30)} minWidth={280}>
+                    <BarChart data={modules} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
                       <XAxis type="number" tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} />
                       <YAxis type="category" dataKey="label" tick={chartTheme.axisTick} tickLine={false} axisLine={false} width={110} />
                       <Tooltip {...chartTheme.tooltip} />
                       <Bar dataKey="count" name="Opens" fill={chartColor(1)} radius={[0, 4, 4, 0]} barSize={14} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </Chart>
                 )}
               </ChartPanel>
               <ChartPanel title="Activity by time of day" summary={`Interactions by hour of day. Busiest hour: ${busiestLabel}.`}>
-                <ResponsiveContainer width="100%" height={220} minWidth={320}>
-                  <AreaChart accessibilityLayer={false} data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+                <Chart height={220} minWidth={320}>
+                  <AreaChart data={byHour} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                     <XAxis dataKey="hour" tick={chartTheme.axisTick} tickLine={false} axisLine={false} interval={2} />
                     <YAxis tick={chartTheme.axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={34} />
@@ -226,7 +226,7 @@ function UsageAnalyzerContent() {
                     <Area type="monotone" dataKey="opens" name="Module opens" stroke={chartColor(1)} strokeWidth={2} fill={chartColor(1)} fillOpacity={0.25} stackId="1" />
                     <Area type="monotone" dataKey="views" name="Page views" stroke={chartColor(2)} strokeWidth={2} fill={chartColor(2)} fillOpacity={0.25} stackId="1" />
                   </AreaChart>
-                </ResponsiveContainer>
+                </Chart>
               </ChartPanel>
             </div>
 

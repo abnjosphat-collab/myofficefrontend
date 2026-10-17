@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -170,7 +170,7 @@ function EquipmentContent() {
 
       <Dialog
         open={!!viewing} onOpenChange={o => { if (!o) setViewingId(null); }} title={viewing?.name ?? 'Equipment'} description={viewing?.equipment_id} size="lg"
-        footer={viewing && (<><Button variant="danger" icon="delete" onClick={() => remove(viewing)}>Delete</Button><Button onClick={() => setViewingId(null)}>Close</Button><Button variant="primary" icon="edit" onClick={() => openForm(viewing)}>Edit</Button></>)}
+        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} onEdit={() => openForm(viewing)} />)}
       >
         {viewing && (
           <div className="flex flex-col gap-5">
@@ -183,8 +183,8 @@ function EquipmentContent() {
               <Fact label="Supplier">{viewing.supplier}</Fact><Fact label="Supplier contact">{viewing.supplier_contact}</Fact><Fact label="Supplier phone">{viewing.supplier_phone}</Fact>
               <Fact label="Warranty">{viewing.warranty_info}</Fact><Fact label="Maintenance interval">{viewing.maintenance_interval != null ? `${viewing.maintenance_interval} months` : ''}</Fact><Fact label="Purchase cost">{viewing.purchase_cost != null ? formatCurrency(viewing.purchase_cost) : ''}</Fact>
             </FactList>
-            {viewing.specifications && <section><h3 className="font-sans text-label font-semibold text-ink">Specifications</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.specifications}</p></section>}
-            {viewing.maintenance_notes && <section><h3 className="font-sans text-label font-semibold text-ink">Maintenance notes</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.maintenance_notes}</p></section>}
+            {viewing.specifications && <FactSection title="Specifications"><p className="whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.specifications}</p></FactSection>}
+            {viewing.maintenance_notes && <FactSection title="Maintenance notes"><p className="whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{viewing.maintenance_notes}</p></FactSection>}
           </div>
         )}
       </Dialog>

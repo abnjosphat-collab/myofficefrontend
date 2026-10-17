@@ -1,5 +1,6 @@
 // /noticeboard: notices (cards, table, server filters, detail with attachments, pin, bulk actions, upload, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=';
 const NOTICES = [
   { id: 'n1', title: 'Fire drill on Friday', content: 'Assemble at the north gate at 10:00.', date: iso(-2), category: 'Safety', priority: 'Critical', status: 'Active', is_pinned: true, requires_acknowledgment: true, author: 'Ann Alpha', department: 'Operations', expires_at: iso(30), target_audience: 'All Employees', notification_type: 'Event',

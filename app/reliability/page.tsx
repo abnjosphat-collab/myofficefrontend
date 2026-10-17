@@ -2,10 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
+  Chart, ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
   deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { useReliabilityData } from './useReliabilityData';
@@ -66,26 +66,26 @@ function ReliabilityContent() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartPanel title="Breakdowns per month" description="Last six months" summary={monthlySummary}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart accessibilityLayer={false} data={monthly} barSize={28}>
+              <Chart height={240}>
+                <BarChart data={monthly} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <Tooltip {...chartTheme.tooltip} />
                   <Bar dataKey="failures" name="Breakdowns" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </Chart>
             </ChartPanel>
             <ChartPanel title="MTTR by section" description="Mean hours to repair" summary={sectionSummary}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart accessibilityLayer={false} data={sections} barSize={28}>
+              <Chart height={240}>
+                <BarChart data={sections} barSize={28}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="section" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                   <Tooltip {...chartTheme.tooltip} />
                   <Bar dataKey="mttr" name="MTTR (hours)" fill={chartColor(2)} radius={[6, 6, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
+              </Chart>
             </ChartPanel>
           </div>
 

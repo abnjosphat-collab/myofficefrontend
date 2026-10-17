@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EmployeeLookup } from '@/hooks/useLookups';
-import { NO_FILTERS, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, normalizeSection, recordHours, summarise, summarisePerson, tally, timeSpan, weeklyView } from './overtimeLogic';
+import { NO_FILTERS, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, normalizeSection, recordHours, similarRecords, summarise, summarisePerson, tally, timeSpan, weeklyView } from './overtimeLogic';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import type { OTRecord } from './types';
 
@@ -132,6 +132,21 @@ describe('labels', () => {
     expect(statusMeta('pending').tone).toBe('warning');
     expect(planningMeta(null)).toBeNull();
     expect(payoutMeta('cash')).toBeNull();
-    expect(payoutMeta('lieu')?.label).toMatch(/lieu/);
+    expect(payoutMeta('lieu')?.label).toBe('To be taken as leave');
+  });
+});
+
+describe('similarRecords', () => {
+  const rows = [
+    rec({ id: 1, employee_id: 'C1', employee_name: 'Jane Doe', date: '2026-09-07' }),
+    rec({ id: 2, employee_id: 'C1', employee_name: 'Jane Doe', date: '2026-09-08' }),
+    rec({ id: 3, employee_id: 'C2', employee_name: 'Bo Ng', date: '2026-09-07' }),
+    rec({ id: 4, employee_id: '', employee_name: 'Jane Doe', date: '2026-09-07' }),
+  ];
+  it('matches the same person on the same day only', () => {
+    expect(similarRecords(rows, rows[0]).map(r => r.id)).toEqual([1, 4]);
+  });
+  it('falls back to the name when the ID is missing', () => {
+    expect(similarRecords(rows, rows[3]).map(r => r.id)).toEqual([1, 4]);
   });
 });

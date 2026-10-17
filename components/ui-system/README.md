@@ -19,7 +19,7 @@ no icon-style switch. Status of the migration is in [`docs/CURRENT_HANDOFF.md`](
 | `appearance/` | The shared preference record and its provider, store and pre-paint bootstrap |
 | `primitives/` | Button, IconButton, badges, Field, Input/Textarea/NativeSelect, Checkbox, SearchField, Tabs, Card, Skeleton, Segmented, Rating, Progress |
 | `overlays/` | Dialog, Drawer, Confirm, Popover, Tooltip, Select, Combobox, Menu; `surfaces.ts` holds the shared floating-surface classes |
-| `patterns/` | PageHeader, Toolbar, MetricTile/MetricGrid, RecordCard, DataTable, Pagination, ViewToggle, DataRegion/EmptyState/Notice, DestinationSearch, ChartPanel, FormDialog, plus pure logic (`dataStatus.ts`, `tableLogic.ts`) with tests |
+| `patterns/` | PageHeader, Toolbar, MetricTile/MetricGrid, RecordCard, DataTable, Pagination, ViewToggle, DataRegion/EmptyState/Notice, DestinationSearch, Chart/ChartPanel, FormDialog, plus pure logic (`dataStatus.ts`, `tableLogic.ts`) with tests |
 | `shell/` | `Nav` (NavItem, NavGroup, NavHeading), `Frame` (AppFrame, TopBar, SidebarFrame) |
 | `hooks/` | `usePersistentState`, `useMediaQuery` |
 
@@ -67,7 +67,7 @@ already loaded stay visible through a failed refresh (with a "may be out of date
 Hooks should report `{ loading, loaded, error, errorStatus }`; `lib/useApiList.ts` does this and ignores superseded responses.
 
 **Dialogs.** `Dialog` is Radix Dialog with focus return to a still-connected opener, a scrollable body between a fixed header
-and footer, and `dismissible={false}` while saving. `FormDialog` is the one create/edit dialog: a real `<form>`, a submit
+and footer, and `dismissible={false}` while saving. Focus opens on the first field when the body has one, else the title (`focusTitle` pins either). `FormDialog` is the one create/edit dialog: a real `<form>`, a submit
 button wired to it, a pending state that blocks double submit and dismissal, validation by returning `false`, and a save
 failure (thrown) shown inline **with the typed values kept**. Never close a form on failure. `useConfirm` is the one
 confirmation (focus starts on Cancel so Enter cannot complete a destructive action).
@@ -80,7 +80,7 @@ wrapper that contains buttons.
 numbers, `aria-sort` on sortable headers, selection as a fill **and** a checked box. Sorting and selection logic lives in
 `tableLogic.ts` (unit-tested).
 
-**Charts.** Use `ChartPanel` with a `summary` (the text alternative is required) and `chartTheme`/`chartColor` for Recharts.
+**Charts.** Use `ChartPanel` with a `summary` (the text alternative is required), the `Chart` frame around the Recharts chart (responsive box, hidden from assistive technology, still under prefers-reduced-motion), and `chartTheme`/`chartColor` for styling.
 Heatmaps and charts are `aria-hidden`; the summary carries the information.
 
 **Search.** `SearchField` filters a local list. `DestinationSearch` navigates: an ARIA combobox that keeps DOM focus in the
@@ -88,7 +88,7 @@ input (`aria-activedescendant`), idle recent results, portalled list with collis
 
 **Fields.** Wrap controls in `Field` (label, description, error, required/optional text). `useFieldProps()` lets a control
 join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hosted inside Fields through
-`components/shared/SuggestField.tsx` until they are rebuilt here.
+`components/shared/SuggestField.tsx` until they are rebuilt here. `FieldGroup` labels a group of controls — a `Segmented` choice, a checkbox row, read-only values — with the same label, hint and error rhythm.
 
 ## Recipe: migrating a page
 
@@ -118,5 +118,5 @@ There is one design system. The legacy one (`components/shared/design-system/`, 
 the signature pad, photo upload and typeahead are built from this system. The Tools & Equipment workspace (`app/tools`)
 is built from it too (2026-10-10): its sidebar, top bar, dialogs, forms, tables, charts and settings are the shared
 components, and its own stylesheet (`tools.module.css`), icon set and select/date/suggestion controls are gone. It keeps its
-own sign-in and its own sidebar icon-style choice (Phosphor or Tabler, confined to `ToolsSidebarIcon`). The compressors
+own sign-in; its sidebar uses the app-wide icon set through the shared `NavItem`/`NavSpotlight`. The compressors
 and Tools screens share the floor look (3D backdrop, flat cards, animated text, sound) from `components/shared/floor`.

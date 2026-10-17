@@ -1,5 +1,6 @@
 // /pto: planned task observation register (cards, table, detail with status change, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const FULL = {
   timeOnJob: { months: '4', years: '2' }, notification: { toldInAdvance: 'Yes' },
   reasons: { monthly: true, newEmployee: false, safetyAwareness: true, incidentFollowUp: false, trainingFollowUp: false, infrequentTask: false },

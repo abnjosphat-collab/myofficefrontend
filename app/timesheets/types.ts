@@ -43,7 +43,12 @@ export interface ApprovedLeaveRecord {
   id?: number;
   employee_id: string; leave_type: string; start_date: string; end_date: string; status: string;
   reason?: string;
+  /** Set only on lieu leave transferred from the Overtime module (take-as-leave): the OT record it pays off. */
+  overtime_id?: number | null;
 }
+
+/** A leave transferred from overtime never shows on timesheets: the time off was earned by worked hours, not lost to absence. */
+export const isTransferredLieuLeave = (leave: ApprovedLeaveRecord): boolean => leave.overtime_id != null;
 
 /** Minimal shape pulled from the Overtime page's records — only what's needed to add
  *  approved overtime hours onto the timesheet grid. */

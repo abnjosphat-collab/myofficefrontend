@@ -107,7 +107,7 @@ export function ApprovalsView({ tools, competencies, toolById, employeeById, onO
             rows={expiring.slice(0, 25)}
             getRowId={item => `${item.record.id}-${item.name}`}
             columns={[
-              { id: 'person', header: 'Person', cell: ({ record }) => { const person = employeeById.get(record.employee_id); return <><strong className="block font-medium text-ink">{person?.name || 'Unknown employee'}</strong><small className="text-ink-muted">{person?.employeeNumber}</small></>; } },
+              { id: 'person', header: 'Person', cell: ({ record }) => { const person = employeeById.get(record.employee_id); return <><strong className="block font-medium text-ink">{person?.name || 'Unknown employee'}</strong><small className="text-ink-muted">{person?.employeeNumber ?? 'Not recorded'}</small></>; } },
               { id: 'tool', header: 'Equipment', cell: ({ record }) => { const tool = toolById.get(record.tool_id); return tool ? `${tool.id} · ${tool.name}` : record.category || 'Category approval'; } },
               { id: 'expires', header: 'Expires', cell: ({ value }) => { const lapsed = Date.parse(value) < now; return <StatusBadge tone={lapsed ? 'danger' : 'warning'}>{lapsed ? 'Lapsed ' : ''}{formatDate(value)}</StatusBadge>; } },
               { id: 'which', header: 'Which', cell: ({ name }) => name },

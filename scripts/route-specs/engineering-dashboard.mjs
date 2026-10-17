@@ -1,10 +1,11 @@
 // /engineering-dashboard: only real figures (job cards + breakdowns); no demo numbers.
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const JOB_CARDS = [
   { id: 1, job_no: 'JC-FIX-1', title: 'Fixture belt splice', priority: 'critical', assigned_to: 'Tee', scheduled_date: iso(-4) },
   { id: 2, job_no: 'JC-FIX-2', title: 'Fixture bearing swap', priority: 'medium', assigned_to: 'Dee', scheduled_date: iso(6) },
 ];
-const today = new Date().toISOString().slice(0, 10);
+const today = iso(0);
 const BREAKDOWNS = [
   { id: 1, equipment_name: 'Fixture Crusher', downtime_hours: 6, breakdown_date: today },
   { id: 2, equipment_name: 'Fixture Crusher', downtime_hours: 2, breakdown_date: today },

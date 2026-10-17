@@ -27,7 +27,7 @@ const sharedOf = (): Shared => {
   return f as Shared;
 };
 const PLANNING = (Object.keys(PLANNING_LABELS) as PlanningStatus[]).map(value => ({ value, label: PLANNING_LABELS[value] }));
-const PAYOUT = (Object.keys(PAYOUT_LABELS) as PayoutMethod[]).map(value => ({ value, label: value === 'lieu' ? 'Taken as leave' : PAYOUT_LABELS[value] }));
+const PAYOUT = (Object.keys(PAYOUT_LABELS) as PayoutMethod[]).map(value => ({ value, label: PAYOUT_LABELS[value] }));
 
 export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreated }: {
   open: boolean; initial: PickedPerson[]; records: OTRecord[]; onOpenChange: (open: boolean) => void; onCreated: () => void;

@@ -2,9 +2,9 @@
 // updates with the picked tool, employee and confirmations. Blockers stop the issue; the rest is information.
 'use client';
 
-import { Icon, cn, type IconMeaning } from '@/components/ui-system';
+import { Button, Icon, cn, type IconMeaning } from '@/components/ui-system';
 import type { Employee, Tool } from './prototype';
-import { toolConditions, type ConditionState } from './toolConditions';
+import { CONDITION_ACTION_LABELS, toolConditions, type ConditionAction, type ConditionState } from './toolConditions';
 
 const ICON: Record<ConditionState, { name: IconMeaning; className: string }> = {
   met: { name: 'success', className: 'text-success' },
@@ -13,8 +13,8 @@ const ICON: Record<ConditionState, { name: IconMeaning; className: string }> = {
   attention: { name: 'warning', className: 'text-warning' },
 };
 
-export function ToolConditions({ tool, employee }: {
-  tool: Tool; employee?: Employee | null;
+export function ToolConditions({ tool, employee, onAction }: {
+  tool: Tool; employee?: Employee | null; onAction?: (action: ConditionAction, tool: Tool) => void;
 }) {
   const rows = toolConditions(tool, employee);
   return (
@@ -26,7 +26,10 @@ export function ToolConditions({ tool, employee }: {
           return (
             <li key={row.key} className="flex items-start gap-2 font-sans text-body-sm text-ink-muted">
               <Icon name={icon.name} size="sm" weight="emphasis" className={cn('mt-0.5 shrink-0', icon.className)} />
-              <span><strong className="font-medium text-ink">{row.label}</strong>{row.detail ? ` — ${row.detail}` : ''}</span>
+              <span className="min-w-0 flex-1"><strong className="font-medium text-ink">{row.label}</strong>{row.detail ? ` — ${row.detail}` : ''}</span>
+              {onAction && row.actions?.map(action => (
+                <Button key={action} type="button" size="sm" variant="secondary" className="shrink-0" onClick={() => onAction(action, tool)}>{CONDITION_ACTION_LABELS[action]}</Button>
+              ))}
             </li>
           );
         })}

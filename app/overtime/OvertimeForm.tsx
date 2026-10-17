@@ -4,12 +4,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Combobox, Field, FormDialog, Input, Notice, Segmented, Select, Textarea } from '@/components/ui-system';
+import { Checkbox, Field, FormDialog, Input, Notice, PersonPicker, Segmented, Select, Textarea } from '@/components/ui-system';
 import { RecentChoices, rememberChoice } from '@/components/shared/RecentChoices';
 import { ShiftTimeRange } from '@/components/shared/ShiftTimeRange';
 import { SparesEditor } from '@/components/shared/SparesEditor';
 import { fmtDate } from '@/components/shared/utils';
-import { useEmployees } from '@/hooks/useLookups';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { primaryContactPhone } from '@/lib/phone';
 import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
@@ -41,7 +41,7 @@ const fromRecord = (r: OTRecord): OTForm => ({
 });
 
 const PLANNING = (Object.keys(PLANNING_LABELS) as PlanningStatus[]).map(value => ({ value, label: PLANNING_LABELS[value] }));
-const PAYOUT = (Object.keys(PAYOUT_LABELS) as PayoutMethod[]).map(value => ({ value, label: value === 'lieu' ? 'Taken as leave' : PAYOUT_LABELS[value] }));
+const PAYOUT = (Object.keys(PAYOUT_LABELS) as PayoutMethod[]).map(value => ({ value, label: PAYOUT_LABELS[value] }));
 function Choice({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">{label}</span>{children}</div>;
 }
@@ -49,7 +49,6 @@ function Choice({ label, children }: { label: string; children: React.ReactNode 
 export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
   open: boolean; record: OTRecord | null; records: OTRecord[]; onOpenChange: (open: boolean) => void; onSave: (payload: Record<string, unknown>, id?: number | string) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState<OTForm>(blankForm);
   const [useHours, setUseHours] = useState(false);
   const [used, setUsed] = useState<SpareUsedEntry[]>([]);
@@ -65,12 +64,7 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
   const duplicate = useMemo(() => (useHours ? undefined : findDuplicate(records, form, record?.id)), [records, form, useHours, record]);
   const holiday = form.date ? zimHolidayName(form.date) : null;
 
-  const employeeOptions = useMemo(() => employees.map(e => ({
-    value: String(e.id), label: (e.full_name || e.name || `${e.first_name || ''} ${e.last_name || ''}`).trim() || String(e.employee_id || 'Employee'),
-    description: [e.employee_id, e.designation].filter(Boolean).join(' · '),
-  })), [employees]);
-  const pickEmployee = (id: string) => {
-    const e = employees.find(x => String(x.id) === id);
+  const pickEmployee = (e: EmployeeLookup | null) => {
     if (!e) return;
     set({
       employee_name: (e.full_name || e.name || `${e.first_name || ''} ${e.last_name || ''}`).trim(), employee_id: e.employee_id || String(e.id),
@@ -97,7 +91,7 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Pick an employee" optional description="Fills the name, ID, position and phone." className="sm:col-span-2">
-            <Combobox aria-label="Pick an employee" disabled={editing} value="" onValueChange={pickEmployee} options={employeeOptions} placeholder="Search the employee list" />
+            <PersonPicker label="Pick an employee" name="" onPick={pickEmployee} disabled={editing} placeholder="Search the employee list" />
           </Field>
           <Field label="Employee name" required error={err(missing.name, 'Enter the employee name.')}><Input value={form.employee_name} disabled={editing} onChange={e => set({ employee_name: e.target.value })} autoComplete="off" /></Field>
           <Field label="Employee ID" required error={err(missing.id, 'Enter the employee ID.')}><Input value={form.employee_id} disabled={editing} onChange={e => set({ employee_id: e.target.value })} placeholder="C1165" autoComplete="off" /></Field>

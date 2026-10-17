@@ -5,8 +5,8 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Checkbox, Combobox, Field, FormDialog, Input, Notice, Select, StatusBadge, Textarea } from '@/components/ui-system';
-import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
+import { Button, Checkbox, Field, FormDialog, Input, Notice, PersonPicker, Select, StatusBadge, Textarea } from '@/components/ui-system';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { calcCalendarLeaveDays, calcLeaveDays } from '@/lib/calcLeaveDays';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { hasContactPhone, primaryContactPhone } from '@/lib/phone';
@@ -27,7 +27,6 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
   open: boolean; leave: Leave | null; leaves: Leave[]; onOpenChange: (open: boolean) => void;
   onSave: (id: string | null, data: Form) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState<Form>(blank);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, leave?.id), () => { setTouched(false); setForm(leave ? fromLeave(leave) : blank()); });
@@ -37,9 +36,7 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
     return { ...f, leave_type: t, reason: !current || isDefaultReason(current) ? defaultReasonFor(t) : f.reason };
   });
 
-  const options = useMemo(() => employees.map(e => ({ value: String(e.id), label: nameOf(e), description: [e.employee_id, e.designation].filter(Boolean).join(' · ') })), [employees]);
-  const pick = (id: string) => {
-    const e = employees.find(x => String(x.id) === id);
+  const pick = (e: EmployeeLookup | null) => {
     if (!e) return;
     set({
       employee_id: e.employee_id || String(e.id), employee_name: nameOf(e),
@@ -76,13 +73,12 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
     <FormDialog open={open} onOpenChange={onOpenChange} title={leave ? 'Edit leave request' : 'New leave request'} description="Who is going on leave, when, and how to reach them." submitLabel={leave ? 'Update request' : 'Submit request'} onSubmit={submit} size="lg">
       <div className="flex flex-col gap-4">
         <Field label="Employee" required error={err(bad.employee, 'Choose the employee.')}>
-          <Combobox aria-label="Employee" value={options.find(o => o.label === form.employee_name)?.value ?? ''} onValueChange={pick} options={options} disabled={!!leave}
-            placeholder={form.employee_name || 'Search by name or employee ID'} searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." />
+          <PersonPicker label="Employee" name={form.employee_name} employeeId={form.employee_id} onPick={pick} disabled={!!leave} placeholder="Search by name or employee ID" />
         </Field>
         {form.employee_name && (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-control bg-surface-subtle p-3 sm:grid-cols-4" aria-label="Employee details">
             {[['Employee ID', form.employee_id], ['Position', form.position], ['Department', form.department], ['Supervisor', form.manager_name]].map(([l, v]) => (
-              <div key={l}><dt className="font-sans text-caption text-ink-muted">{l}</dt><dd className="font-sans text-body-sm text-ink [overflow-wrap:anywhere]">{v || 'Not recorded'}</dd></div>
+              <div key={l}><dt className="font-sans text-caption text-ink-muted">{l}</dt><dd className="font-sans text-body-sm text-ink [overflow-wrap:anywhere]">{v || <span className="italic text-ink-muted">Not recorded</span>}</dd></div>
             ))}
           </dl>
         )}

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
@@ -216,18 +216,16 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
           </FactList>
           {reasons.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Reasons for observation</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{reasons.map(r => <StatusBadge key={r} tone="neutral">{r}</StatusBadge>)}</p></div>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <section aria-labelledby="pto-d-proc" className="rounded-card border border-line p-3">
-              <h3 id="pto-d-proc" className="mb-2 font-sans text-caption text-ink-muted">Procedures</h3>
+            <FactSection title="Procedures" card>
               <dl className="flex flex-col gap-1.5"><div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Procedure available</dt><dd><YesNoBadge value={f.procedures.hasProcedure} /></dd></div><div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Employee familiar</dt><dd><YesNoBadge value={f.procedures.familiarWithProcedure} /></dd></div></dl>
-            </section>
-            <section aria-labelledby="pto-d-risk" className="rounded-card border border-line p-3">
-              <h3 id="pto-d-risk" className="mb-2 font-sans text-caption text-ink-muted">Risk assessment</h3>
+            </FactSection>
+            <FactSection title="Risk assessment" card>
               <dl className="flex flex-col gap-1.5">
                 <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Assessment made</dt><dd><YesNoBadge value={report.riskAssessment?.made} /></dd></div>
                 <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Hazards identified</dt><dd><YesNoBadge value={report.riskAssessment?.identified} /></dd></div>
                 <div className="flex justify-between gap-2"><dt className="font-sans text-body-sm text-ink">Controls effective</dt><dd><YesNoBadge value={report.riskAssessment?.effective} /></dd></div>
               </dl>
-            </section>
+            </FactSection>
           </div>
           {remedies.length > 0 && <div><h3 className="font-sans text-caption text-ink-muted">Suggested remedies</h3><p className="mt-1.5 flex flex-wrap gap-1.5">{remedies.map(r => <StatusBadge key={r} tone="info">{r}</StatusBadge>)}</p></div>}
           <FactList>
@@ -235,8 +233,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
             <Fact label="Follow-up needed"><StatusBadge tone={report.followUpNeeded === 'Yes' ? 'warning' : 'success'}>{report.followUpNeeded}</StatusBadge></Fact>
           </FactList>
           {f.actionPlan.length > 0 && (
-            <section aria-labelledby="pto-d-actions">
-              <h3 id="pto-d-actions" className="mb-2 font-sans text-caption text-ink-muted">Action plan ({f.actionPlan.length})</h3>
+            <FactSection title={`Action plan (${f.actionPlan.length})`}>
               <ol className="flex flex-col gap-2">
                 {f.actionPlan.map((a, i) => (
                   <li key={a.id} className="rounded-card border border-line p-3">
@@ -246,7 +243,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
                   </li>
                 ))}
               </ol>
-            </section>
+            </FactSection>
           )}
         </div>
       )}

@@ -5,11 +5,12 @@
 
 import { useMemo, useState, type ElementType, type ReactNode } from 'react';
 import {
-  AppFrame, DestinationSearch, IconButton, NavItem, NavSpotlight, Select, SidebarFrame, TopBar,
+  AppFrame, DestinationSearch, IconButton, NavItem, Select, SidebarFrame, TopBar,
   floatingActionClass,
   type SelectOption, type as typeRoles,
 } from '@/components/ui-system';
 import { AnimatedText } from '@/components/shared/floor/motion';
+import { ShellBrand } from '@/components/app-shell/ShellBrand';
 import { ToolsNotifications } from './ToolsNotifications';
 import { ToolsProfileMenu } from './ToolsProfileMenu';
 import { Icon, type IconMeaning } from '@/components/ui-system';
@@ -41,7 +42,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
       {sidebarCollapsed && (
         <NavItem label="Search" icon={SearchGlyph} active={false} collapsed onClick={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }} onNavigate={() => undefined} />
       )}
-      {sidebarNav.iconsOpen && visibleTabs.filter(item => item.value !== tab).map(item => (
+      {sidebarNav.iconsOpen && visibleTabs.map(item => (
         <NavItem key={item.value} label={item.label} icon={navGlyph(item.icon)} active={item.value === tab}
           collapsed={sidebarCollapsed} onClick={() => go(item.value)} onNavigate={() => setNavOpen(false)} />
       ))}
@@ -58,7 +59,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => w.setSidebarCollapsed(value => !value)}
           label="Tools navigation"
-          spotlight={<NavSpotlight label={current.label} icon={navGlyph(current.icon)} href="/tools" collapsed={sidebarCollapsed} onNavigate={() => w.setSearch('')} />}
+          spotlight={<ShellBrand compact={sidebarCollapsed} />}
           search={(
             <DestinationSearch
               value={search}

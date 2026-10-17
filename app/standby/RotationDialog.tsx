@@ -4,9 +4,9 @@
 // A refused save is shown inside the dialog and keeps what was typed.
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Checkbox, Combobox, Field, FormDialog, IconButton, Input, Textarea } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
+import { useState } from 'react';
+import { Checkbox, Field, FormDialog, IconButton, Input, PersonPicker, Textarea } from '@/components/ui-system';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
 import type { CrewMember, DutyRotation, DutyRotationMember, RotationMember, StandbyRotation } from './types';
 import type { RotationKind } from './types';
@@ -35,7 +35,6 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
   onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState(blank);
   const [touched, setTouched] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -43,13 +42,7 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
   if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(rotation ? fromRotation(rotation, mode) : blank()); } }
   const set = (patch: Partial<ReturnType<typeof blank>>) => setForm(f => ({ ...f, ...patch }));
 
-  const options = useMemo(() => employees.map(e => ({
-    value: String(e.id),
-    label: `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.employee_id || 'Employee'),
-    description: [e.designation || e.position, e.department].filter(Boolean).join(' · '),
-  })), [employees]);
-  const snapshotOf = (id: string) => {
-    const e = employees.find(x => String(x.id) === id);
+  const snapshotOf = (e: EmployeeLookup | null) => {
     if (!e) return null;
     return {
       employee_id: String(e.employee_id || e.id),
@@ -58,8 +51,8 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
       designation: (e.designation || e.position || null) as string | null,
     };
   };
-  const addMember = (id: string) => {
-    const s = snapshotOf(id);
+  const addMember = (e: EmployeeLookup | null) => {
+    const s = snapshotOf(e);
     if (!s || form.members.some(m => m.employee_id === s.employee_id)) return;
     set({ members: [...form.members, { ...s, crew: [], key: nextKey() }] });
   };
@@ -70,8 +63,8 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
     ([next[i], next[j]] = [next[j], next[i]]);
     set({ members: next });
   };
-  const addCrew = (i: number, id: string) => {
-    const s = snapshotOf(id);
+  const addCrew = (i: number, e: EmployeeLookup | null) => {
+    const s = snapshotOf(e);
     if (!s) return;
     const next = [...form.members];
     const crew = next[i].crew ?? [];
@@ -163,13 +156,13 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
                         <IconButton icon="close" size="sm" variant="ghost" label={`Remove ${c.employee_name} from ${m.employee_name}'s crew`} onClick={() => removeCrew(i, c.employee_id)} />
                       </span>
                     ))}
-                    <Combobox aria-label={`Add crew for ${m.employee_name}`} value="" onValueChange={id => addCrew(i, id)} options={options} placeholder="Add crew" searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." className="min-w-44 flex-1" />
+                    <PersonPicker label={`Add crew for ${m.employee_name}`} name="" onPick={e => addCrew(i, e)} placeholder="Add crew" className="min-w-44 flex-1" />
                   </div>
                 )}
               </li>
             ))}
           </ol>
-          <Field label="Add member" optional><Combobox aria-label="Add member" value="" onValueChange={addMember} options={options} placeholder="Search employees" searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." /></Field>
+          <Field label="Add member" optional><PersonPicker label="Add member" name="" onPick={addMember} /></Field>
         </section>
       </div>
     </FormDialog>

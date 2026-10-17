@@ -22,12 +22,13 @@ export type OTStatus = typeof STATUSES[number];
 export const PLANNING_STATUSES = ['planned', 'unplanned'] as const;
 export type PlanningStatus = typeof PLANNING_STATUSES[number];
 
-// Whether this overtime will be paid out ('cash', the default/normal case) or was
-// compensated with time off instead ('lieu' — matches the Leaves module's "Leave in
-// Lieu of Overtime" leave type; no hard link to a specific leave request, just a
-// manual flag). Named payout_method, not payment_status/paid, so its values can't be
-// confused with OTStatus's own unrelated 'paid' (the approval-lifecycle status).
-// Absent/null means unclassified — same reasoning as PlanningStatus above.
+// Whether this overtime will be paid out ('cash', the default/normal case) or is
+// owed as time off instead ('lieu' — when the leave is taken, take-as-leave
+// creates the Leaves module's "Leave in Lieu of Overtime" request with a hard
+// overtime_id link back to this record). Named payout_method, not
+// payment_status/paid, so its values can't be confused with OTStatus's own
+// unrelated 'paid' (the approval-lifecycle status). Absent/null means
+// unclassified — same reasoning as PlanningStatus above.
 export const PAYOUT_METHODS = ['cash', 'lieu'] as const;
 export type PayoutMethod = typeof PAYOUT_METHODS[number];
 

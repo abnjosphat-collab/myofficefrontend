@@ -1,5 +1,6 @@
 // /drivers: authorised drivers register (cards grouped by department, table, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const DRIVERS = [
   { id: 1, full_name: 'Ann Alpha', phone_numbers: ['082 111 1111', '082 222 2222'], department: 'Mining', license_class: 'Code 10', license_expiry: iso(-5), status: 'active', notes: 'Night shift' },
   { id: 2, full_name: 'Ben Beta', phone_numbers: [], department: 'Mining', license_class: 'PrDP', license_expiry: iso(10), status: 'suspended', notes: '' },

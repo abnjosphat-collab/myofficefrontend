@@ -33,6 +33,13 @@ describe('DetailActions', () => {
     expect(names(footer(<DetailActions onClose={() => {}} />))).toEqual(['Close']);
     expect(names(footer(<DetailActions onDelete={() => {}} deleteLabel="Remove" onEdit={() => {}} />))).toEqual(['Remove', 'Edit']);
   });
+
+  it('keeps Delete a quiet text-red button, never a solid red fill', () => {
+    const el = footer(<DetailActions onDelete={() => {}} onEdit={() => {}} />);
+    const del = within(el).getByRole('button', { name: 'Delete' });
+    expect(del.className).toContain('text-danger');
+    expect(del.className).not.toContain('bg-danger ');
+  });
 });
 
 describe('RowActions', () => {

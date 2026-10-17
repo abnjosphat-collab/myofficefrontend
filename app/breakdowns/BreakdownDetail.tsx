@@ -2,7 +2,7 @@
 // the downtime and repair worked out, what happened, the work done and recommendations, and the parts used with their cost.
 'use client';
 
-import { Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { minutesToDisplay } from './calcBreakdowns';
 import { priorityMeta, statusMeta, typeMeta } from './breakdownMeta';
@@ -40,8 +40,7 @@ export function BreakdownDetail({ record: b, onClose, onEdit, onDelete }: { reco
             <Fact label="Recommendations" wide>{b.artisan_recommendations}</Fact>
           </FactList>
           {parts.length > 0 && (
-            <section aria-label="Parts used" className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between"><h3 className="font-sans text-label font-semibold text-ink">Parts used</h3><span className="font-sans text-body-sm text-ink-muted">Total <span className="font-semibold tabular text-ink">{formatCurrency(costOf(b))}</span></span></div>
+            <FactSection title="Parts used" aside={<>Total <span className="font-semibold tabular text-ink">{formatCurrency(costOf(b))}</span></>}>
               <ul className="flex flex-col gap-1.5">
                 {parts.map((s, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-3 rounded-control border border-line bg-surface px-3 py-2 font-sans text-body-sm">
@@ -50,7 +49,7 @@ export function BreakdownDetail({ record: b, onClose, onEdit, onDelete }: { reco
                   </li>
                 ))}
               </ul>
-            </section>
+            </FactSection>
           )}
         </div>
       )}

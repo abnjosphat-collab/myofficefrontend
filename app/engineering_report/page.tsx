@@ -2,10 +2,10 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, Card, ChartPanel, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Progress, Select, chartColor, chartTheme, deriveDataStatus,
+  Button, Card, Chart, ChartPanel, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Progress, Select, chartColor, chartTheme, deriveDataStatus,
   isTransientStatus, type DataStatus,
 } from '@/components/ui-system';
 import type { ApiListState } from '@/lib/useApiList';
@@ -106,15 +106,15 @@ function EngineeringReportContent() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartPanel title="Breakdown trend" description="Last six months" summary={trendSummary}>
           <DataRegion status={regionStatus(breakdowns)} subject="breakdown records" error={breakdowns.error} onRetry={() => breakdowns.refetch()}>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart accessibilityLayer={false} data={maint.trend} barSize={28}>
+            <Chart height={220}>
+              <BarChart data={maint.trend} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                 <XAxis dataKey="month" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
                 <Tooltip {...chartTheme.tooltip} />
                 <Bar dataKey="count" name="Breakdowns" fill={chartColor(1)} radius={[6, 6, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </Chart>
           </DataRegion>
         </ChartPanel>
         <Card padding="lg" className="flex flex-col gap-4">
@@ -146,8 +146,8 @@ function EngineeringReportContent() {
 
       {prod.daily.length > 0 && (
         <ChartPanel title="Daily tonnes milled against target" summary={dailySummary}>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart accessibilityLayer={false} data={prod.daily}>
+          <Chart height={220}>
+            <LineChart data={prod.daily}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
               <XAxis dataKey="date" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
               <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
@@ -156,7 +156,7 @@ function EngineeringReportContent() {
               <Line type="monotone" dataKey="target" name="Target" stroke="var(--mo-ink-subtle)" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
               <Line type="monotone" dataKey="tonnes" name="Tonnes milled" stroke={chartColor(1)} strokeWidth={2.5} dot={{ r: 3 }} />
             </LineChart>
-          </ResponsiveContainer>
+          </Chart>
         </ChartPanel>
       )}
 

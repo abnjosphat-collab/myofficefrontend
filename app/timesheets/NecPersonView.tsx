@@ -22,7 +22,7 @@ import { moduleRecordIncluded } from './moduleApproval';
 import { ModuleApprovalIndicator } from './ModuleApprovalIndicator';
 import { necDayBuckets, type NecDayBuckets } from './necDayBuckets';
 import { fmtDate, fmtPeriod, statusMeta } from './timesheetMeta';
-import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Employee, HourTotals, Period, TimesheetEntry } from './types';
+import { isTransferredLieuLeave, type ApprovedLeaveRecord, type ApprovedOvertimeRecord, type Employee, type HourTotals, type Period, type TimesheetEntry } from './types';
 
 const COLUMNS = [
   { header: 'Date' },
@@ -85,7 +85,7 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
     const buckets = entry
       ? necDayBuckets(entry, { moduleOt15ForDay: moduleOt15[ds] ?? 0, earlyMorningModuleOt: earlyMorning.has(ds) })
       : { normal: 0, ot15Module: 0, ot20: 0, nightAllowance: 0, nightExcess: 0, standby: false };
-    const mineLeave = (l: ApprovedLeaveRecord) => normalizeTimesheetEmployeeCode(l.employee_id) === mine && ds >= l.start_date && ds <= l.end_date && moduleRecordIncluded(l.status);
+    const mineLeave = (l: ApprovedLeaveRecord) => normalizeTimesheetEmployeeCode(l.employee_id) === mine && ds >= l.start_date && ds <= l.end_date && moduleRecordIncluded(l.status) && !isTransferredLieuLeave(l);
     const mineOt = (ot: ApprovedOvertimeRecord) => normalizeTimesheetEmployeeCode(ot.employee_id) === mine && ot.date === ds && moduleRecordIncluded(ot.status);
     const dayLeaves = approvedLeaves.filter(mineLeave);
     const dayOt = approvedOvertime.filter(mineOt);

@@ -16,7 +16,7 @@ export const statusMeta = (status: string): { label: string; tone: Tone } => ({ 
 export const PLANNING_LABELS: Record<PlanningStatus, string> = { planned: 'Planned', unplanned: 'Unplanned' };
 export const planningMeta = (s?: string | null): { label: string; tone: Tone } | null => (s ? { label: PLANNING_LABELS[s as PlanningStatus] ?? String(s), tone: s === 'planned' ? 'success' : 'warning' } : null);
 
-export const PAYOUT_LABELS: Record<PayoutMethod, string> = { cash: 'To be paid', lieu: 'Taken as leave (lieu)' };
+export const PAYOUT_LABELS: Record<PayoutMethod, string> = { cash: 'To be paid', lieu: 'To be taken as leave' };
 /** Only the exception is worth a badge: time off in lieu. Cash is the unremarkable default. */
 export const payoutMeta = (m?: string | null): { label: string; tone: Tone } | null => (m === 'lieu' ? { label: PAYOUT_LABELS.lieu, tone: 'info' } : null);
 

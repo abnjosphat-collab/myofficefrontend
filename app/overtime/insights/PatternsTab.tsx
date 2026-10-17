@@ -3,8 +3,8 @@
 // the Causes tab holds the interpretation.
 'use client';
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ChartPanel, Distribution, MetricGrid, MetricTile, StatusBadge, chartColor, chartTheme } from '@/components/ui-system';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { Chart, ChartPanel, Distribution, MetricGrid, MetricTile, StatusBadge, chartColor, chartTheme } from '@/components/ui-system';
 import type { OTAnalysisResult } from '../types';
 import { CategoryTable } from './CategoryTable';
 import { Heatmap } from './Heatmap';
@@ -27,15 +27,15 @@ export function PatternsTab({ r }: { r: OTAnalysisResult }) {
 
       {r.top_reasons.length > 0 && (
         <ChartPanel title="Most common reasons" description="Hours by reason" summary={`Hours by reason: ${r.top_reasons.map(x => `${x.phrase} ${x.hours} hours, ${x.count} times`).join('; ')}.`}>
-          <ResponsiveContainer width="100%" height={Math.max(200, r.top_reasons.length * 36 + 40)}>
-            <BarChart accessibilityLayer={false} data={r.top_reasons} layout="vertical" margin={{ left: 8, right: 16 }}>
+          <Chart height={Math.max(200, r.top_reasons.length * 36 + 40)}>
+            <BarChart data={r.top_reasons} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
               <XAxis type="number" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="phrase" tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={150} tickFormatter={(v: string) => (v.length > 22 ? `${v.slice(0, 21)}…` : v)} />
               <Tooltip {...chartTheme.tooltip} formatter={(v: unknown, _n: unknown, e: { payload?: { count?: number } }) => [`${v}h, ${e.payload?.count}×`, 'Hours']} />
               <Bar dataKey="hours" fill={chartColor(1)} radius={[0, 4, 4, 0]} maxBarSize={22} />
             </BarChart>
-          </ResponsiveContainer>
+          </Chart>
         </ChartPanel>
       )}
 
@@ -48,15 +48,15 @@ export function PatternsTab({ r }: { r: OTAnalysisResult }) {
       {r.weekly_series.length > 1 && (
         <ChartPanel title="Weekly trend" description={r.trends[0]?.insight} summary={`Weekly overtime hours, ${dir.label.toLowerCase()}: ${r.weekly_series.map(t => `${t.week} ${t.hours}`).join('; ')}.`}>
           <div className="mb-2"><StatusBadge tone={dir.tone}>{dir.label}</StatusBadge></div>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart accessibilityLayer={false} data={r.weekly_series} margin={{ left: 0, right: 8 }}>
+          <Chart height={200}>
+            <AreaChart data={r.weekly_series} margin={{ left: 0, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
               <XAxis dataKey="week" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
               <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} />
               <Tooltip {...chartTheme.tooltip} formatter={(v: unknown) => [`${v}h`, 'Hours']} />
               <Area type="monotone" dataKey="hours" stroke={chartColor(1)} fill={chartColor(1)} fillOpacity={0.18} strokeWidth={2} dot={false} />
             </AreaChart>
-          </ResponsiveContainer>
+          </Chart>
         </ChartPanel>
       )}
 

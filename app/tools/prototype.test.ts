@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { abbreviateDepartment, applyMovement, categoryOf, equipmentTypesForCategory, inferEquipmentKind, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
+import { abbreviateDepartment, applyMovement, categoryOf, employeeLabel, equipmentTypesForCategory, inferEquipmentKind, matchesTool, primaryToolImage, PEOPLE, LOCATIONS, type Movement } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 
 const input: Movement = { kind: 'issue', toolId: SEED_TOOLS[0].id, person: PEOPLE[0], location: LOCATIONS[1], due: '25 Sep, 16:00', job: '', condition: 'Good', notes: '' };
@@ -72,6 +72,14 @@ describe('Tools preview handovers', () => {
     ] };
     expect(primaryToolImage(tool)).toBe('blob:photo');
     expect(primaryToolImage(SEED_TOOLS[0])).toBeUndefined();
+  });
+});
+
+describe('Employee labels', () => {
+  it('names the number when known and says so when it is not', () => {
+    expect(employeeLabel({ name: 'A. Moyo', employeeNumber: 'E-001' })).toBe('A. Moyo · E-001');
+    expect(employeeLabel({ name: 'N. One', employeeNumber: null })).toBe('N. One · Not recorded');
+    expect(employeeLabel({ name: 'N. Two' })).toBe('N. Two · Not recorded');
   });
 });
 

@@ -51,7 +51,7 @@ export const ICON_MEANINGS = [
   'undo', 'redo', 'attachment', 'image', 'pdf', 'upload',
   'show', 'hide', 'department', 'font', 'grip',
   'zoom-in', 'zoom-out', 'accounts', 'app',
-  'chevron-down', 'chevron-up', 'chevron-right', 'chevron-left', 'more', 'more-vertical', 'delete', 'copy', 'external', 'user', 'sign-out', 'sign-in', 'lock', 'info', 'help', 'arrow-up', 'arrow-down', 'save', 'print', 'funnel', 'sync', 'link', 'shield', 'key', 'camera', 'microphone', 'columns', 'sidebar', 'error', 'cancel', 'reset', 'empty',
+  'chevron-down', 'chevron-up', 'chevron-right', 'chevron-left', 'more', 'more-vertical', 'delete', 'copy', 'select-similar', 'external', 'user', 'sign-out', 'sign-in', 'lock', 'info', 'help', 'arrow-up', 'arrow-down', 'save', 'print', 'funnel', 'sync', 'link', 'shield', 'key', 'camera', 'microphone', 'columns', 'sidebar', 'error', 'cancel', 'reset', 'empty',
 ] as const;
 
 export type IconMeaning = (typeof ICON_MEANINGS)[number];
@@ -267,6 +267,7 @@ export const ICON_BY_MEANING: Record<IconMeaning, ElementType> = {
   'more-vertical': DotsThreeVertical,
   'delete': Trash,
   'copy': Copy,
+  'select-similar': CheckSquare,
   'external': ArrowSquareOut,
   'user': User,
   'sign-out': SignOut,

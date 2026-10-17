@@ -16,11 +16,11 @@ export function SourceRegisterForm({ departments, onSave, onCancel }: { departme
   const [notes, setNotes] = useState('');
   function submit(event: FormEvent) { event.preventDefault(); if (file) onSave(file, department, notes.trim()); }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit}>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <Notice title="Keep the original register">The source file is stored permanently and privately so it can be reviewed when updating the live register.</Notice>
       <Field label="Department"><Select aria-label="Source register department" value={department} onValueChange={setDepartment} options={departments.map(value => ({ value, label: value }))} /></Field>
       <Field label="Register file" description="PDF, Excel, CSV, Word, OpenDocument or a clear image. Maximum 50 MB.">
-        <Input aria-label="Register file" type="file" required accept=".pdf,.xlsx,.xlsm,.xls,.csv,.docx,.doc,.ods,.odt,.jpg,.jpeg,.png,.webp" onChange={event => setFile(event.target.files?.[0] || null)} />
+        <Input aria-label="Register file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.docx,.doc,.ods,.odt,.jpg,.jpeg,.png,.webp" onChange={event => setFile(event.target.files?.[0] || null)} />
       </Field>
       <Field label="Notes" optional><Textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} placeholder="For example: Engineering opening register, received from the mechanical workshop." /></Field>
       <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4"><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" icon="upload" disabled={!file}>Upload register</Button></div>

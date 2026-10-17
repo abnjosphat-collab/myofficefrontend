@@ -3,10 +3,10 @@
 // save is shown inside the dialog and keeps what was typed.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Combobox, Field, FormDialog, IconButton, Input, Select, Textarea } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
+import { Button, Field, FormDialog, IconButton, Input, PersonPicker, Select, Textarea } from '@/components/ui-system';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
 import { SHIFT_PATTERNS, TIMING_KEYS, TIMING_PRESETS } from './shiftMeta';
 import type { FormState, ShiftAssignment, ShiftTimingPeriod, ShiftType, StandbyPeriod } from './types';
@@ -27,7 +27,6 @@ export function AssignDialog({ open, assignment, onOpenChange, onSave }: {
   open: boolean; assignment: ShiftAssignment | null; onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState<FormState>(blank);
   const [touched, setTouched] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -35,9 +34,7 @@ export function AssignDialog({ open, assignment, onOpenChange, onSave }: {
   if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(assignment ? fromAssignment(assignment) : blank()); } }
   const set = (patch: Partial<FormState>) => setForm(f => ({ ...f, ...patch }));
 
-  const options = useMemo(() => employees.map(e => ({ value: String(e.id), label: `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.employee_id || 'Employee'), description: [e.designation || e.position, e.department].filter(Boolean).join(' · ') })), [employees]);
-  const pick = (id: string) => {
-    const e = employees.find(x => String(x.id) === id);
+  const pick = (e: EmployeeLookup | null) => {
     if (!e) return;
     const name = `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.employee_id || 'Employee');
     setForm(f => ({ ...f, employee_id: String(e.id), employee_name: name, designation: ((e.designation || e.position || '') as string) || f.designation, department: e.department || f.department, section: (e.section as string) || f.section, phone: e.phone || f.phone }));
@@ -77,7 +74,7 @@ export function AssignDialog({ open, assignment, onOpenChange, onSave }: {
         <section aria-labelledby="as-emp" className="flex flex-col gap-3">
           <h3 id="as-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employee</h3>
           <Field label="Employee" required error={err(bad.employee, 'Choose the employee or enter their ID and name.')}>
-            <Combobox aria-label="Employee" value={options.find(o => o.label === form.employee_name && o.value === form.employee_id)?.value ?? ''} onValueChange={pick} options={options} placeholder={form.employee_name || 'Search employees'} searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." />
+            <PersonPicker label="Employee" name={form.employee_name} employeeId={form.employee_id} onPick={pick} />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Employee ID" required><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} /></Field>

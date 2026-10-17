@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Checkbox, Field, Input, Notice, Segmented, Select } from '@/components/ui-system';
+import { Button, Checkbox, Field, FieldGroup, Input, Notice, Segmented, Select } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { rememberChoice } from '@/components/shared/RecentChoices';
 import { SparesEditor, type SpareLine } from '@/components/shared/SparesEditor';
@@ -26,7 +26,7 @@ const toLines = (s: SpareItem[]): SpareLine[] => s.map(x => ({ name: x.name, qua
 const fromLines = (l: SpareLine[]): SpareItem[] => l.map((x, i) => ({ id: `${Date.now()}-${i}`, name: x.name, quantity: x.quantity, unit_cost: x.unit_price ?? 0 }));
 
 function Duration({ label, value }: { label: string; value: string }) {
-  return <Field label={label}><p className="flex h-9 items-center font-sans text-body font-semibold text-ink tabular" aria-live="polite">{value || 'Not set'}</p></Field>;
+  return <FieldGroup label={label}><p className="flex h-9 items-center font-sans text-body font-semibold text-ink tabular" aria-live="polite">{value || 'Not set'}</p></FieldGroup>;
 }
 
 export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSaved: (updated: WorkOrder) => void }) {
@@ -66,7 +66,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
           <Field label="Failure mode" optional><Input list="ar-failure-modes" value={r.failure_mode} onChange={e => set({ failure_mode: e.target.value })} placeholder="Choose or type" /><datalist id="ar-failure-modes">{FAILURE_MODES.map(m => <option key={m} value={m}>{m}</option>)}</datalist></Field>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Discipline</span><Segmented label="Discipline" value={r.discipline} onValueChange={v => set({ discipline: v as ArtisanReport['discipline'], ...(v !== 'Mechanical' ? { trade: '' } : {}) })} options={DISCIPLINE_OPTIONS} /></div>
+          <FieldGroup label="Discipline"><Segmented label="Discipline" value={r.discipline} onValueChange={v => set({ discipline: v as ArtisanReport['discipline'], ...(v !== 'Mechanical' ? { trade: '' } : {}) })} options={DISCIPLINE_OPTIONS} /></FieldGroup>
           {r.discipline === 'Mechanical' && <Field label="Trade" optional><Input list="ar-trades" value={r.trade} onChange={e => set({ trade: e.target.value as ArtisanReport['trade'] })} placeholder="Choose or type" /><datalist id="ar-trades">{MECHANICAL_TRADES.map(t => <option key={t} value={t}>{t}</option>)}</datalist></Field>}
         </div>
       </section>

@@ -4,8 +4,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Card, ChartPanel, EmptyState, Icon, MetricGrid, MetricTile, Segmented, chartColor, chartTheme } from '@/components/ui-system';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Tooltip, XAxis, YAxis } from 'recharts';
+import { Card, Chart, ChartPanel, EmptyState, Icon, MetricGrid, MetricTile, Segmented, chartColor, chartTheme } from '@/components/ui-system';
 import { formatDateTime, formatDayMonth, formatMonth } from '@/lib/format';
 
 export type UsageEvent = { id: string; name: string; detail?: string; at: string; by?: string };
@@ -43,30 +43,30 @@ export function summarizeUsageTrend(points: TrendPoint[]): TrendSummary {
 
 function UsageTrendChart({ points }: { points: TrendPoint[] }) {
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <AreaChart accessibilityLayer={false} data={points} margin={{ top: 12, right: 12, bottom: 2, left: -6 }}>
+    <Chart height={240}>
+      <AreaChart data={points} margin={{ top: 12, right: 12, bottom: 2, left: -6 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
         <XAxis dataKey="label" tick={chartTheme.axisTick} axisLine={false} tickLine={false} minTickGap={24} />
         <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} allowDecimals={false} width={34} />
         <Tooltip {...chartTheme.tooltip} formatter={(value: unknown) => [`${value} action${value === 1 ? '' : 's'}`, 'Activity']} />
         <Area type="monotone" dataKey="count" stroke={chartColor(1)} strokeWidth={2} fill={chartColor(1)} fillOpacity={0.14} />
       </AreaChart>
-    </ResponsiveContainer>
+    </Chart>
   );
 }
 
 function FeatureUseChart({ features }: { features: Array<[string, number]> }) {
   const data = features.slice(0, 8).map(([name, count]) => ({ name: readableAction(name), count }));
   return (
-    <ResponsiveContainer width="100%" height={Math.max(210, data.length * 38)}>
-      <BarChart accessibilityLayer={false} data={data} layout="vertical" margin={{ top: 8, right: 18, bottom: 2, left: 2 }}>
+    <Chart height={Math.max(210, data.length * 38)}>
+      <BarChart data={data} layout="vertical" margin={{ top: 8, right: 18, bottom: 2, left: 2 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
         <XAxis type="number" allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="name" width={130} tick={chartTheme.axisTick} axisLine={false} tickLine={false} tickFormatter={(value: string) => value.length > 18 ? `${value.slice(0, 17)}…` : value} />
         <Tooltip {...chartTheme.tooltip} formatter={(value: unknown) => [`${value} use${value === 1 ? '' : 's'}`, 'Activity']} />
         <Bar dataKey="count" barSize={16} radius={[0, 6, 6, 0]}>{data.map((entry, index) => <Cell key={entry.name} fill={chartColor(((index % 8) + 1) as 1)} />)}</Bar>
       </BarChart>
-    </ResponsiveContainer>
+    </Chart>
   );
 }
 

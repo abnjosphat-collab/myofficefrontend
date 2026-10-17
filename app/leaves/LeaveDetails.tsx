@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { typeOf } from './leaveTypes';
@@ -40,23 +40,23 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
         {leave && meta && type && (
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap gap-2"><StatusBadge tone={meta.tone} icon={meta.icon}>{meta.label}</StatusBadge><StatusBadge tone={type.tone} icon={type.icon}>{type.shortName}</StatusBadge></div>
-            <section aria-labelledby="lv-emp"><h3 id="lv-emp" className="mb-2 font-sans text-label font-semibold text-ink">Employee</h3>
+            <FactSection title="Employee">
               <FactList columns={3}>
                 <Fact label="Name">{leave.employee_name}</Fact><Fact label="Employee ID">{leave.employee_id}</Fact><Fact label="Position">{leave.position}</Fact>
                 <Fact label="Department">{leave.department}</Fact><Fact label="Contact">{leave.contact_number}</Fact>
                 {leave.emergency_contact && <Fact label="Emergency contact">{leave.emergency_contact}</Fact>}
               </FactList>
-            </section>
-            <section aria-labelledby="lv-det"><h3 id="lv-det" className="mb-2 font-sans text-label font-semibold text-ink">Leave</h3>
+            </FactSection>
+            <FactSection title="Leave">
               <FactList columns={3}>
                 <Fact label="Type">{type.name}</Fact><Fact label="Start date">{fmtDate(leave.start_date)}</Fact><Fact label="End date">{fmtDate(leave.end_date)}</Fact>
-                <Fact label="Duration"><span className="font-semibold tabular">{daysText(leave.total_days)}</span></Fact>
-                <Fact label="Day count">{leave.exclude_weekends_holidays ? 'Working days (no weekends or holidays)' : 'Calendar days'}</Fact>
+                <Fact label="Duration" emphasis="headline"><span className="tabular">{daysText(leave.total_days)}</span></Fact>
+                <Fact label="Day count">{leave.exclude_weekends_holidays ? <span title="No weekends or holidays">Working days only</span> : 'Calendar days'}</Fact>
                 <Fact label="Applied">{fmtDateTime(leave.applied_date)}</Fact>
                 {leave.handover_to && <Fact label="Handover to">{leave.handover_to}</Fact>}
               </FactList>
-            </section>
-            {leave.reason && <section aria-labelledby="lv-why"><h3 id="lv-why" className="mb-2 font-sans text-label font-semibold text-ink">Reason</h3><p className="whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{leave.reason}</p></section>}
+            </FactSection>
+            {leave.reason && <FactSection title="Reason"><p className="whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{leave.reason}</p></FactSection>}
           </div>
         )}
       </Dialog>

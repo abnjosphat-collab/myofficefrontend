@@ -3,8 +3,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ChartPanel, DataTable, EmptyState, MetricGrid, MetricTile, Segmented, chartColor, chartTheme, type Column } from '@/components/ui-system';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { Chart, ChartPanel, DataTable, EmptyState, MetricGrid, MetricTile, Segmented, chartColor, chartTheme, type Column } from '@/components/ui-system';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { buildTimeSeries, describeCosts, issueCost, topBy } from './analytics';
 import type { Period, PeriodPoint, StockIssue } from './types';
@@ -31,15 +31,15 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
     { id: 'avg', header: 'Avg per issue', numeric: true, hideBelow: 'md', cell: r => (r.count > 0 && r.cost > 0 ? <span className="tabular">{formatCurrency(r.cost / r.count)}</span> : '—') },
   ];
   const barAxis = (data: Array<{ name: string; cost: number }>, color: 1 | 2) => (
-    <ResponsiveContainer width="100%" height={Math.max(180, data.length * 38 + 40)}>
-      <BarChart accessibilityLayer={false} data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
+    <Chart height={Math.max(180, data.length * 38 + 40)}>
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} horizontal={false} />
         <XAxis type="number" tick={chartTheme.axisTick} axisLine={false} tickLine={false} tickFormatter={formatCurrencyShort} />
         <YAxis type="category" dataKey="name" tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={120} />
         <Tooltip {...chartTheme.tooltip} formatter={(v: unknown) => [formatCurrency(Number(v)), 'Total cost']} />
         <Bar dataKey="cost" fill={chartColor(color)} radius={[0, 4, 4, 0]} maxBarSize={22} />
       </BarChart>
-    </ResponsiveContainer>
+    </Chart>
   );
 
   return (
@@ -56,8 +56,8 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
         summary={`Cost and number of issues per ${period}: ${series.filter(p => p.count > 0).map(p => `${p.label} ${formatCurrency(p.cost)}, ${p.count} issues`).join('; ') || 'none in this span'}.`}
         controls={<Segmented label="Group by" value={period} onValueChange={v => setPeriod(v as Period)} options={PERIODS} />}
       >
-        <ResponsiveContainer width="100%" height={260}>
-          <AreaChart accessibilityLayer={false} data={series} margin={{ left: 8, right: 12 }}>
+        <Chart height={260}>
+          <AreaChart data={series} margin={{ left: 8, right: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
             <XAxis dataKey="label" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis yAxisId="cost" tick={chartTheme.axisTick} axisLine={false} tickLine={false} tickFormatter={formatCurrencyShort} width={56} />
@@ -66,7 +66,7 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
             <Area yAxisId="cost" type="monotone" dataKey="cost" stroke={chartColor(1)} fill={chartColor(1)} fillOpacity={0.18} strokeWidth={2} dot={false} />
             <Area yAxisId="count" type="monotone" dataKey="count" stroke={chartColor(2)} fill="none" strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
           </AreaChart>
-        </ResponsiveContainer>
+        </Chart>
         <p className="mt-2 font-sans text-caption text-ink-muted">Solid line: total cost. Dashed line: number of issues.</p>
       </ChartPanel>
 

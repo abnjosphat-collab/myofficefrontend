@@ -3,9 +3,9 @@
 // over the same dates) is shown inside the dialog and keeps what was typed.
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Combobox, Field, FormDialog, Input, Textarea } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
+import { useState } from 'react';
+import { Field, FormDialog, Input, PersonPicker, Textarea } from '@/components/ui-system';
+import { type EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
 import type { DutyEntry } from './types';
 
@@ -19,7 +19,6 @@ export function DutyDialog({ open, entry, onOpenChange, onSave }: {
   open: boolean; entry: DutyEntry | null; onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
 }) {
-  const employees = useEmployees();
   const [form, setForm] = useState(blank);
   const [touched, setTouched] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
@@ -27,13 +26,7 @@ export function DutyDialog({ open, entry, onOpenChange, onSave }: {
   if (key !== loadedFor) { setLoadedFor(key); if (key !== null) { setTouched(false); setForm(entry ? fromEntry(entry) : blank()); } }
   const set = (patch: Partial<ReturnType<typeof blank>>) => setForm(f => ({ ...f, ...patch }));
 
-  const options = useMemo(() => employees.map(e => ({
-    value: String(e.id),
-    label: `${e.first_name || ''} ${e.last_name || ''}`.trim() || String(e.employee_id || 'Employee'),
-    description: [e.designation || e.position, e.department].filter(Boolean).join(' · '),
-  })), [employees]);
-  const pick = (id: string) => {
-    const e = employees.find(x => String(x.id) === id);
+  const pick = (e: EmployeeLookup | null) => {
     if (!e) return;
     setForm(f => ({
       ...f,
@@ -63,7 +56,7 @@ export function DutyDialog({ open, entry, onOpenChange, onSave }: {
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={entry ? 'Edit duty official' : 'Name duty official'} description="Who answers for the mine over these dates." submitLabel={entry ? 'Update official' : 'Name official'} onSubmit={submit}>
       <div className="flex flex-col gap-4">
         <Field label="Official" required error={err(bad.employee, 'Choose the official or enter their ID and name.')}>
-          <Combobox aria-label="Official" value={options.find(o => o.label === form.employee_name)?.value ?? ''} onValueChange={pick} options={options} placeholder={form.employee_name || 'Search employees'} searchPlaceholder="Name or employee ID" emptyMessage="No employee matches." />
+          <PersonPicker label="Official" name={form.employee_name} employeeId={form.employee_id} onPick={pick} />
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Employee ID" required><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} /></Field>

@@ -120,23 +120,22 @@ function SpareImportContent() {
       {step === 0 && (
         <div className="flex flex-col gap-4">
           {uploadError && <Notice tone="danger" title="The file could not be read">{uploadError}</Notice>}
-          <div
-            role="button" tabIndex={0} aria-busy={uploading}
+          <button
+            type="button" disabled={uploading} aria-busy={uploading}
             aria-label="Upload a spares file. Drop a file here or press Enter to browse."
             onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
             onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-            onClick={() => !uploading && fileRef.current?.click()}
-            onKeyDown={e => { if (!uploading && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileRef.current?.click(); } }}
-            className={cn('focus-ring flex cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors', dragging ? 'border-action bg-action-soft' : 'border-line-control bg-surface hover:bg-surface-subtle')}
+            onClick={() => fileRef.current?.click()}
+            className={cn('focus-ring flex w-full cursor-pointer select-none flex-col items-center justify-center gap-3 rounded-card border-2 border-dashed px-6 py-16 text-center transition-colors disabled:cursor-wait', dragging ? 'border-action bg-action-soft' : 'border-line-control bg-surface hover:bg-surface-subtle')}
           >
             {uploading ? (<LoadingPulse compact label={`Reading ${fileName || 'the file'}`} />) : (
               <>
                 <span className="inline-flex size-14 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name="upload" size="xl" /></span>
-                <div><p className="font-display text-title font-semibold text-ink">Drop your file here</p><p className="mt-1 font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls) or CSV, up to 25 MB.</p></div>
+                <span className="block"><span className="block font-display text-title font-semibold text-ink">Drop your file here</span><span className="mt-1 block font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls) or CSV, up to 25 MB.</span></span>
               </>
             )}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-          </div>
+          </button>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           <Notice tone="info" title="How the columns are found">The server looks at the column headings and at the values in each column. Bold rows in an Excel sheet are read as category headings. You can correct any column on the next step.</Notice>
         </div>
       )}

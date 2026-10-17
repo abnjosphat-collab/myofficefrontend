@@ -1,5 +1,6 @@
 // /work_stoppage: stoppage register (cards, table, detail with corrective actions, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const REPORTS = [
   { id: 'w1', date: iso(-5), department: 'Mining', section: 'Mechanical', description: 'Worker below an unsupported load.', investigationFindings: 'No lifting plan.', stoppageBy: 'Ann Alpha', stoppagePosition: 'Safety Officer', acceptedBy: 'Ben Beta', sheqCheckedBy: '',
     correctiveActions: [

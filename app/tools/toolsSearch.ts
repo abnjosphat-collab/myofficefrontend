@@ -57,8 +57,8 @@ export function buildWorkspaceSearchIndex(tools: Tool[], employees: Employee[], 
   }
   for (const employee of employees) dynamic.push({
     id: `employee-${employee.id}`, kind: 'Employee', title: employee.name,
-    subtitle: `${employee.employeeNumber} · ${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ''}`,
-    keywords: `${employee.name} ${employee.employeeNumber} ${employee.department} ${employee.jobTitle ?? ''} staff worker personnel`,
+    subtitle: `${employee.employeeNumber ?? 'Not recorded'} · ${employee.department}${employee.jobTitle ? ` · ${employee.jobTitle}` : ''}`,
+    keywords: `${employee.name} ${employee.employeeNumber ?? ''} ${employee.department} ${employee.jobTitle ?? ''} staff worker personnel`,
     icon: 'user', target: { type: 'tab', tab: 'employees', query: employee.name },
   });
   for (const event of activity) dynamic.push({

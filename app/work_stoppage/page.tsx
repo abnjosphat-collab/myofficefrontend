@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -173,8 +173,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
           <div><h3 className="font-sans text-caption text-ink-muted">Description</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.description}</p></div>
           {report.investigationFindings && <div><h3 className="font-sans text-caption text-ink-muted">Investigation findings</h3><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink">{report.investigationFindings}</p></div>}
           {actions.length > 0 && (
-            <section aria-labelledby="ws-detail-actions">
-              <h3 id="ws-detail-actions" className="mb-2 font-sans text-caption text-ink-muted">Corrective actions ({actions.length})</h3>
+            <FactSection title={`Corrective actions (${actions.length})`}>
               <ol className="flex flex-col gap-2">
                 {actions.map((a, i) => (
                   <li key={a.id} className="rounded-card border border-line p-3">
@@ -188,7 +187,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
                   </li>
                 ))}
               </ol>
-            </section>
+            </FactSection>
           )}
         </div>
       )}

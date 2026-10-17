@@ -5,8 +5,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Button, ChartPanel, Distribution, EmptyState, Field, Input, MetricGrid, MetricTile, Select, chartColor, chartTheme } from '@/components/ui-system';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { Button, Chart, ChartPanel, Distribution, EmptyState, Field, Input, MetricGrid, MetricTile, Select, chartColor, chartTheme } from '@/components/ui-system';
 import { formatCurrency } from '@/components/shared/utils';
 import { NO_ANALYTICS_FILTERS, analyticsFilterCount, calcStats, distinct, filterAnalytics, type AnalyticsFilters } from './helpers';
 import { CLASSIFICATIONS, DISCIPLINES } from './meta';
@@ -79,15 +79,15 @@ export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
           </div>
           <ChartPanel title="When breakdowns are raised" description={st.breakdowns > 0 ? `Busiest hour: ${peak.hour}:00 (${peak.count})` : undefined} summary={`Breakdowns raised per hour of the day: ${hours.filter(h => h.count > 0).map(h => `${h.hour}:00 ${h.count}`).join('; ') || 'none'}.`}>
             {st.breakdowns === 0 ? <p className="py-6 font-sans text-body-sm text-ink-muted">No breakdown times recorded yet.</p> : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart accessibilityLayer={false} data={hours} margin={{ left: 0, right: 8 }}>
+              <Chart height={200}>
+                <BarChart data={hours} margin={{ left: 0, right: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
                   <XAxis dataKey="hour" tick={chartTheme.axisTick} axisLine={false} tickLine={false} interval={1} />
                   <YAxis allowDecimals={false} tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={28} />
                   <Tooltip {...chartTheme.tooltip} labelFormatter={(l: unknown) => `${l}:00`} formatter={(v: unknown) => [`${v}`, 'Breakdowns']} />
                   <Bar dataKey="count" fill={chartColor(1)} radius={[3, 3, 0, 0]} maxBarSize={22} />
                 </BarChart>
-              </ResponsiveContainer>
+              </Chart>
             )}
           </ChartPanel>
         </>

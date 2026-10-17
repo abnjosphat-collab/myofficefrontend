@@ -106,7 +106,7 @@ async function targeted(context) {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
     await page.getByRole('button', { name: 'Equipment', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
     await page.getByRole('button', { name: 'Equipment', exact: true }).first().click();
-    await page.getByRole('button', { name: 'Open filter and sort controls' }).waitFor({ state: 'visible', timeout: 15000 });
+    await page.getByRole('button', { name: 'Grid view' }).waitFor({ state: 'visible', timeout: 15000 });
   };
 
   await run('Tools workspace renders its primary controls', async page => {
@@ -117,14 +117,14 @@ async function targeted(context) {
 
   await run('Tools settings open from sticky top bar', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.getByRole('button', { name: 'Open settings' }).first().waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByRole('button', { name: 'Open settings' }).first().click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('button', { name: 'Settings', exact: true }).first().click();
     await page.getByRole('heading', { name: 'Settings' }).first().waitFor({ state: 'visible', timeout: 15000 });
   });
 
   await run('Tools filter dropdown opens inside the viewport', async page => {
     await gotoEquipment(page);
-    await page.getByRole('button', { name: 'Open filter and sort controls' }).click();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('combobox', { name: 'Status' }).click();
     const option = page.getByRole('option', { name: 'All active tools' });
     if (await option.count() === 0 || !await option.isVisible()) throw new Error('status choices did not open');

@@ -1,5 +1,6 @@
 // /requisitions: purchase requisitions (table, filters, analytics, detail with items, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 // The backend shape: snake_case fields and a nested requisition_items list.
 const REQS = [
   { id: 1, date: iso(-3), requester: 'Ann Alpha', section: 'Electrical', required_for: 'Pump 1', priority: 'Critical', status: 'Pending', requisition_number: 'REQ-001', notes: 'Urgent', line_number: 1,

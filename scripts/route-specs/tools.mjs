@@ -30,6 +30,7 @@ const spec = {
     '/api/tools-workspace/compliance': { competencies: [], inspections: [], incidents: [], gate_passes: [] },
     'POST /api/tools-workspace/tools/id1/commands': { ok: true },
     'POST /api/tools-workspace/tools/id4/commands': { ok: true },
+    'POST /api/tools-workspace/tools/id1/inspections': { ok: true },
   },
   async ready(page, calls, { check, shot }) {
     check(await page.getByRole('navigation', { name: 'Workspace shortcuts' }).isVisible(), 'the overview offers shortcuts to the sections');
@@ -85,11 +86,39 @@ const spec = {
     await form.getByRole('button', { name: 'Issue tool' }).click();
     check((await form.getByRole('alert').first().textContent())?.includes('future'), 'a past return time is refused with a reason');
     check(!calls.some(c => c.method === 'POST' && c.pathname.endsWith('/commands')), 'a refused issue is not sent');
+
+    // Blocked tools unblock inline: the due check records over the issue flow without leaving it.
+    await form.getByRole('button', { name: 'Record check' }).click();
+    const nested = page.getByRole('dialog', { name: /Record a check/ });
+    await nested.waitFor();
+    check(await nested.getByRole('combobox', { name: 'Check' }).isVisible() && ((await nested.getByRole('combobox', { name: 'Check' }).textContent())?.includes('Monthly inspection') ?? false), 'the nested dialog offers the due check');
+    await nested.getByRole('textbox', { name: 'Check notes' }).fill('Guard secure');
+    await nested.getByRole('button', { name: 'Record check' }).click();
+    await nested.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const checkPost = calls.filter(c => c.method === 'POST' && c.pathname.endsWith('/tools/id1/inspections')).pop();
+    check(checkPost?.body.inspection_type === 'monthly' && checkPost.body.outcome === 'passed', 'recording posts the due check with its outcome', JSON.stringify(checkPost?.body).slice(0, 120));
+    check(await form.isVisible(), 'and the issue flow is still open underneath');
+    await shot(page, 'issue-resolve@1440');
     await form.getByLabel('Expected return').fill('2050-09-25T16:00');
     await form.getByRole('button', { name: 'Issue tool' }).click();
     await page.waitForTimeout(800);
     const post = calls.filter(c => c.method === 'POST' && c.pathname.endsWith('/tools/id1/commands')).pop();
     check(post?.body.kind === 'issue' && post.body.employee_name === 'A. Moyo' && post.body.job_reference === 'WO-1' && post.body.override_due_checks === true && !post.body.location, 'issuing sends the movement with the override reason and no forced location', JSON.stringify(post?.body).slice(0, 160));
+
+    // A greyed-out tool named in the search previews with its resolving actions.
+    await pods.filter({ hasText: 'Cordless drill' }).click();
+    await panel.waitFor();
+    await panel.getByRole('button', { name: 'Issue tool' }).click();
+    await form.waitFor();
+    await form.getByRole('combobox', { name: 'Tool' }).click();
+    await page.getByRole('option', { name: 'None' }).click();
+    await form.getByRole('combobox', { name: 'Tool' }).click();
+    await page.getByPlaceholder('Search by tool name or ID…').fill('rotary');
+    await page.keyboard.press('Escape');
+    check(await form.getByRole('region', { name: 'Conditions for Rotary hammer' }).isVisible(), 'naming a greyed-out tool previews what blocks it');
+    await form.getByRole('button', { name: 'Transfer' }).click();
+    check(await page.getByRole('dialog', { name: 'Change custodian' }).isVisible(), 'and its Transfer shortcut opens the transfer');
+    await page.keyboard.press('Escape');
 
     // Bulk issue: two tools, one borrower, one command each; tools that are out stay greyed out.
     await page.keyboard.press('Escape');
@@ -97,6 +126,7 @@ const spec = {
     const bulk = page.getByRole('dialog', { name: 'Issue tools' });
     await bulk.waitFor();
     check(await bulk.getByRole('checkbox', { name: /T-002/ }).isDisabled(), 'a tool that is out is greyed out with its holder stated');
+    check(await bulk.getByRole('button', { name: 'Receive' }).first().isVisible(), 'with a shortcut to receive it back');
     await bulk.getByRole('checkbox', { name: /T-001/ }).check();
     await bulk.getByRole('checkbox', { name: /T-004/ }).check();
     await bulk.getByRole('button', { name: 'Next', exact: true }).click();
@@ -105,7 +135,7 @@ const spec = {
     check(await bulk.getByText(/already holds/).isVisible(), 'the borrower step states what they already hold');
     await bulk.getByRole('button', { name: 'Next', exact: true }).click();
     await shot(page, 'bulk-issue@1440');
-    check(await bulk.getByText('monthly check overdue').isVisible(), 'the picked tools show their conditions');
+    check(await bulk.getByText('Monthly check overdue').isVisible(), 'the picked tools show their conditions');
     await bulk.getByRole('checkbox', { name: /Go ahead anyway/ }).check();
     await bulk.getByRole('textbox', { name: 'Reason for going ahead' }).fill('Shutdown cover this week');
     await bulk.getByRole('button', { name: 'Next', exact: true }).click();

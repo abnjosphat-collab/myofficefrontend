@@ -1,34 +1,22 @@
-// app/tasks-events/PeoplePicker.tsx — pick the responsible people from the employee list; chosen people show as removable chips.
+// app/tasks-events/PeoplePicker.tsx — the shared PeoplePicker adapted to this
+// module's API, which stores responsible people as plain names: names in and out,
+// employee IDs resolved inside for matching.
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Combobox, Field, Tag } from '@/components/ui-system';
+import { useMemo } from 'react';
+import { PeoplePicker as SharedPicker, lookupName } from '@/components/ui-system';
 import { useEmployees } from '@/hooks/useLookups';
 
 export function PeoplePicker({ value, onChange }: { value: string[]; onChange: (names: string[]) => void }) {
   const employees = useEmployees();
-  const [pick, setPick] = useState('');
-  const options = useMemo(() => {
+  const picks = useMemo(() => {
     const seen = new Set<string>();
-    return employees
-      .map(e => (e.full_name || (e as { name?: string }).name || `${e.first_name || ''} ${e.last_name || ''}`).trim())
+    return value
       .filter(n => n && !seen.has(n) && !!seen.add(n))
-      .sort()
-      .map(n => ({ value: n, label: n }));
-  }, [employees]);
-
+      .map(n => ({ employee_id: employees.find(x => lookupName(x) === n)?.employee_id || n, name: n }));
+  }, [employees, value]);
   return (
-    <div className="flex flex-col gap-2">
-      <Field label="Responsible people" optional>
-        <Combobox aria-label="Add a responsible person" value={pick} onValueChange={n => { if (n && !value.includes(n)) onChange([...value, n]); setPick(''); }} options={options.filter(o => !value.includes(o.value))} placeholder="Add a person" searchPlaceholder="Search employees" emptyMessage="No employee matches." />
-      </Field>
-      {value.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label="Responsible people">
-          {value.map(n => (
-            <li key={n}><Tag onRemove={() => onChange(value.filter(x => x !== n))}>{n}</Tag></li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <SharedPicker label="Responsible people" value={picks} placeholder="Add a person"
+      onChange={ps => onChange(ps.map(p => p.name))} />
   );
 }

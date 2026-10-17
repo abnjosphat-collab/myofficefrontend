@@ -1,5 +1,6 @@
 // /vfl: visible felt leadership observations (cards, table, detail with status change, add/edit/delete).
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const REPORTS = [
   { id: 'v1', observerName: 'Ann Alpha', designation: 'Safety Officer', sectionChoice: 'Mechanical', departmentSection: 'Engineering', date: iso(-3), time: '09:30', behaviourCategory: 'Unsafe Behaviour', observationType: 'At Risk Behaviour', description: 'Technician working without isolation.', coachingTechnique: 'SBR', status: 'submitted', created_at: iso(-3),
     actions: [

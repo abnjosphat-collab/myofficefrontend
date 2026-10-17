@@ -47,7 +47,7 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
   return (
     <FormDialog
       open onOpenChange={o => { if (!o) onClose(); }} size="md" title="Timesheet entry" description={`${employee.name}, ${formatFullDate(date)}`} submitLabel="Save entry" onSubmit={submit}
-      secondaryAction={onDelete ? <Button variant="danger" icon="delete" onClick={remove}>Delete entry</Button> : undefined}
+      secondaryAction={onDelete ? <Button variant="danger-quiet" icon="delete" onClick={remove}>Delete entry</Button> : undefined}
     >
       <div className="flex flex-col gap-4">
         {holiday && <Notice tone="info" icon="calendar" title={`Zimbabwe public holiday: ${holiday}`}>{form.status === 'holiday_paid' ? 'Not worked, so 8 regular hours are credited. Enter shift times, or choose PPH, if they worked it.' : 'Worked on the holiday: all hours count at 2.0×.'}</Notice>}

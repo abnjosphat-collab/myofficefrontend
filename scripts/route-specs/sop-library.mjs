@@ -1,5 +1,6 @@
 // /sop-library: list, viewer drawer with revision history, create (failed save keeps the form), archive.
-const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const pad2 = n => String(n).padStart(2, '0');
+const iso = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }; // local date, like the app's daysUntil
 const sections = { purpose: 'Keep people safe around stored energy.', procedure: '1. Isolate.\n2. Lock.\n3. Tag.' };
 const sop = (id, code, title, status, extra = {}) => ({ id, code, title, department: 'Operations', summary: `${title} summary`, status, classification: 'Internal', risk_tier: null, owner: 'J. Moyo', approver: null, supersedes: null, version: '1.0', effective_date: null, next_review_date: iso(200), tags: ['safety'], sections, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', ...extra });
 const SOPS = [sop('s1', 'SOP-OPS-001', 'Lockout and tagout', 'effective', { next_review_date: iso(-3) }), sop('s2', 'SOP-OPS-002', 'Hot work permit', 'draft'), sop('s3', 'SOP-OPS-003', 'Confined space entry', 'pilot', { risk_tier: 3 })];

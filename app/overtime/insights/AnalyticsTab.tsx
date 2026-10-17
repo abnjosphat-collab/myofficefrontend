@@ -2,8 +2,8 @@
 // is in a panel with a written summary, and the lists print their numbers, so no value is carried by colour or a hover alone.
 'use client';
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ChartPanel, Distribution, chartColor, chartTheme } from '@/components/ui-system';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { Chart, ChartPanel, Distribution, chartColor, chartTheme } from '@/components/ui-system';
 import { STATUS_LABELS, TYPE_LABELS } from '../overtimeMeta';
 import type { tally } from '../overtimeLogic';
 import { TopPeople } from './TopPeople';
@@ -29,15 +29,15 @@ export function AnalyticsTab({ t, picked, onToggle }: { t: Tally; picked: string
         </section>
       </div>
       <ChartPanel title="By weekday" description="Overtime hours" summary={`Hours by weekday: ${t.byWeekday.map(d => `${d.day} ${d.hours}`).join('; ')}.`}>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart accessibilityLayer={false} data={t.byWeekday} margin={{ left: 0, right: 8 }}>
+        <Chart height={220}>
+          <BarChart data={t.byWeekday} margin={{ left: 0, right: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} vertical={false} />
             <XAxis dataKey="day" tick={chartTheme.axisTick} axisLine={false} tickLine={false} />
             <YAxis tick={chartTheme.axisTick} axisLine={false} tickLine={false} width={36} />
             <Tooltip {...chartTheme.tooltip} formatter={(v: unknown) => [`${v}h`, 'Hours']} />
             <Bar dataKey="hours" fill={chartColor(1)} radius={[4, 4, 0, 0]} maxBarSize={36} />
           </BarChart>
-        </ResponsiveContainer>
+        </Chart>
       </ChartPanel>
     </div>
   );

@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import type { Employee, Tool } from './prototype';
 import { defaultEquipmentKind } from './prototype';
-import { Button, DataTable, Icon, Segmented } from '@/components/ui-system';
+import { Button, DataTable, FieldGroup, Icon, Segmented } from '@/components/ui-system';
 
 type Target='equipment'|'employees'; type Row=Record<string,string>;
 const aliases:Record<string,string>={'tool id':'register_number','equipment id':'register_number','register number':'register_number','employee number':'employee_number','employee no':'employee_number','tool':'name','equipment':'name','make/model':'make_model','model':'make_model','serial number':'serial_number','serial':'serial_number','location':'storage_location','storage location':'storage_location','job title':'job_title'};
@@ -16,12 +16,14 @@ async function readFile(file:File){
 }
 export function ToolsImport({onApply,onCancel}:{onApply:(target:Target,tools:Tool[],employees:Employee[])=>void;onCancel:()=>void}){
  const [target,setTarget]=useState<Target>('equipment');const [rows,setRows]=useState<Row[]>([]);const [name,setName]=useState('');const [error,setError]=useState('');
- const required=target==='equipment'?['register_number','name','storage_location']:['employee_number','name','department']; const valid=rows.filter(row=>required.every(key=>row[key]));
+ const required=target==='equipment'?['register_number','name','storage_location']:['name','department']; const shown=target==='equipment'?required:['employee_number','name','department']; const valid=rows.filter(row=>required.every(key=>row[key]));
  async function pick(file?:File){if(!file)return;setError('');try{setRows(await readFile(file));setName(file.name);}catch(reason){setRows([]);setError(reason instanceof Error?reason.message:'This file could not be read.');}}
- function apply(){const tools:Tool[]=target==='equipment'?valid.map(row=>({id:row.register_number,name:row.name,make:row.make_model||'',serial:row.serial_number||'',category:row.category||'Other equipment',kind:defaultEquipmentKind(row.category||'Other equipment'),status:'available',location:row.storage_location,department:row.department||'Engineering',condition:'Good'})):[];const employees:Employee[]=target==='employees'?valid.map(row=>({id:crypto.randomUUID(),employeeNumber:row.employee_number,name:row.name,department:row.department,jobTitle:row.job_title,active:true})):[];onApply(target,tools,employees);}
+ function apply(){const tools:Tool[]=target==='equipment'?valid.map(row=>({id:row.register_number,name:row.name,make:row.make_model||'',serial:row.serial_number||'',category:row.category||'Other equipment',kind:defaultEquipmentKind(row.category||'Other equipment'),status:'available',location:row.storage_location,department:row.department||'Engineering',condition:'Good'})):[];const employees:Employee[]=target==='employees'?valid.map(row=>({id:crypto.randomUUID(),employeeNumber:row.employee_number||null,name:row.name,department:row.department,jobTitle:row.job_title,active:true})):[];onApply(target,tools,employees);}
   return (
     <div className="flex flex-col gap-4">
-      <Segmented label="Import into" value={target} onValueChange={next => { setTarget(next); setRows([]); }} options={[{ value: 'equipment', label: 'Equipment' }, { value: 'employees', label: 'Employees' }]} />
+      <FieldGroup label="Import into">
+        <Segmented label="Import into" value={target} onValueChange={next => { setTarget(next); setRows([]); }} options={[{ value: 'equipment', label: 'Equipment' }, { value: 'employees', label: 'Employees' }]} />
+      </FieldGroup>
       <label className="focus-within:ring-2 focus-within:ring-[var(--mo-focus)] flex cursor-pointer flex-col items-center gap-1 rounded-card border border-dashed border-[var(--mo-line)] px-4 py-8 text-center transition-colors hover:border-[var(--mo-action)] hover:bg-[var(--mo-surface-subtle)]">
         <Icon name="upload" size="lg" />
         <strong className="font-sans text-body-sm font-medium text-ink">{name || 'Choose a register file'}</strong>
@@ -36,7 +38,7 @@ export function ToolsImport({onApply,onCancel}:{onApply:(target:Target,tools:Too
             caption="Import preview"
             rows={rows.slice(0, 8)}
             getRowId={(row, ) => JSON.stringify(row)}
-            columns={required.map(key => ({ id: key, header: key.replaceAll('_', ' '), cell: (row: Row) => row[key] || <span className="font-medium text-danger">Missing</span> }))}
+            columns={shown.map(key => ({ id: key, header: key.replaceAll('_', ' '), cell: (row: Row) => row[key] || (required.includes(key) ? <span className="font-medium text-danger">Missing</span> : <span className="text-ink-muted">Not recorded</span>) }))}
           />
           <p className="font-sans text-caption text-ink-muted">Review before importing. Existing register numbers are skipped, and no record is issued automatically.</p>
         </>

@@ -214,7 +214,7 @@ describe('mergeEffectiveTimesheets — overtime vs standby', () => {
   });
 });
 
-describe('mergeEffectiveTimesheets � worked public holiday', () => {
+describe('mergeEffectiveTimesheets – worked public holiday', () => {
   const base = { approvedLeaves: [], approvedOvertime: [], shiftAssignments: [], employeeIdByHuman: new Map([['C0001', '10']]), leaveTypeToStatus: {}, statusLabel };
 
   it('mirrors the hours into 2.0x on 15 September and keeps them in the normal column', () => {
@@ -267,5 +267,48 @@ describe('mergeEffectiveTimesheets - holiday overtime outside the shift adds to 
       approvedOvertime: [{ id: 9, employee_id: 'C1', overtime_type: 'holiday', date: '2026-09-15', status: 'approved', hours: 2, start_time: '17:00', end_time: '19:00' }],
     });
     expect(merged[0].holiday_overtime_hours).toBe(12);
+  });
+});
+
+describe('mergeEffectiveTimesheets - transferred lieu leave', () => {
+  const human = new Map([['C0001', '10']]);
+  const base = {
+    timesheets: [], approvedOvertime: [], shiftAssignments: [],
+    dayStrs: ['2026-08-18'], rosterIds: ['10'], employeeIdByHuman: human,
+    leaveTypeToStatus: { lieu: 'lieu' as const }, statusLabel,
+  };
+
+  it('projects nothing for a leave transferred from overtime', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...base,
+      approvedLeaves: [
+        { id: 3, employee_id: 'C1', leave_type: 'lieu', start_date: '2026-08-18', end_date: '2026-08-18', status: 'approved', overtime_id: 7 },
+      ],
+    });
+    expect(merged).toEqual([]);
+  });
+
+  it('still projects a manual lieu leave at 8 hours', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...base,
+      approvedLeaves: [
+        { id: 4, employee_id: 'C1', leave_type: 'lieu', start_date: '2026-08-18', end_date: '2026-08-18', status: 'approved' },
+      ],
+    });
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({ status: 'lieu', regular_hours: 8 });
+  });
+
+  it('skips the transferred leave but keeps the others on a mixed day', () => {
+    const merged = mergeEffectiveTimesheets({
+      ...base,
+      leaveTypeToStatus: { lieu: 'lieu', annual: 'leave' },
+      approvedLeaves: [
+        { id: 3, employee_id: 'C1', leave_type: 'lieu', start_date: '2026-08-18', end_date: '2026-08-18', status: 'approved', overtime_id: 7 },
+        { id: 5, employee_id: 'C1', leave_type: 'annual', start_date: '2026-08-18', end_date: '2026-08-18', status: 'approved' },
+      ],
+    });
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({ status: 'leave', regular_hours: 8 });
   });
 });

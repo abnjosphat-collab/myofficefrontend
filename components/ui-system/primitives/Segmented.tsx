@@ -24,7 +24,7 @@ export function Segmented<T extends string>({ value, onValueChange, options, lab
           type="button"
           aria-pressed={value === option.value}
           onClick={() => onValueChange(option.value)}
-          className="focus-ring touch-target inline-flex h-8 items-center rounded-[5px] px-3 font-sans text-label font-medium text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-surface aria-pressed:text-action aria-pressed:shadow-xs"
+          className="focus-ring touch-target inline-flex h-8 items-center rounded-[5px] px-3 font-sans text-label font-medium text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action-soft aria-pressed:text-action"
         >
           {option.label}
         </button>

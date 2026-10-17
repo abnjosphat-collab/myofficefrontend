@@ -4,6 +4,8 @@
 import type { Employee, Tool } from './prototype';
 
 export type ConditionState = 'met' | 'unmet' | 'info' | 'attention';
+/** What unblocks the row, offered inline: receive/transfer the open loan, or record the missing check/repair. */
+export type ConditionAction = 'receive' | 'transfer' | 'record-check' | 'record-repair';
 export interface ToolCondition {
   key: string;
   label: string;
@@ -11,17 +13,32 @@ export interface ToolCondition {
   state: ConditionState;
   /** The backend refuses the issue while this is unmet (or needs the written override). */
   blocker: boolean;
+  actions?: ConditionAction[];
+}
+/** Button labels for the resolving actions, one source for every surface that offers them. */
+export const CONDITION_ACTION_LABELS: Record<ConditionAction, string> = { receive: 'Receive', transfer: 'Transfer', 'record-check': 'Record check', 'record-repair': 'Record repair' };
+
+/** Mirror of the backend register's `_needs_attention`: not working, or recorded as defective, missing or damaged, is not fit to issue. */
+const FAULT_CONDITIONS = new Set(['Defective', 'Missing', 'Damaged']);
+export function needsAttention(tool: Tool): boolean {
+  return tool.workingStatus === 'not_working' || FAULT_CONDITIONS.has(tool.condition);
 }
 
-const employeeIds = (employee: { backendId?: string; employeeNumber: string }) => [employee.backendId, employee.employeeNumber].filter(Boolean) as string[];
+const employeeIds = (employee: { backendId?: string; employeeNumber: string | null }) => [employee.backendId, employee.employeeNumber].filter(Boolean) as string[];
 
-/** One predicate for "may this person take this tool", shared by the conditions panel and both issue forms. */
-export function isEligibleForTool(tool: Tool, employee: { backendId?: string; employeeNumber: string }): boolean {
+/** "Monthly, quarterly check overdue": the due-check names read as a sentence-leading title (conditions panel, override notice), so the first one is capitalized. */
+export function overdueCheckLabel(due: readonly string[]): string {
+  const names = due.map(item => item.replace('_', ' ')).join(', ');
+  return `${names.charAt(0).toUpperCase()}${names.slice(1)} check overdue`;
+}
+
+/** One predicate for "may this person take this tool", shared by the conditions panel and both issue forms. Unknown numbers match nothing: two people without numbers are never the same person, and a numberless person only matches by id. */
+export function isEligibleForTool(tool: Tool, employee: { backendId?: string; employeeNumber: string | null }): boolean {
   if (tool.competencyRequired === false) return true;
   const eligible = tool.eligibleEmployees;
   if (eligible === undefined) return true;
   const ids = employeeIds(employee);
-  return eligible.some(item => ids.includes(item.id) || ids.includes(item.employeeNumber));
+  return eligible.some(item => ids.includes(item.id) || (item.employeeNumber != null && ids.includes(item.employeeNumber)));
 }
 
 export function toolConditions(tool: Tool, employee?: Employee | null): ToolCondition[] {
@@ -29,12 +46,12 @@ export function toolConditions(tool: Tool, employee?: Employee | null): ToolCond
 
   if (tool.archived) {
     rows.push({ key: 'availability', label: 'Archived', detail: 'Restore it before issuing.', state: 'unmet', blocker: true });
-  } else if (tool.status === 'available') {
+  } else if (tool.status === 'available' && !needsAttention(tool)) {
     rows.push({ key: 'availability', label: 'Ready to issue', state: 'met', blocker: false });
   } else if (tool.holder) {
-    rows.push({ key: 'availability', label: `With ${tool.holder.split(' · ')[0]}`, detail: 'Transfer the open loan instead of issuing.', state: 'unmet', blocker: true });
+    rows.push({ key: 'availability', label: `With ${tool.holder.split(' · ')[0]}`, detail: 'Receive it back or transfer the open loan instead of issuing.', state: 'unmet', blocker: true, actions: ['receive', 'transfer'] });
   } else {
-    rows.push({ key: 'availability', label: 'Needs attention', detail: 'Mark it ready before issuing.', state: 'unmet', blocker: true });
+    rows.push({ key: 'availability', label: 'Needs attention', detail: 'Record what was repaired, then mark it ready before issuing.', state: 'unmet', blocker: true, actions: ['record-repair'] });
   }
 
   const eligible = tool.eligibleEmployees;
@@ -54,8 +71,7 @@ export function toolConditions(tool: Tool, employee?: Employee | null): ToolCond
   if (due.length === 0) {
     rows.push({ key: 'inspections', label: 'Inspections current', state: 'met', blocker: false });
   } else {
-    const names = due.map(item => item.replace('_', ' ')).join(', ');
-    rows.push({ key: 'inspections', label: `${names} check overdue`, detail: 'Complete it, or go ahead anyway with a written reason.', state: 'unmet', blocker: true });
+    rows.push({ key: 'inspections', label: overdueCheckLabel(due), detail: 'Record the check now, or go ahead anyway with a written reason.', state: 'unmet', blocker: true, actions: ['record-check'] });
   }
 
   if (tool.preUseCheckRequired === true) {
