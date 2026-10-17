@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**60 routes.** Migrated: 50. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 50.
+**59 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 50.
 
 | Column | Meaning |
 |---|---|
@@ -49,7 +49,7 @@
 | `/maintenance` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns. |
 | `/near_miss` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table with section tiles as filters, detail dialog, add/edit/delete; failed save keeps input; failed load is not shown as empty. Inline row expansion dropped (the detail dialog shows the same fields). |
 | `/noticeboard` | Migrated | Yes | 2 | Yes, 2026-10-03 | Pinned and other notices as cards or a table, status/pinned tiles as filters, server-side filters and a debounced search (one request per finished word), detail dialog with attachment thumbnails and download links, optimistic pin with revert, archive-all-expired and unpin-all now ask first, hide-expired stays a view-only toggle, add/edit/delete with multi-file attachment upload (failures shown in place and the save waits for uploads). Tiles count the current view and say so when filters are on. The list route is unbounded (CrudRouter) and not paged. The shell's active-notices popup was rebuilt on the UI system and moved to the bottom (it covered the top bar and page title on phones and the header actions on desktop). |
-| `/overtime` | Migrated | Yes | 3 | Yes, 2026-10-04 | Register pattern with three tabs. The largest page: 2789 lines became a page of about 200 plus 17 focused files. |
+| `/overtime` | Migrated | Yes | 5 | Yes, 2026-10-04 | Register pattern with three tabs. The largest page: 2789 lines became a page of about 200 plus 17 focused files. |
 | `/pachedu` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, high-risk filter (serious injury, fatality or environmental impact), detail dialog with inline status change, add/edit/delete, the full referral checklist and Shona/Ndebele prompts kept. Summary figures are now computed from the complete (paged) list; the page no longer reads /stats/overview, so statistics and register share one failure mode. A legacy record with an unknown section and no lists renders. The Status field shows only when editing because a new observation is always saved as submitted. Inline expansion and the hand-rolled action menus dropped. |
 | `/ppe` | Migrated | Yes | 4 | Yes, 2026-10-04 | Register pattern with tabs. The order list stays browser-local by design and says so. |
 | `/ppe/allocate` | Redirect | No | No | Yes, 2026-10-03 | Retired fake form; PPE is issued on /ppe. |
@@ -69,14 +69,8 @@
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 17 | unverified (2026-10-08) | NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
-| `/timesheets - Copy` | Migrated | No | 17 | Not checked |  |
-| `/tools` | Own chrome | Yes | 21 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/tools` | Own chrome | Yes | 22 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |
 | `/work_stoppage` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, tiles for action status, detail dialog listing corrective actions, add/edit/delete; failed save keeps input; a record with an unrecognised section renders instead of crashing. The form is one scrolling dialog (the Details/Action plan/Summary tabs were dropped so validation errors are never hidden on another tab); progress shows above the action list. Inline row expansion and Expand/Collapse all dropped. |
-
-## Inconsistencies
-
-- /timesheets - Copy: migrated but has no entry in docs/migration-verification.json (record what was actually rendered, or mark it explicitly unverified)
-- /timesheets - Copy: migrated but no automated route spec (scripts/route-specs)
