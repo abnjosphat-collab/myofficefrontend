@@ -26,12 +26,14 @@ export default defineConfig({
       // coverage parser if swept in.
       include: ['lib/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/types.ts'],
-      // A ratchet, not a target: just under the measured figures (18 Oct 2026: 35.71 / 34.82 / 28.12 / 38.97 %),
-      // so coverage can only rise. Raise these whenever a change lifts the totals; never lower them to pass.
+      // A ratchet, not a target: just under the measured figures, so coverage can only rise. Raise these whenever a
+      // change lifts the totals; never lower them to pass. 18 Oct 2026: measured 35.71 / 34.82 / 28.12 / 38.97 % with the
+      // unlinked preview pages present; CI then measured functions at 27.61 % on the committed tree (the previews are
+      // not committed), so the functions floor was re-based to 27 once, for that reason only.
       thresholds: {
         statements: 35,
         branches: 34,
-        functions: 28,
+        functions: 27,
         lines: 38,
       },
     },
