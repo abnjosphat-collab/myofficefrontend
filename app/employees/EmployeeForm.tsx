@@ -12,7 +12,7 @@ import {
 } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
 import { sectionSelectOptions } from '@/lib/sections';
-import { CLASS_OPTIONS, formProblems, fullName } from './roster';
+import { CLASS_OPTIONS, formProblems, fullName, sectionImpliedNotice } from './roster';
 import type { Employee, EmployeeFormData } from './types';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
@@ -80,7 +80,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
           <h3 id="ef-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employment</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Designation" required error={err('designation')} description="Choosing one fills in the section."><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." /></Field>
-            <Field label="Section" optional><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>
+            <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>
             <Field label="Date of engagement" optional><Input type="date" value={form.date_of_engagement} onChange={e => set({ date_of_engagement: e.target.value })} /></Field>
             <Field label="Foreman or supervisor" optional><Select aria-label="Foreman or supervisor" value={form.supervisor} onValueChange={v => set({ supervisor: v })} options={supervisors} /></Field>
             <Field label="Employee class" optional><Select aria-label="Employee class" value={form.employee_class} onValueChange={v => set({ employee_class: v })} options={CLASSES} /></Field>

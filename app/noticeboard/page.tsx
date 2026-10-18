@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
@@ -50,8 +51,8 @@ function Thumb({ attachment }: { attachment: Attachment }) {
   return <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-control bg-surface-muted text-ink-muted"><Icon name={KIND_ICON[attachmentKind(attachment.name)]} size="lg" weight="navigation" /></span>;
 }
 
-const emptyForm = (): NoticeFormData => ({
-  title: '', content: '', date: new Date().toISOString().slice(0, 10), category: 'General', priority: 'Medium', status: 'Draft', is_pinned: false, requires_acknowledgment: false,
+export const emptyForm = (): NoticeFormData => ({
+  title: '', content: '', date: todayLocal(), category: 'General', priority: 'Medium', status: 'Draft', is_pinned: false, requires_acknowledgment: false,
   author: '', department: 'General', expires_at: '', target_audience: 'All Employees', notification_type: 'General Announcement', attachments: [],
 });
 

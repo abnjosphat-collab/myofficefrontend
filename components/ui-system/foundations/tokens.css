@@ -43,7 +43,7 @@
   /* ── Lines ───────────────────────────────────────────────────────────────── */
   --mo-line: #ccd7d1;              /* card and panel borders */
   --mo-line-subtle: #e2e9e5;       /* row dividers, inner separators */
-  --mo-line-control: #87978f;      /* input/select/checkbox boundary — 3.1:1 on raised (WCAG 1.4.11 needs 3:1) */
+  --mo-line-control: #76867e;      /* input/select/checkbox boundary — 3.3:1 worst case on muted, holds 3:1 on canvas/surface/raised too (WCAG 1.4.11) */
   --mo-line-strong: #6f887c;       /* emphasis rules */
 
   /* ── Action (brand) ──────────────────────────────────────────────────────── */
@@ -63,17 +63,18 @@
   --mo-neutral: #52625a;  --mo-neutral-soft: #eaefec;  --mo-neutral-line: #d3ddd8;
 
   /* ── Data visualisation (categorical, fixed order — never cycled) ───────────
-     Validated 2026-10-13: all eight series hold 3:1 graphics contrast on
+     Validated 2026-10-18: all eight series hold 3:1 graphics contrast on
      surface, raised and subtle grounds (see foundations/tokens.test.ts, which
-     re-checks this on every run). Never reuse status colours as series. */
+     re-checks this on every run), every pair is dE > 30 apart, and every pair stays
+     distinct under deuteranopia simulation. Never reuse status colours as series. */
   --mo-chart-1: #2a78d6;
-  --mo-chart-2: #d95726; /* F3: darkened for 3:1 on all three grounds (was #eb6834, 2.81 on subtle) */
-  --mo-chart-3: #0e8f62; /* F3: darkened for 3:1 on all three grounds (was #1baf7a, 2.47 worst) */
-  --mo-chart-4: #a86e00; /* F3: darkened for 3:1 on all three grounds (was #eda100, 1.90 worst) */
+  --mo-chart-2: #e8641b; /* retuned 2026-10: true orange, dE 33.9 from red (was #d95726, dE 20.3) */
+  --mo-chart-3: #0b7a55; /* retuned 2026-10: deeper teal, deuteranopia-distinct from violet (was #0e8f62) */
+  --mo-chart-4: #b57e00; /* retuned 2026-10: lighter amber, deuteranopia-distinct from red (was #a86e00) */
   --mo-chart-5: #c44e7d; /* F3: darkened for 3:1 on all three grounds (was #e87ba4, 2.37 worst) */
-  --mo-chart-6: #008300;
-  --mo-chart-7: #4a3aa7;
-  --mo-chart-8: #e34948;
+  --mo-chart-6: #4d7c0f; /* retuned 2026-10: olive sits with the sage surfaces (was pure green #008300) */
+  --mo-chart-7: #6d28d9; /* retuned 2026-10: vivid violet, deuteranopia-distinct from teal (was #4a3aa7) */
+  --mo-chart-8: #b93535; /* retuned 2026-10: deeper red, dE 33.9 from orange (was #e34948, dE 20.3) */
   --mo-chart-grid: #e2e9e5;
   --mo-chart-axis: #5b6d64;
 

@@ -8,6 +8,7 @@ import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, I
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatTime } from '@/lib/format';
 import type { NearMissReport } from './types';
@@ -34,8 +35,8 @@ const fmtTime = (s: string) => {
 
 
 type Form = { department: string; section: Section; date: string; time: string; location: string; description: string; witnessDetails: string; reporterName: string };
-const emptyForm = (): Form => ({
-  department: 'Engineering', section: 'General', date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5),
+export const emptyForm = (): Form => ({
+  department: 'Engineering', section: 'General', date: todayLocal(), time: new Date().toTimeString().slice(0, 5),
   location: '', description: '', witnessDetails: '', reporterName: '',
 });
 

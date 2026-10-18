@@ -67,6 +67,7 @@ const spec = {
     check(!('unit_price' in items[2]), 'a blank price is not sent (it must not overwrite the stored price with 0)');
     const forbidden = ['current_quantity', 'min_quantity', 'max_quantity', 'priority', 'safety_stock', 'lead_time_days'];
     check(items.every(i => forbidden.every(k => !(k in i))), 'stock on hand, limits, priority and lead time are never sent');
+    await page.getByText('In the file').waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('In the file').isVisible() && await page.getByRole('link', { name: 'View spares' }).isVisible(), 'the result step shows the counts and a way back');
     await shot(page, 'result@1440');
   },

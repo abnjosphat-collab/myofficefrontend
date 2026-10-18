@@ -89,7 +89,7 @@ export function ScheduleGrid({ assignments, leaves, onOpenEvent, onView }: {
                           className={cn('focus-ring flex min-h-11 w-full flex-col items-center justify-center rounded-control border px-0.5 py-1 font-semibold leading-none tabular transition-[filter] hover:brightness-95', c.tone ? TONE_CELL[c.tone] : 'border-transparent font-normal text-ink-muted', c.pending && 'border-dashed')}
                         >
                           <span>{c.abbr}</span>
-                          {c.hours && <span className="mt-0.5 text-[0.625rem] font-normal opacity-80">{c.hours.replace('–', '-')}</span>}
+                          {c.hours && <span className="mt-0.5 text-tip font-normal opacity-80">{c.hours.replace('–', '-')}</span>}
                         </button>
                       </td>
                     );

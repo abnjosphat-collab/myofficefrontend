@@ -4,6 +4,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { todayLocal } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -153,7 +154,7 @@ function TrainingContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh training records" variant="shell" pending={refreshing} onClick={() => fetchAll(true)} />
-            <DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${new Date().toISOString().slice(0, 10)}`} title="Training & Certification Register" />
+            <DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" />
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
           </>
         )}

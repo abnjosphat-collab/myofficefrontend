@@ -32,11 +32,11 @@ const canManage = (caller: UserProfile, target: UserProfile) => caller.role === 
 function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile | null; caller: UserProfile; onClose: () => void; onChanged: () => Promise<void> }) {
   const confirm = useConfirm();
   const [role, setRole] = useState<UserRole>('user');
-  const [busy, setBusy] = useState<'save' | 'active' | 'reset' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'active' | 'reset' | 'mfa' | null>(null);
   const [error, setError] = useState<string | null>(null);
   useResetOnOpen(user?.id ?? null, () => { if (user) { setRole(user.role); setError(null); } });
 
-  const run = async (kind: 'save' | 'active' | 'reset', action: () => Promise<void>, done: string) => {
+  const run = async (kind: 'save' | 'active' | 'reset' | 'mfa', action: () => Promise<void>, done: string) => {
     setBusy(kind); setError(null);
     try { await action(); toast.success(done); await onChanged(); }
     catch (e) { setError((e as Error).message); }
@@ -52,6 +52,11 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
     if (!user) return;
     if (!await confirm({ title: 'Send password reset email?', message: `${user.email} will receive a link to set a new password.`, confirmLabel: 'Send email' })) return;
     await run('reset', () => api.post(`/api/admin/users/${user.id}/reset-password`).then(() => undefined), 'Password reset email sent.');
+  };
+  const resetMfa = async () => {
+    if (!user) return;
+    if (!await confirm({ title: 'Turn off two-factor sign-in?', message: `${nameOf(user)} will be able to sign in with just their password until they enable 2FA again. Use this when they have lost their authenticator.`, confirmLabel: 'Turn off 2FA', destructive: true })) return;
+    await run('mfa', () => api.delete(`/api/admin/users/${user.id}/factors`).then(() => undefined), 'Two-factor sign-in turned off.');
   };
 
   return (
@@ -79,6 +84,7 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
           <div className="flex flex-wrap gap-2">
             <Button icon="inactive" pending={busy === 'active'} disabled={!!busy} onClick={toggleActive}>{user.is_active ? 'Deactivate' : 'Reactivate'}</Button>
             <Button icon="key" pending={busy === 'reset'} disabled={!!busy} onClick={resetPassword}>Reset password</Button>
+            <Button icon="lock" pending={busy === 'mfa'} disabled={!!busy} onClick={resetMfa}>Turn off 2FA</Button>
           </div>
         </div>
       )}

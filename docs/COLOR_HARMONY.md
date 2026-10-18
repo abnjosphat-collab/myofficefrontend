@@ -1,59 +1,71 @@
-# Color harmony — icon & accent strategy
+# Color harmony — what the app actually looks like
 
-**Status:** Approved and rolling out app-wide (Sep 2026). Homepage info tiles are the visual reference.
+**Status:** Rewritten 2026-10-18 to match the shipped UI system. The September text
+described a violet brand with a light/dark split that no longer exists: there is one
+light appearance, no theme switch, no dark mode.
 
-## Principles
+Source of truth is `components/ui-system/foundations/tokens.css`, exposed to Tailwind
+in `theme.css`. Hex values below are copied from the tokens; `tokens.test.ts` and
+`lib/pwa-colours.test.ts` re-check the contrast and PWA claims on every run.
 
-| Layer | Role | Color |
-|--------|------|--------|
-| **Structure** | Navigation, module/category/row icons, labels | Neutral foreground (`uiIconClass('neutral')`) |
-| **Brand / interaction** | Primary CTAs, hover glow, active route, pinned favorites | Violet in light mode; achromatic white/graphite ramp in Dallaglio dark mode |
-| **Semantic** | Health, priority, errors, trends, operational status | **`STATUS_TONE` only** |
-| **Data** | KPI values, metrics | Primary text — not hue-coded unless semantic |
-| **Hero stat chips** | `StatTile` in page heroes | Decorative `color` tints icons in **light only**; dark uses neutral icons. `iconTone="semantic"` + `STATUS_TONE` in both themes when the count is a status signal |
-| **Categorical** | Charts, training categories, record-type chips | Deliberate accent — use `iconTone="accent"` or page-local maps |
+## The palette
 
-Categorical `ACCENT.*` remains for intentional charts and clear category
-comparisons, not default icon coloring on every tile. In Dallaglio, category
-badges pass `kind="category"` to `StatusBadge`, keeping their dot neutral;
-status badges keep their semantic hue. `SummaryItem` icons are neutral, even
-when a page passes its Classic category color. This keeps the information
-hierarchy consistent between light and dark themes.
+Sage surfaces, charcoal-green action, near-black-green ink. One light appearance.
 
-The chart palette is independent from interaction color. Use `chartTheme()`;
-do not derive chart series from `--primary`, `--d-accent`, or a route's button
-color. This preserves colorful, distinguishable visualizations while dark UI
-structure remains monochrome.
-
-## Implementation map
-
-| Phase | Scope | Status |
+| Layer | Tokens | Values |
 |-------|--------|--------|
-| 1 | Homepage module tiles, quick actions | Done |
-| 2 | App shell — sidebar module icons neutral, brand active/favorites, scroll accents | Done |
-| 3 | `PageHero`, `GroupSection`, `RecordCard` default neutral icons; brand glow on `GlowCard` | Done |
-| 4 | `InfoCard.iconTone` default **`neutral`**; use **`iconTone="accent"`** where categorical colour is justified | Done (default); audit call sites over time |
-| 5 | Theme split — decorative accents **light only** (`decorativeAccentHex`); semantic via **`isStatusToneHex`** in both themes | Done |
-| 6 | shadcn **`chart-*`** / **`sidebar-*`** CSS vars aligned to brand + stone (not legacy blue rainbow) | Done |
+| Page ground | `--mo-canvas` | `#f4f6f5` |
+| Cards, panels, dialogs, menus | `--mo-surface` | `#fbfcfb` |
+| Inputs and controls on a surface | `--mo-surface-raised` | `#ffffff` |
+| Table headers, hovered rows, quiet wells | `--mo-surface-subtle` | `#f7f9f8` |
+| Icon wells, segmented track | `--mo-surface-muted` | `#e8eeeb` |
+| Primary text | `--mo-ink` | `#1b2923` (14.7:1 on surface) |
+| Supporting text | `--mo-ink-muted` | `#52625a` (worst 4.6:1, on the darkest interactive fill) |
+| Quiet notes, placeholders | `--mo-ink-subtle` | `#5c6b64` (worst 4.8:1, on muted wells) |
+| Card and panel borders | `--mo-line` | `#ccd7d1` |
+| Row dividers | `--mo-line-subtle` | `#e2e9e5` |
+| Input/select/checkbox boundary | `--mo-line-control` | `#76867e` (worst 3.3:1 on muted; 3:1 held on all four grounds) |
+| Action (brand): default / hover / pressed | `--mo-action*` | `#233b31` / `#2c4d40` / `#182820`, ink `#f8fbf9` |
+| Selected row / nav item | `--mo-action-soft` | `#e0ebe5` |
+| Focus ring | `--mo-focus` | `#4f806a` (4.4:1 on surface) |
 
-## Component API
+## Status colour (operational meaning only)
 
-- **`InfoCard`**: `iconTone` default `'neutral'`. Pass `iconTone="accent"` + `accentColor` for categorical tiles.
-- **`PageHero`**: `iconTone` default `'neutral'`. Pass `iconTone="accent"` for deliberate category heroes.
-- **`GroupSection`**: `iconTone` default `'neutral'`. Optional `accentHex` when `iconTone="accent"`.
-- **`RecordCard`**: `iconTone` default `'neutral'`; hover glow uses `BRAND_GLOW_HEX` unless `iconTone="accent"`. Pass `STATUS_TONE` hex as `accentHex` for semantic glow when needed.
-- **`StatTile`**: decorative `color` → light mode only (`decorativeAccentHex`); semantic tones in both themes.
-- **`SummaryItem` / `GroupSection` / `RecordCard`**: pass `accentHex` / `color` for light-mode category polish; dark stays neutral icons + brand glow unless `iconTone="accent"` (avoid accent in dark).
-- **`decorativeAccentHex(light, hex, { semantic? })`** — light-only decorative tints; pass `semantic: true` (or use a `STATUS_TONE` hex detected via **`isStatusToneHex`**) when the accent must show in dark mode too.
-- **`PageHero` / `InfoCard` / `ProgressBar`** — respect the same split (category heroes and accent tiles vivid in light; dark uses neutral icons / brand fills unless semantic).
+Success, warning, danger, info and neutral each have a text, soft-fill and line
+token. Status text holds 4.5:1 on its own soft fill. Status is always paired with
+a label or an icon — colour is never the only signal. Status colours are never
+reused as chart series.
 
-## Dialogs
+## Charts (categorical, fixed order)
 
-- **`CenterModal`**: standard centred ERP dialog (themed glass, glow, 48px close, shared Escape rules).
-- **`components/ui/dialog`**: Radix primitive themed to match CenterModal; shares `handleModalEscapeKeyDown` from `dialog-shared.ts`.
+`--mo-chart-1` `#2a78d6` (blue), `-2` `#e8641b` (orange), `-3` `#0b7a55` (teal),
+`-4` `#b57e00` (amber), `-5` `#c44e7d` (pink), `-6` `#4d7c0f` (olive),
+`-7` `#6d28d9` (violet), `-8` `#b93535` (red). Use `chartColor(n)` / `chartTheme`;
+never derive series from the action colour or a route's button colour. Every
+series holds 3:1 on surface, raised and subtle grounds; every pair is dE > 30
+apart (minimum 33.9); every pair stays distinct under deuteranopia simulation.
+Every chart sits in a `ChartPanel` with a text summary.
 
-## Verification
+## The floor (compressors, Tools)
 
-- **Light:** categorical hero/group/card accents OK on stone canvas.
-- **Dark:** no rainbow module grids, hero strips, or violet-washed controls — neutral structure and interaction; status screens keep semantic rose/amber/emerald meaning and charts keep categorical color.
-- `prefers-reduced-motion`: GlowCard lift, AnimatedText emerge, PulsingIcon pulse, modal motion respect reduced preference.
+Floor pages set `data-floor-theme="sage"`, which repaints the canvas to `#dbe7df`
+and deepens the surfaces around it (`floor-themes.css`). `FloorBackdrop` also
+moves the browser/installed-app title bar to the same sage (`TITLE_BAR`), and
+restores it when the page closes. This is the only sanctioned second canvas.
+
+## PWA and browser chrome
+
+The manifests (`public/manifest.json`, `public/tools/manifest.webmanifest`) and
+both viewport `themeColor`s use the canvas token `#f4f6f5`, so the splash, the
+title bar and the page ground are one surface. `lib/pwa-colours.test.ts` asserts
+they stay equal to the token.
+
+## Rules
+
+- Pages contain no hex literals: tokens or Tailwind roles (`bg-surface`,
+  `text-ink-muted`, `border-line`, `bg-action`). Enforced by ESLint and
+  `scripts/css-consistency.mjs`.
+- KPI values and metrics are primary text, not hue-coded, unless the number is a
+  status signal (then the status tone plus its label).
+- Selected state is a filled action pill on the muted track — never a pale tint
+  that blends into the track.

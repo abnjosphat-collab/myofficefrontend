@@ -1,7 +1,9 @@
 /**
  * Chart styling for Recharts, from tokens only (no hex in pages). Categorical series use the fixed
- * `--mo-chart-N` order; status colours are never reused as series. Every chart sits in a ChartPanel
- * that also provides a text alternative.
+ * `--mo-chart-N` order; status colours are never reused as series. The eight colours each hold 3:1
+ * on every chart ground, every pair is dE > 30 apart, and every pair stays distinct under
+ * deuteranopia simulation (re-checked by foundations/tokens.test.ts on every run). Every chart sits
+ * in a ChartPanel that also provides a text alternative.
  */
 export const chartColor = (slot: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8) => `var(--mo-chart-${slot})`;
 

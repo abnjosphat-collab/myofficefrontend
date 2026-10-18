@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button, Dialog, Glyph, Icon, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, StatusBadge, Tag, cn } from '@/components/ui-system';
 import { trackModuleUsage, type Category, type Module } from '@/components/app-shell';
+import { splitHighlight } from '@/lib/moduleSearch';
 
 export interface ModuleActions {
   favorites: Set<string>;
@@ -20,13 +21,18 @@ export interface ModuleActions {
 
 // Exported for the TestHomepage concept's per-category accordion; the home page
 // itself keeps composing it through ModuleBrowser below. Zero behavior change.
-export function ModuleTile({ module, row, actions }: { module: Module; row: boolean; actions: ModuleActions }) {
+function Highlighted({ text, words }: { text: string; words?: string[] }) {
+  if (!words?.length) return <>{text}</>;
+  return <>{splitHighlight(text, words).map((run, i) => run.mark ? <mark key={i} className="rounded-sm bg-warning-soft text-ink">{run.text}</mark> : <span key={i}>{run.text}</span>)}</>;
+}
+
+export function ModuleTile({ module, row, actions, highlight }: { module: Module; row: boolean; actions: ModuleActions; highlight?: string[] }) {
   const favorite = actions.favorites.has(module.href);
   const selected = actions.selected.has(module.href);
   const titleClasses = "text-left font-display text-title font-semibold leading-snug text-ink outline-none after:absolute after:inset-0 after:rounded-card after:content-['']";
   const title = actions.selectMode
-    ? <button type="button" aria-pressed={selected} onClick={() => actions.onToggleSelected(module.href)} className={titleClasses}>{module.title}</button>
-    : <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={titleClasses}>{module.title}</Link>;
+    ? <button type="button" aria-pressed={selected} onClick={() => actions.onToggleSelected(module.href)} className={titleClasses}><Highlighted text={module.title} words={highlight} /></button>
+    : <Link href={module.href} onClick={() => trackModuleUsage(module.href)} className={titleClasses}><Highlighted text={module.title} words={highlight} /></Link>;
 
   return (
     <div
@@ -44,7 +50,7 @@ export function ModuleTile({ module, row, actions }: { module: Module; row: bool
           {favorite && !actions.selectMode && <Icon name="starred" size="xs" weight="emphasis" className="shrink-0 text-warning" label="Favourite" />}
           {actions.selectMode && selected && <StatusBadge tone="brand" icon="check">Selected</StatusBadge>}
         </span>
-        <span className={cn('mt-0.5 block font-sans text-body-sm text-ink-muted', row ? 'truncate' : 'line-clamp-2')}>{module.description}</span>
+        <span className={cn('mt-0.5 block font-sans text-body-sm text-ink-muted', row ? 'truncate' : 'line-clamp-2')}><Highlighted text={module.description} words={highlight} /></span>
       </span>
       {!actions.selectMode && (
         <Menu>
@@ -59,7 +65,7 @@ export function ModuleTile({ module, row, actions }: { module: Module; row: bool
   );
 }
 
-function CategorySection({ category, row, actions }: { category: Category; row: boolean; actions: ModuleActions }) {
+function CategorySection({ category, row, actions, highlight }: { category: Category; row: boolean; actions: ModuleActions; highlight?: string[] }) {
   return (
     <section id={category.id} aria-labelledby={`cat-${category.id}`} className="flex scroll-mt-24 flex-col gap-3">
       <div className="flex items-baseline gap-x-3 gap-y-0.5 border-b border-line-subtle pb-2">
@@ -67,14 +73,14 @@ function CategorySection({ category, row, actions }: { category: Category; row: 
         <p className="min-w-0 flex-1 truncate font-sans text-body-sm text-ink-muted">{category.description}</p>
       </div>
       <div className={row ? 'flex flex-col gap-2' : 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 min-[1700px]:grid-cols-4'}>
-        {category.modules.map(module => <ModuleTile key={module.href} module={module} row={row} actions={actions} />)}
+        {category.modules.map(module => <ModuleTile key={module.href} module={module} row={row} actions={actions} highlight={highlight} />)}
       </div>
     </section>
   );
 }
 
-export function ModuleBrowser({ categories, view, actions }: { categories: Category[]; view: 'grid' | 'list'; actions: ModuleActions }) {
-  return <div className="flex flex-col gap-8">{categories.map(category => <CategorySection key={category.id} category={category} row={view === 'list'} actions={actions} />)}</div>;
+export function ModuleBrowser({ categories, view, actions, highlight }: { categories: Category[]; view: 'grid' | 'list'; actions: ModuleActions; highlight?: string[] }) {
+  return <div className="flex flex-col gap-8">{categories.map(category => <CategorySection key={category.id} category={category} row={view === 'list'} actions={actions} highlight={highlight} />)}</div>;
 }
 
 export function QuickViewDialog({ module, onClose }: { module: Module | null; onClose: () => void }) {

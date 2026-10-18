@@ -26,7 +26,7 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onO
     >
       <Slab
         accent={accent}
-        className={`group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)] ${justSaved ? s.saved : ''}`}
+        className={`group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus ${justSaved ? s.saved : ''}`}
         role="button"
         tabIndex={0}
         aria-label={`${compressor.name}, ${status}, ${hours(compressor.total_running_hours)} running. ${recordedToday ? 'Reading recorded today.' : 'Reading due today.'} Open to record a reading.`}
@@ -48,7 +48,7 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onO
           <div className={`flex items-end justify-between gap-3`}>
             <div>
               <p className="font-sans text-caption text-ink-muted">Running hours</p>
-              <p className="floor-meter text-[22px] font-medium leading-none" style={{ color: accent }}>
+              <p className="floor-meter text-readout font-medium leading-none" style={{ color: accent }}>
                 <CountUp value={compressor.total_running_hours} decimals={1} /><span className="ml-1 text-body font-medium text-ink-muted">h</span>
               </p>
               <p className="mt-1 font-sans text-caption text-ink-muted">
@@ -65,7 +65,7 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onO
             </Ring>
           </div>
 
-          <footer className={`flex items-center justify-between gap-2 border-t border-[var(--mo-line-subtle)] pt-3`}>
+          <footer className={`flex items-center justify-between gap-2 border-t border-line-subtle pt-3`}>
             <span className="font-sans text-caption text-ink-muted">
               {life.next ? <>Next: <span className="font-medium text-ink">{life.next} h</span> in {life.hoursLeft?.toFixed(0)} h</> : 'All planned services passed'}
             </span>

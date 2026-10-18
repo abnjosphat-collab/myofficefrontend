@@ -9,6 +9,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
 import { summarizeActions } from '@/lib/actionPlan';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatTime } from '@/lib/format';
 import type { ActionItem, ActionStatus, BehaviourCategory, CoachingTechnique, ObservationType, SectionType, VFLReport, VFLStatus } from './types';
@@ -50,8 +51,8 @@ const StatusTag = ({ status }: { status: VFLStatus }) => { const m = STATUS_META
 const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
 
 type Form = Pick<VFLReport, 'observerName' | 'designation' | 'sectionChoice' | 'departmentSection' | 'date' | 'time' | 'behaviourCategory' | 'observationType' | 'description' | 'coachingTechnique' | 'actions' | 'status'>;
-const emptyForm = (): Form => ({
-  observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering', date: new Date().toISOString().slice(0, 10),
+export const emptyForm = (): Form => ({
+  observerName: '', designation: '', sectionChoice: 'Mechanical', departmentSection: 'Engineering', date: todayLocal(),
   time: formatTime(new Date()), behaviourCategory: 'Safe Behaviour', observationType: 'Safe Behaviour',
   description: '', coachingTechnique: 'SBR', actions: [], status: 'draft',
 });

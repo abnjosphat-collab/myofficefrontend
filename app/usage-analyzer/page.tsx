@@ -237,10 +237,10 @@ function UsageAnalyzerContent() {
                   {week.grid.map((row, day) => (
                     <div key={day} className="mb-[3px] flex items-center gap-[3px]">
                       <div className="w-8 shrink-0 font-sans text-caption text-ink-muted">{DAY_LABELS[day]}</div>
-                      {row.map((v, hour) => <div key={hour} className="aspect-square flex-1 rounded-[3px]" style={{ background: v === 0 ? 'var(--mo-surface-muted)' : heat(week.max ? v / week.max : 0) }} title={`${DAY_LABELS[day]} ${String(hour).padStart(2, '0')}:00: ${v} ${v === 1 ? 'interaction' : 'interactions'}`} />)}
+                      {row.map((v, hour) => <div key={hour} className="aspect-square flex-1 rounded-xs" style={{ background: v === 0 ? 'var(--mo-surface-muted)' : heat(week.max ? v / week.max : 0) }} title={`${DAY_LABELS[day]} ${String(hour).padStart(2, '0')}:00: ${v} ${v === 1 ? 'interaction' : 'interactions'}`} />)}
                     </div>
                   ))}
-                  <div className="mt-2 flex items-center justify-end gap-1.5 font-sans text-caption text-ink-muted"><span>Less</span>{[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="size-2.5 rounded-[2px]" style={{ background: heat(o) }} />)}<span>More</span></div>
+                  <div className="mt-2 flex items-center justify-end gap-1.5 font-sans text-caption text-ink-muted"><span>Less</span>{[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="size-2.5 rounded-xs" style={{ background: heat(o) }} />)}<span>More</span></div>
                 </div>
               </div>
             </ChartPanel>
@@ -254,12 +254,12 @@ function UsageAnalyzerContent() {
                         if (!day) return <div key={di} className="size-[13px]" />;
                         const dateLabel = formatFullDate(new Date(`${day.date}T00:00:00`), true);
                         const title = day.count === 0 ? `${dateLabel}: no activity` : `${dateLabel}: ${day.count} ${day.count === 1 ? 'interaction' : 'interactions'}${day.times.length ? ` at ${day.times.join(', ')}${day.count > day.times.length ? '…' : ''}` : ''}`;
-                        return <div key={di} className="size-[13px] rounded-[3px]" style={{ background: day.count === 0 ? 'var(--mo-surface-muted)' : heat(day.count / maxDayCount, 3) }} title={title} />;
+                        return <div key={di} className="size-[13px] rounded-xs" style={{ background: day.count === 0 ? 'var(--mo-surface-muted)' : heat(day.count / maxDayCount, 3) }} title={title} />;
                       })}
                     </div>
                   ))}
                 </div>
-                <div className="mt-2 flex items-center justify-end gap-1.5 font-sans text-caption text-ink-muted"><span>Less</span>{[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="size-2.5 rounded-[2px]" style={{ background: heat(o, 3) }} />)}<span>More</span></div>
+                <div className="mt-2 flex items-center justify-end gap-1.5 font-sans text-caption text-ink-muted"><span>Less</span>{[0.15, 0.4, 0.65, 0.9].map(o => <span key={o} className="size-2.5 rounded-xs" style={{ background: heat(o, 3) }} />)}<span>More</span></div>
               </div>
             </ChartPanel>
 

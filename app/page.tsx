@@ -11,6 +11,7 @@ import { AppShell, useAppShell, useDashboardData, type Module } from '@/componen
 import { ModuleBrowser, QuickViewDialog } from '@/components/home/ModuleBrowser';
 import { Snapshot } from '@/components/home/Snapshot';
 import { formatTime, formatFullDate } from '@/lib/format';
+import { rankCategories, searchWords } from '@/lib/moduleSearch';
 
 /** The current date and time, shown quietly under the title. */
 function Clock() {
@@ -27,7 +28,7 @@ function Tips() {
       <PopoverContent align="end" className="w-80 p-4">
         <h2 className="font-display text-title font-semibold text-ink">Getting around</h2>
         <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4 font-sans text-body-sm text-ink-muted">
-          <li>Search from the top bar to jump to any module.</li>
+          <li>Search from the sidebar to jump to any module. Several words narrow it down.</li>
           <li>Open a module&apos;s menu to pin it to Favourites in the sidebar.</li>
           <li>Feedback, notifications and settings are in the top bar.</li>
         </ul>
@@ -45,13 +46,8 @@ function HomeContent() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const searching = s.searchQuery.trim().length > 0;
-  const filteredCategories = useMemo(() => {
-    const query = s.searchQuery.trim().toLowerCase();
-    if (!query) return s.visibleCategories;
-    return s.visibleCategories
-      .map(cat => ({ ...cat, modules: cat.modules.filter(m => m.title.toLowerCase().includes(query) || m.description.toLowerCase().includes(query) || m.tags?.some(tag => tag.toLowerCase().includes(query))) }))
-      .filter(cat => cat.modules.length > 0);
-  }, [s.searchQuery, s.visibleCategories]);
+  const words = useMemo(() => searchWords(s.searchQuery), [s.searchQuery]);
+  const filteredCategories = useMemo(() => rankCategories(s.visibleCategories, s.searchQuery), [s.searchQuery, s.visibleCategories]);
   const totalResults = filteredCategories.reduce((sum, cat) => sum + cat.modules.length, 0);
   const moduleCount = s.visibleCategories.reduce((n, c) => n + c.modules.length, 0);
 
@@ -64,6 +60,7 @@ function HomeContent() {
       {searching ? (
         <>
           <h1 className="sr-only">Home</h1>
+          <title>Home | MyOffice</title>
           <div className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3">
             <p role="status" className="font-sans text-body text-ink-muted"><strong className="font-semibold text-ink">{totalResults}</strong> {totalResults === 1 ? 'module matches' : 'modules match'} “{s.searchQuery}”</p>
             <Button size="sm" onClick={() => s.setSearchQuery('')}>Clear search</Button>
@@ -92,18 +89,28 @@ function HomeContent() {
           </>
         )}
         {filteredCategories.length === 0 ? (
-          <EmptyState icon="search" title="No modules found" description="Try a different search." action={<Button onClick={() => s.setSearchQuery('')}>Clear search</Button>} />
+          <EmptyState icon="search" title="No modules found" description={searching ? `Nothing matches “${s.searchQuery}”. Try fewer words, or one of these.` : 'Try a different search.'} action={searching ? (
+            <span className="flex flex-wrap justify-center gap-2">
+              {['overtime', 'leave', 'tools'].map(suggestion => (
+                <Button key={suggestion} size="sm" variant="secondary" onClick={() => s.setSearchQuery(suggestion)}>{suggestion}</Button>
+              ))}
+              <Button size="sm" onClick={() => s.setSearchQuery('')}>Clear search</Button>
+            </span>
+          ) : (
+            <Button onClick={() => s.setSearchQuery('')}>Clear search</Button>
+          )} />
         ) : (
           <ModuleBrowser
             categories={filteredCategories}
             view={view}
+            highlight={searching ? words : undefined}
             actions={{ favorites: s.favoriteHrefs, onToggleFavorite: s.toggleFavorite, onQuickView: setQuickView, selectMode, selected, onToggleSelected: toggleSelected }}
           />
         )}
       </section>
 
       {selectMode && (
-        <div className="fixed inset-x-3 bottom-4 z-[var(--mo-z-sticky)] mx-auto w-fit max-w-full">
+        <div className="fixed inset-x-3 bottom-4 z-sticky mx-auto w-fit max-w-full">
           <Card padding="sm" className="flex flex-wrap items-center gap-3 shadow-popover">
             <span role="status" className="font-sans text-label font-medium text-ink">{selected.size === 0 ? 'Choose the modules to add' : `${selected.size} ${selected.size === 1 ? 'module' : 'modules'} selected`}</span>
             <Button size="sm" onClick={toggleSelectMode}>Cancel</Button>

@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
 import {
-  Button, Checkbox, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, PageHeader, Progress, Segmented, SearchField, Select,
+  Button, Checkbox, DataRegion, DataTable, EmptyState, Fact, FactList, Field, FormDialog, IconButton, Input, PageHeader, Progress, Segmented, SearchField, Select,
   StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, type Column, type Tone,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -53,7 +53,7 @@ const COLUMNS: Column<JobCard>[] = [
   { id: 'scheduled_date', header: 'Scheduled', hideBelow: 'md', cell: jc => <span className="tabular whitespace-nowrap">{jc.scheduled_date ? formatDate(jc.scheduled_date) : 'Not set'}</span> },
 ];
 
-function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => void; onSave: (j: JobCard) => Promise<void> }) {
+export function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => void; onSave: (j: JobCard) => Promise<void> }) {
   // tasks / parts_used guards: legacy or malformed records may lack the arrays.
   const [data, setData] = useState<JobCard>({ ...jc, tasks: (jc.tasks ?? []).map(x => ({ ...x })), parts_used: jc.parts_used ?? [] });
   const [signOffOpen, setSignOffOpen] = useState(false);
@@ -75,11 +75,12 @@ function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: () => vo
         secondaryAction={allDone && data.status !== 'completed' ? <Button icon="check" onClick={() => setSignOffOpen(true)}>Supervisor sign-off</Button> : undefined}
       >
         <div className="flex flex-wrap items-center gap-2"><PriorityBadge value={data.priority} /><StatusTag value={data.status} /></div>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 font-sans text-body-sm sm:grid-cols-4">
-          {[['Assigned to', data.assigned_to], ['Supervisor', data.supervisor], ['Scheduled', data.scheduled_date ? formatDate(data.scheduled_date) : 'Not set'], ['Labour hours', `${data.labour_hours ?? 0} h`]].map(([label, value]) => (
-            <div key={label}><dt className="text-caption text-ink-muted">{label}</dt><dd className="mt-0.5 font-medium text-ink">{value || 'Not set'}</dd></div>
-          ))}
-        </dl>
+        <FactList columns={3} aria-label="Assignment">
+          <Fact label="Assigned to">{data.assigned_to}</Fact>
+          <Fact label="Supervisor">{data.supervisor}</Fact>
+          <Fact label="Scheduled">{data.scheduled_date ? formatDate(data.scheduled_date) : ''}</Fact>
+          <Fact label="Labour hours">{`${data.labour_hours ?? 0} h`}</Fact>
+        </FactList>
         {data.description && <p className="font-sans text-body text-ink-muted">{data.description}</p>}
 
         <section aria-labelledby="jc-tasks">

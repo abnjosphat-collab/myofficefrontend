@@ -216,6 +216,7 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.ts", "**/*.tsx"],
     ignores: [
+      "lib/dates.ts", "**/*.test.ts", "**/*.test.tsx",
       "lib/auth-context.tsx", "lib/supabase.ts", "app/auth/callback/page.tsx",
       // lib/api.ts's authFetch() calls getSession() too, but for a different, safe
       // reason: grabbing the current token to attach to one outgoing request's
@@ -236,6 +237,10 @@ const eslintConfig = defineConfig([
         {
           selector: "CallExpression[callee.property.name='onAuthStateChange']",
           message: "supabase.auth.onAuthStateChange() outside lib/auth-context.tsx (the single sanctioned subscriber) risks reintroducing the auth race-condition bug class (see frontend/docs/ENGINEERING_STANDARDS.md) — subscribe via useAuth() instead.",
+        },
+        {
+          selector: "CallExpression[callee.property.name=/^(slice|split|substring)$/][callee.object.callee.property.name='toISOString']",
+          message: "Reading a calendar date out of .toISOString() gives the UTC date, which is yesterday 00:00–02:00 ZW time (nine report forms shipped this bug). Use todayLocal() / toLocalISODate() from lib/dates.ts instead.",
         },
       ],
     },

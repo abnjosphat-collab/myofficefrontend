@@ -63,8 +63,11 @@ const spec = {
     check(await page.getByText(/was not saved: Save rejected \(fixture\)/).isVisible() && STORE.size === 0, 'a refused save says why and nothing is kept');
     failSave = false;
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.getByRole('tab', { name: 'Saved (1)' }).waitFor({ timeout: 5000 }).catch(() => {});
-    check(await page.getByRole('tab', { name: 'Saved (1)' }).isVisible() && STORE.has('QT-TEST-1'), 'saving keeps the quotation on the server and adds it to the saved list');
+    // Poll for the asserted condition (tab visible AND store updated) instead of sampling one instant:
+    // under full-suite load the save response lands after a fixed wait expires but before the click below.
+    const savedTab = page.getByRole('tab', { name: 'Saved (1)' });
+    for (let i = 0; i < 50 && (!(await savedTab.isVisible().catch(() => false)) || !STORE.has('QT-TEST-1')); i++) await page.waitForTimeout(100);
+    check(await savedTab.isVisible() && STORE.has('QT-TEST-1'), 'saving keeps the quotation on the server and adds it to the saved list');
     check(calls.some(c => c.method === 'PUT' && c.pathname === '/api/quotations/QT-TEST-1' && c.body?.draft?.client?.name === 'Acme Mining'), 'the whole quotation is sent');
     await page.getByRole('tab', { name: 'Saved (1)' }).click();
     await shot(page, 'saved@1440');

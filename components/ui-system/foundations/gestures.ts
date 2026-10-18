@@ -5,4 +5,4 @@
  * closeTurn: the close (✕) turns a quarter turn on hover, the Tools workspace's close gesture, on every close and
  * remove control. Reduced motion keeps it still.
  */
-export const closeTurn = '[&>svg]:transition-transform [&>svg]:duration-[250ms] [&>svg]:ease-standard hover:[&>svg]:rotate-90 motion-reduce:[&>svg]:transition-none motion-reduce:hover:[&>svg]:rotate-0';
+export const closeTurn = '[&>svg]:transition-transform [&>svg]:duration-[var(--mo-duration-slow)] [&>svg]:ease-standard hover:[&>svg]:rotate-90 motion-reduce:[&>svg]:transition-none motion-reduce:hover:[&>svg]:rotate-0';

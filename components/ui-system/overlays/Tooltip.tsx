@@ -20,7 +20,7 @@ function EnsureProvider({ children }: { children: ReactNode }) {
 }
 
 const contentClasses = cn(
-  'z-[var(--mo-z-tooltip)] max-w-72 rounded-[8px] border border-line bg-surface px-2.5 py-1.5 font-sans text-tip text-ink shadow-popover',
+  'z-tooltip max-w-72 rounded-control border border-line bg-surface px-2.5 py-1.5 font-sans text-tip text-ink shadow-popover',
   'data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
   'duration-[var(--mo-duration-fast)]',
 );

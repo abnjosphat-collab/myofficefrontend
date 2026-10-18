@@ -58,7 +58,7 @@ export function ShellSidebar({
       aria-expanded={listOpen}
       aria-label={listOpen ? 'Hide navigation list' : 'Show navigation list'}
       onClick={() => setListOpen(!listOpen)}
-      className="focus-ring touch-target flex min-h-8 w-full items-center justify-center gap-2 rounded-b-[16px] font-sans text-caption font-semibold text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:bg-soft hover:text-action"
+      className="focus-ring touch-target flex min-h-8 w-full items-center justify-center gap-2 rounded-b-panel font-sans text-caption font-semibold text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:bg-soft hover:text-action"
     >
       <Icon name={listOpen ? 'chevron-up' : 'chevron-down'} size="xs" />
       {!rail && <span>{listOpen ? 'Hide' : 'Show'}</span>}

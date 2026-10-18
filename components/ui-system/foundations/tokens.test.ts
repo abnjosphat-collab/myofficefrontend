@@ -34,6 +34,41 @@ const ratio = (a: string, b: string): number => {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 };
 
+type Lab = [number, number, number];
+
+const linearChannel = (v: number): number => {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+};
+
+const linearToLab = ([r, g, b]: [number, number, number]): Lab => {
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
+  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const f = (t: number): number => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+};
+
+const hexToLab = (hex: string): Lab => linearToLab([
+  linearChannel(parseInt(hex.slice(1, 3), 16)),
+  linearChannel(parseInt(hex.slice(3, 5), 16)),
+  linearChannel(parseInt(hex.slice(5, 7), 16)),
+]);
+
+/** Machado et al. severity-1 deuteranopia: what the series colour looks like without M cones. */
+const deuteranopia = (hex: string): Lab => {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return linearToLab([
+    linearChannel((0.625 * r + 0.375 * g) * 255),
+    linearChannel((0.7 * r + 0.3 * g) * 255),
+    linearChannel((0.3 * g + 0.7 * b) * 255),
+  ]);
+};
+
+const deltaE = (a: Lab, b: Lab): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+const seriesHex = (): string[] => Array.from({ length: 8 }, (_, i) => token(`mo-chart-${i + 1}`));
+
 describe('foundation token contrast', () => {
   it('all eight chart series hold 3:1 on every chart ground', () => {
     const grounds = ['mo-surface', 'mo-surface-raised', 'mo-surface-subtle'].map(token);
@@ -53,5 +88,45 @@ describe('foundation token contrast', () => {
 
   it('chart axis text holds 4.5:1 on the card ground', () => {
     expect(ratio(token('mo-chart-axis'), token('mo-surface'))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('segmented selected state is unmistakable: filled pill vs track, ink on pill, idle label on track', () => {
+    // The old selected fill (action-soft on the muted track) measured 1.04:1 — indistinguishable.
+    expect(ratio(token('mo-action'), token('mo-surface-muted')), 'selected pill on track').toBeGreaterThanOrEqual(3);
+    expect(ratio(token('mo-action-ink'), token('mo-action')), 'selected label on pill').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(token('mo-ink-muted'), token('mo-surface-muted')), 'idle label on track').toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('control boundaries hold 3:1 on every ground they sit on (WCAG 1.4.11)', () => {
+    // Was 2.82:1 on canvas / 2.61:1 on muted — darkened along the same hue 2026-10-18.
+    for (const ground of ['mo-canvas', 'mo-surface', 'mo-surface-raised', 'mo-surface-muted']) {
+      expect(ratio(token('mo-line-control'), token(ground)), `line-control on ${ground}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('every chart-series pair is dE > 30 apart', () => {
+    // Orange vs red used to be dE 20.3 — neighbouring slices blurred together.
+    const labs = seriesHex().map(hexToLab);
+    let min = Infinity;
+    let minPair = '';
+    for (let i = 0; i < labs.length; i += 1) {
+      for (let j = i + 1; j < labs.length; j += 1) {
+        const d = deltaE(labs[i], labs[j]);
+        if (d < min) { min = d; minPair = `${i + 1}v${j + 1}`; }
+        expect(d, `chart-${i + 1} vs chart-${j + 1}`).toBeGreaterThan(30);
+      }
+    }
+    expect(min, `minimum pair dE (${minPair})`).toBeGreaterThan(30);
+  });
+
+  it('every chart-series pair stays distinct under deuteranopia simulation', () => {
+    // Machado et al. severity-1 deuteranopia on sRGB; threshold 10 is ~4x the
+    // just-noticeable difference, so pairs stay separable for red-green colour blindness.
+    const labs = seriesHex().map(deuteranopia);
+    for (let i = 0; i < labs.length; i += 1) {
+      for (let j = i + 1; j < labs.length; j += 1) {
+        expect(deltaE(labs[i], labs[j]), `chart-${i + 1} vs chart-${j + 1} (deuteranopia)`).toBeGreaterThanOrEqual(10);
+      }
+    }
   });
 });

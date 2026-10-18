@@ -6,7 +6,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Button, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Tag, usePersistentState } from '@/components/ui-system';
+import { Button, Fact, FactList, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Tag, usePersistentState } from '@/components/ui-system';
 import { typeOf } from '@/app/leaves/leaveTypes';
 import { DayBreakdown, type BreakdownRecord } from '@/components/shared/timesheet/DayBreakdown';
 import { DayCard, DayCardsShell, DayHoursList } from '@/components/shared/timesheet/DayCards';
@@ -194,11 +194,11 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
     <div className="flex flex-col gap-4">
       <section aria-label="This timesheet" className="flex flex-col gap-4 rounded-card border border-line bg-surface p-5 shadow-card">
         <h2 className="font-display text-title font-semibold text-ink">{employee.name}, {fmtPeriod(period)}</h2>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {([['Mine number', employee.employeeId], ['Department', employee.department], ['Position', employee.position]] as const).map(([k, v]) => (
-            <div key={k} className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v || 'Not recorded'}</dd></div>
-          ))}
-        </dl>
+        <FactList columns={3} aria-label="Employee">
+          <Fact label="Mine number">{employee.employeeId}</Fact>
+          <Fact label="Department">{employee.department}</Fact>
+          <Fact label="Position">{employee.position}</Fact>
+        </FactList>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-surface-subtle px-4 py-2.5">

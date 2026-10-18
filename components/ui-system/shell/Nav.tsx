@@ -80,7 +80,7 @@ export function NavSpotlight({ label, icon, href, collapsed, onNavigate, current
         collapsed && 'shrink-0 p-1 pointer-coarse:min-w-11',
       )}
     >
-      <span className="grid size-[30px] shrink-0 place-items-center rounded-nav bg-action text-action-ink"><NavGlyph icon={icon} weight="emphasis" /></span>
+      <span className="grid size-[30px] shrink-0 place-items-center rounded-sm bg-action text-action-ink"><NavGlyph icon={icon} weight="emphasis" /></span>
       {!collapsed && <strong className="min-w-0 font-sans text-spotlight leading-[1.25] text-ink [overflow-wrap:anywhere] line-clamp-2" title={label}>{label}</strong>}
     </Link>
   );

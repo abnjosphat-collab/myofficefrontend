@@ -53,7 +53,7 @@ export function AnalyticsTab({ metrics, trends, comparison, period, onPeriod, me
                     return (
                       <li key={item.compressor_name} className="flex flex-col gap-2 rounded-control bg-surface-subtle p-3">
                         <div className="flex items-center justify-between gap-2"><span className="font-sans text-label font-medium text-ink">{item.compressor_name}</span><StatusBadge tone={meta.tone}>{meta.label}</StatusBadge></div>
-                        <dl className="grid grid-cols-3 gap-3">
+                        <dl className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3">
                           <div><dt className="font-sans text-caption text-ink-muted">Efficiency</dt><dd className="font-sans text-body font-semibold text-ink tabular">{item.avg_efficiency}%</dd></div>
                           <div><dt className="font-sans text-caption text-ink-muted">Running</dt><dd className="font-sans text-body font-semibold text-ink tabular">{hours(item.total_running_hours)}</dd></div>
                           <div><dt className="font-sans text-caption text-ink-muted">Loaded</dt><dd className="font-sans text-body font-semibold text-ink tabular">{hours(item.total_loaded_hours)}</dd></div>

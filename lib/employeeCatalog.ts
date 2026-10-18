@@ -33,6 +33,7 @@ export const DESIGNATION_ORDER: string[] = [
   'Supervisor',
   'Engineering Manager',
   'Maintenance Engineer',
+  'Planning Superintendent',
 ];
 
 const DESIGNATION_SET = new Set<string>(DESIGNATION_ORDER);
@@ -108,6 +109,8 @@ const DESIGNATION_ALIASES: Record<string, string> = {
   'bus drivers': 'Bus Driver',
   'engineering manager': 'Engineering Manager',
   'maintenance engineer': 'Maintenance Engineer',
+  'planning superintendant': 'Planning Superintendent',
+  'superintendent planning': 'Planning Superintendent',
 };
 
 /** Canonical section for each standard designation (Foreman/Supervisor excluded). */
@@ -134,6 +137,8 @@ const DESIGNATION_SECTION: Record<string, string> = {
   'Plumber Assistant': 'Mechanical',
   'Engineering Manager': 'Management',
   'Maintenance Engineer': 'Management',
+  // A Planning Superintendent sits in Management on this site (owner's call, 2026-10-18).
+  'Planning Superintendent': 'Management',
 };
 
 /** Known mis-labelled employees — applied by name during normalize/save (case-insensitive). */
@@ -324,7 +329,7 @@ export function buildForemanOptions(
     const full = `${e.first_name || ''} ${e.last_name || ''}`.trim();
     const des = (e.designation || '').toLowerCase();
     if (full && (
-      des.includes('foreman') || des.includes('supervisor')
+      des.includes('foreman') || des.includes('supervisor') || des.includes('superintendent')
       || des.includes('engineering manager') || des.includes('maintenance engineer')
     )) names.add(full);
   }

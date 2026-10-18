@@ -26,17 +26,17 @@ function RemoveButton({ label, onConfirm, disabled, labelText = 'Remove', confir
 
 function Accordion({ open, onToggle, icon, title, subtitle, count, noun, children, pick }: { open: boolean; onToggle: () => void; icon: 'user' | 'box'; title: string; subtitle: string; count: number | null; noun: string; children: React.ReactNode; pick?: React.ReactNode }) {
   return (
-    <article className="rounded-card border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)]">
+    <article className="rounded-card border border-line-subtle bg-surface-raised">
       <div className="flex items-center">
         {pick}
-        <button type="button" aria-expanded={open} onClick={onToggle} className="focus-ring flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+        <button type="button" aria-expanded={open} onClick={onToggle} className="focus-ring flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-subtle">
           <span className="text-ink-muted"><Icon name={icon === 'user' ? 'user' : 'equipment'} size="md" /></span>
           <span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{title}</strong><small className="block truncate font-sans text-caption text-ink-muted">{subtitle}</small></span>
           <span className={`shrink-0 font-sans text-caption ${count === 0 || count === null ? 'text-ink-muted' : 'font-medium text-ink'}`}>{count === null ? 'Approvals unknown' : `${count} ${noun}`}</span>
           <Icon name={open ? 'chevron-up' : 'chevron-down'} size="sm" />
         </button>
       </div>
-      {open && <div className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] px-4 py-3">{children}</div>}
+      {open && <div className="flex flex-col gap-3 border-t border-line-subtle px-4 py-3">{children}</div>}
     </article>
   );
 }
@@ -89,7 +89,7 @@ function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, elig
   return <>
     {eligible.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Not eligible for any equipment yet.</p> : <>
       {eligible.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter this person's equipment" />}
-      <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]" aria-label={`Equipment ${employee.name} is eligible for`}>
+      <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`Equipment ${employee.name} is eligible for`}>
         {shown.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{tool.id} · {tool.category}{authorisedBy(tool) ? ` · authorised by ${authorisedBy(tool)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${tool.name} from ${employee.name}`} disabled={busy} onConfirm={() => void change(tool, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
@@ -150,7 +150,7 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   return <>
     {people.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible for this equipment yet, so it cannot be issued.</p> : <>
       {people.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter the people for this equipment" />}
-      <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]" aria-label={`People eligible for ${tool.name}`}>
+      <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`People eligible for ${tool.name}`}>
         {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber ?? 'Not recorded'}{authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
@@ -168,7 +168,7 @@ export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePer
   const sorted = [...people].sort((a, b) => a.name.localeCompare(b.name));
   const shown = sorted.filter(person => `${person.name} ${person.employeeNumber ?? ''} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
   return (
-    <section aria-label="Eligible employees" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
+    <section aria-label="Eligible employees" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="font-sans text-caption font-medium text-ink-muted">Eligible employees</h3>
         <span className="font-sans text-caption text-ink-muted">{sorted.length} {sorted.length === 1 ? 'person' : 'people'}</span>
@@ -178,7 +178,7 @@ export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePer
         : (
           <>
             {sorted.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter eligible employees" />}
-            <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]" aria-label="Eligible employees list">
+            <ul className="flex flex-col divide-y divide-line-subtle" aria-label="Eligible employees list">
               {shown.map(person => (
                 <li key={person.id} className="flex items-center gap-3 py-2">
                   <span aria-hidden="true" className="text-ink-muted"><Icon name="user" size="sm" /></span>

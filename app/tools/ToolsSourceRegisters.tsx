@@ -23,7 +23,7 @@ export function SourceRegisterForm({ departments, onSave, onCancel }: { departme
         <Input aria-label="Register file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.docx,.doc,.ods,.odt,.jpg,.jpeg,.png,.webp" onChange={event => setFile(event.target.files?.[0] || null)} />
       </Field>
       <Field label="Notes" optional><Textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} placeholder="For example: Engineering opening register, received from the mechanical workshop." /></Field>
-      <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4"><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" icon="upload" disabled={!file}>Upload register</Button></div>
+      <div className="flex justify-end gap-2 border-t border-line-subtle pt-4"><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" icon="upload" disabled={!file}>Upload register</Button></div>
     </form>
   );
 }
@@ -41,7 +41,7 @@ export function ToolsSourceRegisters({ items, search, onUpload }: { items: Sourc
         ? (
           <ul className="flex flex-col gap-3">
             {visible.map(item => (
-              <li key={item.id} className="flex items-center gap-4 rounded-card border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)] p-4">
+              <li key={item.id} className="flex items-center gap-4 rounded-card border border-line-subtle bg-surface-raised p-4">
                 <span className="text-ink-muted"><Icon name={item.content_type === 'application/pdf' ? 'pdf' : 'attachment'} size="lg" /></span>
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate font-sans text-body-sm font-medium text-ink">{item.original_name}</strong>

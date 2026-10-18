@@ -51,11 +51,11 @@ export function MonthView({ compressors, history, loading, year, month, today, o
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <IconButton icon="chevron-left" label="Previous month" variant="outline" onClick={() => shift(-1)} />
-          <h2 className="min-w-40 text-center font-display text-[18px] font-normal text-ink">{label}</h2>
+          <h2 className="min-w-40 text-center font-display text-lg font-normal text-ink">{label}</h2>
           <IconButton icon="chevron-right" label="Next month" variant="outline" onClick={() => shift(1)} />
         </div>
         <div className="flex flex-wrap items-center gap-4 font-sans text-caption text-ink-muted">
-          <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-1.5 rounded-full bg-[var(--mo-ink-subtle)]" />No reading</span>
+          <span className="flex items-center gap-1.5"><span aria-hidden="true" className="size-1.5 rounded-full bg-ink-subtle" />No reading</span>
           <span className="flex items-center gap-1.5"><span aria-hidden="true" className={s.spanMark} />Covers several days</span>
           {compressors.length > 0 && <DownloadButton data={exportRows} columns={exportColumns} filename={exportFilename(`Compressors_${MONTHS[month - 1]}_${year}`)} title={`Compressor running hours, ${label}`} subtitle="Hours since the previous reading; (Nd) marks a reading covering N days" />}
         </div>
@@ -66,7 +66,7 @@ export function MonthView({ compressors, history, loading, year, month, today, o
           <caption className="sr-only">Daily running hours per compressor for {label}{loading ? ' (loading)' : ''}</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-[var(--mo-surface-raised)] px-3 py-2 text-left font-medium text-ink-muted">Compressor</th>
+              <th scope="col" className="sticky left-0 z-10 bg-surface-raised px-3 py-2 text-left font-medium text-ink-muted">Compressor</th>
               {Array.from({ length: days }, (_, i) => {
                 const iso = isoDay(year, month, i + 1);
                 const wd = new Date(year, month - 1, i + 1).getDay();
@@ -87,15 +87,15 @@ export function MonthView({ compressors, history, loading, year, month, today, o
           <tbody>
             {rows.map(({ c, m }, ri) => (
               <tr key={c.id} className={s.rowIn} style={{ animationDelay: `${Math.min(ri * 30, 300)}ms` }}>
-                <th scope="row" className="sticky left-0 z-10 max-w-44 truncate border-t border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)] px-3 py-1.5 text-left font-medium text-ink"><button type="button" onClick={() => onOpenUnit(c.id)} aria-label={`${c.name.trim()}: week and month in detail`} className="max-w-full truncate rounded-[4px] text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">{c.name}</button></th>
+                <th scope="row" className="sticky left-0 z-10 max-w-44 truncate border-t border-line-subtle bg-surface-raised px-3 py-1.5 text-left font-medium text-ink"><button type="button" onClick={() => onOpenUnit(c.id)} aria-label={`${c.name.trim()}: week and month in detail`} className="max-w-full truncate rounded-xs text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">{c.name}</button></th>
                 {m.days.map(d => (
-                  <td key={d.date} className={`border-t border-[var(--mo-line-subtle)] px-px py-1.5 text-center ${d.date === today ? 'bg-[var(--mo-action-soft)]' : ''}`}>
+                  <td key={d.date} className={`border-t border-line-subtle px-px py-1.5 text-center ${d.date === today ? 'bg-action-soft' : ''}`}>
                     <DayCell unit={c.name} day={d} onOpen={() => onOpenDay(c.id, d.date)} />
                   </td>
                 ))}
-                <td className="whitespace-nowrap border-t border-[var(--mo-line-subtle)] px-2 py-1.5 text-right"><span className="floor-meter text-ink">{m.running.toFixed(1)}</span> <span className="text-ink-muted">h</span></td>
-                <td className="whitespace-nowrap border-t border-[var(--mo-line-subtle)] px-2 py-1.5 text-right tabular text-ink">{m.loadedPct == null ? <span className="text-ink-muted">—</span> : `${m.loadedPct}%`}</td>
-                <td className="whitespace-nowrap border-t border-[var(--mo-line-subtle)] px-2 py-1.5 text-right tabular" style={{ color: m.recorded < m.expected ? 'var(--mo-warning)' : 'var(--mo-ink)' }}>{m.recorded}/{m.expected}</td>
+                <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right"><span className="floor-meter text-ink">{m.running.toFixed(1)}</span> <span className="text-ink-muted">h</span></td>
+                <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right tabular text-ink">{m.loadedPct == null ? <span className="text-ink-muted">—</span> : `${m.loadedPct}%`}</td>
+                <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right tabular" style={{ color: m.recorded < m.expected ? 'var(--mo-warning)' : 'var(--mo-ink)' }}>{m.recorded}/{m.expected}</td>
               </tr>
             ))}
           </tbody>
@@ -115,9 +115,9 @@ function DayCell({ unit, day, onOpen }: { unit: string; day: MonthDay; onOpen: (
   const a = intensity(day);
   return (
     <button type="button" onClick={onOpen} aria-label={text} title={text.replace(/ Open this day.*$/, '')}
-      className="relative mx-auto grid size-5 place-items-center rounded-[4px] transition-colors hover:outline hover:outline-1 hover:outline-[var(--mo-line-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]"
+      className="relative mx-auto grid size-5 place-items-center rounded-xs transition-colors hover:outline hover:outline-1 hover:outline-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       style={day.state === 'reading' ? { background: `color-mix(in srgb, var(--mo-action) ${Math.round(Math.max(0.12, a) * 85)}%, transparent)` } : undefined}>
-      {day.state === 'missing' && <span aria-hidden="true" className="size-1.5 rounded-full bg-[var(--mo-ink-subtle)]" />}
+      {day.state === 'missing' && <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-subtle" />}
       {day.state === 'reading' && day.span > 1 && <span aria-hidden="true" className={`${s.spanMark} absolute right-0.5 top-0.5`} />}
     </button>
   );

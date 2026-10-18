@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ARTISAN_FILTER_VALUE } from '@/lib/employeeCatalog';
-import { NO_FILTERS, filterEmployees, formProblems, fullName, groupByProfession, groupBySectionAndProfession, isFiltered, necEmployees, sortEmployees, summarise, tenure } from './roster';
+import { NO_FILTERS, filterEmployees, formProblems, fullName, groupByProfession, groupBySectionAndProfession, isFiltered, necEmployees, sectionImpliedNotice, sortEmployees, summarise, tenure } from './roster';
 import type { Employee } from './types';
 
 const emp = (o: Partial<Employee> = {}): Employee => ({ id: 1, employee_id: 'C1', first_name: 'Ann', last_name: 'Alpha', ...o }) as Employee;
@@ -93,5 +93,22 @@ describe('necEmployees', () => {
     const list = [{ employment_type: 'NEC', id: 1 }, { employment_type: 'SALARIED', id: 2 }, { employment_type: '', id: 3 }, { employment_type: 'NEC', id: 4 }] as Array<Pick<Employee, 'employment_type'> & { id: number }>;
     expect(necEmployees(list).map(e => e.id)).toEqual([1, 4]);
     expect(necEmployees([])).toEqual([]);
+  });
+});
+
+describe('sectionImpliedNotice', () => {
+  it('warns when a hand-picked section will be overwritten by the designation on save', () => {
+    // The Matangira-shaped silence: the form showed one section, the save persisted another, nothing said so.
+    expect(sectionImpliedNotice('Maintenance Engineer', 'Planning')).toBe('Maintenance Engineer belongs to Management — saving will use Management.');
+  });
+  it('stays quiet when the section already agrees, is blank-but-implied, or the designation implies nothing', () => {
+    expect(sectionImpliedNotice('Maintenance Engineer', 'Management')).toBeNull();
+    expect(sectionImpliedNotice('Maintenance Engineer', 'management')).toBeNull();
+    expect(sectionImpliedNotice('Clerk', 'Management')).toBeNull();
+    expect(sectionImpliedNotice('', 'Planning')).toBeNull();
+    expect(sectionImpliedNotice(undefined, undefined)).toBeNull();
+  });
+  it('warns when the section is blank but the designation will fill it in', () => {
+    expect(sectionImpliedNotice('Maintenance Engineer', '')).toBe('Maintenance Engineer belongs to Management — saving will use Management.');
   });
 });

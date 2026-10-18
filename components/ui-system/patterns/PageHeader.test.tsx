@@ -33,6 +33,11 @@ describe('PageHeader', () => {
     expect(screen.getByText('13 Sep to 12 Oct 2026')).toBeVisible();
   });
 
+  it('sets the document title to "<title> | MyOffice" (WCAG 2.4.2)', () => {
+    render(<PageHeader title="Leaves" />);
+    expect(document.title).toBe('Leaves | MyOffice');
+  });
+
   it('warns in development when a header has more than one primary action', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     render(<PageHeader title="Work" actions={<><Button variant="primary">One</Button><Button variant="primary">Two</Button></>} />);

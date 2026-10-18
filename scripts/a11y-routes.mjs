@@ -31,7 +31,10 @@ for (const spec of specs) {
   try {
     await page.goto(`${BASE}${spec.route}`, { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => {});
     await page.waitForSelector('main h1', { timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(800);
+    // Settle wait: the shell's ActiveNoticesPopup mounts after its fetches resolve and fades its cards
+    // in with a framer-motion spring. Sampling mid-fade reads blended intermediate colours as
+    // colour-contrast violations, so analyse the settled render, not the animation.
+    await page.waitForTimeout(2000);
     const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
     const blocking = results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
     if (!blocking.length) { console.log(`PASS  ${spec.route}`); continue; }

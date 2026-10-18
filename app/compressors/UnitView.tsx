@@ -75,14 +75,14 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Button variant="ghost" icon="back" onClick={onBack}>All compressors</Button>
-          <h2 className="truncate font-display text-[20px] font-normal text-ink">{compressor.name}</h2>
+          <h2 className="truncate font-display text-readout font-normal text-ink">{compressor.name}</h2>
           <span className="flex items-center gap-1.5 font-sans text-caption text-ink-muted"><span className={s.lamp} />{STATUS_META[compressor.status]?.label ?? compressor.status}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex gap-1 rounded-[10px] bg-[var(--mo-surface-muted)] p-1" role="group" aria-label="Period">
+          <div className="flex gap-1 rounded-lg bg-surface-muted p-1" role="group" aria-label="Period">
             {(['week', 'month'] as const).map(p => (
               <button key={p} type="button" aria-pressed={period === p} onClick={() => { setPeriod(p); setAnchor(today); }}
-                className="rounded-[8px] px-3 py-1 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:bg-[var(--mo-surface-raised)] aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
+                className="rounded-control px-3 py-1 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:bg-surface-raised aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
                 {p === 'week' ? 'Week' : 'Month'}
               </button>
             ))}
@@ -105,11 +105,11 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
       {/* The bars. Decoration for the figures in the table below, so hidden from assistive technology. */}
       <div className={`${s.slab} p-4`} data-still="" aria-hidden="true">
         <div className="relative pl-8">
-          <span className="absolute left-0 top-0 font-sans text-[10px] text-ink-muted">24 h</span>
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 font-sans text-[10px] text-ink-muted">12 h</span>
-          <span className="absolute bottom-0 left-0 font-sans text-[10px] text-ink-muted">0</span>
-          <div className="relative grid h-40 items-end border-b border-[var(--mo-line)]" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, columnGap: n > 14 ? 3 : 10 }}>
-            <span className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-[var(--mo-line-subtle)]" />
+          <span className="absolute left-0 top-0 font-sans text-tip text-ink-muted">24 h</span>
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 font-sans text-tip text-ink-muted">12 h</span>
+          <span className="absolute bottom-0 left-0 font-sans text-tip text-ink-muted">0</span>
+          <div className="relative grid h-40 items-end border-b border-line" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, columnGap: n > 14 ? 3 : 10 }}>
+            <span className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-line-subtle" />
             {range.days.map((d, i) => {
               const run = d.state === 'reading' ? (d.running ?? 0) / d.span : 0;
               const height = Math.min(100, (run / 24) * 100);
@@ -119,31 +119,31 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
               return (
                 <div key={d.date} title={tip} className="relative flex h-full items-end justify-center">
                   {d.state === 'reading' && (
-                    <motion.div className="relative w-full overflow-hidden rounded-t-[3px]" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)' }}
+                    <motion.div className="relative w-full overflow-hidden rounded-t-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)' }}
                       initial={reduced ? false : { height: 0 }} animate={{ height: `${Math.max(2, height)}%` }}
                       transition={{ duration: reduced ? 0 : 0.6, delay: reduced ? 0 : i * 0.015, ease: [0.16, 1, 0.3, 1] }}>
                       <span className="absolute inset-x-0 bottom-0" style={{ height: `${share * 100}%`, background: 'var(--mo-action)' }} />
                       {d.span > 1 && <span className={`${s.spanMark} absolute right-0.5 top-0.5`} />}
                     </motion.div>
                   )}
-                  {d.state === 'missing' && <span className="mb-1 size-1.5 rounded-full bg-[var(--mo-ink-subtle)]" />}
-                  {d.date === today && <span className="absolute inset-x-0 -bottom-5 mx-auto h-0.5 w-3/4 rounded bg-[var(--mo-ink)]" />}
+                  {d.state === 'missing' && <span className="mb-1 size-1.5 rounded-full bg-ink-subtle" />}
+                  {d.date === today && <span className="absolute inset-x-0 -bottom-5 mx-auto h-0.5 w-3/4 rounded bg-ink" />}
                 </div>
               );
             })}
           </div>
           <div className="mt-1.5 grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, columnGap: n > 14 ? 3 : 10 }}>
             {range.days.map(d => (
-              <span key={d.date} className={`text-center font-sans text-[10px] leading-tight ${d.date === today ? 'font-semibold text-ink' : 'text-ink-muted'}`}>
+              <span key={d.date} className={`text-center font-sans text-tip leading-tight ${d.date === today ? 'font-semibold text-ink' : 'text-ink-muted'}`}>
                 {period === 'week' ? <>{formatWeekday(parse(d.date)).slice(0, 3)}<br />{parse(d.date).getDate()}</> : parse(d.date).getDate()}
               </span>
             ))}
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-4 pl-8 font-sans text-caption text-ink-muted">
-          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-[2px] bg-[var(--mo-action)]" />Loaded</span>
-          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-[2px]" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)' }} />Running, not loaded</span>
-          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-[var(--mo-ink-subtle)]" />No reading</span>
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs bg-action" />Loaded</span>
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)' }} />Running, not loaded</span>
+          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-ink-subtle" />No reading</span>
           <span className="flex items-center gap-1.5"><span className={s.spanMark} />Covers several days (shown as the daily average)</span>
         </div>
       </div>
@@ -163,26 +163,26 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
             </tr>
           </thead>
           <tbody>
-            {table.length === 0 && <tr><td colSpan={7} className="border-t border-[var(--mo-line-subtle)] px-4 py-6 text-center text-ink-muted">Nothing to show for {label} yet.</td></tr>}
+            {table.length === 0 && <tr><td colSpan={7} className="border-t border-line-subtle px-4 py-6 text-center text-ink-muted">Nothing to show for {label} yet.</td></tr>}
             {table.map(({ d, row }) => {
               const when = `${formatWeekday(parse(d.date))} ${formatDate(parse(d.date))}`;
               return (
-                <tr key={d.date} className={d.date === today ? 'bg-[var(--mo-action-soft)]' : undefined}>
-                  <th scope="row" className="border-t border-[var(--mo-line-subtle)] px-4 py-1.5 text-left font-normal">
+                <tr key={d.date} className={d.date === today ? 'bg-action-soft' : undefined}>
+                  <th scope="row" className="border-t border-line-subtle px-4 py-1.5 text-left font-normal">
                     <button type="button" onClick={() => onOpenDay(d.date)} aria-label={`${when}: ${d.state === 'reading' ? 'open this day' : 'record a reading for this day'}`}
-                      className="rounded-[4px] text-left text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">{when}</button>
+                      className="rounded-xs text-left text-ink underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">{when}</button>
                   </th>
                   {d.state === 'reading' ? (
                     <>
-                      <td className="border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-right"><span className="floor-meter text-ink">{h1(d.running)}</span>{d.span > 1 && <span className="ml-1.5 text-caption text-ink-muted">over {d.span} days</span>}</td>
-                      <td className="floor-meter border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-right text-ink">{h1(d.loaded)}</td>
-                      <td className="border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-right tabular text-ink">{d.running ? `${Math.round(((d.loaded ?? 0) / d.running) * 100)}%` : '—'}</td>
-                      <td className="hidden border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-right tabular text-ink md:table-cell">{row?.pressure ? row.pressure : '—'}</td>
-                      <td className="hidden border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-right tabular text-ink md:table-cell">{row?.temperature ? row.temperature : '—'}</td>
-                      <td className="hidden max-w-64 truncate border-t border-[var(--mo-line-subtle)] px-4 py-1.5 text-ink-muted lg:table-cell">{row?.notes || ''}</td>
+                      <td className="border-t border-line-subtle px-3 py-1.5 text-right"><span className="floor-meter text-ink">{h1(d.running)}</span>{d.span > 1 && <span className="ml-1.5 text-caption text-ink-muted">over {d.span} days</span>}</td>
+                      <td className="floor-meter border-t border-line-subtle px-3 py-1.5 text-right text-ink">{h1(d.loaded)}</td>
+                      <td className="border-t border-line-subtle px-3 py-1.5 text-right tabular text-ink">{d.running ? `${Math.round(((d.loaded ?? 0) / d.running) * 100)}%` : '—'}</td>
+                      <td className="hidden border-t border-line-subtle px-3 py-1.5 text-right tabular text-ink md:table-cell">{row?.pressure ? row.pressure : '—'}</td>
+                      <td className="hidden border-t border-line-subtle px-3 py-1.5 text-right tabular text-ink md:table-cell">{row?.temperature ? row.temperature : '—'}</td>
+                      <td className="hidden max-w-64 truncate border-t border-line-subtle px-4 py-1.5 text-ink-muted lg:table-cell">{row?.notes || ''}</td>
                     </>
                   ) : (
-                    <td colSpan={6} className="border-t border-[var(--mo-line-subtle)] px-3 py-1.5 text-ink-muted">{d.state === 'before' ? 'Before the first reading' : 'No reading'}</td>
+                    <td colSpan={6} className="border-t border-line-subtle px-3 py-1.5 text-ink-muted">{d.state === 'before' ? 'Before the first reading' : 'No reading'}</td>
                   )}
                 </tr>
               );

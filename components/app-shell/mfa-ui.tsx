@@ -34,6 +34,7 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [confirmingDisable, setConfirmingDisable] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -66,10 +67,12 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
 
   const disable = async () => {
     if (!factorId) return;
+    if (!CODE_RE.test(code)) { setError('Enter the 6-digit code from your app to confirm.'); return; }
     setError(''); setBusy(true);
     try {
+      await challengeAndVerify(factorId, code);
       await unenroll(factorId);
-      setEnrolled(false); setFactorId(null);
+      setEnrolled(false); setFactorId(null); setConfirmingDisable(false); setCode('');
       setNotice('Two-factor authentication has been turned off.');
     } catch (e) { setError(errMsg(e)); }
     finally { setBusy(false); }
@@ -100,7 +103,17 @@ export function SecurityPanel({ onDone }: { onDone?: () => void }) {
         <div className="flex flex-col gap-3">
           <Notice tone="info" icon="shield" title="2FA is active on your account.">{notice || 'You will be asked for a code each time you sign in.'}</Notice>
           {error && <Notice tone="danger" title="Not turned off">{error}</Notice>}
-          <Button variant="danger" fullWidth pending={busy} onClick={disable}>Disable 2FA</Button>
+          {confirmingDisable ? (
+            <div className="flex flex-col gap-3">
+              <Field label="6-digit code"><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="text-center tracking-[0.4em]" /></Field>
+              <div className="flex gap-2">
+                <Button variant="danger" className="flex-1" pending={busy} onClick={disable}>Confirm disable</Button>
+                <Button disabled={busy} onClick={() => { setConfirmingDisable(false); setCode(''); setError(''); }}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="danger" fullWidth pending={busy} onClick={() => { setConfirmingDisable(true); setError(''); setNotice(''); }}>Disable 2FA</Button>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3">

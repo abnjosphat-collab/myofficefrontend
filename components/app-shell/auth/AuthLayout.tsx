@@ -13,6 +13,8 @@ export function BrandMark({ className }: { className?: string }) {
 export function AuthCard({ title, description, children, headingId = 'auth-title' }: { title: string; description?: string; children?: ReactNode; headingId?: string }) {
   return (
     <section aria-labelledby={headingId} className={cn('w-full max-w-md p-6 sm:p-12', deepSpaceGlass)}>
+      {/* Sign-in screens had the bare "MyOffice" tab title; the card title travels with the card. React 19 hoists this to <head>. */}
+      <title>{`${title} | MyOffice`}</title>
       <div className="mb-7 flex flex-col items-center gap-3 text-center">
         <div>
           <h1 id={headingId} className="font-display text-section font-semibold text-ink">{title}</h1>

@@ -47,7 +47,7 @@ export function ToolsFeedback({ onSubmit, onCancel }: { onSubmit: (text: string,
       </div>
       {recording && (
         <div role="status" aria-live="polite" className="flex items-center gap-3 font-sans text-body-sm text-ink">
-          <span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-[var(--mo-danger)]" /><strong>Recording</strong>
+          <span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-danger" /><strong>Recording</strong>
           <time className="tabular text-ink-muted">{String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</time>
         </div>
       )}
@@ -59,7 +59,7 @@ export function ToolsFeedback({ onSubmit, onCancel }: { onSubmit: (text: string,
       )}
       {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
       <p className="font-sans text-caption text-ink-muted">Play the recording before sending if you want to check it. Feedback is associated with the signed-in prototype account so the product team can follow the context.</p>
-      <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
+      <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
         <Button type="button" onClick={onCancel}>Cancel</Button>
         <Button type="button" variant="primary" disabled={!text.trim() && !audio} onClick={() => onSubmit(text.trim(), audio)}>Send feedback</Button>
       </div>

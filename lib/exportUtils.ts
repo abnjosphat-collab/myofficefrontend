@@ -7,6 +7,7 @@
 // brand identity, intentionally not unified with internal reports) or
 // cv-builder.tsx (a demo/vertical app, out of scope for this app's own styling).
 import type { Row } from 'exceljs';
+import { todayLocal } from './dates';
 
 /** ARGB hex — ExcelJS fill/font colors. */
 export const EXPORT_BRAND_ARGB = 'FF2A4D69';
@@ -24,7 +25,7 @@ export function styleExcelHeaderRow(row: Row) {
 
 /** "Base_2026-07-26" — no extension; callers append .xlsx/.pdf themselves. */
 export function exportFilename(base: string): string {
-  return `${base}_${new Date().toISOString().slice(0, 10)}`;
+  return `${base}_${todayLocal()}`;
 }
 
 /** Actual h — e.g. SUM(D4:AH4) over all period day columns on that row (ExcelJS: no leading `=`). */

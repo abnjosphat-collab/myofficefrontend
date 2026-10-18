@@ -72,8 +72,9 @@ what they catch.
 ## 4. Coverage has a regression floor — improve it deliberately
 
 `npm run test:coverage` (also what CI runs) measures `lib/**`, `app/**`,
-`components/**`, and `hooks/**`. CI enforces the established global baseline:
-14% statements, 10% branches, 8% functions, and 15% lines. These are
+`components/**`, and `hooks/**`. CI enforces the established global baseline
+(18 Oct 2026: measured 35.71 / 34.82 / 28.12 / 38.97 %):
+35% statements, 34% branches, 28% functions, and 38% lines. These are
 regression floors, not target quality levels; lower coverage must fail, while
 new work should raise the floor when it adds meaningful tests. Extracting logic
 into a `calcX.ts` (rule 1) is still the first move for anything computational —
@@ -97,7 +98,7 @@ its frequency-then-recency ranking). Follow the same house style as
 `lib/dates.test.ts`: one `describe` per component, `render`/`screen` from
 `@testing-library/react`, query by role/accessible name (not test-ids,
 not snapshots) so a test also proves the a11y wiring is real. This is not a
-mandate to backfill render tests for all 71 pages at once — add one the
+mandate to backfill render tests for all 68 routes at once — add one the
 same way `calcX.ts` gets adopted: opportunistically, for a component with
 real behavior worth pinning down, when it's already being touched or when a
 bug in that behavior is being fixed.

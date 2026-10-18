@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Field, FieldGroup, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
+import { Button, Dialog, Fact, FactList, Field, FieldGroup, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
 import { EligibleEmployeesList } from './ToolsEligibility';
 import { RecordCheckDialog } from './ToolsResolve';
 import { EvidenceGallery } from './ToolsUI';
@@ -72,7 +72,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
           </section>
 
           {movable && (
-            <section aria-label="Record a movement" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
+            <section aria-label="Record a movement" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
               <h3 className="font-sans text-caption font-medium text-ink-muted">Record a movement</h3>
               <div className="flex flex-wrap gap-2">
                 {tool.status === 'available' && (
@@ -93,7 +93,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
           )}
 
           {out && tool.preUsePending && tool.backendId && manage && (
-            <section aria-label="Pre-use check" className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] pt-5">
+            <section aria-label="Pre-use check" className="flex flex-col gap-3 border-t border-line-subtle pt-5">
               <h3 className="font-sans text-caption font-medium text-ink-muted">Pre-use check — done after issuing</h3>
               <PreUseForm key={tool.id} w={w} toolId={tool.backendId} />
             </section>
@@ -102,19 +102,16 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
           <EligibleEmployeesList people={tool.eligibleEmployees}
             onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || (item.employeeNumber != null && item.employeeNumber === person.employeeNumber))) : undefined} />
 
-          <section aria-label="Full record" className="border-t border-[var(--mo-line-subtle)] pt-5">
+          <section aria-label="Full record" className="border-t border-line-subtle pt-5">
             <h3 className="mb-3 font-sans text-caption font-medium text-ink-muted">Full record</h3>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <FactList columns={2} aria-label="Full record facts">
               {selectedFacts.map(([label, value], index) => (
-                <div key={`${label}-${index}`} className="min-w-0">
-                  <dt className="font-sans text-caption text-ink-muted">{label}</dt>
-                  <dd className="mt-0.5 break-words font-sans text-body-sm text-ink">{value}</dd>
-                </div>
+                <Fact key={`${label}-${index}`} label={label}>{value}</Fact>
               ))}
-            </dl>
+            </FactList>
           </section>
 
-          <section aria-label="Recent activity" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
+          <section aria-label="Recent activity" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="font-sans text-caption font-medium text-ink-muted">Recent activity</h3>
               {history.length > 0 && <Button variant="ghost" size="sm" onClick={() => { close(); w.setTab('activity'); w.setSearch(tool.id); }}>See all {history.length}</Button>}
@@ -126,7 +123,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
               ))}</ul>}
           </section>
 
-          <section aria-label="Condition evidence" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
+          <section aria-label="Condition evidence" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="font-sans text-caption font-medium text-ink-muted">Condition evidence ({tool.evidence?.length ?? 0})</h3>
               <Button variant="ghost" size="sm" icon="attachment" onClick={() => w.openManageModal({ kind: 'attachments', tool })}>Add / manage files</Button>

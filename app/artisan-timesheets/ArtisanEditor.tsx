@@ -4,7 +4,7 @@
 // What stops a save is listed above the days; a refused save stays here with its reason.
 'use client';
 
-import { Button, Field, Notice, PersonPicker, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, lookupName, usePersistentState } from '@/components/ui-system';
+import { Button, Fact, FactList, Field, Notice, PersonPicker, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, lookupName, usePersistentState } from '@/components/ui-system';
 import { getCompiledBySignatureReuse } from './collectTimesheetSignatures';
 import { DayCards } from './DayCards';
 import { QuickView } from './QuickView';
@@ -36,11 +36,11 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
           <h2 className="font-display text-title font-semibold text-ink">{draft.employee_name}, {periodLabel(draft.year, draft.month)}</h2>
           <StatusBadge tone={dirty ? 'warning' : saved ? 'success' : 'neutral'}>{dirty ? 'Unsaved changes' : saved ? 'Saved' : 'Not saved yet'}</StatusBadge>
         </div>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {([['Mine number', draft.employee_id], ['ID number', draft.id_number], ['Month', periodLabel(draft.year, draft.month)]] as const).map(([k, v]) => (
-            <div key={k} className="rounded-control bg-surface-subtle p-3"><dt className="font-sans text-caption text-ink-muted">{k}</dt><dd className="font-sans text-body text-ink [overflow-wrap:anywhere]">{v || <span className="italic text-ink-muted">Not recorded</span>}</dd></div>
-          ))}
-        </dl>
+        <FactList columns={3} aria-label="Timesheet identity">
+          <Fact label="Mine number">{draft.employee_id}</Fact>
+          <Fact label="ID number">{draft.id_number}</Fact>
+          <Fact label="Month">{periodLabel(draft.year, draft.month)}</Fact>
+        </FactList>
       </section>
 
       {sourcesFailed.length > 0 && <Notice tone="warning" title="Part of the system data could not be loaded">The month was filled without {sourcesFailed.join(', ')}, so those days are not marked. Reload the page and use Refresh from the system to fill them in.</Notice>}

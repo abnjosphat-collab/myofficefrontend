@@ -37,7 +37,7 @@ export function Heatmap({ grid, weekdayLabels, entries }: { grid: number[][]; we
                     <td key={h} className="p-0">
                       <button type="button" aria-pressed={on} aria-label={`${day} ${String(h).padStart(2, '0')}:00, ${v > 0 ? `${v.toFixed(1)} hours` : 'no overtime'}`} onClick={() => setSel(on ? null : { hour: h, wd })}
                         className={cn('focus-ring size-9 rounded-xs transition-[filter] hover:brightness-110', LEVEL[level(v)], v > 0 && level(v) >= 3 && 'text-action-ink', on && 'ring-2 ring-ink')}>
-                        {v > 0 && <span className="tabular text-[0.6875rem]">{v < 10 ? v.toFixed(1) : Math.round(v)}</span>}
+                        {v > 0 && <span className="tabular text-tip">{v < 10 ? v.toFixed(1) : Math.round(v)}</span>}
                       </button>
                     </td>
                   );

@@ -105,14 +105,14 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
         <div className="flex flex-col gap-6" style={{ ['--accent' as string]: accent }}>
           {/* Where it stands: three plain figures and one thin bar towards the next service */}
           <section aria-label="Where it stands" className="flex flex-col gap-3">
-            <dl className="grid grid-cols-3 gap-4">
+            <dl className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-4">
               <div>
                 <dt className="font-sans text-caption text-ink-muted">Running</dt>
-                <dd className="floor-meter mt-0.5 text-[20px] font-medium leading-none text-ink"><CountUp value={c.total_running_hours} decimals={1} /><span className="ml-1 font-sans text-caption font-normal text-ink-muted">h</span></dd>
+                <dd className="floor-meter mt-0.5 text-readout font-medium leading-none text-ink"><CountUp value={c.total_running_hours} decimals={1} /><span className="ml-1 font-sans text-caption font-normal text-ink-muted">h</span></dd>
               </div>
               <div>
                 <dt className="font-sans text-caption text-ink-muted">Loaded</dt>
-                <dd className="floor-meter mt-0.5 text-[20px] font-medium leading-none text-ink"><CountUp value={c.total_loaded_hours} decimals={1} /><span className="ml-1 font-sans text-caption font-normal text-ink-muted">h</span></dd>
+                <dd className="floor-meter mt-0.5 text-readout font-medium leading-none text-ink"><CountUp value={c.total_loaded_hours} decimals={1} /><span className="ml-1 font-sans text-caption font-normal text-ink-muted">h</span></dd>
               </div>
               <div>
                 <dt className="font-sans text-caption text-ink-muted">Next service</dt>
@@ -127,7 +127,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
           </section>
 
           {/* Status: one segmented control, equal widths */}
-          <section aria-label="Status" className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-5">
+          <section aria-label="Status" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
             <div className="flex items-baseline justify-between gap-2"><h3 className="font-sans text-caption font-medium text-ink-muted">Status</h3><span className="font-sans text-caption text-ink-muted">Tap an option to change it</span></div>
             <div role="radiogroup" aria-label="Status" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {STATUS_KEYS.map(k => {
@@ -135,7 +135,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
                 return (
                   <button key={k} type="button" role="radio" aria-checked={on} disabled={!!changing} onClick={() => changeStatus(k)}
                     style={{ ['--accent' as string]: statusAccent(k) }}
-                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-[6px] border px-2 py-2 font-sans text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)] disabled:cursor-wait ${on ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] font-medium text-ink' : 'border-[var(--mo-line)] bg-[var(--mo-surface-raised)] text-ink hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]'}`}>
+                    className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-sm border px-2 py-2 font-sans text-caption transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait ${on ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] font-medium text-ink' : 'border-line bg-surface-raised text-ink hover:border-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_8%,transparent)]'}`}>
                     <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full" style={{ background: 'var(--accent)' }} />
                     {on && changing !== k && <Icon name="check" size="sm" />}
                     <span className="truncate">{changing === k ? 'Saving…' : STATUS_META[k].label}</span>
@@ -146,7 +146,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
           </section>
 
           {/* The reading for the chosen day */}
-          <section aria-label="Meter reading" className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] pt-5">
+          <section aria-label="Meter reading" className="flex flex-col gap-3 border-t border-line-subtle pt-5">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="font-sans text-caption font-medium text-ink-muted">Meter reading</h3>
               <span className="font-sans text-caption text-ink-muted">{dateLabel}{recordedToday && ' · recorded'}</span>
@@ -166,7 +166,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
             </AnimatePresence>
 
             <button type="button" aria-expanded={more} onClick={() => setMore(m => !m)}
-              className="flex w-fit items-center gap-1 rounded-[6px] font-sans text-body-sm text-ink-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
+              className="flex w-fit items-center gap-1 rounded-sm font-sans text-body-sm text-ink-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
               <Icon name="chevron-down" size="xs" className={`transition-transform duration-200 ${more ? 'rotate-180' : ''}`} />
               Pressure, temperature and notes
             </button>
@@ -197,7 +197,7 @@ function MeterField({ label, value, onChange, previous, error, delta, onEnter }:
   return (
     <Field label={label} error={error} description={previous}>
       <div className="relative">
-        <Input type="number" inputMode="decimal" step="0.1" value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEnter?.(); }} className="floor-meter pr-16 text-[16px]" />
+        <Input type="number" inputMode="decimal" step="0.1" value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') onEnter?.(); }} className="floor-meter pr-16 text-base" />
         {delta != null && delta > 0 && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-sans text-caption tabular" style={{ color: 'var(--mo-success)' }}>+{delta.toFixed(1)}</span>}
       </div>
     </Field>

@@ -106,7 +106,7 @@ export function ToolsAnalytics({ usage, errors, feedback }: { usage: UsageEvent[
             {heat.map((row, day) => (
               <div key={DAYS[day]} className="grid grid-cols-[3rem_repeat(6,1fr)] items-center gap-1">
                 <strong className="font-sans text-caption font-medium text-ink-muted">{DAYS[day]}</strong>
-                {row.map((count, block) => <span key={block} title={`${DAYS[day]} ${TIME_BLOCKS[block]} · ${count} actions`} className="h-6 rounded-[4px]" style={{ background: `color-mix(in srgb, var(--mo-action) ${Math.round((0.08 + count / heatMax * 0.92) * 100)}%, transparent)` }} />)}
+                {row.map((count, block) => <span key={block} title={`${DAYS[day]} ${TIME_BLOCKS[block]} · ${count} actions`} className="h-6 rounded-xs" style={{ background: `color-mix(in srgb, var(--mo-action) ${Math.round((0.08 + count / heatMax * 0.92) * 100)}%, transparent)` }} />)}
               </div>
             ))}
           </div>
@@ -121,13 +121,13 @@ export function ToolsAnalytics({ usage, errors, feedback }: { usage: UsageEvent[
         <Card padding="lg" className="flex flex-col gap-3">
           <div><h2 className="font-sans text-body font-semibold text-ink">Errors</h2><p className="font-sans text-caption text-ink-muted">Automatically captured</p></div>
           {errors.length
-            ? <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">{errors.map(error => <li key={error.id} className="flex items-start gap-3 py-2"><Icon name="warning" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{error.message}</strong><small className="font-sans text-caption text-ink-muted">{formatDateTime(error.at)}</small></span></li>)}</ul>
+            ? <ul className="flex flex-col divide-y divide-line-subtle">{errors.map(error => <li key={error.id} className="flex items-start gap-3 py-2"><Icon name="warning" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{error.message}</strong><small className="font-sans text-caption text-ink-muted">{formatDateTime(error.at)}</small></span></li>)}</ul>
             : <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="success" size="sm" />No errors captured.</p>}
         </Card>
         <Card padding="lg" className="flex flex-col gap-3">
           <div><h2 className="font-sans text-body font-semibold text-ink">Latest feedback</h2><p className="font-sans text-caption text-ink-muted">Text and audio</p></div>
           {feedback.length
-            ? <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">{feedback.map(item => <li key={item.id} className="flex items-start gap-3 py-2"><Icon name={item.audioName ? 'attachment' : 'edit'} size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{item.text || item.audioName}</strong><small className="font-sans text-caption text-ink-muted">{item.by} · {formatDateTime(item.at)}</small></span></li>)}</ul>
+            ? <ul className="flex flex-col divide-y divide-line-subtle">{feedback.map(item => <li key={item.id} className="flex items-start gap-3 py-2"><Icon name={item.audioName ? 'attachment' : 'edit'} size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{item.text || item.audioName}</strong><small className="font-sans text-caption text-ink-muted">{item.by} · {formatDateTime(item.at)}</small></span></li>)}</ul>
             : <EmptyState icon="edit" title="No suggestions yet" description="No suggestions have been sent yet." />}
         </Card>
       </div>

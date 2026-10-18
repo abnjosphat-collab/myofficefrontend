@@ -17,7 +17,7 @@ export function ToolsExport({ data, onDone }: { data: ExportTable; onDone: () =>
       <div className="grid gap-3 sm:grid-cols-3">
         {CHOICES.map(choice => (
           <button key={choice.format} type="button" onClick={() => void exportTable(choice.format, data).then(onDone)}
-            className="focus-ring flex flex-col items-start gap-1 rounded-card border border-[var(--mo-line)] bg-[var(--mo-surface-raised)] p-4 text-left transition-colors hover:border-[var(--mo-action)] hover:bg-[var(--mo-surface-subtle)]">
+            className="focus-ring flex flex-col items-start gap-1 rounded-card border border-line bg-surface-raised p-4 text-left transition-colors hover:border-action hover:bg-surface-subtle">
             <Icon name={choice.icon} size="md" />
             <strong className="font-sans text-body-sm font-medium text-ink">{choice.title}</strong>
             <span className="font-sans text-caption text-ink-muted">{choice.note}</span>

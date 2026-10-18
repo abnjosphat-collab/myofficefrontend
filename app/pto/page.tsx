@@ -8,6 +8,7 @@ import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, For
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { ActionPlanItem, ActionStatus, ObservationType, PTOReport, Reasons, ReportStatus, RiskAssessment, SectionType, SuggestedRemedies, YesNoType } from './types';
@@ -41,7 +42,7 @@ const REMEDY_LABELS: Record<keyof SuggestedRemedies, string> = {
 const newId = () => Math.random().toString(36).slice(2, 11);
 // A legacy or malformed record without a risk assessment must not crash the page.
 const hasRiskFlag = (ra: RiskAssessment | null | undefined) => ra?.made === 'No' || ra?.identified === 'No' || ra?.effective === 'No';
-const overdueCount = (r: PTOReport) => (r.actionPlan || []).filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < new Date().toISOString().slice(0, 10)).length;
+const overdueCount = (r: PTOReport) => (r.actionPlan || []).filter(a => a.status !== 'Completed' && a.byWhen && a.byWhen < todayLocal()).length;
 
 const StatusTag = ({ status }: { status: ReportStatus }) => { const m = STATUS_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 const ActionBadge = ({ status }: { status: ActionStatus }) => { const m = ACTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{status}</StatusBadge>; };
@@ -49,8 +50,8 @@ const YesNoBadge = ({ value, goodWhen = 'Yes' }: { value?: string; goodWhen?: 'Y
 const RiskBadge = () => <StatusBadge tone="danger" icon="warning">Risk identified</StatusBadge>;
 
 type Form = Omit<PTOReport, 'id' | 'created_at' | 'updated_at' | 'submitted_at'>;
-const emptyForm = (): Form => ({
-  date: new Date().toISOString().slice(0, 10), observerName: '', section: 'Mechanical', deptSectionContractor: '', workerName: '', occupation: '', jobTaskObserved: '', sheqRefNo: '',
+export const emptyForm = (): Form => ({
+  date: todayLocal(), observerName: '', section: 'Mechanical', deptSectionContractor: '', workerName: '', occupation: '', jobTaskObserved: '', sheqRefNo: '',
   observationType: 'Initial', timeOnJob: { months: '', years: '' }, notification: { toldInAdvance: 'No' },
   reasons: { monthly: false, newEmployee: false, safetyAwareness: false, incidentFollowUp: false, trainingFollowUp: false, infrequentTask: false },
   procedures: { hasProcedure: 'No', familiarWithProcedure: 'No' }, riskAssessment: { made: 'No', identified: 'No', effective: 'No' },

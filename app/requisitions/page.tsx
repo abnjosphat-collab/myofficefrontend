@@ -9,6 +9,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
 import { useApiList } from '@/lib/useApiList';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { formatCurrency } from '@/components/shared/utils';
@@ -39,8 +40,8 @@ const PriorityTag = ({ priority }: { priority: Requisition['priority'] }) => { c
 
 const newItem = (): RequisitionItem => ({ description: '', costPerUnit: 0, quantity: 1, reason: '' });
 type Form = { date: string; requester: string; section: Requisition['section']; required_for: string; priority: Requisition['priority']; status: Requisition['status']; requisitionNumber: string; items: RequisitionItem[]; notes: string };
-const emptyForm = (): Form => ({
-  date: new Date().toISOString().slice(0, 10), requester: '', section: 'Mechanical', required_for: '', priority: 'Medium', status: 'Draft',
+export const emptyForm = (): Form => ({
+  date: todayLocal(), requester: '', section: 'Mechanical', required_for: '', priority: 'Medium', status: 'Draft',
   requisitionNumber: `REQ-${Date.now().toString().slice(-6)}`, items: [newItem()], notes: '',
 });
 

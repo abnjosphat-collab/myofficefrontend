@@ -87,6 +87,6 @@ export function exportPDF(drivers: Driver[], filterLabel: string) {
     doc.text(`Page ${i} of ${totalPages}`, pageW - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
   }
 
-  doc.save(`Authorised_Drivers_${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`${exportFilename('Authorised_Drivers')}.pdf`);
   toast.success('PDF downloaded — phone numbers are clickable links');
 }

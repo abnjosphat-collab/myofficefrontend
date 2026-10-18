@@ -1,4 +1,6 @@
-import { API_BASE } from '@/lib/config';
+import { apiFetch } from '@/lib/apiClient';
+
+const TOOLS_BASE = '/api/tools-workspace';
 
 export class ToolsApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
@@ -48,9 +50,9 @@ export async function retryUndelivered<T>(run: () => Promise<T>, delays: number[
 
 async function request<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  // Authorization is attached by the shared transport (apiFetch) below — never here.
   if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${API_BASE}/api/tools-workspace${path}`, { ...init, headers });
+  const response = await apiFetch(`${TOOLS_BASE}${path}`, { ...init, headers }, token ?? null);
   if (!response.ok) {
     let message = 'The change could not be saved.';
     try { const body = await response.json(); message = toolsErrorMessage(body.detail, message); } catch { /* non-JSON response */ }
@@ -60,7 +62,7 @@ async function request<T>(path: string, token?: string, init: RequestInit = {}):
 }
 
 async function download(path:string,token:string):Promise<Blob> {
-  const response=await fetch(`${API_BASE}/api/tools-workspace${path}`,{headers:{Authorization:`Bearer ${token}`}});
+  const response=await apiFetch(`${TOOLS_BASE}${path}`,{},token);
   if(!response.ok){let message='The document could not be downloaded.';try{const body=await response.json();message=toolsErrorMessage(body.detail,message);}catch { /* non-JSON response */ }throw new ToolsApiError(message,response.status);}
   return response.blob();
 }

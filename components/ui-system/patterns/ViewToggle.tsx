@@ -34,7 +34,7 @@ export function ViewToggle<T extends string>({ value, onValueChange, options, cl
           title={option.label}
           aria-pressed={value === option.value}
           onClick={() => onValueChange(option.value)}
-          className="focus-ring touch-target inline-flex size-8 items-center justify-center rounded-[5px] text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action-soft aria-pressed:text-action"
+          className="focus-ring touch-target inline-flex size-8 items-center justify-center rounded-sm text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action aria-pressed:text-action-ink"
         >
           <Icon name={option.icon} size="md" weight={value === option.value ? 'emphasis' : 'control'} />
         </button>

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { indexRegister, matchToRegister } from '@/lib/registerMatch';
 import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, sectionCounts, selectableEmployees, sizeCounts, standing, summarise } from './ppeLogic';
+import { enrichPPERecords } from './calcPPE';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import { todayLocal, addMonths } from '@/lib/dates';
 import type { EmployeeRow, PPERecord } from './types';
@@ -77,5 +79,29 @@ describe('expiry from the matrix and the form', () => {
     expect(typeName('mystery')).toBe('mystery');
     expect(statusMeta('expired').label).toBe('Due');
     expect(conditionMeta('weird').tone).toBe('neutral');
+  });
+});
+
+describe('stale stored positions (live register wins)', () => {
+  // Shaped like Tafadzwa Matangira: PPE rows stored position "Maintenance Engineer" while the register says
+  // "Planning Superintendent". The page enriches by register id before grouping, so the live value wins.
+  const roster: EmployeeRow[] = [{ employee_id: 'TBA34', employee_name: 'Tafadzwa Matangira', position: 'Planning Superintendent', department: '', section: 'Planning' }];
+  it('shows the live designation and section once the record links to the register id', () => {
+    const stale = rec({ id: '9', employee_id: 'TBA34', employee_name: 'Tafadzwa  Matangira', position: 'Maintenance Engineer', mine_section: 'Management' });
+    const holders = groupByEmployee(enrichPPERecords([stale], roster), roster);
+    expect(holders).toHaveLength(1);
+    expect(holders[0]).toMatchObject({ employee_name: 'Tafadzwa Matangira', position: 'Planning Superintendent', section: 'Planning' });
+    expect(matchToRegister(holders[0], indexRegister(roster))).toBe('linked');
+  });
+  it('keeps the stored copy, flagged as unmatched, when the record id matches nobody', () => {
+    // His rows actually say TBA2, which is on no register row: enrichment cannot help until the link is fixed,
+    // so the page must show the stored values and flag the broken link rather than silently showing stale data.
+    const broken = rec({ id: '9', employee_id: 'TBA2', employee_name: 'Tafadzwa  Matangira', position: 'Maintenance Engineer', mine_section: 'Management' });
+    const holders = groupByEmployee(enrichPPERecords([broken], roster), roster);
+    expect(holders).toHaveLength(1);
+    expect(holders[0]).toMatchObject({ position: 'Maintenance Engineer', section: 'Management' });
+    // The register flag indexes the personnel rows (first/last name), as useRegisterCheck does in production.
+    const lookup = [{ id: 38839, employee_id: 'TBA34', first_name: 'Tafadzwa', last_name: 'Matangira' }];
+    expect(matchToRegister(holders[0], indexRegister(lookup))).toBe('number-differs');
   });
 });

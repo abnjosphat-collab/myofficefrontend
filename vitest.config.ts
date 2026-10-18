@@ -26,13 +26,13 @@ export default defineConfig({
       // coverage parser if swept in.
       include: ['lib/**/*.{ts,tsx}', 'app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'hooks/**/*.{ts,tsx}'],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/types.ts'],
-      // A ratchet, not a target: just under the measured figures (9 Oct 2026: 31.85 / 30.93 / 24.56 / 34.84 %),
+      // A ratchet, not a target: just under the measured figures (18 Oct 2026: 35.71 / 34.82 / 28.12 / 38.97 %),
       // so coverage can only rise. Raise these whenever a change lifts the totals; never lower them to pass.
       thresholds: {
-        statements: 31,
-        branches: 30,
-        functions: 24,
-        lines: 34,
+        statements: 35,
+        branches: 34,
+        functions: 28,
+        lines: 38,
       },
     },
   },

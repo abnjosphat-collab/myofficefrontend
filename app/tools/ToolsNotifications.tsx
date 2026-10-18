@@ -5,11 +5,11 @@
 import { Button, CountBadge, Icon, IconButton, Popover, PopoverContent, PopoverTrigger } from '@/components/ui-system';
 import type { IconMeaning } from '@/components/ui-system/foundations/icon-meanings';
 
-export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue: number; investigationsOverdue: number; overdueEscalations: number };
+export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue: number; investigationsOverdue: number; overdueEscalations: number; passwordRequests: number };
 
 function Row({ icon, title, detail, onClick }: { icon: IconMeaning; title: string; detail: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="focus-ring flex w-full items-start gap-3 rounded-[6px] px-2 py-2 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+    <button type="button" onClick={onClick} className="focus-ring flex w-full items-start gap-3 rounded-sm px-2 py-2 text-left transition-colors hover:bg-surface-subtle">
       <span className="mt-0.5 text-ink-muted"><Icon name={icon} size="sm" /></span>
       <span className="min-w-0 flex-1">
         <strong className="block font-sans text-body-sm font-medium text-ink">{title}</strong>
@@ -20,7 +20,7 @@ function Row({ icon, title, detail, onClick }: { icon: IconMeaning; title: strin
   );
 }
 
-export function ToolsNotifications({ counts, unread, unavailable, loading, onRetry, onViewed, onShowOverdue, onShowInspection }: {
+export function ToolsNotifications({ counts, unread, unavailable, loading, onRetry, onViewed, onShowOverdue, onShowInspection, onShowAccounts }: {
   counts: ToolAttentionCounts;
   unread: number;
   unavailable?: string;
@@ -29,8 +29,9 @@ export function ToolsNotifications({ counts, unread, unavailable, loading, onRet
   onViewed: () => void | Promise<void>;
   onShowOverdue: () => void;
   onShowInspection: () => void;
+  onShowAccounts: () => void;
 }) {
-  const total = counts.overdue + counts.attention + counts.inspectionDue + counts.investigationsOverdue;
+  const total = counts.overdue + counts.attention + counts.inspectionDue + counts.investigationsOverdue + counts.passwordRequests;
   return (
     <Popover onOpenChange={open => { if (open) void onViewed(); }}>
       <div className="relative">
@@ -57,11 +58,12 @@ export function ToolsNotifications({ counts, unread, unavailable, loading, onRet
             {counts.attention > 0 && <Row icon="warning" title={`${counts.attention} held for inspection`} detail="Check condition notes before returning to service." onClick={onShowInspection} />}
             {counts.inspectionDue > 0 && <Row icon="success" title={`${counts.inspectionDue} scheduled ${counts.inspectionDue === 1 ? 'check' : 'checks'} due`} detail="Complete the required inspection or maintenance before issue." onClick={onShowInspection} />}
             {counts.investigationsOverdue > 0 && <Row icon="warning" title={`${counts.investigationsOverdue} overdue ${counts.investigationsOverdue === 1 ? 'investigation' : 'investigations'}`} detail="Close the equipment incident investigation without further delay." onClick={onShowInspection} />}
+            {counts.passwordRequests > 0 && <Row icon="user" title={`${counts.passwordRequests} password reset ${counts.passwordRequests === 1 ? 'request' : 'requests'}`} detail="Set a new password from Account access, then tell the account holder." onClick={onShowAccounts} />}
           </div>
         ) : (
-          <p className="py-2 font-sans text-body-sm text-ink-muted">Nothing needs attention. No overdue returns, scheduled checks, holds or investigations.</p>
+          <p className="py-2 font-sans text-body-sm text-ink-muted">Nothing needs attention. No overdue returns, scheduled checks, holds, investigations or password requests.</p>
         )}
-        <p className="mt-2 border-t border-[var(--mo-line-subtle)] pt-2 font-sans text-caption text-ink-muted">Notifications follow the selected department.</p>
+        <p className="mt-2 border-t border-line-subtle pt-2 font-sans text-caption text-ink-muted">Notifications follow the selected department.</p>
       </PopoverContent>
     </Popover>
   );

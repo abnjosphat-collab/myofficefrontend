@@ -9,6 +9,7 @@ import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution,
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { Complaint } from './types';
@@ -36,8 +37,8 @@ const StatusTag = ({ status }: { status: string }) => { const m = STATUS_META[st
 const PriorityTag = ({ priority }: { priority: string }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{cap(priority)}</StatusBadge>; };
 
 type Form = { date: string; raisedBy: string; issueRaised: string; category: string; priority: string; section: string; location: string; actionPlan: string; byWho: string; byWhen: string; supervisorName: string; supervisorSignature: string; status: string; dateClosed: string };
-const emptyForm = (): Form => ({
-  date: new Date().toISOString().slice(0, 10), raisedBy: '', issueRaised: '', category: 'General', priority: 'medium', section: 'General', location: '',
+export const emptyForm = (): Form => ({
+  date: todayLocal(), raisedBy: '', issueRaised: '', category: 'General', priority: 'medium', section: 'General', location: '',
   actionPlan: '', byWho: '', byWhen: '', supervisorName: '', supervisorSignature: '', status: 'open', dateClosed: '',
 });
 

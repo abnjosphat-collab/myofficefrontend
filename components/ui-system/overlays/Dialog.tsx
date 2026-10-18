@@ -10,7 +10,7 @@ import { firstDialogField } from './dialogFocus';
 
 const panelVariants = cva(
   [
-    'fixed z-[var(--mo-z-dialog)] flex flex-col border border-line bg-surface font-sans text-body text-ink shadow-dialog outline-none',
+    'fixed z-dialog flex flex-col border border-line bg-surface font-sans text-body text-ink shadow-dialog outline-none',
     'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
     'duration-[var(--mo-duration-slow)] ease-emphasized',
   ],
@@ -88,7 +88,7 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={attemptClose}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className={skin?.overlay ?? 'fixed inset-0 z-[var(--mo-z-overlay)] bg-[var(--mo-overlay)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]'} />
+        <DialogPrimitive.Overlay className={skin?.overlay ?? 'fixed inset-0 z-overlay bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]'} />
         <DialogPrimitive.Content
           className={skin ? cn(skin.panel, className) : cn(panelVariants({ placement, size }), className)}
           {...skin?.attrs}

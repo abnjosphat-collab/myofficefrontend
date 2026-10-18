@@ -1,6 +1,7 @@
 // Shared utility functions — import these instead of re-defining in every page
 
 import type { EquipmentBase } from '@/app/equipment/types';
+import { toLocalISODate } from '@/lib/dates';
 import { formatDate, formatDateTime, formatLongDate } from '@/lib/format';
 
 // Dates have one definition, in lib/format.ts. These names stay because 40+ files import them.
@@ -55,8 +56,8 @@ export function lineTotal(qty: number, unitPrice: number): number {
 
 export function nowLocal(): string {
   const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${toLocalISODate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // One consistent "how do I show this equipment as one string" — every picker/

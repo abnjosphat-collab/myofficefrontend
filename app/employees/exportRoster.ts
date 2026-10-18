@@ -1,7 +1,7 @@
 // app/employees/exportRoster.ts — the roster as a workbook or a PDF, organised by section, by trade, or by section and then trade (the
 // same grouping the register shows, because both come from roster.ts). Excel gets a sheet per group and a labelled row per trade; the
 // PDF a page per group.
-import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, styleExcelHeaderRow } from '@/lib/exportUtils';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, exportFilename, styleExcelHeaderRow } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay } from '@/lib/phone';
@@ -62,7 +62,7 @@ export async function exportRosterExcel(employees: Employee[], by: ExportGroupBy
     }
   }
   const buf = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${exportStub(by)}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${exportFilename(exportStub(by))}.xlsx`);
 }
 
 export async function exportRosterPdf(employees: Employee[], by: ExportGroupBy): Promise<void> {
@@ -95,5 +95,5 @@ export async function exportRosterPdf(employees: Employee[], by: ExportGroupBy):
       table(20, g.rows);
     }
   }
-  doc.save(`${exportStub(by)}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`${exportFilename(exportStub(by))}.pdf`);
 }

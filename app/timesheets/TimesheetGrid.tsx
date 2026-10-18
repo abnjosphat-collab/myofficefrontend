@@ -134,7 +134,7 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
                       className="focus-ring flex w-full flex-col items-center gap-0.5 rounded-control py-1.5 hover:bg-surface-subtle">
                       <span className={wk ? 'text-ink-subtle' : undefined}>{formatWeekday(d)}</span>
                       <span className={cn('font-sans text-body-sm tabular', ds === today ? 'font-bold text-ink' : 'text-ink')}>{d.getDate()}</span>
-                      <span className="text-[0.6875rem] font-normal">{holiday ? 'Holiday' : formatMonth(d)}</span>
+                      <span className="text-tip font-normal">{holiday ? 'Holiday' : formatMonth(d)}</span>
                     </button>
                   </th>
                 );

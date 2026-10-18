@@ -45,7 +45,7 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
   }
 
   return (
-    <article className="flex flex-col gap-3 rounded-card border border-[var(--mo-line-subtle)] p-3 sm:flex-row sm:items-center">
+    <article className="flex flex-col gap-3 rounded-card border border-line-subtle p-3 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="text-ink-muted"><Icon name="equipment" size="md" /></span>
         <span className="min-w-0"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.id} · {tool.name}</strong><small className="block font-sans text-caption text-ink-muted">{tool.category}{inherited ? ' · inherited category approval' : ''}</small></span>
@@ -156,7 +156,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
         {shown && (
           <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-[var(--mo-action-soft)] text-ink"><Icon name="user" size="md" /></span>
+              <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-action-soft text-ink"><Icon name="user" size="md" /></span>
               <div className="min-w-0 flex-1">
                 <strong className="block font-sans text-body-sm font-semibold text-ink">{shown.jobTitle || 'Job title not recorded'}</strong>
                 <p className="font-sans text-caption text-ink-muted">{shown.active ? 'Active employee' : 'Inactive employee'} · {shown.department}</p>
@@ -167,13 +167,13 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
               </div>
               <span className="text-right"><strong className="block font-display text-title text-ink">{eligibleTools.length}</strong><small className="font-sans text-caption text-ink-muted">approved {eligibleTools.length === 1 ? 'item' : 'items'}</small></span>
             </div>
-            <section className="flex flex-col gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
+            <section className="flex flex-col gap-2 border-t border-line-subtle pt-4">
               <div className="flex items-baseline justify-between gap-2"><h3 className="font-sans text-caption font-medium text-ink-muted">Currently assigned</h3><span className="font-sans text-caption text-ink-muted">{held.length} {held.length === 1 ? 'item' : 'items'}</span></div>
               {held.length
-                ? <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">{held.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="font-sans text-caption text-ink-muted">{tool.id} · {tool.location}</small></span></li>)}</ul>
+                ? <ul className="flex flex-col divide-y divide-line-subtle">{held.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="font-sans text-caption text-ink-muted">{tool.id} · {tool.location}</small></span></li>)}</ul>
                 : <p className="font-sans text-body-sm text-ink-muted">No tools or equipment are currently assigned to this person.</p>}
             </section>
-            <section className="flex flex-col gap-3 border-t border-[var(--mo-line-subtle)] pt-4">
+            <section className="flex flex-col gap-3 border-t border-line-subtle pt-4">
               <div className="flex items-baseline justify-between gap-2">
                 <div><h3 className="font-sans text-body-sm font-semibold text-ink">Tool eligibility</h3><p className="font-sans text-caption text-ink-muted">All three requirements must be current before this employee appears in the Issue tool list.</p></div>
                 <span className="shrink-0 font-sans text-caption text-ink-muted">{eligibleTools.length} eligible</span>
@@ -185,7 +185,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
               </div>
               {!canManage && <p className="font-sans text-caption text-ink-muted">Only an administrator or issuer can update competency approvals.</p>}
             </section>
-            <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">
+            <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
               <Button onClick={() => setSelected(null)}>Close</Button>
               <Button variant="primary" disabled={!shown.active || !eligibleTools.length} title={!shown.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one equipment item first.' : undefined}
                 onClick={() => { const employee = shown; setSelected(null); onIssue(employee); }}>Issue a tool</Button>

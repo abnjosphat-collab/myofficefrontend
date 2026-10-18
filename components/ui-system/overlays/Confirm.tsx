@@ -53,8 +53,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       <AlertDialog.Root open={options !== null} onOpenChange={open => { if (!open) settle(false); }}>
         <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-[var(--mo-z-overlay)] bg-[var(--mo-overlay)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]" />
-          <AlertDialog.Content className="fixed left-1/2 top-1/2 z-[var(--mo-z-dialog)] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-panel border border-line bg-surface p-5 font-sans text-ink shadow-dialog outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-slow)]">
+          <AlertDialog.Overlay className="fixed inset-0 z-overlay bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-base)]" />
+          <AlertDialog.Content className="fixed left-1/2 top-1/2 z-dialog w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-panel border border-line bg-surface p-5 font-sans text-ink shadow-dialog outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-duration-slow)]">
             <div className="flex items-start gap-3">
               {destructive && (
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger">

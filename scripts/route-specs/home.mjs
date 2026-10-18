@@ -31,7 +31,7 @@ const spec = {
 
     // tips on demand
     await page.getByRole('button', { name: 'Tips' }).click();
-    check(await page.getByText('Search from the top bar to jump to any module.').isVisible(), 'tips open on request');
+    check(await page.getByText(/Search from the sidebar to jump to any module/).isVisible(), 'tips open on request');
     await page.keyboard.press('Escape');
 
     // favourites come from the module's own menu
@@ -50,10 +50,16 @@ const spec = {
     check(await page.locator('#modules').getByRole('link', { name: 'Personnel' }).first().isVisible(), 'list view still links to modules');
     await page.getByRole('button', { name: 'Grid view' }).click();
 
-    // search via the top bar scopes the page
+    // search via the sidebar scopes the page, ranks title matches first and marks the matched words
     await page.getByRole('combobox', { name: 'Search modules and pages' }).fill('timesheet');
     await page.getByRole('combobox', { name: 'Search modules and pages' }).press('Escape');
     check(await page.getByText(/modules? match/).first().isVisible(), 'searching shows a result count');
+    check(await page.locator('#modules mark').count() > 0, 'matched words are highlighted in the results');
+    // several words narrow it down (AND): "artisan timesheets" keeps Artisan Timesheets but drops NEC Timesheets
+    await page.getByRole('combobox', { name: 'Search modules and pages' }).fill('artisan timesheets');
+    await page.getByRole('combobox', { name: 'Search modules and pages' }).press('Escape');
+    check(await page.locator('#modules').getByRole('link', { name: 'Artisan Timesheets' }).isVisible(), 'multi-word search keeps the full match');
+    check(await page.locator('#modules').getByRole('link', { name: 'NEC Timesheets' }).count() === 0, 'multi-word search drops the partial match');
     await page.getByRole('button', { name: 'Clear search' }).first().click();
     check(await page.getByRole('heading', { level: 1, name: 'Home' }).isVisible(), 'clearing search restores the page');
 

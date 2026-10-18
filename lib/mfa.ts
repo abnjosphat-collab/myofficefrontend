@@ -110,3 +110,13 @@ export async function needsChallenge(): Promise<boolean> {
   if (error) return false;
   return data.currentLevel === 'aal1' && data.nextLevel === 'aal2';
 }
+
+/** Fired when the backend rejects a call as MFA-gated (401 + X-Auth-Reason:
+ *  mfa_required) so AuthProvider re-runs the session gate outside the React
+ *  tree — apiClient.ts dispatches it, auth-context.tsx listens for it. */
+export const MFA_REQUIRED_EVENT = 'myoffice:mfa-required';
+
+export function notifyMfaRequired(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(MFA_REQUIRED_EVENT));
+}

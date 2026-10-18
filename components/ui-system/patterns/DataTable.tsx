@@ -78,7 +78,7 @@ export function DataTable<T>({
         <thead>
           <tr>
             {selectable && (
-              <th scope="col" className="sticky top-0 z-[var(--mo-z-sticky)] w-11 border-b border-line bg-surface-subtle px-3.5 py-2">
+              <th scope="col" className="sticky top-0 z-sticky w-11 border-b border-line bg-surface-subtle px-3.5 py-2">
                 <Checkbox
                   aria-label="Select all rows on this page"
                   checked={state === 'all'}
@@ -97,7 +97,7 @@ export function DataTable<T>({
                   aria-sort={active ? (sort?.direction === 'asc' ? 'ascending' : 'descending') : column.sortable ? 'none' : undefined}
                   style={column.width ? { width: column.width } : undefined}
                   className={cn(
-                    'sticky top-0 z-[var(--mo-z-sticky)] whitespace-nowrap border-b border-line bg-surface-subtle px-3.5 py-2 font-sans text-label font-medium text-ink-muted',
+                    'sticky top-0 z-sticky whitespace-nowrap border-b border-line bg-surface-subtle px-3.5 py-2 font-sans text-label font-medium text-ink-muted',
                     column.numeric && 'text-right', column.sticky && 'left-0 z-[calc(var(--mo-z-sticky)+1)]', hide(column), column.className,
                   )}
                 >
@@ -114,8 +114,8 @@ export function DataTable<T>({
                 </th>
               );
             })}
-            {rowActions && <th scope="col" className="sticky top-0 z-[var(--mo-z-sticky)] w-px border-b border-line bg-surface-subtle px-3.5 py-2"><span className="sr-only">Actions</span></th>}
-            {renderExpanded && <th scope="col" className="sticky top-0 z-[var(--mo-z-sticky)] w-px border-b border-line bg-surface-subtle px-2 py-2"><span className="sr-only">Details</span></th>}
+            {rowActions && <th scope="col" className="sticky top-0 z-sticky w-px border-b border-line bg-surface-subtle px-3.5 py-2"><span className="sr-only">Actions</span></th>}
+            {renderExpanded && <th scope="col" className="sticky top-0 z-sticky w-px border-b border-line bg-surface-subtle px-2 py-2"><span className="sr-only">Details</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -137,7 +137,7 @@ export function DataTable<T>({
                   </td>
                 )}
                 {columns.map(column => (
-                  <td key={column.id} className={cn(cell, column.numeric && 'text-right tabular', column.sticky && 'sticky left-0 z-[var(--mo-z-sticky)] font-medium', hide(column), column.className)}>
+                  <td key={column.id} className={cn(cell, column.numeric && 'text-right tabular', column.sticky && 'sticky left-0 z-sticky font-medium', hide(column), column.className)}>
                     {column.cell(row)}
                   </td>
                 ))}

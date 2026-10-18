@@ -80,7 +80,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   const body = (() => {
     if (!modal) return null;
     if (modal.kind === 'customize') return <ToolsCustomize options={w.options} setOptions={w.setOptions} />;
-    if (modal.kind === 'auth') return <ToolsAuth accounts={w.accounts} currentAccount={w.currentAccount} onCreate={w.createAccount} onLogin={w.login} onLogout={w.signOut} onCancel={() => { if (!w.authenticationRequired) close(); }} allowCancel={!w.authenticationRequired} />;
+    if (modal.kind === 'auth') return <ToolsAuth accounts={w.accounts} currentAccount={w.currentAccount} onCreate={w.createAccount} onLogin={w.login} onLogout={w.signOut} onCancel={() => { if (!w.authenticationRequired) close(); }} onRequestReset={w.requestPasswordReset} onChangePassword={w.changePassword} allowCancel={!w.authenticationRequired} />;
     if (modal.kind === 'feedback') return <ToolsFeedback onSubmit={w.submitFeedback} onCancel={close} />;
     if (modal.kind === 'import') return <ToolsImport onApply={w.applyImport} onCancel={close} />;
     if (modal.kind === 'source-register') return <SourceRegisterForm departments={w.departments} onSave={w.saveSourceRegister} onCancel={close} />;

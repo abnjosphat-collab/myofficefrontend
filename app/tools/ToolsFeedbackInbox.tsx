@@ -24,13 +24,13 @@ export function ToolsFeedbackInbox({ items, onAdd }: { items: FeedbackRecord[]; 
         ? (
           <ul className="flex flex-col gap-3">
             {items.map(item => (
-              <li key={item.id} className="rounded-card border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)]">
-                <button type="button" onClick={() => setSelected(item)} aria-label={`Open feedback from ${item.by}`} className="focus-ring flex w-full flex-col gap-1 p-4 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+              <li key={item.id} className="rounded-card border border-line-subtle bg-surface-raised">
+                <button type="button" onClick={() => setSelected(item)} aria-label={`Open feedback from ${item.by}`} className="focus-ring flex w-full flex-col gap-1 p-4 text-left transition-colors hover:bg-surface-subtle">
                   <span className="flex items-center gap-2 font-sans text-body-sm font-medium text-ink"><Icon name={item.audioUrl ? 'attachment' : 'edit'} size="sm" />{item.by}<time className="ml-auto font-normal text-ink-muted">{formatDateTime(item.at)}</time></span>
                   {item.text && <p className="line-clamp-2 font-sans text-body-sm text-ink-muted">{item.text}</p>}
                   <small className="font-sans text-caption text-ink-muted">Open details</small>
                 </button>
-                {item.audioUrl && <div className="flex flex-col gap-1 border-t border-[var(--mo-line-subtle)] p-3"><span className="font-sans text-caption text-ink-muted">Quick audio preview</span><Audio src={item.audioUrl} /></div>}
+                {item.audioUrl && <div className="flex flex-col gap-1 border-t border-line-subtle p-3"><span className="font-sans text-caption text-ink-muted">Quick audio preview</span><Audio src={item.audioUrl} /></div>}
               </li>
             ))}
           </ul>

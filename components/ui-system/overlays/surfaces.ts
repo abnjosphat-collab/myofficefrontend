@@ -2,7 +2,7 @@
 
 /** Floating panel: menus, select lists, popovers. Animates only opacity/translate; instant under reduced motion. */
 export const floatingSurface = [
-  'z-[var(--mo-z-popover)] overflow-hidden rounded-card border border-line bg-surface font-sans text-body text-ink shadow-popover',
+  'z-popover overflow-hidden rounded-card border border-line bg-surface font-sans text-body text-ink shadow-popover',
   'origin-[var(--radix-popover-content-transform-origin)]',
   'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]',
   'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98]',

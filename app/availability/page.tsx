@@ -174,7 +174,7 @@ function AvailabilityContent() {
                   <dl className="flex flex-col gap-4">
                     <Reading label="Lifetime, all equipment" pct={s.overallAvailability} />
                     <Reading label="Last 7 days (from breakdown downtime)" pct={s.weekAvailability} />
-                    <div className="grid grid-cols-3 gap-3 border-t border-line pt-3">
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3 border-t border-line pt-3">
                       <div><dt className="font-sans text-caption text-ink-muted">Avg uptime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.avgUptime)}</dd></div>
                       <div><dt className="font-sans text-caption text-ink-muted">Avg downtime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.avgDowntime)}</dd></div>
                       <div><dt className="font-sans text-caption text-ink-muted">Total downtime</dt><dd className="font-display text-title font-semibold text-ink tabular">{hrs(s.totalBreakdownHours)}</dd></div>

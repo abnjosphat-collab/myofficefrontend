@@ -30,10 +30,12 @@ The application-specific shell (what is in the top bar, the module list, notific
 
 **Colour.** Canvas `#f4f6f5`, surface `#fbfcfb`, ink `#1b2923`, action (charcoal green) `#233b31`, focus `#4f806a`. Status
 colours (success, warning, danger, info, neutral) carry operational meaning only and are always paired with a label or an
-icon. Contrast was computed from `tokens.css` (WCAG formula): every text, status and control pair passes (lowest text pair
-4.73:1; control boundary 6.5:1; focus ring 4.4:1 against the 3:1 required). Chart series use a fixed eight-colour categorical
-order (`--mo-chart-1..8`) validated against the surface; slots 3 to 5 are below 3:1, so a chart that uses them needs direct
-labels or a table. Never reuse status colours as chart series. Pages never contain hex literals: use tokens or Tailwind roles
+icon. Contrast was computed from `tokens.css` (WCAG formula, re-checked by `foundations/tokens.test.ts`): every text pair
+passes (lowest 4.60:1, muted ink on the darkest interactive fill); the control boundary holds 3:1 on canvas, surface, raised
+and muted (worst 3.26:1 on muted); the focus ring is 4.4:1 against the 3:1 required. Chart series use a fixed eight-colour
+categorical order (`--mo-chart-1..8`): every series holds 3:1 on surface, raised and subtle grounds, every pair is dE > 30
+apart (minimum 33.9, orange vs red), and every pair stays distinct under deuteranopia simulation. Never reuse status colours
+as chart series. Pages never contain hex literals: use tokens or Tailwind roles
 (`bg-surface`, `text-ink-muted`, `border-line`, `bg-action`).
 
 **Type.** Inter for body, Plus Jakarta Sans for display (Manrope selectable). Pages use role utilities, not raw sizes:

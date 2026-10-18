@@ -3,8 +3,9 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
-import { needsChallenge } from './mfa';
+import { needsChallenge, MFA_REQUIRED_EVENT } from './mfa';
 
 // ─── Context type ─────────────────────────────────────────────────────────────
 
@@ -72,11 +73,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let requiresChallenge = false;
-    try { requiresChallenge = await needsChallenge(); }
-    catch { /* if the check itself fails, don't lock the user out */ }
+    try {
+      requiresChallenge = await needsChallenge();
+    } catch {
+      // One retry: a transient network/Auth blip must not decide this check.
+      try {
+        requiresChallenge = await needsChallenge();
+      } catch {
+        // Still unknown: never silently continue signed in (that would wave
+        // an enrolled user past 2FA) — stay signed OUT with a retryable
+        // notice instead of locking the user out cold.
+        toast.error("We couldn't verify your sign-in security check.", {
+          action: {
+            label: 'Retry',
+            onClick: () => { void applySession(next); },
+          },
+        });
+        setMfaPending(false);
+        return; // user/session stay null — nothing is "signed in" yet
+      }
+    }
 
     if (requiresChallenge) {
+      // Clear any stale session too: when the gate re-trips on an
+      // already-signed-in user (backend MFA 401), leaving user/session
+      // set would keep the app fetching with an aal1 token the backend
+      // now rejects. (On the initial gate they are already null.)
       setMfaPending(true);
+      setSession(null); setUser(null); setProfile(null);
       return; // user/session stay null — nothing is "signed in" yet
     }
     setMfaPending(false);
@@ -95,7 +119,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applySession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // The backend's MFA gate (401 + X-Auth-Reason: mfa_required) reaches us
+    // via apiClient, which runs outside the React tree — re-run the session
+    // gate so the 6-digit prompt appears instead of a raw 401 failure.
+    const onMfaRequired = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await applySession(session);
+    };
+    window.addEventListener(MFA_REQUIRED_EVENT, onMfaRequired);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener(MFA_REQUIRED_EVENT, onMfaRequired);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -67,10 +67,10 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
         {attentionLoading ? <p role="status" className="font-sans text-body-sm text-ink-muted">Loading the latest records…</p>
           : attentionFailed ? <Notice tone="warning" title="Needs-attention data is unavailable." action={<Button size="sm" onClick={onRetry}>Retry</Button>} />
           : attention.length ? (
-            <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">
+            <ul className="flex flex-col divide-y divide-line-subtle">
               {attention.map(item => (
                 <li key={item.id}>
-                  <button type="button" onClick={() => onNavigate(item.tab, 'all')} className="focus-ring flex w-full items-start gap-3 py-2.5 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+                  <button type="button" onClick={() => onNavigate(item.tab, 'all')} className="focus-ring flex w-full items-start gap-3 py-2.5 text-left transition-colors hover:bg-surface-subtle">
                     <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: item.tone === 'red' ? 'var(--mo-danger)' : 'var(--mo-warning)' }} />
                     <span className="min-w-0 flex-1"><strong className="block font-sans text-body-sm font-medium text-ink">{item.title}</strong><small className="block font-sans text-caption text-ink-muted">{item.detail}</small></span>
                     <Icon name="chevron-right" size="xs" className="mt-1 text-ink-muted" />
@@ -87,7 +87,7 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map(section => (
             <button key={section.value} type="button" aria-label={`Open ${section.label}`} title={SECTION_DESCRIPTIONS[section.value] ?? section.label} onClick={() => onNavigate(section.value, 'all')}
-              className="focus-ring flex items-center justify-between gap-2 rounded-[6px] border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)] px-3 py-2.5 text-left font-sans text-body-sm font-medium text-ink transition-colors hover:border-[var(--mo-action)]">
+              className="focus-ring flex items-center justify-between gap-2 rounded-sm border border-line-subtle bg-surface-raised px-3 py-2.5 text-left font-sans text-body-sm font-medium text-ink transition-colors hover:border-action">
               <span className="min-w-0"><span className="block truncate">{section.label}</span><small className="block truncate font-normal text-ink-muted">{SECTION_DESCRIPTIONS[section.value]}</small></span>
               <Icon name="chevron-right" size="xs" className="shrink-0 text-ink-muted" />
             </button>
@@ -96,7 +96,7 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
       </nav>
 
       <Panel title={(
-        <button type="button" aria-expanded={movementsOpen} aria-controls="home-movements" disabled={historyFailed} onClick={toggleMovements} className="focus-ring inline-flex items-center gap-2 rounded-[4px]">
+        <button type="button" aria-expanded={movementsOpen} aria-controls="home-movements" disabled={historyFailed} onClick={toggleMovements} className="focus-ring inline-flex items-center gap-2 rounded-xs">
           Recent movements <small className="font-normal text-ink-muted">{movementsChip}</small><Icon name={movementsOpen ? 'chevron-up' : 'chevron-down'} size="xs" />
         </button>
       )} actions={movementsOpen && !historyLoading ? <Button variant="ghost" size="sm" onClick={() => onNavigate('activity', 'all')}>View all</Button> : undefined}>
@@ -105,10 +105,10 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
             {historyLoading ? <p role="status" className="font-sans text-body-sm text-ink-muted">Loading the latest records…</p>
               : historyFailed ? <Notice tone="warning" title="Movement history is unavailable." action={<Button size="sm" onClick={onRetry}>Retry</Button>} />
               : movements.length ? (
-                <ul className="flex flex-col divide-y divide-[var(--mo-line-subtle)]">
+                <ul className="flex flex-col divide-y divide-line-subtle">
                   {movements.map(item => (
                     <li key={item.id}>
-                      <button type="button" onClick={() => onNavigate('activity', 'all')} className="focus-ring flex w-full items-start justify-between gap-3 py-2.5 text-left transition-colors hover:bg-[var(--mo-surface-subtle)]">
+                      <button type="button" onClick={() => onNavigate('activity', 'all')} className="focus-ring flex w-full items-start justify-between gap-3 py-2.5 text-left transition-colors hover:bg-surface-subtle">
                         <span className="min-w-0"><strong className="block font-sans text-body-sm font-medium text-ink">{item.title}</strong><small className="block font-sans text-caption text-ink-muted">{item.detail}</small></span>
                         <time className="shrink-0 font-sans text-caption text-ink-muted">{item.time}</time>
                       </button>

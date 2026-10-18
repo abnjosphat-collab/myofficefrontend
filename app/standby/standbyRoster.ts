@@ -40,6 +40,9 @@ function toUTC(dateStr: string): number {
 }
 
 function fromUTC(ms: number): string {
+  // Legitimate UTC read: ms always comes from Date.UTC (see toUTC above), so the UTC calendar date IS the intended
+  // date — no timezone shift is possible. This is the one sanctioned exception to the no-restricted-syntax ban.
+  // eslint-disable-next-line no-restricted-syntax
   return new Date(ms).toISOString().slice(0, 10);
 }
 

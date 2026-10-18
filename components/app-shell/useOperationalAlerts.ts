@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
-import { CalendarDays, Clock, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
+import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
 import { timeAgo, type ActivityItem } from './useDashboardData';
 
@@ -22,6 +22,7 @@ interface OvertimeRow { id: number | string; employee_name?: string; date?: stri
 interface SheqRow { id: number | string; status?: string | null; title?: string; date?: string | null }
 interface WorkOrderRow { id: number | string; work_order_number?: string | null; due_date?: string | null; requested_by?: string }
 interface TaskEventRow { id: number | string; task_type?: string | null; title?: string; due_date?: string | null; responsible_people?: string[] | null }
+interface PwRequestRow { id: number | string; identifier?: string; created_at?: string | null }
 
 function toItem(id: string, action: string, module: string, icon: LucideIcon, iso: string | null | undefined, status: ActivityItem['status'], user?: string): ActivityItem {
   return { id, action, module, icon, time: timeAgo(iso), timestamp: new Date(iso || 0).getTime(), status, user };
@@ -30,6 +31,7 @@ function toItem(id: string, action: string, module: string, icon: LucideIcon, is
 export function useOperationalAlerts() {
   const { isAtLeast } = useAuth();
   const canView = isAtLeast('manager');
+  const isAdmin = isAtLeast('admin');
   const [loaded, setLoaded] = useState<{ alerts: ActivityItem[]; failed: boolean } | null>(null);
 
   useEffect(() => {
@@ -37,16 +39,25 @@ export function useOperationalAlerts() {
     let cancelled = false;
 
     async function load() {
-      const [leaves, overtime, sheq, workOrders, tasksEvents] = await Promise.all([
+      // Reset asks are admin-only server-side; a manager asks for nothing rather than a 403 that would read as failure.
+      const [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests] = await Promise.all([
         fetchOrNull<LeaveRow[]>(`${API_BASE}/api/leaves?status=pending`),
         fetchOrNull<OvertimeRow[]>(`${API_BASE}/api/overtime?status=pending`),
         fetchOrNull<SheqRow[]>(`${API_BASE}/api/sheq?status=open`),
         fetchOrNull<WorkOrderRow[]>(`${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`),
         fetchOrNull<TaskEventRow[]>(`${API_BASE}/api/tasks-events?status=pending`),
+        isAdmin ? fetchOrNull<PwRequestRow[]>(`${API_BASE}/api/admin/password-reset-requests?status=pending`) : Promise.resolve([] as PwRequestRow[]),
       ]);
       if (cancelled) return;
       // fetchOrNull returns null when a request fails; an empty list is a real answer.
-      const failed = [leaves, overtime, sheq, workOrders, tasksEvents].some(r => r === null);
+      const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests].some(r => r === null);
+
+      const pwItems: ActivityItem[] = Array.isArray(pwRequests)
+        ? pwRequests.slice(0, 5).map(p => toItem(
+          `pw-${p.id}`, `Password reset requested — ${p.identifier ?? 'an account'}`,
+          'Users', Key, p.created_at, 'pending', p.identifier,
+        ))
+        : [];
 
       const leaveItems: ActivityItem[] = Array.isArray(leaves)
         ? leaves.slice(0, 5).map(l => toItem(
@@ -90,7 +101,7 @@ export function useOperationalAlerts() {
           ))
         : [];
 
-      const merged = [...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
+      const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
         .filter(i => i.timestamp > 0)
         .sort((a, b) => b.timestamp - a.timestamp);
 
@@ -99,7 +110,7 @@ export function useOperationalAlerts() {
 
     load();
     return () => { cancelled = true; };
-  }, [canView]);
+  }, [canView, isAdmin]);
 
   if (!canView) return { alerts: [] as ActivityItem[], loading: false, failed: false };
   return { alerts: loaded?.alerts ?? [], loading: loaded === null, failed: loaded?.failed ?? false };

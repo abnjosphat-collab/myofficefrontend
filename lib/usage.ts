@@ -526,7 +526,7 @@ export function summarize(events: UsageEvent[]): UsageSummary {
     else if (e.type === 'page_view') pageViews++;
     else if (e.type === 'search') searches++;
     else if (e.type === 'feedback') { feedbackCount++; ratingSum += e.rating; }
-    if (e.type === 'module_open' || e.type === 'page_view') days.add(new Date(e.ts).toISOString().slice(0, 10));
+    if (e.type === 'module_open' || e.type === 'page_view') days.add(toLocalISODate(new Date(e.ts)));
   }
   const byHour = usageByHour(events);
   const busiest = byHour.reduce((best, cur) => (cur.count > (best?.count ?? -1) ? cur : best), null as null | { hour: number; count: number });

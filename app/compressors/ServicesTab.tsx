@@ -56,7 +56,7 @@ export function ServicesTab({ services, compressors, registerLoaded, onRetry, on
                         </div>
                         <StatusBadge tone={URGENCY_TONE[svc.urgency] ?? 'neutral'} icon={svc.urgency === 'critical' || svc.urgency === 'high' ? 'warning' : undefined}>{`${svc.urgency.charAt(0).toUpperCase()}${svc.urgency.slice(1)}`}</StatusBadge>
                       </div>
-                      <dl className="grid grid-cols-3 gap-3">
+                      <dl className="grid grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))] gap-3">
                         <div><dt className="font-sans text-caption text-ink-muted">Interval</dt><dd className="font-display text-title font-semibold text-ink tabular">{svc.service_interval} h</dd></div>
                         <div><dt className="font-sans text-caption text-ink-muted">Remaining</dt><dd className="font-display text-title font-semibold text-ink tabular">{hours(svc.hours_remaining)}</dd></div>
                         <div><dt className="font-sans text-caption text-ink-muted">Days until</dt><dd className="font-display text-title font-semibold text-ink tabular">{svc.days_remaining}</dd></div>

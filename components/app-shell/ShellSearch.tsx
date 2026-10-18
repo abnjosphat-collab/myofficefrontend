@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DestinationSearch, type DestinationResult } from '@/components/ui-system';
 import { clearSearchHistory, getSearchHistory, trackSearch } from '@/lib/usage';
+import { rankModules, searchWords } from '@/lib/moduleSearch';
 import type { Category, Module } from './modules';
 
 type ModuleResult = DestinationResult & { href?: string; recentQuery?: string };
@@ -32,12 +33,9 @@ export function ShellSearch({ value, onValueChange, visibleCategories, focusSign
   useEffect(() => { if (focusSignal > 0) inputRef.current?.focus(); }, [focusSignal]);
 
   const matches = useMemo<ModuleResult[]>(() => {
-    const query = value.trim().toLowerCase();
-    if (!query) return [];
+    if (searchWords(value).length === 0) return [];
     return visibleCategories
-      .flatMap(category => category.modules
-        .filter(module => module.title.toLowerCase().includes(query) || module.description.toLowerCase().includes(query))
-        .map(module => toResult(module, category)))
+      .flatMap(category => rankModules(category.modules, value).map(module => toResult(module, category)))
       .slice(0, 8);
   }, [value, visibleCategories]);
 
@@ -65,7 +63,7 @@ export function ShellSearch({ value, onValueChange, visibleCategories, focusSign
         inputRef={inputRef}
         label="Search modules and pages"
         placeholder="Search modules and pages"
-        hint="Searches module names and descriptions."
+        hint="Searches module names, descriptions and tags."
         value={value}
         onValueChange={onValueChange}
         results={matches}

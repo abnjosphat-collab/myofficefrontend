@@ -56,6 +56,12 @@ describe('normalizeDesignation', () => {
   it('returns trimmed original when no mapping exists', () => {
     expect(normalizeDesignation('  Graduate Trainee  ')).toBe('Graduate Trainee');
   });
+  it('canonicalizes Planning Superintendent and its aliases', () => {
+    expect(normalizeDesignation('Planning Superintendent')).toBe('Planning Superintendent');
+    expect(normalizeDesignation('planning superintendent')).toBe('Planning Superintendent');
+    expect(normalizeDesignation('Planning Superintendant')).toBe('Planning Superintendent');
+    expect(normalizeDesignation('Superintendent Planning')).toBe('Planning Superintendent');
+  });
 });
 
 describe('isStandardDesignation', () => {
@@ -63,6 +69,7 @@ describe('isStandardDesignation', () => {
     expect(isStandardDesignation('Boilermaker Class 2')).toBe(true);
     expect(isStandardDesignation('Boilermaker Semi Skilled')).toBe(true);
     expect(isStandardDesignation('Light Vehicle Driver')).toBe(true);
+    expect(isStandardDesignation('Planning Superintendent')).toBe(true);
     expect(isStandardDesignation('Graduate Trainee')).toBe(false);
   });
 });
@@ -74,6 +81,7 @@ describe('designationSelectOptions', () => {
     expect(opts.some(o => o.value === 'Rigger Class 1')).toBe(true);
     expect(opts.some(o => o.value === 'Light Vehicle Driver')).toBe(true);
     expect(opts.some(o => o.value === 'Bus Driver')).toBe(true);
+    expect(opts.some(o => o.value === 'Planning Superintendent')).toBe(true);
     expect(opts.length).toBe(DESIGNATION_ORDER.length + 1);
   });
   it('prepends legacy value when editing a non-standard role', () => {
@@ -90,6 +98,14 @@ describe('buildForemanOptions', () => {
       { first_name: 'Jane', last_name: 'Smith', designation: 'Fitter Class 1', supervisor: 'John Doe' },
     ]);
     expect(names).toContain('John Doe');
+    expect(names).not.toContain('Jane Smith');
+  });
+  it('lists superintendents as supervisors', () => {
+    const names = buildForemanOptions([
+      { first_name: 'Sam', last_name: 'Plan', designation: 'Planning Superintendent', supervisor: '' },
+      { first_name: 'Jane', last_name: 'Smith', designation: 'Fitter Class 1', supervisor: '' },
+    ]);
+    expect(names).toContain('Sam Plan');
     expect(names).not.toContain('Jane Smith');
   });
 });
@@ -130,6 +146,8 @@ describe('sectionForDesignation', () => {
     expect(sectionForDesignation('Lamproom Attendant')).toBe('Electrical');
     expect(sectionForDesignation('Maintenance Engineer')).toBe('Management');
     expect(sectionForDesignation('Engineering Manager')).toBe('Management');
+    expect(sectionForDesignation('Planning Superintendent')).toBe('Management');
+    expect(sectionForDesignation('Planning Superintendant')).toBe('Management');
     expect(sectionForDesignation('Foreman')).toBeNull();
     expect(sectionForDesignation('Light Vehicle Driver')).toBeNull();
   });

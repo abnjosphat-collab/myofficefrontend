@@ -8,6 +8,7 @@
 // - 204 / empty bodies resolve to undefined.
 import { authFetch } from '@/lib/api';
 import { API_BASE } from '@/lib/config';
+import { notifyMfaRequired } from '@/lib/mfa';
 import { toast } from 'sonner';
 
 export class ApiError extends Error {
@@ -47,6 +48,24 @@ function resolve(path: string): string {
   return path.startsWith('http') ? path : `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
 }
 
+/** Who a call goes out as. Omitted (the default): the Supabase session, attached
+ *  by authFetch. A string or provider: that Bearer [REDACTED] attached directly, for
+ *  callers with their own session (the Tools workspace token). Null: explicitly
+ *  anonymous — no Authorization header at all (Tools sign-in / sign-up). */
+export type AuthHeaderProvider = string | (() => string | undefined) | null;
+
+/** The one transport every API call goes through: URL resolution plus the
+ *  Authorization header. Main-app callers omit `auth` (Supabase session);
+ *  Tools passes its own session token (or null for its anonymous endpoints).
+ *  Response handling (errors, blobs, 401 UX) stays with the caller. */
+export async function apiFetch(path: string, init: RequestInit = {}, auth?: AuthHeaderProvider): Promise<Response> {
+  if (auth === undefined) return authFetch(resolve(path), init);
+  const token = typeof auth === 'function' ? auth() : auth;
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(resolve(path), { ...init, headers });
+}
+
 async function extractError(res: Response): Promise<string> {
   try {
     const body = await res.json();
@@ -81,11 +100,27 @@ function buildInit(method: string, body?: unknown): RequestInit {
   return init;
 }
 
+/** True when the backend gated this call on 2FA (enrolled user, aal1 token).
+ *  The header is the contract; the detail text is a fallback for proxies that
+ *  strip custom headers. Either way the caller is signed in but challenged —
+ *  NOT signed out — so this must never trigger the sign-in toast. */
+function isMfaRequired(res: Response, detail?: string): boolean {
+  if (res.headers.get('X-Auth-Reason') === 'mfa_required') return true;
+  return detail === 'Two-factor verification required.';
+}
+
 async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const res = await authFetch(resolve(path), { ...buildInit(method, body), signal });
+  const res = await apiFetch(path, { ...buildInit(method, body), signal });
   if (!res.ok) {
+    const detail = await extractError(res);
+    if (res.status === 401 && isMfaRequired(res, detail)) {
+      // Re-run the session gate (AuthProvider re-checks needsChallenge and
+      // raises the 6-digit prompt) instead of surfacing a raw 401.
+      notifyMfaRequired();
+      throw new ApiError('Two-factor verification required.', res.status);
+    }
     if (res.status === 401) offerSignIn();
-    throw new ApiError(await extractError(res), res.status);
+    throw new ApiError(detail, res.status);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
@@ -94,10 +129,15 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
 
 /** Like request() but resolves to a Blob (file downloads: CSV/PDF export, etc.). */
 async function requestBlob(method: string, path: string, body?: unknown): Promise<Blob> {
-  const res = await authFetch(resolve(path), buildInit(method, body));
+  const res = await apiFetch(path, buildInit(method, body));
   if (!res.ok) {
+    const detail = await extractError(res);
+    if (res.status === 401 && isMfaRequired(res, detail)) {
+      notifyMfaRequired();
+      throw new ApiError('Two-factor verification required.', res.status);
+    }
     if (res.status === 401) offerSignIn();
-    throw new ApiError(await extractError(res), res.status);
+    throw new ApiError(detail, res.status);
   }
   return res.blob();
 }

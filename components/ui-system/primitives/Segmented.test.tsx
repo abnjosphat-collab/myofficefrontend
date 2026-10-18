@@ -14,9 +14,10 @@ describe('Segmented', () => {
     render(<Segmented label="Condition" value="good" onValueChange={() => {}} options={OPTIONS} />);
     const chosen = screen.getByRole('button', { name: 'Good' });
     expect(chosen).toHaveAttribute('aria-pressed', 'true');
-    expect(chosen.className).toContain('bg-action-soft');
-    expect(chosen.className).toContain('text-action');
-    expect(chosen.className).not.toContain('bg-surface ');
+    // Selected is a filled action pill: unmistakable against the muted track, never textbox-like.
+    expect(chosen.className).toContain('aria-pressed:bg-action ');
+    expect(chosen.className).toContain('aria-pressed:text-action-ink');
+    expect(chosen.className).not.toContain('bg-action-soft');
     expect(chosen.className).not.toContain('shadow');
     const other = screen.getByRole('button', { name: 'Damaged' });
     expect(other).toHaveAttribute('aria-pressed', 'false');

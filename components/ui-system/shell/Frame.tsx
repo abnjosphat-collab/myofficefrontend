@@ -48,7 +48,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   const opener = useRef<HTMLElement | null>(null);
 
   const panel = (
-    <nav aria-label={label} className="flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface">
+    <nav aria-label={label} className="flex min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-surface">
       {/* The panel hugs its content (as in Tools) and only scrolls when the viewport is shorter than the list. */}
       {search && !(collapsed && desktop) && <div className="shrink-0 border-b border-line-subtle p-2">{search}</div>}
       <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">{children}</div>
@@ -62,7 +62,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
         aria-label={label}
         data-collapsed={collapsed || undefined}
         className={cn(
-          'sticky top-0 z-[var(--mo-z-sidebar)] flex h-dvh shrink-0 flex-col border-r border-line bg-surface py-[18px]',
+          'sticky top-0 z-sidebar flex h-dvh shrink-0 flex-col border-r border-line bg-surface py-[18px]',
           'transition-[width] duration-[220ms] ease-[ease]',
           // The left safe area (a landscape notch) widens the column so the content keeps its full width.
           collapsed ? 'w-[calc(var(--mo-sidebar-collapsed)+var(--mo-safe-left))] pl-[calc(0.5rem+var(--mo-safe-left))] pr-2' : 'w-[calc(var(--mo-sidebar-width)+var(--mo-safe-left))] pl-[calc(0.75rem+var(--mo-safe-left))] pr-3',
@@ -71,14 +71,14 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
         <div className={cn('relative mb-[15px] flex min-h-[38px] items-center gap-[9px] border-b border-line pb-[15px]', collapsed ? 'justify-center px-0' : 'px-1.5')}>
           {spotlight}
           {collapsed && search && onSearchExpand && (
-            <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-7 rounded-[7px]" />
+            <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-7 rounded-control" />
           )}
           <IconButton
             icon="chevron-left"
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
             onClick={onToggleCollapsed}
-            className={cn('size-7 rounded-[7px] [&_svg]:transition-transform [&_svg]:duration-[var(--mo-duration-slow)]', collapsed ? 'absolute -right-[19px] top-1 border-line bg-surface [&_svg]:rotate-180' : 'ml-auto')}
+            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-duration-slow)]', collapsed ? 'absolute -right-[19px] top-1 border-line bg-surface [&_svg]:rotate-180' : 'ml-auto')}
           />
         </div>
         {panel}
@@ -90,19 +90,19 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
     <>
       <div
         data-nav-strip=""
-        className="sticky top-0 z-[var(--mo-z-sidebar)] flex items-center gap-1.5 overflow-x-auto border-b border-line bg-surface pt-[var(--mo-safe-top)]"
+        className="sticky top-0 z-sidebar flex items-center gap-1.5 overflow-x-auto border-b border-line bg-surface pt-[var(--mo-safe-top)]"
         style={{ height: STRIP_HEIGHT, paddingLeft: 'max(0.75rem, var(--mo-safe-left))', paddingRight: 'max(0.75rem, var(--mo-safe-right))' }}
       >
         {strip}
       </div>
       <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-[var(--mo-z-overlay)] bg-[var(--mo-overlay)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+          <DialogPrimitive.Overlay className="fixed inset-0 z-overlay bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
           <DialogPrimitive.Content
             aria-describedby={undefined}
             onOpenAutoFocus={() => { opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; }}
             onCloseAutoFocus={event => { const target = opener.current; if (target?.isConnected) { event.preventDefault(); target.focus(); } }}
-            className="fixed inset-y-0 left-0 z-[var(--mo-z-dialog)] flex w-[min(20rem,calc(100vw-3rem))] flex-col gap-3 border-r border-line bg-surface p-3 pb-[max(0.75rem,var(--mo-safe-bottom))] pl-[max(0.75rem,var(--mo-safe-left))] pt-[max(0.75rem,var(--mo-safe-top))] shadow-dialog outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left duration-[var(--mo-duration-slow)]"
+            className="fixed inset-y-0 left-0 z-dialog flex w-[min(20rem,calc(100vw-3rem))] flex-col gap-3 border-r border-line bg-surface p-3 pb-[max(0.75rem,var(--mo-safe-bottom))] pl-[max(0.75rem,var(--mo-safe-left))] pt-[max(0.75rem,var(--mo-safe-top))] shadow-dialog outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-left data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left duration-[var(--mo-duration-slow)]"
           >
             <div className="flex min-h-[38px] items-center justify-between border-b border-line px-1.5 pb-3">
               <DialogPrimitive.Title className="sr-only">{label}</DialogPrimitive.Title>
@@ -125,7 +125,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
 export function TopBar({ start, center, end, below }: { start?: ReactNode; center?: ReactNode; end?: ReactNode; below?: ReactNode }) {
   return (
     <header
-      className="sticky top-[calc(57px+var(--mo-safe-top))] z-[var(--mo-z-header)] mt-3 border-y border-line bg-canvas/[0.88] shadow-[0_10px_30px_-28px_var(--mo-ink)] backdrop-blur-[18px] backdrop-saturate-[1.2] min-[821px]:top-0"
+      className="sticky top-[calc(57px+var(--mo-safe-top))] z-header mt-3 border-y border-line bg-canvas/[0.88] shadow-[0_10px_30px_-28px_var(--mo-ink)] backdrop-blur-[18px] backdrop-saturate-[1.2] min-[821px]:top-0"
       style={{ marginLeft: 'max(var(--mo-page-gutter), var(--mo-safe-left))', marginRight: 'max(var(--mo-page-gutter), var(--mo-safe-right))' }}
     >
       <div className="flex min-h-[38px] items-center gap-3 px-1 py-[11px]">
@@ -153,7 +153,7 @@ export function AppFrame({ topBar, sidebar, children, className, contained = tru
 }) {
   return (
     <div className="min-h-dvh bg-canvas">
-      <a href="#main-content" className="focus-ring sr-only fixed left-3 top-3 z-[var(--mo-z-tooltip)] rounded-control bg-action px-3 py-2 font-sans text-label font-medium text-action-ink focus:not-sr-only">
+      <a href="#main-content" className="focus-ring sr-only fixed left-3 top-3 z-tooltip rounded-control bg-action px-3 py-2 font-sans text-label font-medium text-action-ink focus:not-sr-only">
         Skip to main content
       </a>
       {/* Mobile first: a column (strip above content); the sidebar row starts at 821 px, the same boundary the JS uses.

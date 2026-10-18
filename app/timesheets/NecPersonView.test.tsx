@@ -109,6 +109,22 @@ describe('NecPersonView', () => {
     expect(within(foot).getAllByRole('cell')[1]).toHaveTextContent('2.0');
   });
 
+  it('lists the identity facts through the shared FactList', () => {
+    const p = props();
+    render(<NecPersonView {...p} />);
+    const facts = screen.getByText('Mine number').closest('dl')!;
+    expect(within(facts).getByText('C007')).toBeInTheDocument();
+    expect(within(facts).getByText('Department')).toBeInTheDocument();
+    expect(within(facts).getByText('Engineering')).toBeInTheDocument();
+  });
+
+  it('shows a missing fact the shared quiet way, not a blank', () => {
+    const p = props();
+    render(<NecPersonView {...p} employee={{ ...employee, position: '' }} />);
+    const facts = screen.getByText('Position').closest('dl')!;
+    expect(within(facts).getByText('Not recorded')).toBeInTheDocument();
+  });
+
   it('edits a day through the caller and downloads the person', async () => {
     const user = userEvent.setup();
     const p = props();

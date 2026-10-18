@@ -17,7 +17,7 @@ function Avatar({ url, size = 'md' }: { url: string | null; size?: 'md' | 'lg' }
     // eslint-disable-next-line @next/next/no-img-element -- remote avatar of arbitrary origin; sized by the box
     <img src={url} alt="" className={`${box} shrink-0 rounded-full object-cover`} />
   ) : (
-    <span aria-hidden="true" className={`${box} inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--mo-surface-interactive)] text-ink`}><Icon name="user" size="md" /></span>
+    <span aria-hidden="true" className={`${box} inline-flex shrink-0 items-center justify-center rounded-full bg-surface-interactive text-ink`}><Icon name="user" size="md" /></span>
   );
 }
 

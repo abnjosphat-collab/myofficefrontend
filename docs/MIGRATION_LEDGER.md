@@ -15,10 +15,10 @@
 
 | Route | Code | Route spec | Unit tests | Browser verified | Note |
 |---|---|---|---|---|---|
-| `/` | Migrated | Yes | No | Yes, 2026-10-03 | Home: real stats, favourites, quick actions, search, bulk pinning, tips. |
+| `/` | Migrated | Yes | 2 | Yes, 2026-10-03 | Home: real stats, favourites, quick actions, search, bulk pinning, tips. |
 | `/admin` | Migrated | Yes | No | Yes, 2026-10-03 | User directory table with role tiles as filters, a Manage dialog (role, deactivate with confirmation, reactivate, reset password with confirmation, failures shown inside the dialog), invite dialog with the backend's error shown and input kept, role guide. Permission rules preserved: a super admin manages anyone, an admin cannot manage a super admin or themselves, and an admin is not offered the Super Admin role (or Admin, when inviting). The page only fetches users once the caller is confirmed an admin; signed-out visitors see 'Sign in required' instead of a spinner. The backend enforces the same rules; this was not run against it. |
 | `/admin/lists` | Migrated | Yes | No | Yes, 2026-10-03 | Shared pick-or-type lists: add, rename, delete with confirmation. |
-| `/artisan-timesheets` | Migrated | Yes | 11 | Yes, 2026-10-04 | Dense grid kept (frozen panes, copy-down) on the shared system's controls. Signature capture still uses the shared SignaturePad. |
+| `/artisan-timesheets` | Migrated | Yes | 12 | Yes, 2026-10-04 | Dense grid kept (frozen panes, copy-down) on the shared system's controls. Signature capture still uses the shared SignaturePad. |
 | `/auth/callback` | Own chrome | No | No | Not checked | auth redirect handler |
 | `/auth/set-password` | Own chrome | No | No | Not checked | password setup |
 | `/av` | Redirect | No | No | Yes, 2026-10-04 | Retired duplicate of Availabilities (owner decision 4 Oct 2026); the old page was replaced by a redirect. |
@@ -41,7 +41,7 @@
 | `/equipment` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog. |
 | `/inventory` | Migrated | Yes | 2 | Yes, 2026-10-03 | Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data. |
 | `/issues` | Migrated | Yes | 2 | Yes, 2026-10-04 | Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF). |
-| `/job-cards` | Migrated | Yes | No | Yes, 2026-10-03 | Register and details dialog with task toggles and save; dead New job card button removed. |
+| `/job-cards` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register and details dialog with task toggles and save; dead New job card button removed. |
 | `/leave-management` | Redirect | No | No | Yes, 2026-10-04 | Retired demo prototype (sample data, no backend; owner decision 4 Oct 2026); replaced by a redirect to /leaves. |
 | `/leaves` | Migrated | Yes | 2 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
 | `/login` | Own chrome | No | No | Not checked | sign-in page |
@@ -69,7 +69,7 @@
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 17 | unverified (2026-10-08) | NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
-| `/tools` | Own chrome | Yes | 22 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/tools` | Own chrome | Yes | 25 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |

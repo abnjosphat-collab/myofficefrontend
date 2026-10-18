@@ -1,12 +1,12 @@
 // app/issues/exportIssues.ts — the stock-issues Excel (issues and line items) and PDF register exports. Both libraries
 // are loaded only when an export is asked for. Every issue is exported, not just the filtered ones.
-import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
+import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB, exportFilename } from '@/lib/exportUtils';
 import { formatCurrency, lineTotal } from '@/components/shared/utils';
 import { issueCost } from './analytics';
 import type { StockIssue } from './types';
 import { formatDate, formatDateTime } from '@/lib/format';
 
-const stamp = () => new Date().toISOString().slice(0, 10);
+const registerName = () => exportFilename('Stock_Issues');
 const when = (s: string) => (s ? formatDateTime(s) : '');
 
 export async function exportIssuesExcel(issues: StockIssue[]): Promise<void> {
@@ -55,7 +55,7 @@ export async function exportIssuesExcel(issues: StockIssue[]): Promise<void> {
   }
   ws2.autoFilter = { from: 'A1', to: 'H1' };
   const buf = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Stock_Issues_${stamp()}.xlsx`);
+  saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${registerName()}.xlsx`);
 }
 
 export async function exportIssuesPdf(issues: StockIssue[]): Promise<void> {
@@ -77,5 +77,5 @@ export async function exportIssuesPdf(issues: StockIssue[]): Promise<void> {
     styles: { cellPadding: 1.5 },
     margin: { left: 10, right: 10 },
   });
-  doc.save(`Stock_Issues_${stamp()}.pdf`);
+  doc.save(`${registerName()}.pdf`);
 }

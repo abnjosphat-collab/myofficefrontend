@@ -8,6 +8,7 @@ import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, For
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { BehaviourType, PacheduReport, PacheduStatus, SectionType } from './types';
@@ -45,8 +46,8 @@ const StatusTag = ({ status }: { status: PacheduStatus }) => { const m = STATUS_
 const RiskBadge = () => <StatusBadge tone="danger" icon="warning">High risk</StatusBadge>;
 
 type Form = Pick<PacheduReport, 'location' | 'date' | 'activityObserved' | 'whatDidYouSee' | 'reasons' | 'behaviourType' | 'impacts' | 'whatDidYouDo' | 'observerName' | 'dept' | 'sdwt' | 'sectionChoice' | 'checklist' | 'status'>;
-const emptyForm = (): Form => ({
-  location: '', date: new Date().toISOString().slice(0, 10), activityObserved: '', whatDidYouSee: '', reasons: '', behaviourType: 'Unintentional', impacts: [],
+export const emptyForm = (): Form => ({
+  location: '', date: todayLocal(), activityObserved: '', whatDidYouSee: '', reasons: '', behaviourType: 'Unintentional', impacts: [],
   whatDidYouDo: '', observerName: '', dept: 'Engineering', sdwt: '', sectionChoice: 'Mechanical', checklist: [], status: 'draft',
 });
 const toggle = (list: string[] | undefined, item: string) => (list?.includes(item) ? list.filter(i => i !== item) : [...(list || []), item]);

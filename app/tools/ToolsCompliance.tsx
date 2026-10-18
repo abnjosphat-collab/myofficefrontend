@@ -19,12 +19,12 @@ type FormName = 'competency' | 'inspection' | 'incident' | 'close';
 /** One of the record-keeping forms, folded away until it is needed. */
 function FormCard({ name, open, onToggle, title, note, children }: { name: FormName; open: boolean; onToggle: (name: FormName, open: boolean) => void; title: string; note: string; children: ReactNode }) {
   return (
-    <details open={open} onToggle={event => onToggle(name, event.currentTarget.open)} className="rounded-card border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)]">
+    <details open={open} onToggle={event => onToggle(name, event.currentTarget.open)} className="rounded-card border border-line-subtle bg-surface-raised">
       <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
         <span><strong className="block font-sans text-body-sm font-medium text-ink">{title}</strong><small className="font-sans text-caption text-ink-muted">{note}</small></span>
         <Icon name="chevron-down" size="sm" />
       </summary>
-      <div className="flex flex-col gap-4 border-t border-[var(--mo-line-subtle)] p-4">{children}</div>
+      <div className="flex flex-col gap-4 border-t border-line-subtle p-4">{children}</div>
     </details>
   );
 }
@@ -142,7 +142,7 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
     <section className="flex flex-col gap-5" aria-label="Compliance">
       <dl className="flex flex-wrap gap-2">
         {summary.map(item => (
-          <div key={item.many} className="inline-flex items-baseline gap-2 rounded-control border border-[var(--mo-line-subtle)] px-3 py-1.5 font-sans text-body-sm">
+          <div key={item.many} className="inline-flex items-baseline gap-2 rounded-control border border-line-subtle px-3 py-1.5 font-sans text-body-sm">
             <dd className="font-display font-semibold tabular text-ink">{item.value}</dd>
             <dt className="text-ink-muted">{item.value === 1 ? item.one : item.many}</dt>
           </div>

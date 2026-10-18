@@ -43,11 +43,11 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
         }}
       />
       {/* WAI-ARIA combobox with a listbox popup: the options are not tab stops, the search box above drives them from the keyboard (arrows, Enter, Tab). */}
-      <ul id={listId} role="listbox" aria-label={`${label} suggestions`} className="max-h-56 overflow-y-auto rounded-control border border-[var(--mo-line-subtle)] bg-[var(--mo-surface-raised)]">
+      <ul id={listId} role="listbox" aria-label={`${label} suggestions`} className="max-h-56 overflow-y-auto rounded-control border border-line-subtle bg-surface-raised">
         {matches.map((choice, index) => (
           // eslint-disable-next-line jsx-a11y/click-events-have-key-events
           <li key={choice.label} id={`${id}-option-${index}`} role="option" aria-selected={choice.label === value} data-active={index === current}
-            className={`flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-[var(--mo-surface-subtle)] ${index === current ? 'bg-[var(--mo-surface-subtle)]' : ''} ${choice.label === value ? 'bg-[var(--mo-action-soft)]' : ''}`}
+            className={`flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-surface-subtle ${index === current ? 'bg-surface-subtle' : ''} ${choice.label === value ? 'bg-action-soft' : ''}`}
             onMouseDown={event => event.preventDefault()} onClick={() => choose(choice)}>
             <span aria-hidden="true" className="text-ink-muted"><Icon name="user" size="sm" /></span>
             <span className="min-w-0 flex-1">

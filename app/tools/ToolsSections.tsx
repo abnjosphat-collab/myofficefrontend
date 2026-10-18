@@ -55,7 +55,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
 
   const failed = <DataState title={activeSourceTitle} state={activeSourceState} onRetry={w.retryWorkspace} />;
   switch (tab) {
-    case 'accounts': return <>{failed}<ToolsAccountAccess accounts={w.accounts} departments={w.departments} onUpdateRole={w.updateAccountRole} /></>;
+    case 'accounts': return <>{failed}<ToolsAccountAccess accounts={w.accounts} departments={w.departments} requestUsernames={w.notificationAlerts.filter(alert => alert.kind === 'password_request' && alert.username).map(alert => alert.username as string)} onUpdateRole={w.updateAccountRole} onSetPassword={w.setAccountPassword} /></>;
     case 'compliance':
       return (
         <>{failed}

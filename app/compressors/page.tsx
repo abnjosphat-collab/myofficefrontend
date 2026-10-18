@@ -93,7 +93,7 @@ function CompressorFloor() {
       {/* Header: the place, the day, the one primary action */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <AnimatedText as="h1" text="Compressors" className="font-display text-[30px] font-normal leading-tight tracking-tight text-ink" />
+          <AnimatedText as="h1" text="Compressors" className="font-display text-display text-ink" />
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Input type="date" aria-label="Reading date" className="w-40" value={date} onChange={e => e.target.value && setDate(e.target.value)} />
@@ -116,11 +116,11 @@ function CompressorFloor() {
       {/* View switch: the floor is the job; the rest are references */}
       <nav aria-label="Compressor views" className="flex flex-wrap items-center justify-between gap-3">
         {/* Scrolls sideways within its own width on a narrow screen rather than widening the page. */}
-        <div className="relative flex max-w-full gap-1 overflow-x-auto rounded-[10px] bg-[var(--mo-surface-muted)] p-1 shadow-[inset_0_1px_3px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] [scrollbar-width:none]">
+        <div className="relative flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface-muted p-1 shadow-[inset_0_1px_3px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] [scrollbar-width:none]">
           {([['floor', 'Floor'], ['month', 'Month'], ['services', 'Services'], ['analytics', 'Analytics'], ['fleet', 'Fleet']] as const).map(([v, label]) => (
             <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-              className="relative z-10 shrink-0 rounded-[8px] px-4 py-1.5 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
-              {view === v && <motion.span layoutId="view-pill" className="absolute inset-0 -z-10 rounded-[8px] bg-[var(--mo-surface-raised)] shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]" transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }} />}
+              className="relative z-10 shrink-0 rounded-control px-4 py-1.5 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              {view === v && <motion.span layoutId="view-pill" className="absolute inset-0 -z-10 rounded-control bg-surface-raised shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]" transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }} />}
               {label}
             </button>
           ))}
@@ -128,7 +128,7 @@ function CompressorFloor() {
         {(view === 'floor' || view === 'month') && (
           <div className="flex flex-wrap items-center gap-2">
             <Select className="w-44" aria-label="Location" value={location} onValueChange={setLocation} options={[{ value: ALL, label: 'All locations' }, ...locations.map(l => ({ value: l, label: l }))]} />
-            {view === 'floor' && <div className="flex rounded-[8px] border border-[var(--mo-line-subtle)] p-0.5" role="group" aria-label="Layout">
+            {view === 'floor' && <div className="flex rounded-control border border-line-subtle p-0.5" role="group" aria-label="Layout">
               <IconButton icon="grid-view" size="sm" label="Pods" variant={layout === 'pods' ? 'outline' : 'ghost'} aria-pressed={layout === 'pods'} onClick={() => setLayout('pods')} />
               <IconButton icon="table-view" size="sm" label="List" variant={layout === 'list' ? 'outline' : 'ghost'} aria-pressed={layout === 'list'} onClick={() => setLayout('list')} />
             </div>}
@@ -201,12 +201,12 @@ function CompressorFloor() {
 function UnitList({ rows, recorded, onOpen }: { rows: Compressor[]; recorded: Set<number>; onOpen: (id: number) => void }) {
   return (
     <div className={`${s.slab} overflow-hidden`}>
-      <ul className="divide-y divide-[var(--mo-line-subtle)]">
+      <ul className="divide-y divide-line-subtle">
         {rows.map(c => {
           const life = serviceLife(c.total_running_hours);
           return (
             <li key={c.id} style={{ ['--accent' as string]: statusAccent(c.status) }}>
-              <button type="button" onClick={() => onOpen(c.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-[var(--mo-surface-subtle)] focus-visible:bg-[var(--mo-surface-subtle)] focus-visible:outline-none sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]">
+              <button type="button" onClick={() => onOpen(c.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:outline-none sm:grid-cols-[auto_1.4fr_1fr_1fr_auto]">
                 <span className={s.lamp} data-state={c.status} />
                 <span className="min-w-0"><span className="block truncate font-sans text-body font-medium text-ink">{c.name}</span><span className="block truncate font-sans text-caption text-ink-muted">{c.location}</span></span>
                 <span className="hidden font-sans text-body tabular text-ink sm:block">{hours(c.total_running_hours)}</span>
@@ -248,7 +248,7 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
   return (
     <section aria-label="Service runway" className={`${s.slab} px-4 py-2`} data-still="">
       <button type="button" aria-expanded={open} aria-controls={bodyId} onClick={toggle}
-        className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-[8px] py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">
+        className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-control py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
         <span className="font-sans text-body-sm font-medium text-ink">Services</span>
         <span className="min-w-0 flex-1 truncate font-sans text-caption text-ink-muted">
           {first ? <>Next: <span className="text-ink">{first.c.name.trim()}</span> in {first.life.hoursLeft?.toFixed(0)} h</> : 'No planned services ahead'}
@@ -262,11 +262,11 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
           <motion.div id={bodyId} key="list"
             initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={reduced ? undefined : { height: 0, opacity: 0 }}
             transition={{ duration: reduced ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
-            <ul className="mt-1 divide-y divide-[var(--mo-line-subtle)] border-t border-[var(--mo-line-subtle)]">
+            <ul className="mt-1 divide-y divide-line-subtle border-t border-line-subtle">
               {shown.map(({ c, life }) => (
                 <li key={c.id} style={{ ['--accent' as string]: life.tone }}>
                   <button type="button" onClick={() => onOpen(c.id)}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_5rem] items-center gap-x-4 gap-y-1 px-1 py-1.5 text-left hover:bg-[var(--mo-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)] sm:grid-cols-[minmax(0,11rem)_1fr_5rem_6.5rem]">
+                    className="grid w-full grid-cols-[minmax(0,1fr)_5rem] items-center gap-x-4 gap-y-1 px-1 py-1.5 text-left hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:grid-cols-[minmax(0,11rem)_1fr_5rem_6.5rem]">
                     <span className="truncate font-sans text-caption text-ink">{c.name.trim()}</span>
                     <span className={`${s.runway} order-last col-span-2 sm:order-none sm:col-span-1`} aria-hidden="true" style={{ height: 4 }}><span className={s.runwayFill} style={{ display: 'block', width: `${Math.max(3, life.fraction * 100)}%`, boxShadow: 'none' }} /></span>
                     <span className="text-right font-sans text-caption tabular" style={{ color: life.urgent ? 'var(--mo-danger)' : 'var(--mo-ink)' }}>{life.hoursLeft?.toFixed(0)} h</span>
@@ -277,7 +277,7 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
             </ul>
             <div className="flex items-center justify-between pt-1.5">
               {items.length > 6
-                ? <button type="button" onClick={() => setAll(a => !a)} className="rounded-[4px] font-sans text-caption text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--mo-focus)]">{all ? 'Show fewer' : `Show all ${items.length}`}</button>
+                ? <button type="button" onClick={() => setAll(a => !a)} className="rounded-xs font-sans text-caption text-ink-muted underline-offset-2 hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">{all ? 'Show fewer' : `Show all ${items.length}`}</button>
                 : <span />}
               <DownloadButton data={servicesFromRegister(items.map(x => x.c)) as unknown as Record<string, unknown>[]} columns={SERVICES_COLUMNS} filename={exportFilename('Compressor_Upcoming_Services')} title="Upcoming compressor services" />
             </div>

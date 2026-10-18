@@ -47,6 +47,8 @@ export function PageHeader({ title, description, breadcrumbs, actions, meta, cla
   }
   return (
     <header className={cn('flex flex-col gap-1.5 pb-1', className)}>
+      {/* Every tab said "MyOffice" (WCAG 2.4.2); the page title travels with its header. React 19 hoists this to <head>. */}
+      <title>{`${title} | MyOffice`}</title>
       {crumbs.length > 0 && (
         <nav aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-1 font-sans text-caption text-ink-muted">

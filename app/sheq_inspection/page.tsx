@@ -9,6 +9,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatTime } from '@/lib/format';
 import type { FindingStatus, InspectionFinding, InspectionStatus, PriorityType, SectionType, SHEQFormData } from './types';
@@ -47,8 +48,8 @@ const FindingBadge = ({ status }: { status: FindingStatus }) => { const m = FIND
 const InspectionBadge = ({ status }: { status: InspectionStatus }) => { const m = INSPECTION_META[status]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{m?.label ?? status}</StatusBadge>; };
 
 type Form = Pick<SHEQFormData, 'inspectors' | 'title' | 'place' | 'date' | 'time' | 'department' | 'section' | 'findings' | 'hodName' | 'sheqOfficialName' | 'status' | 'before_photos' | 'after_photos'>;
-const emptyForm = (): Form => ({
-  inspectors: '', title: '', place: '', date: new Date().toISOString().slice(0, 10), time: formatTime(new Date()),
+export const emptyForm = (): Form => ({
+  inspectors: '', title: '', place: '', date: todayLocal(), time: formatTime(new Date()),
   department: '', section: 'mechanical', findings: [], hodName: '', sheqOfficialName: '', status: 'draft', before_photos: [], after_photos: [],
 });
 

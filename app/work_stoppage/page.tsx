@@ -9,6 +9,7 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
 import { summarizeActions } from '@/lib/actionPlan';
+import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import type { ActionStatus, CorrectiveAction, SectionType, WorkStoppageReport } from './types';
@@ -25,10 +26,9 @@ const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = {
 };
 const ALL = '__all__';
 
-const today = () => new Date().toISOString().slice(0, 10);
 const uid = () => Math.random().toString(36).slice(2, 11);
 const newAction = (): CorrectiveAction => ({ id: uid(), finding: '', action: '', byWho: '', byWhen: '', status: 'Pending' });
-const isOverdue = (a: CorrectiveAction) => a.status !== 'Completed' && !!a.byWhen && a.byWhen < today();
+const isOverdue = (a: CorrectiveAction) => a.status !== 'Completed' && !!a.byWhen && a.byWhen < todayLocal();
 const overdueCount = (r: WorkStoppageReport) => (r.correctiveActions || []).filter(isOverdue).length;
 
 const ActionBadge = ({ status }: { status: ActionStatus }) => {
@@ -37,8 +37,8 @@ const ActionBadge = ({ status }: { status: ActionStatus }) => {
 };
 
 type Form = Omit<WorkStoppageReport, 'id' | 'submittedAt'>;
-const emptyForm = (): Form => ({
-  date: today(), department: 'Engineering', section: 'General', description: '', investigationFindings: '', stoppageBy: '', stoppagePosition: '',
+export const emptyForm = (): Form => ({
+  date: todayLocal(), department: 'Engineering', section: 'General', description: '', investigationFindings: '', stoppageBy: '', stoppagePosition: '',
   acceptedBy: '', sheqCheckedBy: '', correctiveActions: [],
 });
 
@@ -52,7 +52,7 @@ function ActionFields({ action, index, touched, onChange, onRemove }: { action: 
         <div className="min-w-0 flex-1">
           <Field label="Status">
             <Select aria-label={`Action ${n} status`} value={action.status} options={ACTION_STATUSES.map(s => ({ value: s, label: s }))}
-              onValueChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: today() } : {}) })} />
+              onValueChange={v => onChange(action.id, { status: v as ActionStatus, ...(v === 'Completed' && !action.completedDate ? { completedDate: todayLocal() } : {}) })} />
           </Field>
         </div>
         <IconButton icon="delete" variant="danger" label={`Remove action ${n}`} onClick={() => onRemove(action.id)} />

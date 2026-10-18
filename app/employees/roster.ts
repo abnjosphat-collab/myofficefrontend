@@ -3,7 +3,7 @@
 // and sections lives in lib/employeeCatalog.ts and lib/sections.ts.
 import type { Tone } from '@/components/ui-system';
 import {
-  ARTISAN_FILTER_VALUE, ARTISAN_SUBCATEGORY, FOREMAN_SUBCATEGORY, isArtisanClass1Designation, normalizeDesignation, rosterSubgroupLabel,
+  ARTISAN_FILTER_VALUE, ARTISAN_SUBCATEGORY, FOREMAN_SUBCATEGORY, isArtisanClass1Designation, normalizeDesignation, rosterSubgroupLabel, sectionForDesignation,
 } from '@/lib/employeeCatalog';
 import { SECTION_ORDER, normalizeSection } from '@/lib/sections';
 import type { Employee, EmployeeFormData, SectionGroup, SortDir, SortField } from './types';
@@ -94,6 +94,18 @@ export function summarise(list: Employee[]) {
 }
 
 /** What is missing before an employee can be saved, one reason per field. */
+/**
+ * Why the section field may not keep what was picked: a designation with an implied section (Maintenance Engineer
+ * → Management) overwrites a different choice on save. Returns the notice text when that will happen, else null —
+ * the form shows it under the Section field so an override is never silent.
+ */
+export function sectionImpliedNotice(designation?: string | null, section?: string | null): string | null {
+  const implied = sectionForDesignation(designation ?? '');
+  if (!implied) return null;
+  if ((section ?? '').trim().toLowerCase() === implied.toLowerCase()) return null;
+  return `${(designation ?? '').trim()} belongs to ${implied} — saving will use ${implied}.`;
+}
+
 export function formProblems(f: Pick<EmployeeFormData, 'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation'>): Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation', string>> {
   const out: Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation', string>> = {};
   if (!f.employee_id.trim()) out.employee_id = 'Enter the mine number.';

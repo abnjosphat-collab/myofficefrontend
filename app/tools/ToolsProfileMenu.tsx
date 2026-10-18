@@ -14,7 +14,7 @@ export function ToolsProfileMenu({ account, onSignIn, onSignOut }: { account: Wo
       <PopoverTrigger asChild><IconButton icon="user" variant="ghost" label={`Account: ${account.name}`} /></PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-4" aria-label="Your profile">
         <div className="flex items-center gap-3">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--mo-action-soft)] font-sans text-body-sm font-semibold text-ink"><Icon name="user" size="md" /></span>
+          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-action-soft font-sans text-body-sm font-semibold text-ink"><Icon name="user" size="md" /></span>
           <div className="min-w-0">
             <strong className="block truncate font-sans text-body-sm font-semibold text-ink">{account.name}</strong>
             <small className="block truncate font-sans text-caption text-ink-muted">{account.username}</small>
@@ -25,7 +25,8 @@ export function ToolsProfileMenu({ account, onSignIn, onSignOut }: { account: Wo
           {account.department && <><dt className="text-ink-muted">Department</dt><dd className="text-ink">{account.department}</dd></>}
           <dt className="text-ink-muted">Session</dt><dd className="text-ink">This device · 7 days</dd>
         </dl>
-        <PopoverClose asChild><Button className="mt-4 w-full" icon="sign-out" onClick={onSignOut}>Sign out</Button></PopoverClose>
+        <PopoverClose asChild><Button className="mt-4 w-full" variant="secondary" icon="key" onClick={onSignIn}>Profile & password</Button></PopoverClose>
+        <PopoverClose asChild><Button className="mt-2 w-full" icon="sign-out" onClick={onSignOut}>Sign out</Button></PopoverClose>
       </PopoverContent>
     </Popover>
   );

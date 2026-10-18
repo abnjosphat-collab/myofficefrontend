@@ -30,7 +30,7 @@ export function AppearanceFields() {
           onChange={event => update({ fontSize: Number(event.target.value) })}
           aria-label="Text size"
           aria-valuetext={`${appearance.fontSize} percent`}
-          className="focus-ring h-6 w-full cursor-pointer accent-[var(--mo-action)]"
+          className="focus-ring h-6 w-full cursor-pointer accent-action"
         />
         <div className="flex justify-between font-sans text-caption text-ink-muted" aria-hidden="true">
           <span>{FONT_SIZE_MIN}%</span><span>100%</span><span>{FONT_SIZE_MAX}%</span>

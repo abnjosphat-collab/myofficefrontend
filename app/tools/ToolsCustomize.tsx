@@ -23,7 +23,7 @@ export function ToolsCustomize({ options, setOptions }: { options: WorkspaceOpti
       <Checkbox label="Archive and deactivate buttons" description="Turn off to hide them for equipment and employees, so nothing is removed by accident. Restore and Reactivate stay available."
         aria-label="Archive and deactivate buttons" checked={options.showRemoval} onChange={e => setOptions(p => ({ ...p, showRemoval: e.target.checked }))} />
 
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--mo-line-subtle)] pt-4">
+      <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
         <p className="font-sans text-caption text-ink-muted">Your choices are saved on this device.</p>
         <Button icon="reset" onClick={() => setOptions({ ...DEFAULT_OPTIONS, order: [...DEFAULT_OPTIONS.order], hidden: [] })}>Restore defaults</Button>
       </div>

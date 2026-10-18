@@ -22,9 +22,9 @@ export function useHint() {
 }
 
 const Row = ({ children }: { children: ReactNode }) => <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
-const Footer = ({ children }: { children: ReactNode }) => <div className="flex justify-end gap-2 border-t border-[var(--mo-line-subtle)] pt-4">{children}</div>;
+const Footer = ({ children }: { children: ReactNode }) => <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">{children}</div>;
 const Section = ({ title, note, children }: { title: string; note?: string; children: ReactNode }) => (
-  <section className="flex flex-col gap-4 rounded-card border border-[var(--mo-line-subtle)] p-4">
+  <section className="flex flex-col gap-4 rounded-card border border-line-subtle p-4">
     <div className="flex items-baseline justify-between gap-2"><strong className="font-sans text-body-sm font-semibold text-ink">{title}</strong>{note && <span className="font-sans text-caption text-ink-muted">{note}</span>}</div>
     {children}
   </section>
@@ -260,7 +260,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </Field>
       )}
       {kind === 'return' && (condition !== 'Good' || (needsCalibration && calibration !== 'Verified current')) && <Notice tone="warning" title="This tool will be held for attention." />}
-      <details className="rounded-card border border-[var(--mo-line-subtle)] px-4 py-3">
+      <details className="rounded-card border border-line-subtle px-4 py-3">
         <summary className="flex cursor-pointer items-center gap-2 font-sans text-body-sm font-medium text-ink"><Icon name="attachment" size="sm" />Notes &amp; attachments <span className="font-normal text-ink-muted">Optional</span></summary>
         <div className="mt-3 flex flex-col gap-4">
           {!notesRequired && <Field label="Notes"><Textarea aria-label="Notes" rows={2} placeholder="Anything the next person should know…" value={notes} onChange={e => setNotes(e.target.value)} /></Field>}
@@ -423,7 +423,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
       <Field label="Technical specifications" description={hintFor('Use one “Label: value” entry per line; different equipment types need different specifications.')}>
         <Textarea aria-label="Technical specifications" rows={5} value={specificationText} onChange={event => setSpecificationText(event.target.value)} placeholder={'Voltage: 18 V\nChuck capacity: 13 mm\nNo-load speed: 0–1,800 rpm\nWeight: 1.8 kg'} />
       </Field>
-      <details className="rounded-card border border-[var(--mo-line-subtle)] px-4 py-3">
+      <details className="rounded-card border border-line-subtle px-4 py-3">
         <summary className="flex cursor-pointer items-center gap-2 font-sans text-body-sm font-medium text-ink"><Icon name="attachment" size="sm" />Notes &amp; approval</summary>
         <div className="mt-3 flex flex-col gap-4">
           <Field label="Register endorsement / approval reference"><Input aria-label="Register approval reference" value={approvalRef} onChange={e => setApprovalRef(e.target.value)} placeholder="Existing department endorsement or GM approval" /></Field>
