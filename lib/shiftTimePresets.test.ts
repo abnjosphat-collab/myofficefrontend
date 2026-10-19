@@ -5,7 +5,36 @@ import {
   isDefaultDayShiftTimes,
   normalizeClockTime,
   shiftTimesMatch,
+  splitShiftPresets,
+  type ShiftTimePreset,
 } from './shiftTimePresets';
+
+const make = (n: number): ShiftTimePreset[] => Array.from({ length: n }, (_, i) => ({
+  id: `p${i}`, label: `P${i}`, description: `Shift ${i}`, start: '07:00', end: '17:00',
+}));
+
+describe('splitShiftPresets', () => {
+  it('shows everything when the list is not longer than the limit plus one', () => {
+    expect(splitShiftPresets(make(4), null).more).toEqual([]);
+    expect(splitShiftPresets(make(6), null)).toEqual({ chips: make(6), more: [] });
+  });
+
+  it('keeps the first five as chips and moves the rest into the menu', () => {
+    const { chips, more } = splitShiftPresets(make(9), null);
+    expect(chips.map(p => p.id)).toEqual(['p0', 'p1', 'p2', 'p3', 'p4']);
+    expect(more.map(p => p.id)).toEqual(['p5', 'p6', 'p7', 'p8']);
+  });
+
+  it('keeps the selected shift visible when it would have been hidden', () => {
+    const { chips, more } = splitShiftPresets(make(9), 'p7');
+    expect(chips.map(p => p.id)).toEqual(['p0', 'p1', 'p2', 'p3', 'p7']);
+    expect(more.map(p => p.id)).toEqual(['p4', 'p5', 'p6', 'p8']);
+  });
+
+  it('leaves the split alone when the selected shift is already a chip', () => {
+    expect(splitShiftPresets(make(9), 'p2').chips.map(p => p.id)).toEqual(['p0', 'p1', 'p2', 'p3', 'p4']);
+  });
+});
 
 describe('shiftTimePresets', () => {
   it('normalizes clock values for matching', () => {

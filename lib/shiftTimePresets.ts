@@ -68,3 +68,23 @@ export function findShiftTimePresetId(
   const hit = presets.find(p => shiftTimesMatch(start, end, p.start, p.end));
   return hit?.id ?? null;
 }
+
+/** How many quick shifts show as one-tap chips; the rest go into a "More shifts" menu. */
+export const VISIBLE_SHIFT_CHIPS = 5;
+
+/**
+ * Split the quick shifts into the chips to show and the ones tucked into the menu. The selected shift always stays a
+ * chip (it takes the last chip's place when it would have been hidden), so the current choice is never out of sight.
+ * A menu holding a single shift would save no room, so a list one over the limit shows everything.
+ */
+export function splitShiftPresets(
+  presets: ShiftTimePreset[],
+  activeId: string | null,
+  max: number = VISIBLE_SHIFT_CHIPS,
+): { chips: ShiftTimePreset[]; more: ShiftTimePreset[] } {
+  if (presets.length <= max + 1) return { chips: presets, more: [] };
+  let chips = presets.slice(0, max);
+  const active = activeId ? presets.find(p => p.id === activeId) : undefined;
+  if (active && !chips.includes(active)) chips = [...chips.slice(0, max - 1), active];
+  return { chips, more: presets.filter(p => !chips.includes(p)) };
+}

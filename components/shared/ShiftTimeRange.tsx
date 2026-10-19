@@ -4,8 +4,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Button, Field, Input } from '@/components/ui-system';
-import { FREQUENT_SHIFT_TIME_PRESETS, findShiftTimePresetId, normalizeClockTime, type ShiftTimePreset } from '@/lib/shiftTimePresets';
+import { Button, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
+import { FREQUENT_SHIFT_TIME_PRESETS, findShiftTimePresetId, normalizeClockTime, splitShiftPresets, type ShiftTimePreset } from '@/lib/shiftTimePresets';
 import { formatCompactShiftLabel } from '@/lib/shiftTimePresetsPersonal';
 import { useEffectiveShiftPresets } from '@/lib/useEffectiveShiftPresets';
 
@@ -15,12 +15,22 @@ export function ShiftTimeRange({ start, end, onChange, trailing, startError, end
   const { presets, addCustom } = useEffectiveShiftPresets(builtin);
   const active = findShiftTimePresetId(start, end, presets);
   const canSave = !active && !!normalizeClockTime(start) && !!normalizeClockTime(end);
+  // The few most used shifts stay one tap away; the rest wait in a menu so the row stays short as more are learned.
+  const { chips, more } = splitShiftPresets(presets, active);
   return (
     <div className="flex flex-col gap-3">
       <div role="group" aria-label="Quick shift times" className="flex flex-wrap items-center gap-1.5">
-        {presets.map(p => (
+        {chips.map(p => (
           <Button key={p.id} size="sm" variant={active === p.id ? 'primary' : 'secondary'} aria-pressed={active === p.id} title={p.description} onClick={() => onChange(p.start, p.end)}>{p.label}</Button>
         ))}
+        {more.length > 0 && (
+          <Menu>
+            <MenuTrigger asChild><Button size="sm" variant="ghost" iconAfter="chevron-down">More shifts</Button></MenuTrigger>
+            <MenuContent align="start">
+              {more.map(p => <MenuItem key={p.id} onSelect={() => onChange(p.start, p.end)}>{p.description}</MenuItem>)}
+            </MenuContent>
+          </Menu>
+        )}
         {canSave && <Button size="sm" variant="ghost" icon="plus" onClick={() => addCustom(start, end, formatCompactShiftLabel(start, end))}>Save these times</Button>}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
