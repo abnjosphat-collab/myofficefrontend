@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { rankCategories, rankModules, scoreModule, searchWords, splitHighlight } from './moduleSearch';
-import type { Category, Module } from '@/components/app-shell/modules';
+import { rankCategories, rankModules, rankQuickActions, scoreModule, scoreQuickAction, searchWords, splitHighlight } from './moduleSearch';
+import type { Category, Module, QuickAction } from '@/components/app-shell/modules';
 
 const mod = (overrides: Partial<Module> & { title: string }): Module => ({
   icon: 'box' as never, description: '', href: `/${overrides.title}`, ...overrides,
@@ -87,5 +87,33 @@ describe('splitHighlight', () => {
   it('returns one plain run for no words or no match', () => {
     expect(splitHighlight('abc', [])).toEqual([{ text: 'abc', mark: false }]);
     expect(splitHighlight('abc', ['zzz'])).toEqual([{ text: 'abc', mark: false }]);
+  });
+});
+
+describe('scoreQuickAction', () => {
+  const act = (label: string): QuickAction => ({ id: label, icon: 'box' as never, label, href: '/x' });
+  it('requires every word to match the label (AND)', () => {
+    const a = act('New Work Order');
+    expect(scoreQuickAction(a, ['work'])).toBeGreaterThan(0);
+    expect(scoreQuickAction(a, ['new', 'order'])).toBeGreaterThan(0);
+    expect(scoreQuickAction(a, ['new', 'banana'])).toBe(0);
+  });
+
+  it('ranks word-start above mid-word and scores nothing for empty words', () => {
+    expect(scoreQuickAction(act('Upload Document'), ['upload'])).toBeGreaterThan(scoreQuickAction(act('Reupload scan'), ['upload']));
+    expect(scoreQuickAction(act('Add Employee'), [])).toBe(0);
+  });
+});
+
+describe('rankQuickActions', () => {
+  const act = (id: string, label: string): QuickAction => ({ id, icon: 'box' as never, label, href: '/x' });
+  it('returns the input untouched for a blank query', () => {
+    const actions = [act('a', 'B'), act('b', 'A')];
+    expect(rankQuickActions(actions, '  ')).toBe(actions);
+  });
+
+  it('orders best-first and keeps catalogue order for ties', () => {
+    const actions = [act('a', 'Rework queue'), act('b', 'New Work Order'), act('c', 'Work diary')];
+    expect(rankQuickActions(actions, 'work').map(a => a.id)).toEqual(['b', 'c', 'a']);
   });
 });

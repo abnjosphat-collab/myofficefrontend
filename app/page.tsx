@@ -8,6 +8,7 @@ import {
   Button, Card, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, Popover, PopoverContent, PopoverTrigger, PageHeader, VIEW_GRID_LIST, ViewToggle, useViewPreference,
 } from '@/components/ui-system';
 import { AppShell, useAppShell, useDashboardData, type Module } from '@/components/app-shell';
+import { HomeSearch } from '@/components/home/HomeSearch';
 import { ModuleBrowser, QuickViewDialog } from '@/components/home/ModuleBrowser';
 import { Snapshot } from '@/components/home/Snapshot';
 import { formatTime, formatFullDate } from '@/lib/format';
@@ -28,7 +29,7 @@ function Tips() {
       <PopoverContent align="end" className="w-80 p-4">
         <h2 className="font-display text-title font-semibold text-ink">Getting around</h2>
         <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4 font-sans text-body-sm text-ink-muted">
-          <li>Search from the sidebar to jump to any module. Several words narrow it down.</li>
+          <li>Search here or from the sidebar to jump to any module or action. Several words narrow it down.</li>
           <li>Open a module&apos;s menu to pin it to Favourites in the sidebar.</li>
           <li>Feedback, notifications and settings are in the top bar.</li>
         </ul>
@@ -57,6 +58,7 @@ function HomeContent() {
 
   return (
     <div className="flex flex-col gap-8">
+      <HomeSearch value={s.searchQuery} onValueChange={s.setSearchQuery} visibleCategories={s.visibleCategories} />
       {searching ? (
         <>
           <h1 className="sr-only">Home</h1>

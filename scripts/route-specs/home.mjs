@@ -31,7 +31,7 @@ const spec = {
 
     // tips on demand
     await page.getByRole('button', { name: 'Tips' }).click();
-    check(await page.getByText(/Search from the sidebar to jump to any module/).isVisible(), 'tips open on request');
+    check(await page.getByText(/Search here or from the sidebar to jump to any module or action/).isVisible(), 'tips open on request');
     await page.keyboard.press('Escape');
 
     // favourites come from the module's own menu
@@ -72,6 +72,17 @@ const spec = {
     await page.getByRole('button', { name: 'Add to favourites' }).click();
     const favs = await page.evaluate(() => localStorage.getItem('oz_favorites') || '');
     check(favs.includes('/maintenance') && favs.includes('/breakdowns'), 'bulk pinning saves every selected module');
+
+    // homepage search suggests as you type and navigates on choose
+    await page.getByRole('combobox', { name: 'Search MyOffice' }).fill('leave');
+    const suggestion = page.getByRole('option', { name: /Leaves/ });
+    await suggestion.waitFor({ timeout: 5000 });
+    check(await suggestion.isVisible(), 'homepage search suggests as you type');
+    await suggestion.click();
+    await page.waitForURL('**/leaves', { timeout: 8000 });
+    check(page.url().includes('/leaves'), 'choosing a suggestion navigates', page.url());
+    await page.goto('/', { waitUntil: 'load' });
+    await page.getByRole('heading', { level: 1, name: 'Home' }).waitFor({ timeout: 8000 });
   },
   empty: { data: { '/api/employees': [], '/api/maintenance/work-orders/stats/summary': { pending: 0, in_progress: 0 }, '/api/equipment': [], '/api/breakdowns/dashboard/overview': { metrics: {} } }, text: 'No data' },
 };

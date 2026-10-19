@@ -3,7 +3,7 @@
 // the same way. Multi-word AND semantics: every word must match somewhere in
 // the title, tags or description. Ranked title-first with word-start bonus,
 // stable for ties (catalogue order).
-import type { Category, Module } from '@/components/app-shell/modules';
+import type { Category, Module, QuickAction } from '@/components/app-shell/modules';
 
 /** Lowercased query words; empty query yields []. */
 export function searchWords(query: string): string[] {
@@ -48,6 +48,30 @@ export function rankModules(modules: Module[], query: string): Module[] {
     .filter(entry => entry.score > 0)
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(entry => entry.module);
+}
+
+/** Rank score for one quick action, or 0 when any word matches nowhere in the label. */
+export function scoreQuickAction(action: QuickAction, words: string[]): number {
+  if (words.length === 0) return 0;
+  const label = action.label.toLowerCase();
+  let score = 0;
+  for (const raw of words) {
+    const best = wordStartScore(label, raw.toLowerCase());
+    if (best === 0) return 0;
+    score += best;
+  }
+  return score;
+}
+
+/** Quick actions matching the query, best first, catalogue order for ties. */
+export function rankQuickActions(actions: QuickAction[], query: string): QuickAction[] {
+  const words = searchWords(query);
+  if (words.length === 0) return actions;
+  return actions
+    .map((action, index) => ({ action, index, score: scoreQuickAction(action, words) }))
+    .filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(entry => entry.action);
 }
 
 /** Categories keeping only their matching modules (ranked), dropping empties. */

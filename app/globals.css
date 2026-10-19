@@ -38,3 +38,21 @@ select option {
   --warning-bg: var(--mo-warning-soft);  --warning-border: var(--mo-warning-line);  --warning-text: var(--mo-warning);
   --error-bg: var(--mo-danger-soft);     --error-border: var(--mo-danger-line);     --error-text: var(--mo-danger);
 }
+
+/* Typewriter caret for the homepage search animated guide overlay. Hard blink
+   steps, no easing; under reduced motion the caret stays solid (the hook keeps
+   the text static too). */
+@keyframes mo-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.typewriter-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: currentColor;
+  animation: mo-caret-blink 1.1s step-end infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .typewriter-caret { animation: none; }
+}
