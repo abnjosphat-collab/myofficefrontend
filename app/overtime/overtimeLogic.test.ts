@@ -77,11 +77,29 @@ describe('summarisePerson', () => {
 
 describe('duplicate slots', () => {
   const rows = [rec({ id: 1 }), rec({ id: 2, employee_id: 'C2', status: 'rejected' })];
-  it('flags another live request for the same person, date and start, ignoring itself and rejected ones', () => {
-    expect(findDuplicate(rows, { employee_id: 'C1', date: '2026-09-07', start_time: '17:00' })?.id).toBe(1);
-    expect(findDuplicate(rows, { employee_id: 'C1', date: '2026-09-07', start_time: '17:00' }, 1)).toBeUndefined();
-    expect(findDuplicate(rows, { employee_id: 'C2', date: '2026-09-07', start_time: '17:00' })).toBeUndefined();
-    expect(countDuplicates(rows, ['C1', 'C2', 'C9'], '2026-09-07', '17:00')).toBe(1);
+  const slot = (o: Record<string, string> = {}) => ({ employee_id: 'C1', date: '2026-09-07', start_time: '17:00', end_time: '20:00', ...o });
+  it('flags another live request with the same person, date and time, ignoring itself and rejected ones', () => {
+    expect(findDuplicate(rows, slot())?.id).toBe(1);
+    expect(findDuplicate(rows, slot(), 1)).toBeUndefined();
+    expect(findDuplicate(rows, slot({ employee_id: 'C2' }))).toBeUndefined();
+    expect(countDuplicates(rows, ['C1', 'C2', 'C9'], '2026-09-07', '17:00', '20:00')).toBe(1);
+  });
+  it('flags a partly overlapping time, not only an identical one', () => {
+    expect(findDuplicate(rows, slot({ start_time: '18:00', end_time: '21:00' }))?.id).toBe(1);
+    expect(findDuplicate(rows, slot({ start_time: '16:00', end_time: '17:30' }))?.id).toBe(1);
+  });
+  it('allows back-to-back requests and separate shifts on the same day', () => {
+    expect(findDuplicate(rows, slot({ start_time: '20:00', end_time: '22:00' }))).toBeUndefined();
+    expect(findDuplicate(rows, slot({ start_time: '07:00', end_time: '17:00' }))).toBeUndefined();
+  });
+  it('counts a night shift against the early hours of the next date', () => {
+    const night = [rec({ id: 5, date: '2026-09-07', start_time: '22:00', end_time: '06:00' })];
+    expect(findDuplicate(night, slot({ date: '2026-09-08', start_time: '02:00', end_time: '04:00' }))?.id).toBe(5);
+    expect(findDuplicate(night, slot({ date: '2026-09-08', start_time: '06:00', end_time: '08:00' }))).toBeUndefined();
+  });
+  it('cannot compare requests that have hours only, or a slot without times', () => {
+    expect(findDuplicate([rec({ start_time: undefined, end_time: undefined, hours: 3 })], slot())).toBeUndefined();
+    expect(findDuplicate(rows, { employee_id: 'C1', date: '2026-09-07', start_time: '', end_time: '' })).toBeUndefined();
   });
 });
 

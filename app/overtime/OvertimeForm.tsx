@@ -81,6 +81,8 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
   const submit = async () => {
     setTouched(true);
     if (Object.values(missing).some(Boolean)) return false;
+    // The same time twice for one person is refused here and, for a second laptop or a stale list, by the server.
+    if (duplicate) return false;
     if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
     await onSave({ ...buildOvertimePayload(form, useHours, editing), spares_used: used }, record?.id);
     if (form.reason.trim()) rememberChoice(REASON_HISTORY_KEY, form.reason);
@@ -116,8 +118,8 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
               trailing={<Field label="Duration"><p className="flex h-9 items-center font-sans text-body font-semibold text-ink tabular" aria-live="polite">{hours > 0 ? `${hours.toFixed(1)} hours` : 'Not set'}</p></Field>} />
           )}
           {duplicate && (
-            <Notice tone="warning" title="This person already has a request for this slot">
-              {duplicate.employee_name}, {fmtDate(duplicate.date)}, {duplicate.start_time} to {duplicate.end_time}, {statusMeta(duplicate.status).label.toLowerCase()}. You can still submit it: stacked overtime is allowed.
+            <Notice tone="danger" title="This person already has overtime at this time">
+              {duplicate.employee_name}, {fmtDate(duplicate.date)}, {duplicate.start_time} to {duplicate.end_time}, {statusMeta(duplicate.status).label.toLowerCase()}. Two requests cannot cover the same time: change the times, or edit that request instead.
             </Notice>
           )}
         </div>

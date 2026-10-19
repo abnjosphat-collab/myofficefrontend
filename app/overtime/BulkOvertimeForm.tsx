@@ -40,7 +40,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
   useResetOnOpen(dialogKey(open, undefined), () => { setForm(sharedOf()); setUseHours(false); setTouched(false); setPeople(initial); });
   const set = (patch: Partial<Shared>) => setForm(f => ({ ...f, ...patch }));
   const hours = useHours ? parseFloat(form.hours) || 0 : calcHours(form.start_time, form.end_time);
-  const dupes = useMemo(() => (useHours ? 0 : countDuplicates(records, people.map(p => p.employee_id), form.date, form.start_time)), [records, people, form.date, form.start_time, useHours]);
+  const dupes = useMemo(() => (useHours ? 0 : countDuplicates(records, people.map(p => p.employee_id), form.date, form.start_time, form.end_time)), [records, people, form.date, form.start_time, form.end_time, useHours]);
   const metaOf = (p: PickedPerson) => {
     const e = employees.find(x => x.employee_id === p.employee_id);
     return { position: normalizeDesignation(e?.designation as string) || (e?.designation as string) || '', department: (e?.department as string) || '', contact_number: primaryContactPhone(e?.phone as string) || '' };
@@ -85,7 +85,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
           {useHours
             ? <Field label="Hours" required error={touched && !(hours > 0) ? 'Enter the hours worked, more than 0 and up to 24.' : undefined} className="max-w-xs"><Input type="number" min={0.5} max={24} step={0.5} value={form.hours} onChange={e => set({ hours: e.target.value })} placeholder="3.5" /></Field>
             : <ShiftTimeRange start={form.start_time} end={form.end_time} onChange={(start_time, end_time) => set({ start_time, end_time })} endError={touched && !(hours > 0) ? 'The start and end times give no duration.' : undefined} trailing={<Field label="Duration"><p className="flex h-9 items-center font-sans text-body font-semibold text-ink tabular">{hours > 0 ? `${hours.toFixed(1)} hours` : 'Not set'}</p></Field>} />}
-          {dupes > 0 && <Notice tone="warning" title="Some of these people already have a request for this slot">{dupes} of {people.length} already {dupes === 1 ? 'has' : 'have'} one for this date and start time. They get another row if you submit: stacked overtime is allowed.</Notice>}
+          {dupes > 0 && <Notice tone="warning" title="Some of these people already have overtime at this time">{dupes} of {people.length} already {dupes === 1 ? 'has' : 'have'} a request that overlaps these times. {dupes === 1 ? 'That request is' : 'Those requests are'} not saved again; the others are, and the ones left out stay in the list with the reason.</Notice>}
         </div>
         <div className="flex flex-col gap-2">
           <Field label="Reason" optional><Textarea rows={2} value={form.reason} onChange={e => set({ reason: e.target.value })} placeholder="The same reason for everyone" /></Field>

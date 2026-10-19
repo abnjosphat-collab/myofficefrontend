@@ -78,12 +78,41 @@ export function monthOptions(records: OTRecord[]) {
   });
 }
 
-/** Another live request for the same person, date and start time. Flagged, not blocked: stacked entries such as a call-out after a shift are real. */
-export function findDuplicate(records: OTRecord[], slot: { employee_id: string; date: string; start_time: string }, ignoreId?: number | string): OTRecord | undefined {
-  if (!slot.employee_id || !slot.date || !slot.start_time) return undefined;
-  return records.find(r => r.id !== ignoreId && r.employee_id === slot.employee_id && r.date === slot.date && r.start_time === slot.start_time && r.status !== 'rejected' && r.status !== 'cancelled');
+const clockMinutes = (t?: string): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(t ?? '');
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  return h <= 24 && min < 60 ? h * 60 + min : null;
+};
+const dayNumber = (d?: string): number | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d ?? '');
+  return m ? Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000) : null;
+};
+/** A request's time on one continuous timeline (minutes), or null with no usable times. A window that ends at or before it starts runs past midnight. */
+function timeWindow(date?: string, start?: string, end?: string): [number, number] | null {
+  const day = dayNumber(date), from = clockMinutes(start);
+  let to = clockMinutes(end);
+  if (day === null || from === null || to === null) return null;
+  if (to <= from) to += 1440;
+  return [day * 1440 + from, day * 1440 + to];
 }
-export const countDuplicates = (records: OTRecord[], employeeIds: string[], date: string, start: string) => employeeIds.filter(id => findDuplicate(records, { employee_id: id, date, start_time: start })).length;
+
+/**
+ * Another live request for the same person whose time overlaps this one: the same hours, or part of them. Back-to-back requests and
+ * separate shifts on one day (a call-out after a normal shift) do not overlap. The server applies the same rule when saving and is the
+ * check that counts; this one tells the person before they submit. Requests with hours only have no window and are never compared.
+ */
+export function findDuplicate(records: OTRecord[], slot: { employee_id: string; date: string; start_time: string; end_time?: string }, ignoreId?: number | string): OTRecord | undefined {
+  if (!slot.employee_id) return undefined;
+  const mine = timeWindow(slot.date, slot.start_time, slot.end_time);
+  if (!mine) return undefined;
+  return records.find(r => {
+    if (r.id === ignoreId || r.employee_id !== slot.employee_id || r.status === 'rejected' || r.status === 'cancelled') return false;
+    const theirs = timeWindow(r.date, r.start_time, r.end_time);
+    return !!theirs && mine[0] < theirs[1] && theirs[0] < mine[1];
+  });
+}
+export const countDuplicates = (records: OTRecord[], employeeIds: string[], date: string, start: string, end?: string) => employeeIds.filter(id => findDuplicate(records, { employee_id: id, date, start_time: start, end_time: end })).length;
 
 // ── Insights tallies (client-side, instant) ───────────────────────────────────────────────────────────────
 const KNOWN_SECTIONS = ['Mechanical', 'Electrical', 'Civil', 'Instrumentation'];
