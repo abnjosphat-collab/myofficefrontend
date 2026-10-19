@@ -49,7 +49,7 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
     if (Object.keys(problems).length > 0) return false;
     // A typed ID can differ from the register's even when the name beside it is right; ask rather than save one that matches no one.
     if (!employees.some(e => e.employee_id === form.employee_id.trim()) && !await confirm({ title: 'Employee ID not found', message: `"${form.employee_id.trim()}" does not match anyone in the personnel register. Save it anyway?`, confirmLabel: 'Save anyway' })) return false;
-    await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim() }, record?.id);
+    await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim(), ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
     toast.success(editing ? 'PPE record updated.' : 'PPE issued.');
   };
 

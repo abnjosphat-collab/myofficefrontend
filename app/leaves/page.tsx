@@ -80,6 +80,7 @@ function LeavesContent() {
     catch (e) { toast.error(`The status was not changed: ${(e as Error).message}`); throw e; }
   };
   const remove = async (l: Leave) => {
+    if (l.status === 'approved') { toast.error('An approved leave cannot be deleted: it may already have been counted. Reject it instead (Update status, then Reject); that keeps the history.'); return; }
     await confirmDelete({ title: 'Delete this leave request?', message: `${l.employee_name}, ${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteLeave(l.id); setViewingId(null); }, done: 'Leave request deleted.', after: () => list.refetch() });
   };
   const runBulk = async () => {

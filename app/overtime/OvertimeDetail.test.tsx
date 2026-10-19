@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import { OvertimeDetail } from './OvertimeDetail';
 import type { OTRecord } from './types';
 
+// The history section is for managers and reads from the server; these tests are about the dialog's own actions.
+vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ isAtLeast: () => false }) }));
+
 const record = (over: Partial<OTRecord> = {}): OTRecord => ({
   id: 1,
   employee_name: 'Ann Alpha',
@@ -50,5 +53,23 @@ describe('OvertimeDetail lieu', () => {
   it('offers nothing on cash overtime', () => {
     render(<OvertimeDetail record={record({ status: 'approved', payout_method: 'cash' })} takenLeave={null} onTakeAsLeave={() => {}} {...handlers()} />);
     expect(screen.queryByRole('button', { name: 'Mark as leave taken' })).toBeNull();
+  });
+});
+
+
+describe('OvertimeDetail approval and cancel', () => {
+  it('shows who approved it, from the server, and offers Cancel request while pending or approved', () => {
+    const onCancelRequest = vi.fn();
+    render(<OvertimeDetail record={record({ status: 'approved', approved_by: 'Elias Mwazha', approved_at: '2026-10-19T08:00:00Z' })} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} onApprove={() => {}} onReject={() => {}} onCancelRequest={onCancelRequest} />);
+    expect(screen.getByText(/Elias Mwazha/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel request' })).toBeInTheDocument();
+  });
+
+  it('does not offer Cancel request once it is rejected, cancelled or paid', () => {
+    for (const status of ['rejected', 'cancelled', 'paid'] as const) {
+      const { unmount } = render(<OvertimeDetail record={record({ status })} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} onApprove={() => {}} onReject={() => {}} onCancelRequest={() => {}} />);
+      expect(screen.queryByRole('button', { name: 'Cancel request' })).toBeNull();
+      unmount();
+    }
   });
 });

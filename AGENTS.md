@@ -23,6 +23,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Preserve edits you did not make. Never blanket-commit the working tree; `git status` first and stage by path.
 - Done means verified: `npx tsc --noEmit`, `npx eslint .`, `npx vitest run`, `npm run docs:check`, and for UI work the route specs (`MSYS_NO_PATHCONV=1 node scripts/verify-routes.mjs --only /route`) and a look at the rendered page. Say plainly what you could not run.
 - One design system: `components/ui-system`. Do not add a second set of components, colours or typography rules. `/tools` keeps its own components by the owner's decision.
+- A rule that must hold for the data (no overlap, no duplicate) is enforced by the server (see the backend's `docs/DATA_INTEGRITY_STANDARD.md`); a form may warn or block early for the person's benefit, but never relies on its own loaded list. Forms that edit a record send back its `updated_at` as `expected_updated_at`, and show the server's 409/422 message as it is.
 - A failed request is never shown as an empty list; a read that fails because the service is slow keeps loading (`lib/transientRetry.ts`).
 - Do not put credentials, keys or private records in code or documents.
 - Keep temporary progress notes out of this file; they belong in the handoff.

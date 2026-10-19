@@ -3,15 +3,16 @@
 'use client';
 
 import { Button, Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
-import { fmtDate, formatCurrency } from '@/components/shared/utils';
+import { fmtDate, fmtDateTime, formatCurrency } from '@/components/shared/utils';
 import { overtimeCostCentre } from './calcOvertime';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { recordHours, timeSpan } from './overtimeLogic';
+import { RecordHistory } from '@/components/shared/RecordHistory';
 import type { OTRecord } from './types';
 import type { TakenLieuLeave } from './useOvertimeData';
 
-export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, onApprove, onReject, onTakeAsLeave }: {
-  record: OTRecord | null; takenLeave?: TakenLieuLeave | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void; onTakeAsLeave?: (r: OTRecord) => void;
+export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, onApprove, onReject, onTakeAsLeave, onCancelRequest }: {
+  record: OTRecord | null; takenLeave?: TakenLieuLeave | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void; onTakeAsLeave?: (r: OTRecord) => void; /** Withdraws a pending or approved request without deleting it: it stays in the history as cancelled and no longer counts. */ onCancelRequest?: (r: OTRecord) => void;
 }) {
   const r = record;
   const hours = r ? recordHours(r) : 0;
@@ -25,6 +26,7 @@ export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, 
       title={r ? `${r.employee_name}` : 'Overtime request'} description={r ? [r.employee_id, r.position].filter(Boolean).join(', ') : undefined}
       footer={r && (
         <DetailActions onDelete={() => onDelete(r)} onClose={onClose} onEdit={() => onEdit(r)}>
+          {onCancelRequest && (r.status === 'pending' || r.status === 'approved') && <Button onClick={() => onCancelRequest(r)}>Cancel request</Button>}
           {r.status === 'pending' && <><Button icon="close" onClick={() => onReject(r)}>Reject</Button><Button variant="primary" icon="success" onClick={() => onApprove(r)}>Approve</Button></>}
           {r.status === 'approved' && r.payout_method === 'lieu' && !takenLeave && onTakeAsLeave && <Button variant="primary" icon="clock" onClick={() => onTakeAsLeave(r)}>Mark as leave taken</Button>}
         </DetailActions>
@@ -47,9 +49,12 @@ export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, 
             <Fact label="Department">{r.department}</Fact>
             <Fact label="Contact">{r.contact_number}</Fact>
             <Fact label="Applied">{r.created_at ? fmtDate(r.created_at) : ''}</Fact>
+            {r.approved_by && <Fact label="Approved by">{r.approved_by}{r.approved_at ? `, ${fmtDateTime(r.approved_at)}` : ''}</Fact>}
+            {r.rejected_by && <Fact label="Rejected by">{r.rejected_by}{r.rejected_at ? `, ${fmtDateTime(r.rejected_at)}` : ''}</Fact>}
             <Fact label="Notes" wide>{r.notes ?? ''}</Fact>
           </FactList>
           <div className="rounded-control bg-surface-subtle p-3"><p className="font-sans text-caption text-ink-muted">Reason</p><p className="mt-1 whitespace-pre-wrap font-sans text-body text-ink [overflow-wrap:anywhere]">{r.reason || 'No reason given'}</p></div>
+          <RecordHistory table="overtime" recordId={r.id} />
           {!!r.spares_used?.length && (
             <div className="rounded-control bg-surface-subtle p-3">
               <p className="mb-1.5 font-sans text-caption text-ink-muted">Spares used</p>

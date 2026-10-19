@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -67,6 +67,7 @@ function Badges({ r }: { r: OTRecord }) {
 
 function OvertimeContent() {
   const confirmDelete = useConfirmDelete();
+  const confirm = useConfirm();
   const employees = useEmployees();
   const list = useOvertime();
   const records = list.items;
@@ -146,12 +147,24 @@ function OvertimeContent() {
     else { await createOT(payload); toast.success('Overtime request submitted.'); await list.refetch(); }
   };
   const remove = async (r: OTRecord) => {
+    if (r.status === 'approved' || r.status === 'paid') { toast.error('An approved request cannot be deleted: it may already have been counted in payroll. Use Cancel request instead; that keeps the history.'); return; }
     await confirmDelete({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteOT(r.id); setViewingId(null); }, done: 'Request deleted.', after: () => list.refetch() });
+  };
+  const cancelRequest = async (r: OTRecord) => {
+    if (!await confirm({ title: 'Cancel this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. It stays in the history as cancelled and no longer counts.`, confirmLabel: 'Cancel request', destructive: true })) return;
+    try {
+      replace(await updateOT(r.id, { status: 'cancelled' }));
+      toast.success('Overtime request cancelled.');
+      setViewingId(null);
+    } catch (e) {
+      toast.error(`The request was not cancelled: ${e instanceof Error ? e.message : 'the server did not accept it.'}`);
+    }
   };
   const decide = async (sig: SignatureResult) => {
     if (!gate) return;
     const approve = gate.kind === 'approve';
-    const body = approve ? { approved_by: sig.signerName, approved_at: sig.signedAt, approval_signature: sig.dataUrl } : { rejected_by: sig.signerName, rejected_at: sig.signedAt };
+    // Who approved or rejected, and when, is recorded by the server from the signed-in session; only the drawn signature is sent.
+    const body = approve ? { approval_signature: sig.dataUrl } : {};
     if (gate.ids.length === 1) {
       replace(await updateOT(gate.ids[0], { status: approve ? 'approved' : 'rejected', ...body }));
       toast.success(approve ? 'Overtime approved.' : 'Overtime rejected.');
@@ -314,7 +327,7 @@ function OvertimeContent() {
         </TabsContent>
       </Tabs>
 
-      <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} />
+      <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} onCancelRequest={cancelRequest} />
       <TakeLieuLeaveDialog record={takeFor} open={!!takeFor} onOpenChange={o => { if (!o) setTakeFor(null); }} onTaken={taken} />
       <OvertimeForm open={!!formFor} record={formFor?.record ?? null} records={records} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
       <BulkOvertimeForm open={bulkOpen} initial={people} records={records} onOpenChange={setBulkOpen} onCreated={() => list.refetch()} />

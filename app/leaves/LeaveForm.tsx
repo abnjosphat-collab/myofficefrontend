@@ -60,8 +60,12 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
   const submit = async () => {
     setTouched(true);
     if (Object.values(bad).some(Boolean)) return false;
+    // Two requests cannot cover the same day: refused here and, for a second laptop or a stale list, by the server.
+    if (overlap) return false;
     await onSave(leave?.id ?? null, {
       ...form,
+      // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the request since.
+      ...(leave?.updated_at ? { expected_updated_at: leave.updated_at } : {}),
       contact_number: primaryContactPhone(form.contact_number) || form.contact_number?.trim() || '',
       position: normalizeDesignation(form.position) || form.position || '',
     });
@@ -97,8 +101,8 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
           </div>
         )}
         {overlap && (
-          <Notice tone="warning" title="This person already has a leave request on these dates">
-            {overlap.employee_name}, {fmtDate(overlap.start_date)} to {fmtDate(overlap.end_date)}, {LEAVE_TYPES[overlap.leave_type]?.name ?? overlap.leave_type}. <StatusBadge tone={overlap.status === 'approved' ? 'success' : 'warning'}>{overlap.status}</StatusBadge> You can still submit this one.
+          <Notice tone="danger" title="This person already has a leave request on these dates">
+            {overlap.employee_name}, {fmtDate(overlap.start_date)} to {fmtDate(overlap.end_date)}, {LEAVE_TYPES[overlap.leave_type]?.name ?? overlap.leave_type}. <StatusBadge tone={overlap.status === 'approved' ? 'success' : 'warning'}>{overlap.status}</StatusBadge> Two leave requests cannot cover the same day: change the dates, or edit that request instead.
           </Notice>
         )}
 

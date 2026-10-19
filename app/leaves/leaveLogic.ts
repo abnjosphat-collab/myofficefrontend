@@ -66,7 +66,7 @@ export function summariseByEmployee(leaves: Leave[]): Array<{ id: string; name: 
   return [...map.entries()].map(([id, d]) => ({ id, ...d })).sort((a, b) => b.total_days - a.total_days);
 }
 
-/** Another active (not rejected) leave of the same person that overlaps these dates; a warning, never a block. */
+/** Another active (not rejected) leave of the same person that overlaps these dates. The form refuses it and the server enforces the same rule (backend app/leave_conflicts.py), so a stale list on another laptop cannot get it through. */
 export function overlappingLeave(leaves: Leave[], employeeId: string | undefined, start: string | undefined, end: string | undefined, ignoreId?: string): Leave | undefined {
   if (!employeeId || !start || !end) return undefined;
   return leaves.find(l => l.id !== ignoreId && l.employee_id === employeeId && l.status !== 'rejected' && start <= l.end_date && end >= l.start_date);

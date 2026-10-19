@@ -89,6 +89,13 @@ export interface OTRecord {
   contact_number?: string;
   spares_used?: SpareUsedEntry[];
   created_at?: string;
+  /** Moves on every save; sent back as `expected_updated_at` when editing so a save from a stale copy is refused. */
+  updated_at?: string;
+  /** Stamped by the server from the signed-in session when the request is approved or rejected. */
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejected_by?: string | null;
+  rejected_at?: string | null;
 }
 
 export interface OTForm {

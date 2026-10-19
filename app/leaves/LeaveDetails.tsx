@@ -8,6 +8,7 @@ import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
 import { typeOf } from './leaveTypes';
 import { daysText, statusMeta } from './leaveMeta';
+import { RecordHistory } from '@/components/shared/RecordHistory';
 import type { Leave } from './types';
 
 export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
@@ -54,9 +55,12 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
                 <Fact label="Day count">{leave.exclude_weekends_holidays ? <span title="No weekends or holidays">Working days only</span> : 'Calendar days'}</Fact>
                 <Fact label="Applied">{fmtDateTime(leave.applied_date)}</Fact>
                 {leave.handover_to && <Fact label="Handover to">{leave.handover_to}</Fact>}
+                {leave.approved_by && <Fact label="Approved by">{leave.approved_by}{leave.approved_at ? `, ${fmtDateTime(leave.approved_at)}` : ''}</Fact>}
+                {leave.rejected_by && <Fact label="Rejected by">{leave.rejected_by}{leave.rejected_at ? `, ${fmtDateTime(leave.rejected_at)}` : ''}</Fact>}
               </FactList>
             </FactSection>
             {leave.reason && <FactSection title="Reason"><p className="whitespace-pre-wrap rounded-control bg-surface-subtle p-3 font-sans text-body text-ink [overflow-wrap:anywhere]">{leave.reason}</p></FactSection>}
+            <RecordHistory table="leaves" recordId={leave.id} />
           </div>
         )}
       </Dialog>

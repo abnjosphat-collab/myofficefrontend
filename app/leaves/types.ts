@@ -32,6 +32,13 @@ export interface Leave {
   exclude_weekends_holidays?: boolean;
   applied_date: string;
   updated_at?: string;
+  /** Sent back on an edit as the updated_at the form opened with, so a save from a stale copy is refused. */
+  expected_updated_at?: string;
+  /** Stamped by the server from the signed-in session when the request is approved or rejected. */
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejected_by?: string | null;
+  rejected_at?: string | null;
   department?: string;
   manager_name?: string;
   supporting_docs?: string[];

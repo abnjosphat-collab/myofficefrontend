@@ -66,11 +66,8 @@ export interface BulkOTStatusResult {
 export async function bulkUpdateOTStatus(body: {
   ids: (number | string)[];
   status: 'approved' | 'rejected';
-  approved_by?: string;
-  approved_at?: string;
+  /** The drawn signature. Who approved and when are recorded by the server from the signed-in session. */
   approval_signature?: string;
-  rejected_by?: string;
-  rejected_at?: string;
 }): Promise<BulkOTStatusResult> {
   return api.post<BulkOTStatusResult>('/api/overtime/bulk-status', {
     ...body,

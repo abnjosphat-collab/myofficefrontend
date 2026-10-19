@@ -84,7 +84,8 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
     // The same time twice for one person is refused here and, for a second laptop or a stale list, by the server.
     if (duplicate) return false;
     if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
-    await onSave({ ...buildOvertimePayload(form, useHours, editing), spares_used: used }, record?.id);
+    // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the request since.
+    await onSave({ ...buildOvertimePayload(form, useHours, editing), spares_used: used, ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
     if (form.reason.trim()) rememberChoice(REASON_HISTORY_KEY, form.reason);
   };
 
