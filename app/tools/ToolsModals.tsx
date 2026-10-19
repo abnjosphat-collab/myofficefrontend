@@ -13,6 +13,7 @@ import { ToolsCustomize } from './ToolsCustomize';
 import { ToolsAuth } from './ToolsAuth';
 import { DeepSpaceStage } from '@/components/shared/deep-space/DeepSpaceStage';
 import { AuthCard } from '@/components/app-shell/auth/AuthLayout';
+import { DallaglioLogo } from '@/components/shared/DallaglioLogo';
 import { ToolsFeedback } from './ToolsFeedback';
 import { ToolsImport } from './ToolsImport';
 import { ToolsExport } from './ToolsExport';
@@ -107,7 +108,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   if (modal?.kind === 'auth' && w.authenticationRequired) {
     return (
       <DeepSpaceStage>
-        <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title">{body}</AuthCard>
+        <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title" logo={<DallaglioLogo />}>{body}</AuthCard>
       </DeepSpaceStage>
     );
   }

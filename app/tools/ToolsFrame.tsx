@@ -10,7 +10,7 @@ import {
   type SelectOption, type as typeRoles,
 } from '@/components/ui-system';
 import { AnimatedText } from '@/components/shared/floor/motion';
-import { ShellBrand } from '@/components/app-shell/ShellBrand';
+import { ToolsBrand } from './ToolsBrand';
 import { ToolsNotifications } from './ToolsNotifications';
 import { ToolsProfileMenu } from './ToolsProfileMenu';
 import { Icon, type IconMeaning } from '@/components/ui-system';
@@ -59,7 +59,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => w.setSidebarCollapsed(value => !value)}
           label="Tools navigation"
-          spotlight={<ShellBrand compact={sidebarCollapsed} />}
+          spotlight={<ToolsBrand compact={sidebarCollapsed} />}
           search={(
             <DestinationSearch
               value={search}

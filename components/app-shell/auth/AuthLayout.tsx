@@ -10,12 +10,13 @@ export function BrandMark({ className }: { className?: string }) {
   return <span aria-hidden="true" className={cn('inline-flex size-11 items-center justify-center rounded-card bg-action font-display text-title font-semibold text-action-ink', className)}>O</span>;
 }
 
-export function AuthCard({ title, description, children, headingId = 'auth-title' }: { title: string; description?: string; children?: ReactNode; headingId?: string }) {
+export function AuthCard({ title, description, children, headingId = 'auth-title', logo }: { title: string; description?: string; children?: ReactNode; headingId?: string; /** An optional mark shown above the title (the Tools sign-in carries the Dallaglio logo). */ logo?: ReactNode }) {
   return (
     <section aria-labelledby={headingId} className={cn('w-full max-w-md p-6 sm:p-12', deepSpaceGlass)}>
       {/* Sign-in screens had the bare "MyOffice" tab title; the card title travels with the card. React 19 hoists this to <head>. */}
       <title>{`${title} | MyOffice`}</title>
       <div className="mb-7 flex flex-col items-center gap-3 text-center">
+        {logo}
         <div>
           <h1 id={headingId} className="font-display text-section font-semibold text-ink">{title}</h1>
           {description && <p className="mt-1 font-sans text-body-sm text-ink-muted">{description}</p>}
