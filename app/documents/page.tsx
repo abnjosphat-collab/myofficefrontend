@@ -1,173 +1,214 @@
-// app/documents/page.tsx — the AMS document hub: seven ISO 55001 categories, folders under each, files in the folders.
-// Home searches everything; a category lists its folders and top-level files; a folder lists its files.
+// app/documents/page.tsx — the document library. Folders in a tree (the Asset Management System structure and your own), one search
+// that finds any file by name, comment, tag, folder or the words inside it, filters and ordering, bulk actions, and every file
+// previewed, opened and printed in the page. The state lives here; each piece of the screen is its own component.
 'use client';
 
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { useCallback, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Button, IconButton, PageHeader, useConfirm } from '@/components/ui-system';
-import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { exportFilename } from '@/lib/exportUtils';
-import { formatDate } from '@/lib/format';
-import { CATEGORIES, categoryById, categoryByName } from './categories';
-import { CategoryView } from './CategoryView';
-import { FileBrowser, type FileActions } from './FileBrowser';
-import { HomeView } from './HomeView';
-import { NameDialog, type NameTarget } from './NameDialog';
-import { PreviewDialog } from './PreviewDialog';
+import { Button, Drawer, EmptyState, IconButton, Notice, PageHeader, VIEW_CARDS_TABLE, useViewPreference } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
+import { BulkBar } from './BulkBar';
+import { BulkTagsDialog, EditFileDialog, type TagsSubject } from './FileDialogs';
+import { FileList, type FileActions } from './FileList';
+import { FolderFormDialog, MoveDialog, type FolderTarget, type MoveSubject } from './FolderDialogs';
+import { FolderGrid } from './FolderGrid';
+import { FolderTree } from './FolderTree';
+import { LocationHeader } from './LocationHeader';
+import { SearchBar } from './SearchBar';
+import { SetupBanner } from './SetupBanner';
 import { UploadDialog } from './UploadDialog';
-import { formatSize, mergeFolders } from './documentLogic';
-import {
-  countFolderFiles, createFolder, deleteDocument, deleteFolder, renameFolder, updateDocument, uploadDocument, useDocuments, useFolders,
-} from './useDocumentsData';
-import type { DocumentFile, FolderEntry } from './types';
-import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { NO_FILTERS, buildTree, flattenTree, isNarrowed } from './documentLogic';
+import type { DocFilters, DocFolder, DocumentFile, Place } from './types';
+import { useDocumentSearch, useOverview } from './useDocumentsData';
+import { useFileDrop } from './useFileDrop';
+import { useLibraryActions } from './useLibraryActions';
+import { DocumentViewer } from './viewer/DocumentViewer';
 
-const reason = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const EXPORT_COLUMNS: DLColumn[] = [
-  { key: 'name', label: 'Name', width: 30 }, { key: 'categoryName', label: 'Category', width: 20 }, { key: 'folder', label: 'Folder', width: 24 },
-  { key: 'type', label: 'Type', width: 12 }, { key: 'size', label: 'Size', width: 12, format: v => formatSize(v as number) },
-  { key: 'createdAt', label: 'Added', width: 16, format: v => (v ? formatDate(v as string) : '') }, { key: 'description', label: 'Comment', width: 30 },
-];
+const EMPTY_FOLDERS: DocFolder[] = [];
+
+/** The place and words a shared link opened with (?folder=… and ?q=…). */
+function fromLink(): { place: Place; q: string } {
+  if (typeof window === 'undefined') return { place: { kind: 'home' }, q: '' };
+  const p = new URLSearchParams(window.location.search);
+  const view = p.get('view');
+  const place: Place = p.get('folder') ? { kind: 'folder', id: p.get('folder')! } : view === 'recent' || view === 'starred' || view === 'unfiled' || view === 'trash' ? { kind: view } : { kind: 'home' };
+  return { place, q: p.get('q') ?? '' };
+}
 
 function DocumentsContent() {
-  const confirm = useConfirm();
-  const confirmDelete = useConfirmDelete();
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [folder, setFolder] = useState<string | null>(null);
-  const category = categoryId ? categoryById(categoryId) ?? null : null;
-  const files = useDocuments(categoryId, folder);
-  const folders = useFolders(categoryId);
-  const entries = useMemo(() => mergeFolders(category?.folders ?? [], folders.items), [category, folders.items]);
-
-  const [uploading, setUploading] = useState(false);
-  const [naming, setNaming] = useState<NameTarget | null>(null);
-  const [nameFor, setNameFor] = useState<{ kind: 'new-folder' } | { kind: 'folder'; entry: FolderEntry } | { kind: 'file'; doc: DocumentFile } | null>(null);
+  const { isAtLeast } = useAuth();
+  const isManager = isAtLeast('manager');
+  const overview = useOverview();
+  const [initial] = useState(fromLink);
+  const [place, setPlace] = useState<Place>(initial.place);
+  const [filters, setFilters] = useState<DocFilters>({ ...NO_FILTERS, q: initial.q });
+  const [view, setView] = useViewPreference('documents', VIEW_CARDS_TABLE);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [seed, setSeed] = useState<DocumentFile | null>(null);
-  const previewing = previewId ? files.items.find(d => d.id === previewId) ?? (seed?.id === previewId ? seed : null) : null;
-  const where = category ? `${category.name}${folder ? ` / ${folder}` : ''}` : '';
+  const [folderTarget, setFolderTarget] = useState<FolderTarget | null>(null);
+  const [moving, setMoving] = useState<MoveSubject | null>(null);
+  const [editing, setEditing] = useState<DocumentFile | null>(null);
+  const [tagging, setTagging] = useState<TagsSubject | null>(null);
+  const [treeOpen, setTreeOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dropped, setDropped] = useState<File[]>([]);
 
-  const go = (id: string | null, next: string | null = null) => { setCategoryId(id); setFolder(next); setPreviewId(null); };
-  const locate = (d: DocumentFile) => {
-    const c = categoryById(d.categoryId) ?? categoryByName(d.categoryName);
-    if (!c) { toast.error('This document is not filed under a known category.'); return; }
-    go(c.id, d.folder); setSeed(d); setPreviewId(d.id);
-  };
+  const folders = overview.overview?.folders ?? EMPTY_FOLDERS;
+  const tree = useMemo(() => buildTree(folders), [folders]);
+  const flat = useMemo(() => flattenTree(tree), [tree]);
+  const facets = overview.overview?.facets ?? { types: {}, exts: [], tags: [], uploaders: [] };
+  const counts = overview.overview?.counts ?? { all: 0, unfiled: 0, trashed: 0, starred: 0, unindexed: 0 };
+  const search = useDocumentSearch(place, filters);
+  const items = useMemo(() => search.result?.items ?? [], [search.result]);
+  const chosen = useMemo(() => items.filter(d => selected.has(d.id)), [items, selected]);
+  const viewing = previewId ? items.find(d => d.id === previewId) ?? (seed?.id === previewId ? seed : null) : null;
+  const folderHere = place.kind === 'folder' ? flat.find(f => f.id === place.id) : undefined;
+  const narrowed = isNarrowed(filters);
+  const tagNames = useMemo(() => facets.tags.map(t => t.tag), [facets.tags]);
 
-  const download = (d: DocumentFile) => {
-    if (!d.url) { toast.error(`${d.name} has no stored download link.`); return; }
-    const a = document.createElement('a');
-    a.href = d.url; a.download = d.name; a.target = '_blank'; a.rel = 'noopener';
-    document.body.appendChild(a); a.click(); a.remove();
-  };
-  const star = async (d: DocumentFile) => {
-    files.setItems(prev => prev.map(x => (x.id === d.id ? { ...x, starred: !d.starred } : x)));
-    try { await updateDocument(d.id, { starred: !d.starred }); }
-    catch (e) { files.setItems(prev => prev.map(x => (x.id === d.id ? { ...x, starred: d.starred } : x))); toast.error(`The star was not saved: ${reason(e)}`); }
-  };
-  const remove = async (d: DocumentFile) => {
-    await confirmDelete({ title: 'Delete this file?', message: `${d.name} is removed from storage and cannot be recovered.`, what: `${d.name}`, run: async () => { await deleteDocument(d.id); setPreviewId(null); }, done: `${d.name} deleted.`, after: () => files.refetch() });
-  };
-  const removeMany = async (ds: DocumentFile[]) => {
-    if (!await confirm({ title: `Delete ${ds.length} ${ds.length === 1 ? 'file' : 'files'}?`, message: `They are removed from storage and cannot be recovered. ${ds.slice(0, 3).map(d => d.name).join(', ')}${ds.length > 3 ? ` and ${ds.length - 3} more` : ''}.`, confirmLabel: `Delete ${ds.length}`, destructive: true })) return;
-    let ok = 0; let firstFailure = '';
-    for (const d of ds) { try { await deleteDocument(d.id); ok += 1; } catch (e) { firstFailure ||= reason(e); } }
-    if (ok) toast.success(`${ok} ${ok === 1 ? 'file' : 'files'} deleted.`);
-    if (ok < ds.length) toast.error(`${ds.length - ok} could not be deleted: ${firstFailure}`);
-    await files.refetch();
-  };
+  const refresh = useCallback(() => Promise.all([search.refetch(), overview.refetch()]), [search, overview]);
+  const gone = useCallback((ids: string[]) => { setSelected(s => new Set([...s].filter(id => !ids.includes(id)))); setPreviewId(p => (p && ids.includes(p) ? null : p)); }, []);
+  const act = useLibraryActions(refresh, gone);
 
-  const openName = (t: NameTarget, f: NonNullable<typeof nameFor>) => { setNaming(t); setNameFor(f); };
-  const actions: FileActions = {
-    onOpen: d => { setSeed(d); setPreviewId(d.id); }, onStar: star, onDownload: download, onDelete: remove, onBulkDelete: removeMany, onUpload: () => setUploading(true),
-    onRename: d => openName({ key: `file-${d.id}`, title: 'Edit file details', description: d.originalName, label: 'Display name', name: d.name, comment: d.description, submitLabel: 'Save' }, { kind: 'file', doc: d }),
-  };
-
-  const saveName = async (name: string, comment: string) => {
-    if (!category || !nameFor) return;
-    if (nameFor.kind === 'file') {
-      await updateDocument(nameFor.doc.id, { name, description: comment });
-      files.setItems(prev => prev.map(x => (x.id === nameFor.doc.id ? { ...x, name, description: comment } : x)));
-      toast.success('File details saved.');
-      return;
+  const go = (next: Place) => {
+    setPlace(next); setSelected(new Set()); setPreviewId(null); setTreeOpen(false);
+    setFilters(f => ({ ...NO_FILTERS, q: f.q, sort: f.sort }));
+    if (typeof window !== 'undefined') {
+      const url = next.kind === 'folder' ? `?folder=${next.id}` : next.kind === 'home' ? window.location.pathname : `?view=${next.kind}`;
+      window.history.replaceState(null, '', url);
     }
-    const taken = entries.some(f => f.name.toLowerCase() === name.toLowerCase() && !(nameFor.kind === 'folder' && f.name === nameFor.entry.name));
-    if (taken) throw new Error('A folder with this name already exists here.');
-    if (nameFor.kind === 'new-folder') { await createFolder(category.id, category.name, name); toast.success(`Folder ${name} created.`); }
-    else {
-      await renameFolder(nameFor.entry.id!, name);
-      if (folder === nameFor.entry.name) setFolder(name);
-      toast.success(`Folder renamed to ${name}.`);
-      await files.refetch();
-    }
-    await folders.refetch();
   };
-  const deleteCustomFolder = async (f: FolderEntry) => {
-    if (!category || !f.id) return;
-    let count: number;
-    try { count = await countFolderFiles(category.id, f.name); } catch (e) { toast.error(`The folder could not be checked: ${reason(e)}`); return; }
-    if (count > 0) { toast.error(`${f.name} still holds ${count} ${count === 1 ? 'file' : 'files'}. Delete them first; deleting a folder does not delete its files.`); return; }
-    if (!await confirm({ title: 'Delete this folder?', message: `${f.name} is empty. Only the folder is removed.`, confirmLabel: 'Delete folder', destructive: true })) return;
-    try { await deleteFolder(f.id); toast.success(`Folder ${f.name} deleted.`); await folders.refetch(); }
-    catch (e) { toast.error(`${f.name} was not deleted: ${reason(e)}`); }
-  };
+  const change = (patch: Partial<DocFilters>) => { setFilters(f => ({ ...f, ...patch })); setSelected(new Set()); };
 
-  const uploadOne = async (file: File, name: string, comment: string) => {
-    if (!category) return;
-    const form = new FormData();
-    form.append('file', file); form.append('name', name); form.append('description', comment);
-    form.append('category_id', category.id); form.append('category_name', category.name);
-    form.append('folder_id', folder ?? ''); form.append('folder_path', folder ?? '');
-    await uploadDocument(form);
+  const onFiles = useCallback((files: File[]) => { setDropped(files); setUploading(true); }, []);
+  const blocked = uploading || !!folderTarget || !!moving || !!editing || !!tagging;
+  const dragging = useFileDrop(!blocked && !overview.upgradeNeeded, onFiles);
+
+  const open = (d: DocumentFile) => { setSeed(d); setPreviewId(d.id); };
+  const showFolder = (d: DocumentFile) => { if (d.folderId) { go({ kind: 'folder', id: d.folderId }); } };
+  const fileActions: FileActions = {
+    onOpen: open, onStar: act.star, onDownload: d => { void act.download([d]); }, onEdit: setEditing,
+    onMove: d => setMoving({ kind: 'files', ids: [d.id], names: [d.name], currentFolder: d.folderId }),
+    onTrash: d => { void act.trash([d]); }, onRestore: d => { void act.restore([d]); }, onPurge: d => { void act.purge([d]); },
   };
+  const bulkMove = () => setMoving({ kind: 'files', ids: chosen.map(d => d.id), names: chosen.map(d => d.name), currentFolder: chosen.every(d => d.folderId === chosen[0].folderId) ? chosen[0].folderId : null });
+  const bulkTags = () => setTagging({ ids: chosen.map(d => d.id), count: chosen.length, present: [...new Set(chosen.flatMap(d => d.tags))] });
+
+  const deleteFolderThen = async (f: DocFolder) => {
+    if (await act.removeFolder(f)) go(f.parentId ? { kind: 'folder', id: f.parentId } : { kind: 'home' });
+  };
+  const subfolders = place.kind === 'folder' ? (folderHere?.children ?? []) : place.kind === 'home' ? tree : [];
+  const trashView = place.kind === 'trash';
+
+  const emptyState = narrowed
+    ? <EmptyState icon="search" title="No files match" description="Try fewer words, or clear the filters." action={<span className="inline-flex flex-wrap gap-2"><Button onClick={() => change({ ...NO_FILTERS, sort: filters.sort })}>Clear search and filters</Button>{place.kind === 'folder' && !filters.everywhere && <Button variant="primary" onClick={() => change({ everywhere: true })}>Search everywhere</Button>}</span>} />
+    : trashView ? <EmptyState icon="delete" title="The trash is empty" description="Deleted files wait here until a manager deletes them for good." />
+    : place.kind === 'starred' ? <EmptyState icon="starred" title="Nothing starred" description="Star a file to keep it close." />
+    : place.kind === 'unfiled' ? <EmptyState icon="documents" title="Nothing is unfiled" description="Every file is in a folder." />
+    : <EmptyState icon="documents" title={place.kind === 'folder' ? 'No files in this folder' : 'No files yet'} description="Upload files, drop them on this page, or paste a picture." action={<Button variant="primary" icon="upload" onClick={() => { setDropped([]); setUploading(true); }}>Upload files</Button>} />;
+
+  const treeNav = <FolderTree tree={tree} flat={flat} place={place} counts={counts} onSelect={go} />;
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        breadcrumbs={[{ label: 'Core Management' }, { label: 'Documents' }]}
-        title="Documents"
-        description="ISO 55001 document management: find a document, or open a category and its folders."
-        actions={category ? (
+        breadcrumbs={[{ label: 'Core Management' }, { label: 'Documents' }]} title="Documents"
+        description="Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading."
+        actions={(
           <>
-            <IconButton icon="refresh" label="Refresh documents" variant="shell" pending={(files.loading && files.loaded) || (folders.loading && folders.loaded)} onClick={() => { files.refetch(); folders.refetch(); }} />
-            {files.items.length > 0 && <DownloadButton data={files.items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Documents')} title="Document Hub" formats={['excel']} />}
-            {!folder && <Button icon="plus" onClick={() => openName({ key: 'new-folder', title: 'New folder', description: `In ${category.name}`, label: 'Folder name', name: '', submitLabel: 'Create folder' }, { kind: 'new-folder' })} disabled={!folders.loaded && !folders.error}>New folder</Button>}
-            <Button variant="primary" icon="upload" onClick={() => setUploading(true)}>Upload</Button>
+            <IconButton icon="refresh" label="Refresh documents" variant="shell" pending={(search.loading && search.loaded) || (overview.loading && overview.loaded)} onClick={() => { void refresh(); }} />
+            <Button icon="folder-add" disabled={!overview.overview} onClick={() => setFolderTarget({ mode: 'create', parentId: place.kind === 'folder' ? place.id : null })}>New folder</Button>
+            <Button variant="primary" icon="upload" disabled={!overview.overview} onClick={() => { setDropped([]); setUploading(true); }}>Upload</Button>
           </>
-        ) : undefined}
+        )}
       />
 
-      {category && (
-        <nav aria-label="Location" className="flex flex-wrap items-center gap-1.5 font-sans text-body-sm">
-          <button type="button" className="focus-ring rounded-xs text-ink-muted hover:text-ink" onClick={() => go(null)}>All categories</button>
-          <span aria-hidden className="text-ink-muted">/</span>
-          {folder
-            ? <button type="button" className="focus-ring rounded-xs text-ink-muted hover:text-ink" onClick={() => go(category.id)}>{category.name}</button>
-            : <span aria-current="page" className="font-medium text-ink">{category.name}</span>}
-          {folder && <><span aria-hidden className="text-ink-muted">/</span><span aria-current="page" className="font-medium text-ink">{folder}</span></>}
-        </nav>
-      )}
-
-      {!category ? (
-        <HomeView onOpenCategory={id => go(id)} onLocate={locate} />
-      ) : folder ? (
-        <section aria-labelledby="folder-h" className="flex flex-col gap-3">
-          <h2 id="folder-h" className="font-display text-section font-semibold text-ink">{folder}</h2>
-          <FileBrowser list={files} subject={where} actions={actions} />
-        </section>
+      {overview.upgradeNeeded ? (
+        <Notice tone="warning" title="The document library needs a one-time upgrade">{overview.error} Nothing is lost: all files are kept, and after the upgrade they are placed in real folders.</Notice>
+      ) : overview.error && !overview.overview ? (
+        <Notice tone="danger" title="The library could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => { void overview.refetch(); }}>Try again</Button>}>{overview.error}</Notice>
       ) : (
-        <CategoryView
-          category={category} folders={folders} entries={entries} files={files} actions={actions}
-          onOpenFolder={name => go(category.id, name)}
-          onRenameFolder={f => openName({ key: `folder-${f.id}`, title: 'Rename folder', description: 'Files in the folder move with it.', label: 'Folder name', name: f.name, submitLabel: 'Rename' }, { kind: 'folder', entry: f })}
-          onDeleteFolder={deleteCustomFolder}
-        />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+          <aside className="hidden lg:block"><div className="sticky top-4 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">{treeNav}</div></aside>
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="lg:hidden"><Button icon="folder" onClick={() => setTreeOpen(true)}>Browse folders</Button></div>
+            {place.kind === 'home' && !narrowed && <SetupBanner isManager={isManager} amsMissing={overview.overview?.amsMissing ?? 0} unindexed={counts.unindexed} onChanged={() => { void refresh(); }} />}
+            <LocationHeader
+              place={place} folders={folders} isManager={isManager} onGo={go}
+              onNewSub={f => setFolderTarget({ mode: 'create', parentId: f.id })} onRename={f => setFolderTarget({ mode: 'rename', folder: f })}
+              onMove={f => setMoving({ kind: 'folder', folder: f })} onDelete={f => { void deleteFolderThen(f); }}
+            />
+            <SearchBar place={place} filters={filters} facets={facets} view={view} onViewChange={setView} onChange={change} pending={search.pending} />
+
+            {!narrowed && subfolders.length > 0 && (
+              <section aria-labelledby="folders-h" className="flex flex-col gap-2">
+                <h3 id="folders-h" className="font-sans text-label font-medium text-ink-muted">Folders</h3>
+                <FolderGrid
+                  folders={subfolders} isManager={isManager} onOpen={f => go({ kind: 'folder', id: f.id })} onNewSub={f => setFolderTarget({ mode: 'create', parentId: f.id })}
+                  onRename={f => setFolderTarget({ mode: 'rename', folder: f })} onMove={f => setMoving({ kind: 'folder', folder: f })} onDelete={f => { void deleteFolderThen(f); }}
+                />
+              </section>
+            )}
+
+            {search.upgradeNeeded ? null : (
+              <section aria-label="Files" className="flex flex-col gap-3">
+                {search.result && (
+                  <p className="font-sans text-caption text-ink-muted" role="status">
+                    {search.result.total} {search.result.total === 1 ? 'file' : 'files'}{filters.q.trim() ? ` for “${filters.q.trim()}”` : ''}
+                    {search.result.truncated ? `. Showing the first ${items.length}; narrow the search to see the rest.` : ''}
+                  </p>
+                )}
+                <BulkBar
+                  count={chosen.length} total={items.length} trash={trashView} isManager={isManager}
+                  onSelectAll={() => setSelected(new Set(items.map(d => d.id)))} onClear={() => setSelected(new Set())} onMove={bulkMove} onTags={bulkTags}
+                  onStar={() => { void act.setStars(chosen, 'star'); }} onUnstar={() => { void act.setStars(chosen, 'unstar'); }} onDownload={() => { void act.download(chosen); }}
+                  onTrash={() => { void act.trash(chosen); }} onRestore={() => { void act.restore(chosen); }} onPurge={() => { void act.purge(chosen); }}
+                />
+                <FileList
+                  items={items} terms={search.result?.terms ?? []} view={view} state={search} subject={folderHere?.name ?? 'the library'} actions={fileActions}
+                  selected={selected} onSelectedChange={setSelected} showLocation={place.kind !== 'folder' || narrowed} isManager={isManager} emptyHint="Nothing to show here." empty={emptyState}
+                />
+              </section>
+            )}
+          </div>
+        </div>
       )}
 
-      <UploadDialog open={uploading} where={where || CATEGORIES[0].name} onOpenChange={setUploading} onUpload={uploadOne} onUploaded={() => files.refetch()} />
-      <NameDialog target={naming} onOpenChange={o => { if (!o) { setNaming(null); } }} onSave={saveName} />
-      <PreviewDialog doc={previewing} where={where} onClose={() => setPreviewId(null)} onDownload={download} onRename={d => { setPreviewId(null); actions.onRename(d); }} onDelete={remove} />
+      <Drawer open={treeOpen} onOpenChange={setTreeOpen} title="Folders" description="Choose a folder or a view">{treeNav}</Drawer>
+
+      <DocumentViewer
+        doc={viewing} list={items} onNavigate={setPreviewId} onClose={() => setPreviewId(null)} isManager={isManager}
+        actions={{
+          onStar: d => { void act.star(d).then(() => setSeed(s => (s && s.id === d.id ? { ...s, starred: !d.starred } : s))); }, onEdit: d => { setPreviewId(null); setEditing(d); },
+          onMove: d => { setPreviewId(null); setMoving({ kind: 'files', ids: [d.id], names: [d.name], currentFolder: d.folderId }); },
+          onTrash: d => { void act.trash([d]); }, onRestore: d => { void act.restore([d]); }, onPurge: d => { void act.purge([d]); }, onShowFolder: showFolder,
+        }}
+      />
+
+      <UploadDialog
+        open={uploading} flat={flat} defaultFolderId={place.kind === 'folder' ? place.id : null} initialFiles={dropped} tagSuggestions={tagNames}
+        onOpenChange={o => { setUploading(o); if (!o) setDropped([]); }} onUpload={act.upload} onUploaded={() => { void refresh(); }}
+      />
+      <FolderFormDialog
+        target={folderTarget} flat={flat} onOpenChange={o => { if (!o) setFolderTarget(null); }}
+        onSave={async (t, name, parentId, description) => {
+          if (t.mode === 'create') { const made = await act.makeFolder(parentId, name, description); go({ kind: 'folder', id: made.id }); }
+          else await act.renameFolder(t.folder, name, description);
+        }}
+      />
+      <MoveDialog
+        subject={moving} flat={flat} onOpenChange={o => { if (!o) setMoving(null); }}
+        onMove={async (s, folderId) => { if (s.kind === 'folder') await act.moveFolder(s.folder, folderId); else { await act.moveFiles(s.ids, folderId); setSelected(new Set()); } }}
+      />
+      <EditFileDialog doc={editing} suggestions={tagNames} onOpenChange={o => { if (!o) setEditing(null); }} onSave={act.saveDetails} />
+      <BulkTagsDialog subject={tagging} suggestions={tagNames} onOpenChange={o => { if (!o) setTagging(null); }} onApply={async (s, mode, tags) => { await act.applyTags(s.ids, mode, tags); setSelected(new Set()); }} />
+
+      {dragging && (
+        <div className="pointer-events-none fixed inset-0 z-dialog flex items-center justify-center bg-surface/80 backdrop-blur-sm" role="status">
+          <p className="rounded-panel border-2 border-dashed border-action bg-surface px-8 py-6 font-display text-section font-semibold text-ink">Drop files to upload{place.kind === 'folder' ? ` into ${folderHere?.name ?? 'this folder'}` : ''}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -175,3 +216,4 @@ function DocumentsContent() {
 export default function DocumentsPage() {
   return <AppShell migrated><DocumentsContent /></AppShell>;
 }
+

@@ -32,7 +32,7 @@
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
 | `/deep-space-preview` | Own chrome | Yes | No | Not checked | standalone prototype (glass card over 3D particles; own layout, no shell) |
-| `/documents` | Migrated | Yes | 1 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
+| `/documents` | Migrated | Yes | 2 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
 | `/drivers` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by department, table, add/edit/delete. |
 | `/employees` | Migrated | Yes | 4 | Yes, 2026-10-04 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
 | `/employees-preview` | Redirect | No | No | Yes, 2026-10-04 | Retired sandbox (owner decision 4 Oct 2026); its components and grouping module were deleted, the register's own grouping is now the single one. |
@@ -69,7 +69,7 @@
 | `/tasks-events` | Migrated | Yes | No | Yes, 2026-10-03 | Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty. |
 | `/test-homepage` | Migrated | Yes | 2 | unverified (2026-10-07) | TEMPORARY. Frontend-only concept, not linked from any nav; delete the folder to remove it. |
 | `/timesheets` | Migrated | Yes | 17 | unverified (2026-10-08) | NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. |
-| `/tools` | Own chrome | Yes | 25 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
+| `/tools` | Own chrome | Yes | 26 | Not checked | Tools & Equipment workspace (its own layout; the visual standard) |
 | `/training` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register, refreshers, analytics, add/edit/delete. |
 | `/usage-analyzer` | Migrated | Yes | No | Yes, 2026-10-03 | Local and all-users sources; charts and heatmaps have text alternatives. |
 | `/vfl` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, behaviour filter, detail dialog with inline status change (optimistic, reverted with the reason on failure), add/edit/delete; records with a bad time, missing technique or unrecognised section render. The form is one scrolling dialog (tabs dropped); the Status field shows only when editing because a new observation is always saved as submitted (it was previously shown on create and ignored). Safe/Unsafe/Actions tiles became a behaviour filter with counts and a count line. |

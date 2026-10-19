@@ -218,6 +218,34 @@ An independent quality scan (open endpoints, fabricated metrics, safety-status m
 - **Verification (18 Oct):** frontend tsc clean, eslint 0 errors, vitest 214 files / 1671 tests, docs:check green except the pre-existing `timesheets - Copy/` ledger gap (untracked dir, CI unaffected), route suite green, axe green, production build green, `npm audit --omit=dev --audit-level=high` clean; backend pytest green, pyright 196/196. Nothing committed, pushed, deployed, or migrated; no live writes.
 - **Owner gates:** (1) run the Phase 1 SQL in Supabase in file order + confirm `SUPABASE_KEY` is service_role on Render (exposure live until then); (2) `TRUST_PROXY_HEADERS` only if the proxy is trusted, one enrolled MFA test user, Supabase leaked-password protection on; (3) decide `timesheets_backup_20261014_holiday`, `timesheets - Copy/`, Tools self-registration, the 8 open reads, and `supabase_migration_housekeeping_indexes.sql` (4 redundant + 2 duplicate-definition indexes, not applied).
 
+## 8d. Data integrity: whole categories of bug closed (owner instruction, 19 Oct 2026, NOT COMMITTED)
+
+Trigger: overtime for the same person, date and hours was recorded twice from two laptops and both were approved; the only check was a browser warning. The fix is one set of rules, each with one shared mechanism and a scanning test, documented in the backend's `docs/DATA_INTEGRITY_STANDARD.md`:
+
+- **Rules are enforced on the server.** Overtime (time overlap), leaves (day overlap) and PPE (same item, person, day) are refused with a 409 naming the record in the way; the forms refuse earlier. Unique indexes for the exact-duplicate case are in `supabase_migration_*_no_duplicates.sql` (they refuse to run until the existing duplicates are resolved).
+- **Who and when come from the session.** Approver and rejecter (overtime, leaves), job-card sign-off and created-by are stamped by the server; the browser sends only the drawn signature. Overtime approval no longer sends names or times.
+- **Everything is audited.** The shared Supabase client records writes to the payroll and people tables in `audit_log` (who, when, what changed; whole row for creates and deletes). `/api/audit` is manager-only; detail dialogs show "Show who changed it" (`components/shared/RecordHistory.tsx`).
+- **No deleting approved money records.** Approved or paid overtime and approved leave cannot be deleted; overtime has a new "Cancel request", leaves are rejected. An employee with records cannot be deleted; renaming an employee id carries their history.
+- **No silent overwrite.** Edit forms for overtime, leaves and PPE send `expected_updated_at`; a stale save gets a plain 409. (Timesheet grid editing is not wired yet.)
+- **Errors keep their meaning.** `server_error` passes a deliberate 404/409 through and maps database constraint refusals to 409/422; 42 hand-written 500s were converted; a guard test forbids new ones.
+- **Free-text overtime reasons stay free text** (owner decision).
+
+Owner steps, in order: run `supabase_migration_integrity_constraints.sql`; optionally `supabase_cleanup_names_and_spaces.sql`; review `scripts/data_integrity_report.py` output (a copy was saved to the Documents folder, outside the repo), resolve duplicates, then run the two `no_duplicates` files; set default passwords for the three manager accounts created with `scripts/create_management_accounts.py`. The application works before and after each SQL step.
+
+## 8e. Document library rebuilt (owner instruction, 19 Oct 2026, NOT COMMITTED)
+
+Trigger: files were "lost" across email, OneDrive, WhatsApp and Windows folders. `/documents` is now one library: a real folder tree (the Asset Management System structure from Engineering Planning plus any folder a person makes), one search, and in-page preview, open and print. Backend contract and rules: `backend/docs/DOCUMENT_LIBRARY.md`.
+
+- **Finding that drove the model:** 94 files; about 83 were tagged with folder names ("SOPs" 54, "SHEQ" 12, ...) that were neither a built-in folder nor a row, so they could not be reached by browsing. Files now point at a real folder (`folder_ref`) and the upgrade SQL gives every such name a real folder.
+- **Folders:** nested (to 8 levels), every folder renamed, moved, filled and deleted (when empty) the same way; "Set up the AMS folders" (manager) creates the 85-folder structure and skips what exists (keyed by `seed_key`, so a renamed folder is still recognised); hand-made folders with a matching name are adopted with their files.
+- **Finding files:** one search over name, comment, tags, folder and the words inside PDF, Word, Excel and PowerPoint files; several words must all match, quotes keep a phrase; filters (kind, extension, tag, uploader, date, size, starred), scope (this folder or everywhere), order, cards or table. A file found only by its inside text says "Found inside".
+- **In the page:** images (zoom), PDF, audio, video, text, Word (`docx-preview`, the one new dependency), spreadsheets (`xlsx`); older Office files offer Microsoft's viewer only when asked. Print through a hidden frame. ← → move through the list (not while focus is inside an embedded PDF, which keeps its own keys).
+- **Safety:** delete moves to a Trash with Undo; only a manager deletes for good, from the trash; identical files cannot be put in one folder twice; same-name files get "(2)"; uploader and deleter come from the sign-in; served content type comes from the extension; history in `document_activities`.
+- **Upload:** documents, images (all common extensions), audio, video, drawings and emails; drop files on the page or paste a picture; unsafe types (.exe, .html, ...) are refused before sending.
+- **Verified:** backend 2167 tests (about 204 new for the library, safeguards mutation-checked), pyright 196/196, Sphinx clean; `documentLogic` and component tests; `scripts/route-specs/documents.mjs` in a real browser (all widths, empty and failed states, preview of every kind). Not verified live: nothing was run against Supabase.
+
+Owner steps, in order: (1) run `backend/supabase_migration_documents_v2.sql` BEFORE deploying (until then the page shows a plain "needs the upgrade SQL" notice); (2) open Documents, press "Set up the AMS folders", then "Read them now"; (3) move files out of Unfiled over time. `next.config.ts` report-only CSP was widened for the storage host (frames, media) and `blob:` fonts so preview keeps working when the policy is enforced.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:

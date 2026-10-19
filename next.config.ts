@@ -24,9 +24,9 @@ const CSP_REPORT_ONLY = [
   "style-src 'self' 'unsafe-inline'", // Tailwind + Radix inject <style>; React style={} needs attr allowance
   `img-src 'self' data: blob: ${API_HOST} ${SUPABASE_HOST}`, // photo/signature capture + stored images
   `connect-src 'self' ${API_HOST} ${SUPABASE_HOST}`,
-  "font-src 'self' data:", // next/font is self-hosted
-  "media-src 'self' blob: data:", // Tools audio feedback playback
-  "frame-src 'self' blob:", // PDF preview embeds
+  "font-src 'self' data: blob:", // next/font is self-hosted; blob: for fonts embedded in a previewed Word file
+  `media-src 'self' blob: data: ${SUPABASE_HOST}`, // Tools audio feedback; audio and video previewed from the document library
+  `frame-src 'self' blob: ${SUPABASE_HOST}`, // PDF previews: a stored file, or a copy fetched for printing
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -5,17 +5,17 @@
 import type { ElementType } from 'react';
 import {
   Archive, ArrowClockwise, ArrowCounterClockwise, ArrowDown, ArrowLeft, ArrowSquareOut, ArrowUUpLeft, ArrowUUpRight,
-  ArrowUp, ArrowsClockwise, ArrowsDownUp, ArrowsLeftRight, Bell, SpeakerHigh, SpeakerSlash, Briefcase, Buildings, CalendarBlank, Camera,
+  ArrowUp, ArrowsClockwise, ArrowsOutCardinal, ArrowsDownUp, ArrowsLeftRight, Bell, SpeakerHigh, SpeakerSlash, Briefcase, Buildings, CalendarBlank, Camera,
   Car, CaretDown, CaretLeft, CaretRight, CaretUp, ChartLineUp, ChatCircleText, Check,
   CheckCircle, CheckSquare, CirclesFour, ClipboardText, Clock, ClockCounterClockwise, Columns, Copy,
   Cube, CurrencyCircleDollar, DotsSixVertical, DotsThree, DotsThreeVertical, DownloadSimple, EnvelopeSimple, Eye,
-  EyeSlash, File, FilePdf, FileXls, Flag, FloppyDisk, Funnel, Gauge,
+  EyeSlash, File, FileAudio, FileDoc, FilePdf, FilePpt, FileText, FileVideo, FileXls, FileZip, Flag, Folder, FolderOpen, FolderPlus, FloppyDisk, Funnel, Gauge,
   Gear, GraduationCap, Handshake, HardDrives, HardHat, Hash, Heart, House,
   IdentificationCard, ImageSquare, Info, Key, Lightning, Link, List, Lock,
   MagnifyingGlass, MagnifyingGlassMinus, MagnifyingGlassPlus, MapPin, Medal, Microphone, Package, PaperPlaneTilt,
   Paperclip, PencilSimple, Percent, Phone, Plus, Printer, Prohibit, Pulse,
   Question, Rows, ShieldCheck, ShoppingCart, SidebarSimple, SignIn, SignOut, SlidersHorizontal,
-  Sparkle, SquaresFour, Star, Table, Target, TextAa, Toolbox, Trash,
+  Sparkle, SquaresFour, Star, Table, Target, Ruler, Tag, TextAa, Toolbox, Trash,
   TreeStructure, TrendUp, UploadSimple, User, UserCheck, UserGear, Users, Warning,
   WarningOctagon, Whatsapp, Wrench, X, XCircle,
 } from './glyphs';
@@ -52,6 +52,7 @@ export const ICON_MEANINGS = [
   'show', 'hide', 'department', 'font', 'grip',
   'zoom-in', 'zoom-out', 'accounts', 'app',
   'chevron-down', 'chevron-up', 'chevron-right', 'chevron-left', 'more', 'more-vertical', 'delete', 'copy', 'select-similar', 'external', 'user', 'sign-out', 'sign-in', 'lock', 'info', 'help', 'arrow-up', 'arrow-down', 'save', 'print', 'funnel', 'sync', 'link', 'shield', 'key', 'camera', 'microphone', 'columns', 'sidebar', 'error', 'cancel', 'reset', 'empty',
+  'folder', 'folder-open', 'folder-add', 'tag', 'move', 'file-word', 'file-slides', 'file-text', 'file-audio', 'file-video', 'file-zip', 'file-drawing',
 ] as const;
 
 export type IconMeaning = (typeof ICON_MEANINGS)[number];
@@ -292,6 +293,19 @@ export const ICON_BY_MEANING: Record<IconMeaning, ElementType> = {
   'cancel': Prohibit,
   'reset': ArrowCounterClockwise,
   'empty': Cube,
+  // The document library: one glyph per kind of file, and the folder verbs.
+  folder: Folder,
+  'folder-open': FolderOpen,
+  'folder-add': FolderPlus,
+  tag: Tag,
+  move: ArrowsOutCardinal,
+  'file-word': FileDoc,
+  'file-slides': FilePpt,
+  'file-text': FileText,
+  'file-audio': FileAudio,
+  'file-video': FileVideo,
+  'file-zip': FileZip,
+  'file-drawing': Ruler,
 };
 
 export function meaningFromStatLabel(label: string): IconMeaning | undefined {

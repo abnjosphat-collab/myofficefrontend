@@ -458,6 +458,13 @@ export {
 } from '@phosphor-icons/react';
 export {
   ArrowSquareOut,
+  ArrowsOutCardinal,
+  FileAudio,
+  FileDoc,
+  FilePpt,
+  FileVideo,
+  FileZip,
+  Ruler,
   ArrowsClockwise,
   CaretLeft,
   CaretUp,
