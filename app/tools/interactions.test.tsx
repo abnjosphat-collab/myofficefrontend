@@ -2,18 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MovementForm, ToolForm, MarkReadyForm, EmployeeForm, EmployeeNumberForm } from './ToolsForms';
+import { MovementForm, ToolForm, MarkReadyForm, RecordCheckForm, EmployeeForm, EmployeeNumberForm } from './ToolsForms';
+import { SourceRegisterForm } from './ToolsSourceRegisters';
 import { ToolsCompliance } from './ToolsCompliance';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
+import { ConfirmProvider, Field, Input } from '@/components/ui-system';
 import { PEOPLE, LOCATIONS, JOBS } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 
 function DialogHarness() {
   const [open,setOpen] = useState(false);
-  return <><button onClick={()=>setOpen(true)}>Open tool</button><ToolsDialog open={open} onClose={()=>setOpen(false)} title="Tool details" description="Current condition"><button>Sample action</button></ToolsDialog></>;
+  return <ConfirmProvider><button onClick={()=>setOpen(true)}>Open tool</button><ToolsDialog open={open} onClose={()=>setOpen(false)} title="Tool details" description="Current condition"><button>Sample action</button></ToolsDialog></ConfirmProvider>;
 }
 function RequiredAuthDialogHarness({onClose}:{onClose:()=>void}) {
-  return <ToolsDialog open dismissible={false} onClose={onClose} title="Sign in or sign up" description="Use your workspace account or create one to continue."><button>Sign in</button></ToolsDialog>;
+  return <ConfirmProvider><ToolsDialog open dismissible={false} onClose={onClose} title="Sign in or sign up" description="Use your workspace account or create one to continue."><button>Sign in</button></ToolsDialog></ConfirmProvider>;
 }
 const placeholderPeople=PEOPLE.map((label,index)=>({id:String(index),employeeNumber:label.split(' · ')[1],name:label.split(' · ')[0],department:'Engineering',active:true}));
 // G2: location/job fields are the shared Combobox with free text — open, type, then take the matching
@@ -200,18 +202,23 @@ describe('Tools interaction controls', () => {
     fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Tape measure' } });
     fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Stanley' } });
     fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
-    fireEvent.change(screen.getByLabelText('Designated storage place'), { target: { value: 'Tool crib' } });
+    fireEvent.change(screen.getByLabelText(/Designated storage place/), { target: { value: 'Tool crib' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add tool' }));
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({ competencyRequired: false, preUseCheckRequired: false });
   });
-  it('requires a repair or inspection note before returning equipment to service', () => {
+  it('requires a repair or inspection note before returning equipment to service', async () => {
+    const user = userEvent.setup();
     const onSave=vi.fn();
     render(<MarkReadyForm tool={{...SEED_TOOLS[0],status:'attention'}} onSave={onSave} onCancel={()=>{}}/>);
     const submit=screen.getByRole('button',{name:'Mark ready for use'});
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('Describe what was repaired or checked.')).toBeVisible();
+    await waitFor(() => expect(screen.getByLabelText('Repair or inspection completed')).toHaveFocus());
     fireEvent.change(screen.getByLabelText('Repair or inspection completed'),{target:{value:'Trigger replaced and function tested'}});
-    expect(submit).toBeEnabled(); fireEvent.click(submit);
+    await user.click(submit);
     expect(onSave).toHaveBeenCalledWith('Trigger replaced and function tested');
   });
   it('focuses the dialog heading and restores the invoking button on Escape', async () => {
@@ -222,6 +229,49 @@ describe('Tools interaction controls', () => {
     await user.keyboard('{Escape}');
     await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
+  });
+  it('creates one employee on double submit', async () => {
+    const user = userEvent.setup();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const onSave = vi.fn(() => gate);
+    render(<EmployeeForm onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'N. One' } });
+    fireEvent.change(screen.getByLabelText('Employee ID or number'), { target: { value: 'E-900' } });
+    await user.click(screen.getByRole('button', { name: 'Add employee' }));
+    expect(await screen.findByRole('button', { name: 'Adding…' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Adding…' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    await act(async () => { release(); });
+    expect(screen.getByRole('button', { name: 'Add employee' })).toBeEnabled();
+  });
+  it('ToolForm double submit saves once', async () => {
+    const user = userEvent.setup();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const onSave = vi.fn(() => gate);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Torque wrench' } });
+    fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Norbar' } });
+    fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
+    fireEvent.change(screen.getByLabelText(/Designated storage place/), { target: { value: 'Tool crib' } });
+    await user.click(screen.getByRole('button', { name: 'Add tool' }));
+    await user.click(screen.getByRole('button', { name: 'Saving…' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    await act(async () => { release(); });
+    expect(screen.getByRole('button', { name: 'Add tool' })).toBeEnabled();
+  });
+  it('shows required cues on the enforced ToolForm fields', () => {
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    for (const name of [/Tool name/, /Make and model/, /Storage location/, /Designated storage place/, /Required storage conditions/, /Maintenance requirements/]) {
+      expect(screen.getByLabelText(name)).toHaveAttribute('aria-required', 'true');
+    }
+    expect(screen.getByLabelText('Serial number')).not.toHaveAttribute('aria-required');
+  });
+  it('register submit without a file explains', () => {
+    render(<SourceRegisterForm departments={['Engineering']} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Upload register' })).toBeDisabled();
+    expect(screen.getByText('Choose a register file to upload it.')).toBeVisible();
   });
 });
 describe('Tools form validation messages', () => {
@@ -389,5 +439,76 @@ describe('Tools form validation messages', () => {
     await user.tab();
     expect(screen.queryByRole('button', { name: 'Remove Conveyor CV-01' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove Pump P-12' })).not.toBeInTheDocument();
+  });
+  it('movement refusal focuses the first invalid field', async () => {
+    const user = userEvent.setup();
+    render(<MovementForm kind="issue" tools={SEED_TOOLS} employees={placeholderPeople} addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Issue tool' }));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Tool' })).toHaveFocus());
+  });
+  it('ToolForm refusal focuses the tool name', async () => {
+    const user = userEvent.setup();
+    render(<ToolForm defaultDepartment="" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Add tool' }));
+    await waitFor(() => expect(screen.getByLabelText('Tool name')).toHaveFocus());
+  });
+  it('employee refusal focuses the name', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeForm onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Add employee' }));
+    await waitFor(() => expect(screen.getByLabelText('Full name')).toHaveFocus());
+  });
+  it('failed check refusal focuses the defects field', async () => {
+    const user = userEvent.setup();
+    render(<RecordCheckForm tool={SEED_TOOLS[0]} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Failed' }));
+    await user.click(screen.getByRole('button', { name: 'Record check' }));
+    expect(screen.getByText('Describe the defects.')).toBeVisible();
+    await waitFor(() => expect(screen.getByLabelText('Defects')).toHaveFocus());
+  });
+  it('employee-number refusal focuses the number', async () => {
+    const user = userEvent.setup();
+    const person = { id: 'e9', backendId: 'b9', employeeNumber: null, name: 'N. One', department: 'Engineering', active: true };
+    render(<EmployeeNumberForm employee={person} onSave={() => {}} onCancel={() => {}} />);
+    await user.click(screen.getByRole('checkbox', { name: /No mine number yet/ }));
+    await user.click(screen.getByRole('button', { name: 'Save number' }));
+    expect(screen.getByText('Enter the employee ID or number.')).toBeVisible();
+    await waitFor(() => expect(screen.getByLabelText('Employee ID or number')).toHaveFocus());
+  });
+});
+
+describe('ToolsDialog unsaved-work guard', () => {
+  const renderGuarded = (onClose: () => void, title = 'Add an employee') => render(
+    <ConfirmProvider>
+      <ToolsDialog open onClose={onClose} title={title} description="d"><Field label="Name"><Input /></Field></ToolsDialog>
+    </ConfirmProvider>
+  );
+  it('asks before closing on Escape with typed text, and honors the answer', async () => {
+    const user = userEvent.setup(); const onClose = vi.fn(); renderGuarded(onClose);
+    await user.type(screen.getByLabelText('Name'), 'Widget');
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Name')).toHaveValue('Widget');
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  it('closes without asking when pristine', async () => {
+    const user = userEvent.setup(); const onClose = vi.fn(); renderGuarded(onClose);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+  it('a form switch resets the guard', async () => {
+    const user = userEvent.setup(); const onClose = vi.fn();
+    const { rerender } = render(<ConfirmProvider><ToolsDialog open onClose={onClose} title="Add an employee" description="d"><Field label="Name"><Input /></Field></ToolsDialog></ConfirmProvider>);
+    await user.type(screen.getByLabelText('Name'), 'Widget');
+    rerender(<ConfirmProvider><ToolsDialog open onClose={onClose} title="Mine number" description="d"><Field label="Name"><Input /></Field></ToolsDialog></ConfirmProvider>);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

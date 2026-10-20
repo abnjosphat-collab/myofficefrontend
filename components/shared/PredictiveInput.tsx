@@ -65,6 +65,12 @@ export interface PredictiveInputProps {
   required?: boolean;
   disabled?: boolean;
   error?: string;
+  /** Marks the control invalid (aria-invalid; the red border follows from
+   *  controlClasses). Used with `describedBy` when a surrounding Field owns
+   *  the message, so the error is not rendered twice. */
+  invalid?: boolean;
+  /** IDs the control is described by (a surrounding Field's hint/error). */
+  describedBy?: string;
   /** Extra class on wrapper */
   className?: string;
   /** Use textarea instead of input */
@@ -87,6 +93,8 @@ export function PredictiveInput({
   required = false,
   disabled = false,
   error,
+  invalid = false,
+  describedBy,
   className = '',
   multiline = false,
   rows = 3,
@@ -270,6 +278,9 @@ export function PredictiveInput({
             id={fieldId}
             aria-label={captionId || idProp ? undefined : (placeholder || undefined)}
             aria-labelledby={captionId}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedBy}
+            aria-required={required || undefined}
             value={value}
             disabled={disabled}
             placeholder={placeholder}
@@ -296,6 +307,9 @@ export function PredictiveInput({
             id={fieldId}
             aria-label={captionId || idProp ? undefined : (placeholder || undefined)}
             aria-labelledby={captionId}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedBy}
+            aria-required={required || undefined}
             value={value}
             disabled={disabled}
             placeholder={placeholder}

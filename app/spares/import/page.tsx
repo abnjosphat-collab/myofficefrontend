@@ -7,6 +7,10 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button, DataTable, Field, Icon, MetricGrid, MetricTile, Notice, PageHeader, Select, StatusBadge, cn, useConfirm, type Column, LoadingPulse } from '@/components/ui-system';
 import { api } from '@/lib/apiClient';
+import { fileProblem } from '@/lib/files';
+
+// Mirrors spares.py (25 MB, SPREADSHEET_EXTS).
+const SPREADSHEET_RULES = { maxBytes: 25 * 1024 * 1024, extensions: ['csv', 'tsv', 'xls', 'xlsx'] };
 import { confidenceTone, extractRows, toBulkItem, type ExtractedRow, type Mapping } from './extract';
 
 interface InferResult {
@@ -67,7 +71,10 @@ function SpareImportContent() {
   const step = !infer ? 0 : result ? 2 : 1;
 
   const handleFile = useCallback(async (file: File) => {
-    setFileName(file.name); setInfer(null); setResult(null); setUploadError(null); setUploading(true);
+    setFileName(file.name); setInfer(null); setResult(null); setUploadError(null);
+    const problem = fileProblem(file, SPREADSHEET_RULES);
+    if (problem) { setUploadError(problem); setFileName(''); return; }
+    setUploading(true);
     try {
       const body = new FormData(); body.append('file', file);
       const data = await api.post<InferResult>('/api/spares/infer', body);
@@ -131,11 +138,11 @@ function SpareImportContent() {
             {uploading ? (<LoadingPulse compact label={`Reading ${fileName || 'the file'}`} />) : (
               <>
                 <span className="inline-flex size-14 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name="upload" size="xl" /></span>
-                <span className="block"><span className="block font-display text-title font-semibold text-ink">Drop your file here</span><span className="mt-1 block font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls) or CSV, up to 25 MB.</span></span>
+                <span className="block"><span className="block font-display text-title font-semibold text-ink">Drop your file here</span><span className="mt-1 block font-sans text-body-sm text-ink-muted">or choose one to browse. Excel (.xlsx, .xls), CSV or TSV, up to 25 MB.</span></span>
               </>
             )}
           </button>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" aria-label="Spares file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv,.tsv" aria-label="Spares file" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           <Notice tone="info" title="How the columns are found">The server looks at the column headings and at the values in each column. Bold rows in an Excel sheet are read as category headings. You can correct any column on the next step.</Notice>
         </div>
       )}

@@ -3,6 +3,9 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Combobox, type ComboboxOption } from './Combobox';
+import { ConfirmProvider } from './Confirm';
+import { FormDialog } from '../patterns/FormDialog';
+import { Field } from '../primitives/Field';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 
 const OPTIONS: ComboboxOption[] = [
@@ -29,6 +32,19 @@ async function open(user: ReturnType<typeof userEvent.setup>) {
 
 function searchBox() {
   return screen.getByPlaceholderText('Search department…');
+}
+
+function DialogHarness({ onOpenChange }: { onOpenChange: (next: boolean) => void }) {
+  const [value, setValue] = useState('');
+  return (
+    <ConfirmProvider>
+      <FormDialog open onOpenChange={onOpenChange} title="Add" submitLabel="Save" onSubmit={async () => {}}>
+        <Field label="Department">
+          <Combobox aria-label="Department" value={value} options={OPTIONS} searchPlaceholder="Search department…" onValueChange={setValue} />
+        </Field>
+      </FormDialog>
+    </ConfirmProvider>
+  );
 }
 
 describe('Combobox', () => {
@@ -167,5 +183,28 @@ describe('Combobox', () => {
     await user.type(searchBox(), 'Zebra');
     await user.tab();
     expect(getInputSuggestions('y-test')).toEqual(['Zebra']);
+  });
+
+  it('search typing alone does not mark the dialog dirty', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(<DialogHarness onOpenChange={onOpenChange} />);
+    await open(user);
+    await user.type(searchBox(), 'eng');
+    await user.keyboard('{Escape}'); // closes the list, not the dialog
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('a committed pick marks the dialog dirty', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(<DialogHarness onOpenChange={onOpenChange} />);
+    await open(user);
+    await user.click(screen.getByRole('option', { name: 'Operations' }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });

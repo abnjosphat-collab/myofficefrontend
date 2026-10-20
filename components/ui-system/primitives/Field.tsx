@@ -15,6 +15,19 @@ export function useFieldProps(): { id?: string; 'aria-describedby'?: string; 'ar
   return { id: ctx.inputId, 'aria-describedby': describedBy || undefined, 'aria-invalid': ctx.hasError ? true : undefined, 'aria-required': ctx.isRequired ? true : undefined };
 }
 
+const MarkDirtyContext = createContext<() => void>(() => {});
+
+/**
+ * Custom controls (Select, Combobox, Segmented, TagField, …) call this when
+ * they commit a value, so a FormDialog notices changes that emit no native
+ * input event. A no-op outside a FormDialog, so non-form uses are unaffected.
+ */
+export function useMarkDirty(): () => void {
+  return useContext(MarkDirtyContext);
+}
+
+export const MarkDirtyProvider = MarkDirtyContext.Provider;
+
 /** One label / hint / error rhythm, shared by Field and FieldGroup so they cannot drift apart. */
 const labelText = 'font-sans text-label font-medium text-ink';
 const hintText = 'font-sans text-caption text-ink-muted';

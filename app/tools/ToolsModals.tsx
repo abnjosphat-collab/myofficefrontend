@@ -21,12 +21,14 @@ import { SourceRegisterForm } from './ToolsSourceRegisters';
 import type { Evidence, Tool } from './prototype';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
-function AttachmentForm({ tool, addFiles, onSave }: { tool: Tool; addFiles: AddEvidence; onSave: (files: Evidence[]) => void }) {
+function AttachmentForm({ tool, addFiles, onSave }: { tool: Tool; addFiles: AddEvidence; onSave: (files: Evidence[]) => void | Promise<void> }) {
   const [files, setFiles] = useState(tool.evidence || []);
+  const [saving, setSaving] = useState(false);
+  const save = () => { setSaving(true); void Promise.resolve(onSave(files)).finally(() => setSaving(false)); };
   return (
     <div className="flex flex-col gap-4">
       <EvidencePicker value={files} onChange={setFiles} addFiles={addFiles} />
-      <div className="flex justify-end"><Button variant="primary" icon="success" onClick={() => onSave(files)}>Save attachments</Button></div>
+      <div className="flex justify-end"><Button variant="primary" icon="success" pending={saving} onClick={save}>{saving ? 'Saving…' : 'Save attachments'}</Button></div>
     </div>
   );
 }
@@ -91,8 +93,8 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (modal.kind === 'new' || modal.kind === 'edit') {
       return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} />;
     }
-    if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => void w.saveAttachments(modal.tool, files)} />;
-    if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => void w.markToolReady(modal.tool, note)} onCancel={close} />;
+    if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => w.saveAttachments(modal.tool, files)} />;
+    if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => w.markToolReady(modal.tool, note)} onCancel={close} />;
     if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => w.saveBulkIssue(input)} onResolveAction={resolveAction} />;
     if ('tool' in modal) {
       return (

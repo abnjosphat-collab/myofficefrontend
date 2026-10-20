@@ -51,7 +51,7 @@ describe('what is saved', () => {
     expect(toEntry(f, 4, SAT)).toMatchObject({ regular_hours: 0, holiday_overtime_hours: 10, overtime_hours: 0, date: '2026-09-12', employee_id: 4 });
   });
   it('writes a normal day with its regular hours, callouts and the total', () => {
-    const f = { ...initialForm(undefined, MON, null), callout_overtime_hours: 2, callout_count: 1 };
+    const f = { ...initialForm(undefined, MON, null), callout_overtime_hours: '2', callout_count: '1' };
     const e = toEntry(f, 4, MON);
     expect(e).toMatchObject({ regular_hours: 10, holiday_overtime_hours: 0, callout_overtime_hours: 2, callout_count: 1, total_hours: 12 });
     expect(entryTotal(f)).toBe(12);
@@ -61,7 +61,8 @@ describe('what is saved', () => {
     expect(entryProblems(f)).toEqual([]);
     expect(entryProblems({ ...f, start_time: '' })).toContain('Enter the start and end times.');
     expect(entryProblems(withStatus(f, 'off'))).toEqual([]);
-    expect(entryProblems({ ...f, callout_overtime_hours: 30 })).toContain('Callout hours cannot be more than 24 in a day.');
-    expect(entryProblems({ ...f, callout_count: -1 })).toContain('Callout hours and the number of callouts cannot be negative.');
+    expect(entryProblems({ ...f, callout_overtime_hours: '30' })).toContain('Callout hours cannot be more than 24 in a day.');
+    expect(entryProblems({ ...f, callout_count: '-1' })).toContain('Callout hours and the number of callouts cannot be negative.');
+    expect(entryProblems({ ...f, callout_overtime_hours: '', callout_count: '' })).toEqual([]);
   });
 });

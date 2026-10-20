@@ -28,6 +28,9 @@ export interface TimesheetEntry {
   nightshift_hours?: number; standby_allowance?: boolean; nightshift_allowance?: boolean; total_hours?: number;
   status: StatusKey; notes?: string; overtime_periods?: OvertimePeriodData[];
   callout_overtime_hours?: number; callout_count?: number;
+  updated_at?: string;
+  /** Sent back on an edit as the updated_at the row was loaded with, so a save from a stale copy is refused. */
+  expected_updated_at?: string;
   /** Client-side only — this cell was derived from approved leave/overtime (or, for
    *  'holiday', an un-touched Zimbabwe public holiday auto-credited 8h), not saved by a
    *  person. No `id`, so it isn't in the DB yet: clicking it opens the editor pre-filled,
@@ -90,7 +93,7 @@ export interface StatusConfig { label: string; hex: string; Icon: ElementType; }
 export interface EntryForm {
   start_time: string; end_time: string; regular_hours: number;
   nightshift_hours: number; status: StatusKey; standby_allowance: boolean; nightshift_allowance: boolean;
-  notes: string; callout_overtime_hours: number; callout_count: number;
+  notes: string; /** Typed text, parsed at the edge. */ callout_overtime_hours: string; /** Typed text, parsed at the edge. */ callout_count: string;
 }
 
 /** DownloadDialog's per-day display row, built from a TimesheetEntry for one employee. */

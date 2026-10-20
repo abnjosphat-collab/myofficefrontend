@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PageHeader, visibleCrumbs } from './PageHeader';
+import { PageHeader, Toolbar, visibleCrumbs } from './PageHeader';
 import { Button } from '../primitives/Button';
+
+describe('Toolbar', () => {
+  it('lets the trailing controls wrap instead of overflowing a phone', () => {
+    render(<Toolbar trailing={<Button>Save</Button>}><span>Search</span></Toolbar>);
+    const bar = screen.getByRole('button', { name: 'Save' }).parentElement!;
+    expect(bar.className).toContain('flex-wrap');
+  });
+});
 
 describe('visibleCrumbs', () => {
   it('drops a trail with no links: it only repeats the sidebar', () => {

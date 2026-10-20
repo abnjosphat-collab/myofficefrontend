@@ -15,11 +15,14 @@ export function TakeLieuLeaveDialog({ record, open, onOpenChange, onTaken }: {
 }) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
-  useResetOnOpen(dialogKey(open, record?.id), () => { setStart(record?.date ?? ''); setEnd(record?.date ?? ''); });
+  const [touched, setTouched] = useState(false);
+  useResetOnOpen(dialogKey(open, record?.id), () => { setStart(record?.date ?? ''); setEnd(record?.date ?? ''); setTouched(false); });
+  const startError = !start ? 'Choose the first day.' : undefined;
+  const endError = !end ? 'Choose the last day.' : end < start ? 'The leave cannot end before it starts.' : undefined;
   const submit = async () => {
     if (!record) return;
-    if (!start || !end) throw new Error('Choose the first and last day of the leave.');
-    if (end < start) throw new Error('The leave cannot end before it starts.');
+    setTouched(true);
+    if (startError || endError) return false;
     onTaken(await takeLieuAsLeave(record.id, { start_date: start, end_date: end }), record);
   };
   return (
@@ -27,8 +30,8 @@ export function TakeLieuLeaveDialog({ record, open, onOpenChange, onTaken }: {
       description={record ? `${record.employee_name}, overtime ${fmtDate(record.date)}` : 'Which days the leave was taken on.'}
       submitLabel="Record leave taken" onSubmit={submit}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="First day" required><Input type="date" aria-label="First day" value={start} onChange={e => setStart(e.target.value)} /></Field>
-        <Field label="Last day" required><Input type="date" aria-label="Last day" value={end} onChange={e => setEnd(e.target.value)} /></Field>
+        <Field label="First day" required error={touched ? startError : undefined}><Input type="date" aria-label="First day" value={start} onChange={e => setStart(e.target.value)} /></Field>
+        <Field label="Last day" required error={touched ? endError : undefined}><Input type="date" aria-label="Last day" value={end} onChange={e => setEnd(e.target.value)} /></Field>
       </div>
       <p className="font-sans text-caption text-ink-muted">Creates an approved Leave in Lieu of Overtime request for these days, linked to this overtime. The linked leave does not show on timesheets.</p>
     </FormDialog>

@@ -2,6 +2,7 @@
 // shared FactList, and a missing assignee reads the shared quiet way.
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import { ConfirmProvider } from '@/components/ui-system';
 import { JobCardDetail } from './page';
 import type { JobCard } from './types';
 
@@ -14,7 +15,7 @@ const jc: JobCard = {
 
 describe('JobCardDetail assignment facts', () => {
   it('lists assignment, supervisor, schedule and labour through FactList', () => {
-    render(<JobCardDetail jc={jc} onClose={vi.fn()} onSave={async () => {}} />);
+    render(<ConfirmProvider><JobCardDetail jc={jc} onClose={vi.fn()} onSave={async () => {}} /></ConfirmProvider>);
     const facts = screen.getByText('Assigned to').closest('dl')!;
     expect(within(facts).getByText('Ann')).toBeInTheDocument();
     expect(within(facts).getByText('Supervisor')).toBeInTheDocument();
@@ -22,7 +23,7 @@ describe('JobCardDetail assignment facts', () => {
   });
 
   it('shows a missing assignee the shared quiet way', () => {
-    render(<JobCardDetail jc={{ ...jc, assigned_to: '' }} onClose={vi.fn()} onSave={async () => {}} />);
+    render(<ConfirmProvider><JobCardDetail jc={{ ...jc, assigned_to: '' }} onClose={vi.fn()} onSave={async () => {}} /></ConfirmProvider>);
     const facts = screen.getByText('Assigned to').closest('dl')!;
     expect(within(facts).getByText('Not recorded')).toBeInTheDocument();
   });

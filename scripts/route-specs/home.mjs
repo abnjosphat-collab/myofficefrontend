@@ -52,11 +52,14 @@ const spec = {
 
     // search via the sidebar scopes the page, ranks title matches first and marks the matched words
     await page.getByRole('combobox', { name: 'Search modules and pages' }).fill('timesheet');
+    // The Escape below means "dismiss the open suggestions": wait for that state instead of racing it.
+    await page.getByRole('listbox', { name: 'Search results' }).first().waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('combobox', { name: 'Search modules and pages' }).press('Escape');
     check(await page.getByText(/modules? match/).first().isVisible(), 'searching shows a result count');
     check(await page.locator('#modules mark').count() > 0, 'matched words are highlighted in the results');
     // several words narrow it down (AND): "artisan timesheets" keeps Artisan Timesheets but drops NEC Timesheets
     await page.getByRole('combobox', { name: 'Search modules and pages' }).fill('artisan timesheets');
+    await page.getByRole('listbox', { name: 'Search results' }).first().waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('combobox', { name: 'Search modules and pages' }).press('Escape');
     check(await page.locator('#modules').getByRole('link', { name: 'Artisan Timesheets' }).isVisible(), 'multi-word search keeps the full match');
     check(await page.locator('#modules').getByRole('link', { name: 'NEC Timesheets' }).count() === 0, 'multi-word search drops the partial match');
@@ -81,7 +84,7 @@ const spec = {
     await suggestion.click();
     await page.waitForURL('**/leaves', { timeout: 8000 });
     check(page.url().includes('/leaves'), 'choosing a suggestion navigates', page.url());
-    await page.goto('/', { waitUntil: 'load' });
+    await page.goto(new URL('/', page.url()).toString(), { waitUntil: 'load' });
     await page.getByRole('heading', { level: 1, name: 'Home' }).waitFor({ timeout: 8000 });
   },
   empty: { data: { '/api/employees': [], '/api/maintenance/work-orders/stats/summary': { pending: 0, in_progress: 0 }, '/api/equipment': [], '/api/breakdowns/dashboard/overview': { metrics: {} } }, text: 'No data' },

@@ -6,7 +6,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Button, Field, Input, Notice } from '@/components/ui-system';
+import { Button, Field, Input, Notice, useRefusedSubmit } from '@/components/ui-system';
 import { AuthCard, AuthPage } from '@/components/app-shell/auth/AuthLayout';
 
 function SetPasswordForm() {
@@ -19,6 +19,8 @@ function SetPasswordForm() {
   const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirm?: string }>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const { formRef, refused } = useRefusedSubmit();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,21 +30,27 @@ function SetPasswordForm() {
     if (password.length < 6) problems.password = 'Use at least 6 characters.';
     else if (password !== confirm) problems.confirm = 'Enter the same password again.';
     setFieldErrors(problems);
-    if (Object.keys(problems).length > 0) return;
+    if (Object.keys(problems).length > 0) { refused(); return; }
 
     setSubmitting(true);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setSubmitting(false);
-
-    if (updateError) { setError(updateError.message); return; }
-    router.replace(next);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) { setError(updateError.message); return; }
+      router.replace(next);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Password not saved. Check your connection and try again.'); }
+    finally { setSubmitting(false); }
   };
 
   return (
     <AuthPage>
       <AuthCard title="Set your password" description="Choose a password to finish signing in to MyOffice.">
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
-          <Field label="New password" error={fieldErrors.password}><Input type="password" autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setFieldErrors(f => ({ ...f, password: undefined })); }} /></Field>
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
+          <Field label="New password" error={fieldErrors.password}>
+            <div className="relative">
+              <Input type={showPassword ? 'text' : 'password'} className="pr-16" autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setFieldErrors(f => ({ ...f, password: undefined })); }} />
+              <button type="button" aria-pressed={showPassword} onClick={() => setShowPassword(s => !s)} className="focus-ring absolute inset-y-0 right-0 rounded-control px-3 font-sans text-caption font-medium text-ink-muted hover:text-ink">{showPassword ? 'Hide' : 'Show'}</button>
+            </div>
+          </Field>
           <Field label="Confirm password" error={fieldErrors.confirm}><Input type="password" autoComplete="new-password" value={confirm} onChange={e => { setConfirm(e.target.value); setFieldErrors(f => ({ ...f, confirm: undefined })); }} /></Field>
           {error && <Notice tone="danger" title="Password not saved">{error}</Notice>}
           <Button type="submit" variant="primary" fullWidth pending={submitting}>Save password and continue</Button>

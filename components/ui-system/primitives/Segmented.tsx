@@ -1,4 +1,5 @@
 import { cn } from '../foundations/cn';
+import { useMarkDirty } from './Field';
 
 export type SegmentedOption<T extends string> = { value: T; label: string };
 
@@ -16,6 +17,7 @@ export function Segmented<T extends string>({ value, onValueChange, options, lab
   label: string;
   className?: string;
 }) {
+  const markDirty = useMarkDirty();
   return (
     <div role="group" aria-label={label} className={cn('inline-flex max-w-full flex-wrap rounded-control border border-line-control bg-surface-muted p-0.5', className)}>
       {options.map(option => (
@@ -23,7 +25,7 @@ export function Segmented<T extends string>({ value, onValueChange, options, lab
           key={option.value}
           type="button"
           aria-pressed={value === option.value}
-          onClick={() => onValueChange(option.value)}
+          onClick={() => { markDirty(); onValueChange(option.value); }}
           className="focus-ring touch-target inline-flex h-8 items-center rounded-sm px-3 font-sans text-label font-medium text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action aria-pressed:text-action-ink"
         >
           {option.label}

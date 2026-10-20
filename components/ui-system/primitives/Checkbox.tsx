@@ -14,7 +14,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   const auto = useId();
   const inputId = id ?? auto;
   return (
-    <div className={cn('flex items-start gap-2.5', className)}>
+    <div className={cn('flex touch-target items-start gap-2.5', className)}>
       <span className="relative mt-0.5 inline-flex size-[18px] shrink-0">
         <input
           ref={ref}

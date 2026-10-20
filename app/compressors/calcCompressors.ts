@@ -90,6 +90,8 @@ export function readingProblems(
   loaded: number,
 ): ReadingProblems {
   const problems: ReadingProblems = {};
+  if (!Number.isFinite(running)) problems.running = 'Enter the running-hours reading.';
+  if (!Number.isFinite(loaded)) problems.loaded = 'Enter the loaded-hours reading.';
   const prevRun = previous?.total_running_hours ?? 0;
   const prevLoad = previous?.total_loaded_hours ?? 0;
   if (previous && running < prevRun) problems.running = `Cannot be below the previous total of ${prevRun.toFixed(1)} h.`;

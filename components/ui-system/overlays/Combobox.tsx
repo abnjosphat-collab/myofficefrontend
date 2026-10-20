@@ -7,7 +7,7 @@ import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
 import { Spinner } from '../primitives/Button';
-import { useFieldProps } from '../primitives/Field';
+import { useFieldProps, useMarkDirty } from '../primitives/Field';
 import { COLLISION_PADDING, floatingSurface, optionRow, triggerSurface } from './surfaces';
 
 export type ComboboxOption = { value: string; label: string; description?: string; keywords?: string[]; disabled?: boolean };
@@ -52,6 +52,7 @@ export function Combobox({
   const [query, setQuery] = useState('');
   const listId = useId();
   const field = useFieldProps();
+  const markDirty = useMarkDirty();
   // Previously written choices, fresh each time the list opens, first and deduplicated against the options.
   const past = useMemo(() => (historyKey && open ? getInputSuggestions(historyKey) : []), [historyKey, open]);
   const allOptions = useMemo(() => {
@@ -68,7 +69,7 @@ export function Combobox({
       const picked = allOptions.find(option => option.value === next);
       recordInput(historyKey, picked?.label ?? next);
     }
-    onValueChange(next); setQuery(''); setOpen(false);
+    markDirty(); onValueChange(next); setQuery(''); setOpen(false);
   };
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery(''); }}>
@@ -96,7 +97,7 @@ export function Combobox({
           className={cn(floatingSurface, 'w-[var(--radix-popover-trigger-width)] min-w-72 max-w-[calc(100vw-1.5rem)] p-0')}
         >
           <Command shouldFilter={shouldFilter} loop>
-            <div className="flex items-center gap-2 border-b border-line-subtle px-3">
+            <div data-combobox-search className="flex items-center gap-2 border-b border-line-subtle px-3">
               <Icon name="search" size="sm" className="shrink-0 text-ink-muted" />
               <Command.Input
                 placeholder={searchPlaceholder}

@@ -79,7 +79,11 @@ export function DestinationSearch<T extends DestinationResult>({
             placeholder={placeholder}
             shortcutHint={shortcutHint}
             loading={loading}
-            onValueChange={next => { setActive(0); onValueChange(next); }}
+            // Freshly typed text implies this input holds DOM focus, so it re-asserts it: after Escape closes the popover
+            // without blurring, the next fill reopens it instead of leaving `focused` stale-false, where a second Escape
+            // would wipe the query (home search race, D34). Clears do NOT claim focus: two searches share one query, and a
+            // clear must not resurrect this popover when the other input is typed into next.
+            onValueChange={next => { setActive(0); if (next) setFocused(true); onValueChange(next); }}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onKeyDown={event => {

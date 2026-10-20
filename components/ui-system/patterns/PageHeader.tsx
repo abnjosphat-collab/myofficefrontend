@@ -143,7 +143,7 @@ export function Toolbar({ children, trailing, className, inline = 1, filtered = 
           </Popover>
           {clear}
         </div>
-        {trailing && <div className="flex shrink-0 items-center gap-2 max-md:ml-auto">{trailing}</div>}
+        {trailing && <div className="flex min-w-0 flex-wrap items-center gap-2 max-md:ml-auto">{trailing}</div>}
       </div>
     );
   }
@@ -168,7 +168,7 @@ export function Toolbar({ children, trailing, className, inline = 1, filtered = 
         <div id={panelId} className={cn(open ? 'max-sm:grid max-sm:w-full max-sm:grid-cols-2 max-sm:gap-2 max-sm:[&>*]:!w-full' : 'max-sm:hidden', 'sm:contents')}>{rest}</div>
         {clear}
       </div>
-      {trailing && <div className="flex shrink-0 items-center gap-2">{trailing}</div>}
+      {trailing && <div className="flex min-w-0 flex-wrap items-center gap-2">{trailing}</div>}
     </div>
   );
 }

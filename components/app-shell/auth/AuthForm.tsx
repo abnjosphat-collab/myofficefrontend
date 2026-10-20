@@ -5,9 +5,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Field, Input, Notice } from '@/components/ui-system';
+import { Button, Field, Input, Notice, useRefusedSubmit } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
+import { isEmailLike } from '@/lib/email';
 
 function GoogleIcon() {
   return (
@@ -36,11 +37,13 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resetAsked, setResetAsked] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const { formRef, refused } = useRefusedSubmit();
 
   const handleGoogleSignIn = async () => { setGoogleLoading(true); await signInWithGoogle(); };
 
   const askForReset = async () => {
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setFieldErrors(problems => ({ ...problems, email: 'Enter your email address first.' })); return; }
+    if (!isEmailLike(email)) { setFieldErrors(problems => ({ ...problems, email: 'Enter your email address first.' })); return; }
     setResetBusy(true);
     try {
       await api.post('/api/admin/password-reset-requests', { email: email.trim() });
@@ -56,11 +59,11 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
     const problems: { name?: string; email?: string; password?: string } = {};
     if (mode === 'signup' && name.trim().length < 2) problems.name = 'Enter your full name.';
     if (!email.trim()) problems.email = 'Enter your email address.';
-    else if (!/^\S+@\S+\.\S+$/.test(email.trim())) problems.email = 'Enter a valid email address.';
+    else if (!isEmailLike(email)) problems.email = 'Enter a valid email address.';
     if (!password) problems.password = 'Enter your password.';
-    else if (password.length < 6) problems.password = 'Use at least 6 characters.';
+    else if (mode === 'signup' && password.length < 6) problems.password = 'Use at least 6 characters.';
     setFieldErrors(problems);
-    if (Object.keys(problems).length > 0) return;
+    if (Object.keys(problems).length > 0) { refused(); return; }
     setLoading(true);
     const result = mode === 'login' ? await signInWithEmail(email, password) : await signUpWithEmail(email, password, name);
     setLoading(false);
@@ -78,10 +81,15 @@ export function AuthForm({ defaultMode = 'login', onClose, redirectTo }: {
       <div className="flex items-center gap-3" role="separator" aria-label="or">
         <span className="h-px flex-1 bg-line" /><span className="font-sans text-caption text-ink-muted">{mode === 'login' ? 'or sign in with your email' : 'or create an account with your email'}</span><span className="h-px flex-1 bg-line" />
       </div>
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3.5">
         {mode === 'signup' && <Field label="Full name" error={fieldErrors.name}><Input type="text" autoComplete="name" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} /></Field>}
         <Field label="Email address" error={fieldErrors.email}><Input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} /></Field>
-        <Field label="Password" error={fieldErrors.password}><Input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={e => setPassword(e.target.value)} /></Field>
+        <Field label="Password" error={fieldErrors.password}>
+          <div className="relative">
+            <Input type={showPassword ? 'text' : 'password'} className="pr-16" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={e => setPassword(e.target.value)} />
+            <button type="button" aria-pressed={showPassword} onClick={() => setShowPassword(s => !s)} className="focus-ring absolute inset-y-0 right-0 rounded-control px-3 font-sans text-caption font-medium text-ink-muted hover:text-ink">{showPassword ? 'Hide' : 'Show'}</button>
+          </div>
+        </Field>
         {error && <Notice tone="danger" title={mode === 'login' ? 'Could not sign in' : 'Could not create the account'}>{error}</Notice>}
         {mode === 'login' && (resetAsked
           ? <p role="status" className="-mt-1 text-right font-sans text-caption text-ink-muted">Request sent — your administrator will email you a reset link.</p>

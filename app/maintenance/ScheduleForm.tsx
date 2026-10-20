@@ -19,12 +19,12 @@ import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 const saved = (key: string) => { try { return localStorage.getItem(key) || ''; } catch { return ''; } };
 const blank = (): ScheduleDraft => ({
   name: '', equipment_info: '', to_department: '', allocated_to: saved('maint_artisan_name'), authorising_foreman: saved('maint_foreman_name'), estimated_hours: '2', job_request_details: '', job_instructions: '',
-  priority: 'medium', recurrence_type: 'weekly', recurrence_dow: 1, recurrence_dom: 1, recurrence_months: [0, 3, 6, 9], specific_dates: [], advance_days: 1, start_date: todayLocal(),
+  priority: 'medium', recurrence_type: 'weekly', recurrence_dow: 1, recurrence_dom: '1', recurrence_months: [0, 3, 6, 9], specific_dates: [], advance_days: '1', start_date: todayLocal(),
 });
 const fromSchedule = (s: MaintenanceSchedule): ScheduleDraft => ({
   name: s.name, equipment_info: s.equipment_info, to_department: s.to_department, allocated_to: s.allocated_to, authorising_foreman: s.authorising_foreman, estimated_hours: s.estimated_hours,
-  job_request_details: s.job_request_details, job_instructions: s.job_instructions, priority: s.priority, recurrence_type: s.recurrence_type, recurrence_dow: s.recurrence_dow, recurrence_dom: s.recurrence_dom,
-  recurrence_months: s.recurrence_months ?? [], specific_dates: s.specific_dates ?? [], advance_days: s.advance_days ?? 1, start_date: s.next_due_date || todayLocal(),
+  job_request_details: s.job_request_details, job_instructions: s.job_instructions, priority: s.priority, recurrence_type: s.recurrence_type, recurrence_dow: s.recurrence_dow, recurrence_dom: String(s.recurrence_dom ?? 1),
+  recurrence_months: s.recurrence_months ?? [], specific_dates: s.specific_dates ?? [], advance_days: String(s.advance_days ?? 1), start_date: s.next_due_date || todayLocal(),
 });
 const PRIORITIES = (Object.keys(PRIORITY) as WorkOrderPriority[]).map(value => ({ value, label: PRIORITY[value].label }));
 const WEEKDAYS = DOW.map((d, i) => ({ value: String(i), label: d.slice(0, 3) }));
@@ -67,7 +67,7 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
           <h3 id="sf-rec" className="flex items-center gap-2 font-sans text-label font-semibold text-ink"><Icon name="clock" size="sm" />How often</h3>
           <Segmented label="How often" value={kind} onValueChange={v => set({ recurrence_type: v as RecurrenceType })} options={RECURRENCES} />
           {(kind === 'weekly' || kind === 'biweekly') && <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Day of the week</span><Segmented label="Day of the week" value={String(d.recurrence_dow)} onValueChange={v => set({ recurrence_dow: Number(v) })} options={WEEKDAYS} /></div>}
-          {(kind === 'monthly' || kind === 'quarterly' || kind === 'yearly') && <Field label="Day of the month" description="1 to 28, so every month has it." className="max-w-xs"><Input type="number" min={1} max={28} value={d.recurrence_dom} onChange={e => set({ recurrence_dom: Math.min(28, Math.max(1, parseInt(e.target.value, 10) || 1)) })} /></Field>}
+          {(kind === 'monthly' || kind === 'quarterly' || kind === 'yearly') && <Field label="Day of the month" description="1 to 28, so every month has it." className="max-w-xs"><Input type="number" min={1} max={28} value={d.recurrence_dom} onChange={e => set({ recurrence_dom: e.target.value })} /></Field>}
           {kind === 'quarterly' && (
             <Field label="Which months" error={err(problems.recurrence)}>
               <div role="group" aria-label="Which months" className="flex flex-wrap gap-1.5">{MON.map((m, i) => <Button key={m} size="sm" variant={d.recurrence_months.includes(i) ? 'primary' : 'secondary'} aria-pressed={d.recurrence_months.includes(i)} onClick={() => toggleMonth(i)}>{m}</Button>)}</div>
@@ -86,7 +86,7 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label={editing ? 'Next due date' : 'First due date'}><Input type="date" value={d.start_date} onChange={e => set({ start_date: e.target.value })} /></Field>
-            <Field label="Raise the work order days early" description="0 to 14."><Input type="number" min={0} max={14} value={d.advance_days} onChange={e => set({ advance_days: Math.min(14, Math.max(0, parseInt(e.target.value, 10) || 0)) })} /></Field>
+            <Field label="Raise the work order days early" description="0 to 14."><Input type="number" min={0} max={14} value={d.advance_days} onChange={e => set({ advance_days: e.target.value })} /></Field>
           </div>
         </section>
 

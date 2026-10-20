@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ToolDrawer } from './ToolDrawer';
+import { ConfirmProvider } from '@/components/ui-system';
 
 const tool = {
   id: 'T-001', name: 'Torque wrench', make: 'Bosch', status: 'available',
@@ -21,14 +22,14 @@ const workspace = (facts: [string, string][]) => ({
 
 describe('ToolDrawer full record', () => {
   it('lists the record facts through FactList', () => {
-    render(<ToolDrawer w={workspace([['Serial number', 'S1'], ['Storage', 'Main workshop']]) as never} />);
+    render(<ConfirmProvider><ToolDrawer w={workspace([['Serial number', 'S1'], ['Storage', 'Main workshop']]) as never} /></ConfirmProvider>);
     const facts = screen.getByText('Serial number').closest('dl')!;
     expect(within(facts).getByText('S1')).toBeInTheDocument();
     expect(within(facts).getByText('Storage')).toBeInTheDocument();
   });
 
   it('shows a missing value the shared quiet way', () => {
-    render(<ToolDrawer w={workspace([['Serial number', '']]) as never} />);
+    render(<ConfirmProvider><ToolDrawer w={workspace([['Serial number', '']]) as never} /></ConfirmProvider>);
     const facts = screen.getByText('Serial number').closest('dl')!;
     expect(within(facts).getByText('Not recorded')).toBeInTheDocument();
   });

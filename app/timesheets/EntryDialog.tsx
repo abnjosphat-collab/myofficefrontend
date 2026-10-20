@@ -29,6 +29,7 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
   const dt = DOUBLE_TIME_STATUSES.has(form.status);
   const problems = entryProblems(form);
   const timeError = touched && problems.find(p => /times/.test(p));
+  const calloutError = touched ? problems.find(p => /[Cc]allout/.test(p)) : undefined;
 
   const submit = async () => {
     setTouched(true);
@@ -77,8 +78,8 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
           <h3 className="font-sans text-label font-semibold text-ink">Callout overtime</h3>
           <p className="font-sans text-caption text-ink-muted">Hours worked when phoned in after hours or called out off-site.</p>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Callout hours"><Input type="number" min={0} max={24} step={0.5} value={form.callout_overtime_hours} onChange={e => set({ callout_overtime_hours: parseFloat(e.target.value) || 0 })} /></Field>
-            <Field label="Number of callouts"><Input type="number" min={0} step={1} value={form.callout_count} onChange={e => set({ callout_count: parseInt(e.target.value) || 0 })} /></Field>
+            <Field label="Callout hours" error={calloutError}><Input type="number" min={0} max={24} step={0.5} value={form.callout_overtime_hours} onChange={e => set({ callout_overtime_hours: e.target.value })} /></Field>
+            <Field label="Number of callouts"><Input type="number" min={0} step={1} value={form.callout_count} onChange={e => set({ callout_count: e.target.value })} /></Field>
           </div>
         </section>
         <Checkbox label="Standby allowance" description="Adds a flat 8 hours once for this standby period, whatever its length." checked={form.standby_allowance} onChange={e => set({ standby_allowance: e.target.checked })} />

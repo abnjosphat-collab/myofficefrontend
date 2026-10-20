@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Input, Tag } from '@/components/ui-system';
+import { Input, Tag, useMarkDirty } from '@/components/ui-system';
 
 export const MAX_TAGS = 20;
 export const MAX_TAG_LENGTH = 40;
@@ -13,9 +13,11 @@ export function TagField({ value, onChange, suggestions = [], label = 'Tags' }: 
   value: readonly string[]; onChange: (tags: string[]) => void; suggestions?: readonly string[]; label?: string;
 }) {
   const [text, setText] = useState('');
+  const markDirty = useMarkDirty();
   const add = (raw: string) => {
     const parts = raw.split(',').map(cleanTag).filter(Boolean);
     if (parts.length === 0) return;
+    markDirty();
     onChange([...new Set([...value, ...parts])].slice(0, MAX_TAGS));
     setText('');
   };
@@ -25,7 +27,7 @@ export function TagField({ value, onChange, suggestions = [], label = 'Tags' }: 
     <div className="flex flex-col gap-2">
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={`${label} added`}>
-          {value.map(t => <li key={t}><Tag onRemove={() => onChange(value.filter(v => v !== t))}>{t}</Tag></li>)}
+          {value.map(t => <li key={t}><Tag onRemove={() => { markDirty(); onChange(value.filter(v => v !== t)); }}>{t}</Tag></li>)}
         </ul>
       )}
       <Input

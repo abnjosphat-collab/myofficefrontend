@@ -107,6 +107,11 @@ const spec = {
     check(post?.body.name === 'Weekly order' && post.body.grand_total === 6 && post.body.lines.length === 1, 'saving sends the name, the complete lines and the total', JSON.stringify(post?.body).slice(0, 140));
     await shot(page, 'requisition@1440');
     await rq.getByRole('button', { name: 'Load', exact: true }).first().click();
+    const lc = page.getByRole('alertdialog');
+    await lc.waitFor({ timeout: 5000 });
+    check(await lc.getByText(/replaces the requester/).isVisible(), 'loading over a non-empty builder asks first');
+    await lc.getByRole('button', { name: 'Load Monthly order' }).click();
+    await rq.getByText(/Bearing 6204/).first().waitFor({ timeout: 5000 }).catch(() => {});
     check(await rq.getByLabel('Requisition lines').getByText(/Bearing 6204/).isVisible().catch(() => false) || await rq.getByText(/S1/).first().isVisible(), 'loading a saved requisition fills the lines');
     await rq.getByRole('button', { name: /^Delete the saved requisition Monthly order/ }).click();
     const c2 = page.getByRole('alertdialog');

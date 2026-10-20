@@ -11,7 +11,8 @@ import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
 import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
-import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, type AttachmentKind } from './attachments';
+import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, NOTICE_ATTACHMENT_EXTS, type AttachmentKind } from './attachments';
+import { fileProblem } from '@/lib/files';
 import { exportPriorityColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
@@ -56,7 +57,10 @@ export const emptyForm = (): NoticeFormData => ({
   author: '', department: 'General', expires_at: '', target_audience: 'All Employees', notification_type: 'General Announcement', attachments: [],
 });
 
-function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+// Mirrors backend/app/routers/notices.py (100 MB, NOTICE_ATTACHMENT_EXTS).
+const NOTICE_RULES = { maxBytes: 100 * 1024 * 1024, extensions: NOTICE_ATTACHMENT_EXTS };
+
+export function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const [form, setForm] = useState<NoticeFormData>(emptyForm);
   const [touched, setTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -76,11 +80,15 @@ function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?: Notice
     e.target.value = ''; // allow picking the same file again after a failed upload
     if (!files.length) return;
     setUploading(true); setUploadError(null);
-    const results = await Promise.allSettled(files.map(uploadNoticeAttachment));
+    const bad: string[] = []; const good: File[] = [];
+    for (const f of files) { const p = fileProblem(f, NOTICE_RULES); if (p) bad.push(`${f.name}: ${p}`); else good.push(f); }
+    if (!good.length) { setUploadError(bad.join(' ')); setUploading(false); return; }
+    const results = await Promise.allSettled(good.map(uploadNoticeAttachment));
     const ok = results.filter((r): r is PromiseFulfilledResult<Attachment> => r.status === 'fulfilled').map(r => r.value);
     const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     if (ok.length) { setForm(f => ({ ...f, attachments: [...f.attachments, ...ok] })); toast.success(`Uploaded ${plural(ok.length, 'attachment')}.`); }
-    if (failed.length) setUploadError(`${plural(failed.length, 'attachment')} could not be uploaded: ${(failed[0].reason as Error)?.message ?? 'unknown error'}`);
+    const refused = failed.length ? `${plural(failed.length, 'attachment')} could not be uploaded: ${(failed[0].reason as Error)?.message ?? 'unknown error'}` : '';
+    setUploadError([bad.join(' '), refused].filter(Boolean).join(' ') || null);
     setUploading(false);
   };
 

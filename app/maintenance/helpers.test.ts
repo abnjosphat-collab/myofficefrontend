@@ -123,7 +123,7 @@ describe('artisanBody', () => {
   });
 });
 
-const draft: ScheduleDraft = { name: ' Weekly check ', equipment_info: 'Pump A, Fan 2', to_department: 'Engineering', allocated_to: 'Alex', authorising_foreman: 'Lee', estimated_hours: '2', job_request_details: ' Check seals ', job_instructions: '', priority: 'medium', recurrence_type: 'weekly', recurrence_dow: 1, recurrence_dom: 1, recurrence_months: [], specific_dates: [], advance_days: 1, start_date: '2026-10-05' };
+const draft: ScheduleDraft = { name: ' Weekly check ', equipment_info: 'Pump A, Fan 2', to_department: 'Engineering', allocated_to: 'Alex', authorising_foreman: 'Lee', estimated_hours: '2', job_request_details: ' Check seals ', job_instructions: '', priority: 'medium', recurrence_type: 'weekly', recurrence_dow: 1, recurrence_dom: '1', recurrence_months: [], specific_dates: [], advance_days: '1', start_date: '2026-10-05' };
 
 describe('schedules', () => {
   it('names each problem before saving', () => {
@@ -136,6 +136,12 @@ describe('schedules', () => {
   it('sends trimmed text, tidy machines and a null first date when empty', () => {
     expect(scheduleBody(draft)).toMatchObject({ name: 'Weekly check', equipment_info: 'Pump A, Fan 2', job_request_details: 'Check seals', next_due_date: '2026-10-05' });
     expect(scheduleBody({ ...draft, start_date: '' }).next_due_date).toBeNull();
+  });
+  it('parses and clamps the typed day-of-month and days-early as before', () => {
+    expect(scheduleBody(draft)).toMatchObject({ recurrence_dom: 1, advance_days: 1 });
+    expect(scheduleBody({ ...draft, recurrence_dom: '99', advance_days: '99' })).toMatchObject({ recurrence_dom: 28, advance_days: 14 });
+    expect(scheduleBody({ ...draft, recurrence_dom: '', advance_days: '' })).toMatchObject({ recurrence_dom: 1, advance_days: 0 });
+    expect(scheduleBody({ ...draft, recurrence_dom: '-4', advance_days: '-4' })).toMatchObject({ recurrence_dom: 1, advance_days: 0 });
   });
 });
 

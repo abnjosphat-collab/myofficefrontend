@@ -35,8 +35,9 @@ export function fromBackend(d: Record<string, unknown>): Requisition {
 export async function apiCreate(body: object): Promise<Requisition> {
   return fromBackend(await api.post<Record<string, unknown>>('/api/requisitions', body));
 }
-export async function apiUpdate(id: string, body: object): Promise<Requisition> {
-  return fromBackend(await api.patch<Record<string, unknown>>(`/api/requisitions/${id}`, body));
+export async function apiUpdate(id: string, body: object, expectedUpdatedAt?: string): Promise<Requisition> {
+  // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the record since.
+  return fromBackend(await api.patch<Record<string, unknown>>(`/api/requisitions/${id}`, { ...body, ...(expectedUpdatedAt ? { expected_updated_at: expectedUpdatedAt } : {}) }));
 }
 export async function apiDelete(id: string): Promise<void> {
   await api.delete(`/api/requisitions/${id}`);

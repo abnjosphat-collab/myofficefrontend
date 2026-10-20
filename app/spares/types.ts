@@ -13,7 +13,7 @@ export interface Spare {
   lead_time_days?: number; last_ordered_date?: string; updated_at?: string;
 }
 
-export interface ReqLine { id: string; spare: Spare | null; searchValue: string; qty: number; dropdownOpen: boolean; }
+export interface ReqLine { id: string; spare: Spare | null; searchValue: string; /** Typed text, parsed at the edge (qtyNum). */ qty: string; dropdownOpen: boolean; }
 export interface ReqHeader { requester: string; reason: string; urgency: 'routine' | 'urgent' | 'emergency'; priority: 'low' | 'medium' | 'high' | 'critical'; required_for: string; }
 export interface SavedRequisition {
   id: string; name: string; saved_at: string; updated_at?: string; header: ReqHeader;

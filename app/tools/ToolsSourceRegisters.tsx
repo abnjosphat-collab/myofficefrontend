@@ -4,26 +4,44 @@
 
 import { useState, type FormEvent } from 'react';
 import { Button, EmptyState, Field, Icon, Input, Notice, Select, Textarea } from '@/components/ui-system';
+import { fileProblem } from '@/lib/files';
 import { formatDateTime } from '@/lib/format';
+
+// Mirrors tools_workspace.py upload_source_register (50 MB + its 13 extensions).
+const REGISTER_RULES = { maxBytes: 50 * 1024 * 1024, extensions: ['pdf', 'xlsx', 'xlsm', 'xls', 'csv', 'docx', 'doc', 'ods', 'odt', 'jpg', 'jpeg', 'png', 'webp'] };
 
 export type SourceRegisterRecord = { id: string; department: string; notes?: string; original_name: string; content_type: string; size_bytes: number; uploaded_by: string; uploaded_at: string; url?: string };
 
 const formatSize = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
-export function SourceRegisterForm({ departments, onSave, onCancel }: { departments: string[]; onSave: (file: File, department: string, notes: string) => void; onCancel: () => void }) {
+export function SourceRegisterForm({ departments, onSave, onCancel }: { departments: string[]; onSave: (file: File, department: string, notes: string) => void | Promise<void>; onCancel: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [department, setDepartment] = useState(departments[0] || 'Engineering');
   const [notes, setNotes] = useState('');
-  function submit(event: FormEvent) { event.preventDefault(); if (file) onSave(file, department, notes.trim()); }
+  const [saving, setSaving] = useState(false);
+  const [fileError, setFileError] = useState('');
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!file) return;
+    const problem = fileProblem(file, REGISTER_RULES);
+    if (problem) { setFileError(problem); return; }
+    setSaving(true);
+    try {
+      await onSave(file, department, notes.trim());
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <Notice title="Keep the original register">The source file is stored permanently and privately so it can be reviewed when updating the live register.</Notice>
       <Field label="Department"><Select aria-label="Source register department" value={department} onValueChange={setDepartment} options={departments.map(value => ({ value, label: value }))} /></Field>
-      <Field label="Register file" description="PDF, Excel, CSV, Word, OpenDocument or a clear image. Maximum 50 MB.">
-        <Input aria-label="Register file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.docx,.doc,.ods,.odt,.jpg,.jpeg,.png,.webp" onChange={event => setFile(event.target.files?.[0] || null)} />
+      <Field label="Register file" description="PDF, Excel, CSV, Word, OpenDocument or a clear image. Maximum 50 MB." error={fileError || undefined}>
+        <Input aria-label="Register file" type="file" accept=".pdf,.xlsx,.xlsm,.xls,.csv,.docx,.doc,.ods,.odt,.jpg,.jpeg,.png,.webp" onChange={event => { setFile(event.target.files?.[0] || null); setFileError(''); }} />
       </Field>
       <Field label="Notes" optional><Textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} placeholder="For example: Engineering opening register, received from the mechanical workshop." /></Field>
-      <div className="flex justify-end gap-2 border-t border-line-subtle pt-4"><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" icon="upload" disabled={!file}>Upload register</Button></div>
+      {!file && !saving && <p className="font-sans text-caption text-ink-muted">Choose a register file to upload it.</p>}
+      <div className="flex justify-end gap-2 border-t border-line-subtle pt-4"><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" icon="upload" disabled={!file} pending={saving}>{saving ? 'Uploading…' : 'Upload register'}</Button></div>
     </form>
   );
 }

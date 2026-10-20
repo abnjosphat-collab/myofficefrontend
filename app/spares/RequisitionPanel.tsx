@@ -5,13 +5,13 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Combobox, DataRegion, Drawer, Field, FieldGroup, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
+import { Button, Combobox, DataRegion, Drawer, Field, FieldGroup, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus, useConfirm } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import type { ApiListState } from '@/lib/useApiList';
 import { apiCreateSavedReq, apiDeleteSavedReq } from './api';
 import { downloadRequisitionPdf } from './requisitionPdf';
-import { filled, lineValue, linesFromSaved, PRIORITY, requisitionText, requisitionTotal, toSaved } from './stock';
+import { filled, lineValue, linesFromSaved, PRIORITY, qtyNum, requisitionText, requisitionTotal, toSaved } from './stock';
 import type { ReqHeader, ReqLine, SavedRequisition, Spare } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
@@ -24,6 +24,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
   open: boolean; onOpenChange: (o: boolean) => void; spares: Spare[]; saved: ApiListState<SavedRequisition>; header: ReqHeader; onHeader: (h: ReqHeader) => void; lines: ReqLine[]; onLines: (l: ReqLine[]) => void;
 }) {
   const confirmDelete = useConfirmDelete();
+  const confirm = useConfirm();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const total = requisitionTotal(lines);
@@ -40,7 +41,13 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
     catch (e) { toast.error(`The requisition was not saved: ${(e as Error).message}`); }
     finally { setBusy(false); }
   };
-  const load = (r: SavedRequisition) => { onHeader(r.header); onLines(linesFromSaved(r, spares, newLineId)); toast.success(`Loaded ${r.name}.`); };
+  const load = async (r: SavedRequisition) => {
+    if (usable > 0 || header.requester.trim() || header.reason.trim()) {
+      const ok = await confirm({ title: `Load ${r.name}?`, message: 'This replaces the requester, reason and lines you have now.', confirmLabel: `Load ${r.name}` });
+      if (!ok) return;
+    }
+    onHeader(r.header); onLines(linesFromSaved(r, spares, newLineId)); toast.success(`Loaded ${r.name}.`);
+  };
   const remove = async (r: SavedRequisition) => {
     await confirmDelete({ title: 'Delete this saved requisition?', message: r.name, what: `${r.name}`, run: async () => { await apiDeleteSavedReq(r.id); }, done: 'Deleted.', after: () => saved.refetch() });
   };
@@ -62,7 +69,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
         </div>
 
         <section aria-labelledby="rq-lines" className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2"><h3 id="rq-lines" className="font-sans text-label font-semibold text-ink">Parts</h3><Button size="sm" icon="plus" onClick={() => onLines([...lines, { id: newLineId(), spare: null, searchValue: '', qty: 1, dropdownOpen: false }])}>Add a line</Button></div>
+          <div className="flex items-center justify-between gap-2"><h3 id="rq-lines" className="font-sans text-label font-semibold text-ink">Parts</h3><Button size="sm" icon="plus" onClick={() => onLines([...lines, { id: newLineId(), spare: null, searchValue: '', qty: '1', dropdownOpen: false }])}>Add a line</Button></div>
           {lines.length === 0 && <p className="font-sans text-body-sm text-ink-muted">No parts yet. Add a line, or use Add to requisition on a part.</p>}
           <ul className="flex flex-col gap-3" aria-label="Requisition lines">
             {lines.map((l, i) => (
@@ -71,14 +78,14 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
                   <Combobox aria-label={`Part ${i + 1}`} value={l.spare ? String(l.spare.id) : ''} onValueChange={id => { const s = spares.find(x => String(x.id) === id); if (s) patchLine(l.id, { spare: s, searchValue: s.stock_code }); }} options={options} placeholder="Search the spares register" />
                 </Field>
                 <div className="flex flex-wrap items-end gap-3">
-                  <Field label="Quantity" className="w-28"><Input type="number" min={1} value={l.qty} onChange={e => patchLine(l.id, { qty: Math.max(0, parseInt(e.target.value, 10) || 0) })} /></Field>
-                  <p className="min-w-0 flex-1 pb-2 font-sans text-body-sm text-ink-muted tabular">{l.spare ? `${formatCurrency(l.spare.unit_price)} each, ` : ''}<span className="font-semibold text-ink">{formatCurrency(l.spare ? lineValue(l.qty, l.spare.unit_price) : 0)}</span></p>
+                  <Field label="Quantity" className="w-28"><Input type="number" min={1} value={l.qty} onChange={e => patchLine(l.id, { qty: e.target.value })} /></Field>
+                  <p className="min-w-0 flex-1 pb-2 font-sans text-body-sm text-ink-muted tabular">{l.spare ? `${formatCurrency(l.spare.unit_price)} each, ` : ''}<span className="font-semibold text-ink">{formatCurrency(l.spare ? lineValue(qtyNum(l), l.spare.unit_price) : 0)}</span></p>
                   <IconButton icon="delete" variant="ghost" label={`Remove part ${i + 1}`} onClick={() => onLines(lines.filter(x => x.id !== l.id))} />
                 </div>
               </li>
             ))}
           </ul>
-          {lines.some(l => !l.spare || l.qty <= 0) && <Notice tone="warning" title="Some lines are not complete">A line needs a part and a quantity above zero to count.</Notice>}
+          {lines.some(l => !l.spare || qtyNum(l) <= 0) && <Notice tone="warning" title="Some lines are not complete">A line needs a part and a quantity above zero to count.</Notice>}
           <p className="text-right font-sans text-body text-ink-muted">Total <span className="font-semibold tabular text-ink">{formatCurrency(total)}</span></p>
         </section>
 
@@ -90,7 +97,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
               {saved.items.map(r => (
                 <li key={r.id} className="flex items-center gap-2 rounded-control border border-line bg-surface px-3 py-2">
                   <div className="min-w-0 flex-1"><p className="truncate font-sans text-label font-medium text-ink">{r.name}</p><p className="font-sans text-caption text-ink-muted">{[r.header.requester, fmtDate(r.updated_at || r.saved_at), formatCurrency(r.grand_total)].filter(Boolean).join(', ')}</p></div>
-                  <Button size="sm" onClick={() => load(r)}>Load</Button>
+                  <Button size="sm" onClick={() => { void load(r); }}>Load</Button>
                   <IconButton icon="delete" size="sm" variant="ghost" label={`Delete the saved requisition ${r.name}`} onClick={() => remove(r)} />
                 </li>
               ))}

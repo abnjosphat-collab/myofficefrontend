@@ -70,7 +70,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
             <Field label="ID number" required error={err('id_number')}><Input value={form.id_number} onChange={e => set({ id_number: e.target.value })} placeholder="National ID or passport" autoComplete="off" /></Field>
             <Field label="First name" required error={err('first_name')}><Input value={form.first_name} onChange={e => set({ first_name: e.target.value })} autoComplete="off" /></Field>
             <Field label="Last name" required error={err('last_name')}><Input value={form.last_name} onChange={e => set({ last_name: e.target.value })} autoComplete="off" /></Field>
-            <Field label="Email" optional><Input type="email" value={form.email} onChange={e => set({ email: e.target.value })} /></Field>
+            <Field label="Email" optional error={err('email')}><Input type="email" value={form.email} onChange={e => set({ email: e.target.value })} /></Field>
             <Field label="Phone" optional description="Use / between several numbers."><Input value={form.phone} onChange={e => set({ phone: e.target.value })} placeholder="+263 77 123 4567" /></Field>
             <Field label="Address" optional className="sm:col-span-2"><Textarea rows={2} value={form.address} onChange={e => set({ address: e.target.value })} /></Field>
           </div>

@@ -159,6 +159,10 @@ const spec = {
     check(await im.getByText(/Painting: Duplicate requisition \(fixture\)/).isVisible() && await im.getByRole('button', { name: 'Import 1 job' }).isVisible(), 'a refused row is listed with its reason and only it stays for a retry');
     failImportFor = null;
     await im.getByRole('button', { name: 'Cancel' }).click();
+    const dc = page.getByRole('alertdialog');
+    await dc.waitFor({ timeout: 5000 });
+    check(await dc.getByText(/not imported yet/).isVisible(), 'closing with refused rows still listed asks first');
+    await dc.getByRole('button', { name: 'Discard changes' }).click();
 
     // scan: OCR opens the form pre-filled rather than saving (reopen the dialog first: the import above closed it)
     await page.getByRole('button', { name: 'More' }).click();

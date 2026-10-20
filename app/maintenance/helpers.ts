@@ -203,7 +203,7 @@ export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
 // ── Schedules ────────────────────────────────────────────────────────────────────────────────────────────
 export interface ScheduleDraft {
   name: string; equipment_info: string; to_department: string; allocated_to: string; authorising_foreman: string; estimated_hours: string; job_request_details: string; job_instructions: string;
-  priority: WorkOrderPriority; recurrence_type: RecurrenceType; recurrence_dow: number; recurrence_dom: number; recurrence_months: number[]; specific_dates: string[]; advance_days: number; start_date: string;
+  priority: WorkOrderPriority; recurrence_type: RecurrenceType; recurrence_dow: number; /** Typed text, clamped at the body edge. */ recurrence_dom: string; recurrence_months: number[]; specific_dates: string[]; /** Typed text, clamped at the body edge. */ advance_days: string; start_date: string;
 }
 
 /** What is missing or contradictory in a schedule before it is saved, as one reason per problem. */
@@ -217,12 +217,13 @@ export function scheduleProblems(d: ScheduleDraft): { name?: string; machines?: 
   return out;
 }
 
-/** The body the server stores. An empty first date is sent as null: an empty string fails date validation. */
+/** The body the server stores. An empty first date is sent as null: an empty string fails date validation. Day-of-month and days-early clamp here, as they used to on every keystroke. */
 export function scheduleBody(d: ScheduleDraft) {
   return {
     name: d.name.trim(), equipment_info: machinesOf(d.equipment_info).join(', '), to_department: d.to_department, allocated_to: d.allocated_to, authorising_foreman: d.authorising_foreman,
     estimated_hours: d.estimated_hours, job_request_details: d.job_request_details.trim(), job_instructions: d.job_instructions, priority: d.priority, recurrence_type: d.recurrence_type,
-    recurrence_dow: d.recurrence_dow, recurrence_dom: d.recurrence_dom, recurrence_months: d.recurrence_months, specific_dates: d.specific_dates, advance_days: d.advance_days,
+    recurrence_dow: d.recurrence_dow, recurrence_dom: Math.min(28, Math.max(1, parseInt(d.recurrence_dom, 10) || 1)), recurrence_months: d.recurrence_months, specific_dates: d.specific_dates,
+    advance_days: Math.min(14, Math.max(0, parseInt(d.advance_days, 10) || 0)),
     next_due_date: d.start_date || null,
   };
 }

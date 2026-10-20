@@ -19,13 +19,15 @@ export interface BulkField {
 export function useBulkEdit() {
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [unlocked, setUnlocked] = useState<string[]>([]);
+  /** Choosing nothing is explained inline (never the save banner). */
+  const [message, setMessage] = useState<string | null>(null);
   const set = (key: string, value: unknown) => setValues(v => ({ ...v, [key]: value }));
   const toggle = (key: string) => setUnlocked(u => (u.includes(key) ? u.filter(k => k !== key) : [...u, key]));
   /** Only unlocked fields with a value. Unlocking without filling changes nothing. */
   const patch = (): Record<string, unknown> =>
     Object.fromEntries(unlocked.filter(k => values[k] !== undefined && values[k] !== '').map(k => [k, values[k]]));
-  const reset = () => { setValues({}); setUnlocked([]); };
-  return { values, set, unlocked, toggle, patch, reset };
+  const reset = () => { setValues({}); setUnlocked([]); setMessage(null); };
+  return { values, set, unlocked, toggle, patch, reset, message, setMessage };
 }
 
 /**
@@ -45,13 +47,16 @@ export function BulkEditDialog({ open, onOpenChange, title, description, count, 
   onSubmit: (patch: Record<string, unknown>) => Promise<void>;
   submitLabel: string;
 }) {
-  const { values, set, unlocked, toggle, patch, reset } = useBulkEdit();
+  const { values, set, unlocked, toggle, patch, reset, message, setMessage } = useBulkEdit();
   const wasOpen = useRef(open);
   useEffect(() => { if (open && !wasOpen.current) reset(); wasOpen.current = open; });
+  // Choosing nothing is not a save failure: say so inline and stay, keeping
+  // the banner ("Could not save") for saves that actually failed.
   const submit = async () => {
-    if (unlocked.length === 0) throw new Error('Unlock at least one field — locked fields are left alone.');
+    if (unlocked.length === 0) { setMessage('Unlock at least one field — locked fields are left alone.'); return false; }
     const p = patch();
-    if (Object.keys(p).length === 0) throw new Error('Fill in the unlocked fields, or lock them again.');
+    if (Object.keys(p).length === 0) { setMessage('Fill in the unlocked fields, or lock them again.'); return false; }
+    setMessage(null);
     await onSubmit(p);
   };
   return (
@@ -61,6 +66,7 @@ export function BulkEditDialog({ open, onOpenChange, title, description, count, 
           {count} {count === 1 ? 'record' : 'records'} selected. Only unlocked fields change; everything else stays as it is.
         </p>
         {notice}
+        {message && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{message}</p>}
         <ul className="flex flex-col gap-4">
           {fields.map(f => {
             const locked = !unlocked.includes(f.key);

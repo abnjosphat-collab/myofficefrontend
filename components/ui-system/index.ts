@@ -27,7 +27,7 @@ export { Button, IconButton, Spinner, buttonVariants, floatingActionClass, iconB
 export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './primitives/Button';
 export { StatusBadge, Tag, CountBadge } from './primitives/Badge';
 export type { Tone } from './primitives/Badge';
-export { Field, FieldGroup, useFieldProps, controlClasses } from './primitives/Field';
+export { Field, FieldGroup, useFieldProps, useMarkDirty, MarkDirtyProvider, controlClasses } from './primitives/Field';
 export { Input, Textarea, NativeSelect } from './primitives/Input';
 export { Checkbox } from './primitives/Checkbox';
 export { SearchField } from './primitives/SearchField';
@@ -74,6 +74,8 @@ export { ChartPanel } from './patterns/ChartPanel';
 export { Distribution } from './patterns/Distribution';
 export { FormDialog } from './patterns/FormDialog';
 export type { FormDialogProps } from './patterns/FormDialog';
+export { focusFirstInvalid, useRefusedSubmit } from './patterns/focusFirstError';
+export { useDismissGuard } from './patterns/FormGuard';
 export { chartTheme, chartColor } from './foundations/chartTheme';
 export type { DestinationResult } from './patterns/DestinationSearch';
 export { deriveDataStatus, isTransientStatus } from './patterns/dataStatus';

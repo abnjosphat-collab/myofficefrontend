@@ -1,16 +1,31 @@
 'use client';
 
-import { createContext, useId, useState, type ReactNode } from 'react';
-import { Button, Dialog as SharedDialog, Icon, IconButton } from '@/components/ui-system';
+import { createContext, useCallback, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { Button, Dialog as SharedDialog, Icon, IconButton, MarkDirtyProvider, useDismissGuard } from '@/components/ui-system';
 import { attachmentError, type Evidence } from './prototype';
 
 export type FontChoice = 'inter' | 'manrope' | 'jakarta';
 export type FontSizeChoice = number;
 export const ToolsPreferences = createContext({ font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, guidance: true });
 
-/** The shared Dialog (focus trap, focus return, dismissal rules); a wide one for forms with many fields. */
+/** The shared Dialog (focus trap, focus return, dismissal rules); a wide one for forms with many fields. Unsaved input asks before it closes, like FormDialog. */
 export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {
-  return <SharedDialog open={open} onOpenChange={value => { if (!value) onClose(); }} dismissible={dismissible} title={title} description={description} size={wide ? 'lg' : 'md'} focusTitle>{children}</SharedDialog>;
+  // Dirtiness is recorded against the dialog it was typed into (open state + form kind): a reopen or a kind
+  // switch derives pristine without any reset, so stale dirt can neither leak across forms nor race a reset.
+  const dialogKey = `${open}:${title}`;
+  const [guard, setGuard] = useState({ key: dialogKey, dirty: false });
+  const autoDirty = guard.key === dialogKey && guard.dirty;
+  const markDirty = useCallback(() => setGuard({ key: dialogKey, dirty: true }), [dialogKey]);
+  const markIfData = (event: FormEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('[data-combobox-search]')) return;
+    if (target instanceof HTMLInputElement && target.type === 'search') return;
+    markDirty();
+  };
+  const { guardClose } = useDismissGuard({ when: autoDirty, message: 'Entries in this form are not saved yet.' });
+  // No busy concept here on purpose (unlike FormDialog): every Tools save is workspace-owned, so discarding mid-save still lands it with a toast.
+  const close = () => guardClose(onClose);
+  return <SharedDialog open={open} onOpenChange={value => { if (!value) close(); }} dismissible={dismissible} title={title} description={description} size={wide ? 'lg' : 'md'} focusTitle><div onChange={markIfData} className="contents"><MarkDirtyProvider value={markDirty}>{children}</MarkDirtyProvider></div></SharedDialog>;
 }
 
 export type AddEvidence = (files: File[]) => Evidence[];

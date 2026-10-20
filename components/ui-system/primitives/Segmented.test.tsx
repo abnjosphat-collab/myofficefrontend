@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Segmented } from './Segmented';
+import { ConfirmProvider } from '../overlays/Confirm';
+import { FormDialog } from '../patterns/FormDialog';
+import { Field } from './Field';
 
 const OPTIONS = [
   { value: 'good', label: 'Good' },
@@ -21,6 +24,22 @@ describe('Segmented', () => {
     expect(chosen.className).not.toContain('shadow');
     const other = screen.getByRole('button', { name: 'Damaged' });
     expect(other).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('marks a FormDialog dirty when the choice changes', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <ConfirmProvider>
+        <FormDialog open onOpenChange={onOpenChange} title="Add" submitLabel="Save" onSubmit={async () => {}}>
+          <Field label="Condition"><Segmented label="Condition" value="good" onValueChange={() => {}} options={OPTIONS} /></Field>
+        </FormDialog>
+      </ConfirmProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'Damaged' }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it('keeps toggle-button semantics and height', async () => {
