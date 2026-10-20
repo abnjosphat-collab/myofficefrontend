@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { indexRegister, matchToRegister } from '@/lib/registerMatch';
-import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, sectionCounts, selectableEmployees, sizeCounts, standing, summarise } from './ppeLogic';
+import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, renewalTarget, sectionCounts, selectableEmployees, sizeCounts, standing, summarise } from './ppeLogic';
 import { enrichPPERecords } from './calcPPE';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import { todayLocal, addMonths } from '@/lib/dates';
@@ -103,5 +103,45 @@ describe('stale stored positions (live register wins)', () => {
     // The register flag indexes the personnel rows (first/last name), as useRegisterCheck does in production.
     const lookup = [{ id: 38839, employee_id: 'TBA34', first_name: 'Tafadzwa', last_name: 'Matangira' }];
     expect(matchToRegister(holders[0], indexRegister(lookup))).toBe('number-differs');
+  });
+});
+
+describe('renewalTarget (issuing from the order list renews the item in place; nothing is marked returned)', () => {
+  const issue = { employee_id: 'C1', ppe_type: 'helmet' };
+  it('renews an item that was overdue', () => {
+    const old = rec({ id: '7', expiry_date: day(-5) });
+    expect(renewalTarget([old], '7', issue)).toBe(old);
+  });
+  it('renews an item that was not yet due, in date or only expiring soon, exactly the same way', () => {
+    const inDate = rec({ id: '7', expiry_date: day(200) });
+    const soon = rec({ id: '8', expiry_date: day(10) });
+    expect(renewalTarget([inDate], '7', issue)).toBe(inDate);
+    expect(renewalTarget([soon], '8', issue)).toBe(soon);
+  });
+  it('renews an item with no expiry', () => {
+    const old = rec({ id: '7', expiry_date: null });
+    expect(renewalTarget([old], '7', issue)).toBe(old);
+  });
+  it('finds the record by id whatever the type of the id, and ignores the other records', () => {
+    const other = rec({ id: '3' }); const old = rec({ id: '12' });
+    expect(renewalTarget([other, old], '12', issue)).toBe(old);
+  });
+  it('matches the person by normalised employee ID and the kind of PPE without regard to case or spaces', () => {
+    const old = rec({ id: '7', employee_id: ' c1 ', ppe_type: 'Helmet ' });
+    expect(renewalTarget([old], '7', { employee_id: 'C1', ppe_type: 'helmet' })).toBe(old);
+  });
+  it('is a plain new issue when there is no order entry', () => {
+    expect(renewalTarget([rec({ id: '7' })], null, issue)).toBeUndefined();
+    expect(renewalTarget([rec({ id: '7' })], undefined, issue)).toBeUndefined();
+    expect(renewalTarget([rec({ id: '7' })], '', issue)).toBeUndefined();
+  });
+  it('is a plain new issue when the record is gone or already closed', () => {
+    expect(renewalTarget([], '7', issue)).toBeUndefined();
+    for (const status of ['returned', 'lost', 'damaged', 'not_required', 'expired'] as const) expect(renewalTarget([rec({ id: '7', status })], '7', issue)).toBeUndefined();
+  });
+  it('never touches the record when the issue is for another person or another kind of PPE', () => {
+    const old = rec({ id: '7' });
+    expect(renewalTarget([old], '7', { employee_id: 'C2', ppe_type: 'helmet' })).toBeUndefined();
+    expect(renewalTarget([old], '7', { employee_id: 'C1', ppe_type: 'gloves' })).toBeUndefined();
   });
 });

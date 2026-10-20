@@ -18,7 +18,7 @@ import { MatrixDialog } from './MatrixDialog';
 import { OrderListView } from './OrderListView';
 import { PPEIssueForm } from './PPEIssueForm';
 import { EmployeePPEDetail, PPEItemDetail, type ItemActions } from './PPEItemViews';
-import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, sectionCounts, selectableEmployees, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
+import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, renewalTarget, sectionCounts, selectableEmployees, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
 import { typeName } from './ppeMeta';
 import { SummaryView } from './SummaryView';
 import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
@@ -67,17 +67,17 @@ function PPEContent() {
   const openEdit = (r: PPERecord) => { setItemId(null); setHolderId(null); setForm({ record: r, prefill: null, employee: holders.find(h => h.employee_id === r.employee_id) ?? null, fulfils: null }); };
   const issueFromOrder = (e: OrderListEntry) => {
     const h = holders.find(x => x.employee_id === e.employee_id) ?? null;
-    setForm({ record: null, employee: h, fulfils: e.record_id, prefill: { id: '', employee_id: e.employee_id, employee_name: e.employee_name, position: h?.position ?? '', department: '', ppe_type: e.ppe_type, item_name: e.item_name, size: e.size, issue_date: todayLocal(), expiry_date: null, condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop', mine_section: h?.section ?? '' } });
+    const old = records.find(r => String(r.id) === e.record_id);
+    setForm({ record: null, employee: h, fulfils: e.record_id, prefill: { id: '', employee_id: e.employee_id, employee_name: e.employee_name, position: h?.position ?? '', department: '', ppe_type: e.ppe_type, item_name: e.item_name, size: e.size, issue_date: todayLocal(), expiry_date: null, condition: 'good', status: 'active', notes: old?.notes ?? '', issued_by: old?.issued_by ?? '', location: old?.location ?? 'Workshop', mine_section: h?.section ?? '' } });
   };
   const save = async (data: FormState, id?: string) => {
-    if (id) { await updatePPERecord(id, data); order.remove(id); } else await createPPERecord(data);
-    const replaced = form?.fulfils ? records.find(r => String(r.id) === form.fulfils && r.status === 'active') : undefined;
+    // Issuing from the order list renews the item that was on it: that record is updated in place and reads "In date" again, with its next
+    // due date counted from the new issue date. It is not marked "returned": a worn-out or expired item is kept by the person.
+    const renewed = id ? undefined : renewalTarget(records, form?.fulfils, data);
+    if (id) { await updatePPERecord(id, data); order.remove(id); }
+    else if (renewed) await updatePPERecord(String(renewed.id), { ...data, ...(renewed.updated_at ? { expected_updated_at: renewed.updated_at } : {}) });
+    else await createPPERecord(data);
     if (form?.fulfils) order.remove(form.fulfils);
-    // Issuing from the order list replaces the item that was due: retire it, or the card keeps showing it as due.
-    if (replaced) {
-      try { await setPPEStatus(replaced.id, 'returned'); }
-      catch (e) { toast.error(`The new item was issued, but the old ${typeName(replaced.ppe_type)} was not marked returned: ${(e as Error).message}`); }
-    }
     order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
     reload();
   };
