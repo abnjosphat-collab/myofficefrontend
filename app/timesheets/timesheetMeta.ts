@@ -49,6 +49,14 @@ export const fmtPeriod = ({ start, end }: Period): string => `${formatDate(start
 /** The NEC cycle: the 13th of the previous month to the 12th of this one. */
 export const getNECPeriod = (month: Date): Period => { const y = month.getFullYear(), m = month.getMonth(); return { start: new Date(y, m - 1, 13), end: new Date(y, m, 12) }; };
 
+/** Past this day of the month the page opens on the next cycle: the one that has just ended keeps its last days to be finished and signed. */
+export const NEXT_PERIOD_AFTER_DAY = 16;
+/**
+ * The month whose cycle the page opens on, and what "Current period" returns to. Up to the 16th that is this month's cycle (13th of last
+ * month to 12th of this one); from the 17th it is next month's (on 17 October: 13 October to 12 November).
+ */
+export const defaultPeriodMonth = (today: Date = new Date()): Date => new Date(today.getFullYear(), today.getMonth() + (today.getDate() > NEXT_PERIOD_AFTER_DAY ? 1 : 0), 1);
+
 /** Each role's normal shift (10 hours, 8 for lamp room and compressor attendants): one rule, shared with the fill logic. */
 export { normalShiftHours } from './fillEntry';
 export function timeFromHours(startHHMM: string, hours: number): string {
