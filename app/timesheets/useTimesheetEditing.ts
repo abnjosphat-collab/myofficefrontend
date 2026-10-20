@@ -13,6 +13,9 @@ import { api } from './useTimesheetsData';
 
 type Entry = Omit<TimesheetEntry, 'id'>;
 const key = (e: { employee_id: number | string; date: string }) => `${e.employee_id}:${e.date}`;
+/** A rejection because someone else changed the row since this page loaded (the server's 409), as opposed to any other failure. */
+const isConflictRejection = (reason: unknown): boolean =>
+  typeof reason === 'object' && reason !== null && (reason as { status?: unknown }).status === 409;
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const withoutId = (e: TimesheetEntry): Entry => { const copy = { ...e }; delete copy.id; return copy; };
 
@@ -37,7 +40,8 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
     const payload = timesheetWritePayload(data);
     const existing = timesheets.find(ts => String(ts.employee_id) === String(empId) && ts.date === ds);
     if (existing?.id) {
-      const updated = await api.update(existing.id, payload);
+      // On an edit, send back the updated_at this row was loaded with: the server refuses the save if someone changed it since.
+      const updated = await api.update(existing.id, { ...payload, ...(existing.updated_at ? { expected_updated_at: existing.updated_at } : {}) });
       setTimesheets(prev => prev.map(ts => (ts.id === existing.id ? { ...ts, ...updated } : ts)));
     } else {
       const created = await api.create(payload);
@@ -55,6 +59,8 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
   const undoBulk = async (plan: { id: number; previous: TimesheetEntry | null }[]) => {
     try {
       const results = await Promise.allSettled(plan.map(({ id, previous }) => {
+        // No expectation here on purpose: previous is the pre-write row, so its updated_at is stale by construction and would always 409.
+        // Undo is the user's own just-made change being taken back, not a blind overwrite of someone else's work.
         if (previous) return api.update(id, withoutId(previous));
         return api.delete(id);
       }));
@@ -86,7 +92,10 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
     const results = await Promise.allSettled(entries.map(async entry => {
       const existing = previousByKey.get(key(entry));
       const payload = timesheetWritePayload(entry);
-      return existing?.id ? api.update(existing.id, payload) : api.create(payload);
+      // Same guard as the dialog save, per row: a row changed by someone else since this page loaded is refused on its own, not for the whole batch.
+      return existing?.id
+        ? api.update(existing.id, { ...payload, ...(existing.updated_at ? { expected_updated_at: existing.updated_at } : {}) })
+        : api.create(payload);
     }));
     const saved = results.filter((r): r is PromiseFulfilledResult<TimesheetEntry> => r.status === 'fulfilled').map(r => r.value);
     const failedIdx = results.map((r, i) => (r.status === 'rejected' ? i : -1)).filter(i => i >= 0);
@@ -98,9 +107,14 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
       return [...map.values()];
     });
 
-    if (failedIdx.length > 0) {
-      const first = results[failedIdx[0]] as PromiseRejectedResult;
-      toast.warning(`${failedIdx.length} ${plural(failedIdx.length, 'entry', 'entries')} failed to save: ${(first.reason as Error)?.message ?? 'no reason given'}`);
+    const conflicts = failedIdx.filter(i => isConflictRejection((results[i] as PromiseRejectedResult).reason));
+    const others = failedIdx.filter(i => !isConflictRejection((results[i] as PromiseRejectedResult).reason));
+    if (conflicts.length > 0) {
+      toast.warning(`${conflicts.length} ${plural(conflicts.length, 'entry', 'entries')} skipped \u2014 changed by someone else since this page loaded. Reload to see their version, then try again.`);
+    }
+    if (others.length > 0) {
+      const first = results[others[0]] as PromiseRejectedResult;
+      toast.warning(`${others.length} ${plural(others.length, 'entry', 'entries')} failed to save: ${(first.reason as Error)?.message ?? 'no reason given'}`);
     }
     if (saved.length > 0) {
       const plan = saved.filter(s => s.id != null).map(s => ({ id: s.id!, previous: previousByKey.get(key(s)) ?? null }));

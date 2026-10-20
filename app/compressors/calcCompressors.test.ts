@@ -109,6 +109,11 @@ describe('readingProblems', () => {
     expect(readingProblems(undefined, 10, 4)).toEqual({});
     expect(readingProblems(undefined, 10, 11).loaded).toMatch(/cannot exceed running/);
   });
+  it('asks for a reading when the input is blank or not a number', () => {
+    expect(readingProblems(prev, NaN, 66)).toEqual({ running: 'Enter the running-hours reading.' });
+    expect(readingProblems(prev, 108, NaN)).toEqual({ loaded: 'Enter the loaded-hours reading.' });
+    expect(readingProblems(undefined, NaN, NaN)).toEqual({ running: 'Enter the running-hours reading.', loaded: 'Enter the loaded-hours reading.' });
+  });
 });
 
 describe('efficiencyTone and localDateString', () => {

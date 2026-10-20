@@ -5,11 +5,15 @@
 
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Icon, Notice, cn } from '@/components/ui-system';
+import { Button, Dialog, Icon, Notice, cn, useDismissGuard } from '@/components/ui-system';
 import { fileMode, isKnownHeader, ocrToRecord, parseExcelDate, rowToRecord } from './extract';
 import { createService, ocrExtract } from './useServicesData';
 import type { ServiceRecord } from './types';
+import { fileProblem } from '@/lib/files';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+
+// Mirrors services.py /ocr (20 MB; PDF, JPEG, PNG, TIFF, WEBP, GIF by mime).
+const OCR_RULES = { maxBytes: 20 * 1024 * 1024, extensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'tiff', 'tif', 'gif'] };
 
 interface Parsed { records: ServiceRecord[]; skipped: number; headers: string[]; preview: string[][]; ignored: string[] }
 const label = (r: ServiceRecord) => r.description || r.supplier || 'Row';
@@ -23,11 +27,15 @@ export function ImportDialog({ open, onOpenChange, onScanned, onImported }: {
   const [parsed, setParsed] = useState<Parsed | null>(null);
   const [failures, setFailures] = useState<{ name: string; reason: string }[]>([]);
   useResetOnOpen(dialogKey(open, undefined), () => { setParsed(null); setError(null); setFailures([]); setBusy(null); });
+  const { guardClose } = useDismissGuard({ when: parsed !== null && !busy, message: 'The parsed preview is not imported yet.' });
+  const close = () => { if (!busy) guardClose(() => onOpenChange(false)); };
 
   const handleFile = async (file: File) => {
     setError(null); setFailures([]); setBusy('reading');
     try {
       if (fileMode(file.name) === 'document') {
+        const problem = fileProblem(file, OCR_RULES);
+        if (problem) throw new Error(problem);
         onScanned(ocrToRecord(await ocrExtract(file)));
         onOpenChange(false);
         return;
@@ -59,7 +67,7 @@ export function ImportDialog({ open, onOpenChange, onScanned, onImported }: {
     }
     setBusy(null);
     if (ok) onImported();
-    if (failed.length === 0) { toast.success(`${ok} ${ok === 1 ? 'job' : 'jobs'} imported.`); onOpenChange(false); return; }
+    if (failed.length === 0) { toast.success(`${ok} ${ok === 1 ? 'job' : 'jobs'} imported.`); setParsed(null); onOpenChange(false); return; }
     toast.error(`${ok} imported, ${failed.length} not saved.`);
     setParsed({ ...parsed, records: failed, skipped: 0 });
     setFailures(why);
@@ -67,8 +75,8 @@ export function ImportDialog({ open, onOpenChange, onScanned, onImported }: {
 
   return (
     <Dialog
-      open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="lg" title="Import or scan" description="A spreadsheet adds many jobs at once. A PDF or photo of a document pre-fills one job for you to check."
-      footer={<><Button onClick={() => onOpenChange(false)} disabled={!!busy}>Cancel</Button>{parsed && <Button variant="primary" icon="upload" pending={busy === 'importing'} onClick={run}>{`Import ${parsed.records.length} ${parsed.records.length === 1 ? 'job' : 'jobs'}`}</Button>}</>}
+      open={open} onOpenChange={o => { if (o) onOpenChange(o); else close(); }} size="lg" title="Import or scan" description="A spreadsheet adds many jobs at once. A PDF or photo of a document pre-fills one job for you to check."
+      footer={<><Button onClick={close} disabled={!!busy}>Cancel</Button>{parsed && <Button variant="primary" icon="upload" pending={busy === 'importing'} onClick={run}>{`Import ${parsed.records.length} ${parsed.records.length === 1 ? 'job' : 'jobs'}`}</Button>}</>}
     >
       <div className="flex flex-col gap-4">
         <button type="button" aria-label="Choose a file to import or scan" disabled={!!busy} onClick={() => input.current?.click()} className={cn('focus-ring flex flex-col items-center gap-1 rounded-card border-2 border-dashed border-line-control bg-surface-subtle px-4 py-8 text-center transition-colors hover:border-action', busy && 'opacity-60')}>

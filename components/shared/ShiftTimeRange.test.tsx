@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ShiftTimeRange } from './ShiftTimeRange';
 import type { ShiftTimePreset } from '@/lib/shiftTimePresets';
+import { ConfirmProvider, FormDialog } from '@/components/ui-system';
 
 const BUILTIN: ShiftTimePreset[] = [
   ['07:00', '17:00'], ['04:00', '06:00'], ['17:00', '19:00'], ['17:00', '18:00'], ['17:00', '20:00'],
@@ -33,6 +34,22 @@ describe('ShiftTimeRange', () => {
     render(<ShiftTimeRange start="17:00" end="19:30" onChange={() => {}} builtin={BUILTIN} />);
     const chip = screen.getByRole('button', { name: '17-19:30' });
     expect(chip).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('a quick-shift chip marks a FormDialog dirty', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <ConfirmProvider>
+        <FormDialog open onOpenChange={onOpenChange} title="Add" submitLabel="Save" onSubmit={async () => {}}>
+          <ShiftTimeRange start="" end="" onChange={() => {}} builtin={BUILTIN} />
+        </FormDialog>
+      </ConfirmProvider>
+    );
+    await user.click(screen.getByRole('button', { name: '07-17' }));
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it('shows no menu when every shift fits', () => {

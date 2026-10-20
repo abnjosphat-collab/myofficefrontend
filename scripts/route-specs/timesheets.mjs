@@ -5,9 +5,10 @@
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const now = new Date();
-// The NEC cycle the page opens on: the 13th of last month to the 12th of this one.
-const start = new Date(now.getFullYear(), now.getMonth() - 1, 13);
-const end = new Date(now.getFullYear(), now.getMonth(), 12);
+// The NEC cycle the page opens on: up to the 16th, the 13th of last month to the 12th of this one; from the 17th, the next cycle (defaultPeriodMonth).
+const opensOn = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > 16 ? 1 : 0), 1);
+const start = new Date(opensOn.getFullYear(), opensOn.getMonth() - 1, 13);
+const end = new Date(opensOn.getFullYear(), opensOn.getMonth(), 12);
 const days = []; for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) days.push(new Date(d));
 const weekdays = days.map((d, i) => ({ d, i })).filter(x => x.d.getDay() >= 1 && x.d.getDay() <= 5);
 const D = i => iso(days[i]);

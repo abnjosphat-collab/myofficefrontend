@@ -3,11 +3,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Field, Input, Tag } from '@/components/ui-system';
+import { Button, Field, Input, Tag, useMarkDirty } from '@/components/ui-system';
 
 export function TagField({ label, value, onChange, placeholder, description }: { label: string; value: string[]; onChange: (items: string[]) => void; placeholder?: string; description?: string }) {
   const [text, setText] = useState('');
-  const add = () => { const t = text.trim(); if (t && !value.includes(t)) onChange([...value, t]); setText(''); };
+  const markDirty = useMarkDirty();
+  const add = () => { const t = text.trim(); if (t && !value.includes(t)) { markDirty(); onChange([...value, t]); } setText(''); };
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-end gap-2">
@@ -19,7 +20,7 @@ export function TagField({ label, value, onChange, placeholder, description }: {
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-1.5" aria-label={label}>
           {value.map((item, i) => (
-            <li key={`${item}-${i}`}><Tag onRemove={() => onChange(value.filter((_, n) => n !== i))}>{item}</Tag></li>
+            <li key={`${item}-${i}`}><Tag onRemove={() => { markDirty(); onChange(value.filter((_, n) => n !== i)); }}>{item}</Tag></li>
           ))}
         </ul>
       )}

@@ -3,8 +3,8 @@
 // are unchanged; only how the fields are drawn.
 'use client';
 
-import { useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { asString, Button, Checkbox, Combobox, Field, FieldGroup, Icon, Input, Notice, readStored, Segmented, Select, storeValue, Tag, Textarea } from '@/components/ui-system';
+import { useContext, useState, type FormEvent, type ReactNode } from 'react';
+import { asString, Button, Checkbox, Combobox, Field, FieldGroup, Icon, Input, Notice, readStored, Segmented, Select, storeValue, Tag, Textarea, useRefusedSubmit } from '@/components/ui-system';
 import { CATEGORIES, DEPARTMENTS, defaultEquipmentKind, departmentOf, employeeLabel, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
 import type { InspectionType } from './complianceTypes';
 import { INSPECTION_LABELS } from './ToolsCompliance';
@@ -22,7 +22,7 @@ export function useHint() {
 }
 
 const Row = ({ children }: { children: ReactNode }) => <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
-const Footer = ({ children }: { children: ReactNode }) => <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">{children}</div>;
+export const Footer = ({ children }: { children: ReactNode }) => <div className="sticky bottom-0 flex justify-end gap-2 border-t border-line-subtle bg-surface pb-1 pt-4">{children}</div>;
 const Section = ({ title, note, children }: { title: string; note?: string; children: ReactNode }) => (
   <section className="flex flex-col gap-4 rounded-card border border-line-subtle p-4">
     <div className="flex items-baseline justify-between gap-2"><strong className="font-sans text-body-sm font-semibold text-ink">{title}</strong>{note && <span className="font-sans text-caption text-ink-muted">{note}</span>}</div>
@@ -67,10 +67,6 @@ export const TITLES: Record<ActionKind, string> = { issue: 'Issue tool', return:
 /** Under-field validation problems, one per field; the overdue-check instruction stays a form-level message. */
 type MovementProblems = { tool?: string; person?: string; location?: string; due?: string; overrideReason?: string; notes?: string; gatePass?: string; approvalRef?: string };
 type ToolProblems = { name?: string; make?: string; department?: string; location?: string; contractorName?: string; homeStorageLocation?: string; storageConditions?: string; maintenanceRequirements?: string; calibrationFrequencyDays?: string; replacementValue?: string; procurementCost?: string };
-/** Bring the first under-field message into view after a refused submit (native validation used to do this). Field errors are the <p> alerts; the <div> alerts are notice banners. Instant under reduced motion. */
-function scrollFirstError(scope: HTMLElement | null) {
-  scope?.querySelector('p[role="alert"]')?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-}
 // Only called by the submit event, never during rendering.
 function isFuture(value: string) { const time = Date.parse(value); return Number.isFinite(time) && time > Date.now(); }
 
@@ -111,9 +107,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const [department, setDepartment] = useState(initialTool ? departmentOf(initialTool) : initialEmployee?.department || issuerDepartment || 'Engineering');
   const [fieldErrors, setFieldErrors] = useState<MovementProblems>({});
   const [formError, setFormError] = useState('');
-  const formRef = useRef<HTMLFormElement>(null);
-  const [refusedSubmits, setRefusedSubmits] = useState(0);
-  useEffect(() => { if (refusedSubmits > 0) scrollFirstError(formRef.current); }, [refusedSubmits]);
+  const { formRef, refused } = useRefusedSubmit();
   const clearError = (key: keyof MovementProblems) => setFieldErrors(f => (f[key] === undefined ? f : { ...f, [key]: undefined }));
   const [saving, setSaving] = useState(false);
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
@@ -163,7 +157,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     if (kind === 'transfer' && !approvalRef.trim()) problems.approvalRef = 'Record the existing approval reference.';
     setFieldErrors(problems);
     setFormError(formProblem);
-    if (formProblem || Object.keys(problems).length > 0) { setRefusedSubmits(c => c + 1); return; }
+    if (formProblem || Object.keys(problems).length > 0) { refused(); return; }
     if (!tool || toolBlocked) return; // Reported above; this keeps the save below typed.
     const displayDue = due ? formatDateTime(due) : '';
     if (location.trim()) storeValue('myoffice.tools.last-location', location.trim());
@@ -177,7 +171,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   }
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-      <Field label="Tool" description={hintFor('Search by tool name or ID. Tools that cannot take this action are greyed out, with the reason. Name a greyed-out tool to see how to unblock it.')} error={fieldErrors.tool}>
+      <Field label="Tool" required description={hintFor('Search by tool name or ID. Tools that cannot take this action are greyed out, with the reason. Name a greyed-out tool to see how to unblock it.')} error={fieldErrors.tool}>
         <Combobox aria-label="Tool" value={toolLabel} onValueChange={value => { setToolLabel(value); setToolQuery(''); clearError('tool'); }} onSearchChange={setToolQuery} placeholder="Search tool…" searchPlaceholder="Search by tool name or ID…" emptyMessage="No tool matches." clearLabel="None"
           options={candidates.map(t => ({ value: `${t.id} · ${t.name}`, label: `${t.id} · ${t.name}`, ...optionState(t) }))} />
       </Field>
@@ -198,7 +192,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
           <Notice tone="warning" title={overdueCheckLabel(dueChecks)}>You can still {kind === 'transfer' ? 'transfer' : 'issue'} this equipment. Say why, and the reason is kept in its history.</Notice>
           <Checkbox label="Go ahead anyway" description="The overdue check has not been done or the equipment is not yet maintained." checked={overrideDue} onChange={event => setOverrideDue(event.target.checked)} />
           {overrideDue && (
-            <Field label="Reason for going ahead" error={fieldErrors.overrideReason}>
+            <Field label="Reason for going ahead" required error={fieldErrors.overrideReason}>
               <Textarea aria-label="Reason for going ahead" rows={2} value={overrideReason} onChange={event => { setOverrideReason(event.target.value); clearError('overrideReason'); }} placeholder="For example: breakdown repair, the inspection is booked for tomorrow." />
             </Field>
           )}
@@ -210,7 +204,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </Notice>
       )}
       {['issue', 'transfer'].includes(kind) && (
-        <EmployeePicker label="Employee" choices={employeeChoices} value={person} onChange={value => { setPerson(value); clearError('person'); }} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} error={fieldErrors.person}
+        <EmployeePicker label="Employee" required={['issue', 'transfer'].includes(kind)} choices={employeeChoices} value={person} onChange={value => { setPerson(value); clearError('person'); }} onSelect={selectEmployee} emptyMessage={employeeEmptyMessage} error={fieldErrors.person}
           hint={hintFor('Only active employees with current training, qualification and authorization for the selected equipment are listed. Their saved details fill automatically.')} />
       )}
       {['issue', 'transfer'].includes(kind) && selectedEmployee && (
@@ -223,7 +217,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         {kind !== 'extend' && <SuggestField label={kind === 'return' ? 'Return location' : 'Current work location'} required={kind === 'return'} options={locationSuggestions} value={location} onChange={value => { setLocation(value); clearError('location'); }} historyKey={kind === 'return' ? 'tools.return_location' : 'tools.work_location'} hint={kind === 'return' ? 'Start typing to reuse a known location, or enter the exact place freely because teams and tools move frequently.' : 'If known — a work location is not required to issue or transfer.'} error={fieldErrors.location} />}
         {['issue', 'transfer'].includes(kind) && <SuggestField label="Work order / job" required={false} options={[]} value={job} onChange={setJob} historyKey="tools.job_reference" hint="If there is one — a work order is not required." />}
         {['issue', 'extend'].includes(kind) && (
-          <Field label="Expected return" description={hintFor('Choose the local date and time.')} error={fieldErrors.due}>
+          <Field label="Expected return" required={['issue', 'extend'].includes(kind)} description={hintFor('Choose the local date and time.')} error={fieldErrors.due}>
             <Input aria-label="Expected return" name="due" type="datetime-local" defaultValue={kind === 'issue' ? tomorrowAt() : undefined} onChange={() => clearError('due')} />
           </Field>
         )}
@@ -235,8 +229,8 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
           <Row>
             <SuggestField label="Receiving department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" />
             <Field label="Movement"><Select aria-label="Movement" value={movementScope} onValueChange={setMovementScope} options={['Within the operation', 'Outside the operation'].map(value => ({ value, label: value }))} /></Field>
-            <Field label="Gate pass reference" error={fieldErrors.gatePass}><Input aria-label="Gate pass reference" value={gatePass} onChange={e => { setGatePass(e.target.value); clearError('gatePass'); }} placeholder="Existing gate pass number" /></Field>
-            <Field label={`${movementScope.startsWith('Outside') ? 'GM' : 'HOS'} approval reference`} description={hintFor('Internal movement requires HOS approval and external movement requires GM approval.')} error={fieldErrors.approvalRef}>
+            <Field label="Gate pass reference" required error={fieldErrors.gatePass}><Input aria-label="Gate pass reference" value={gatePass} onChange={e => { setGatePass(e.target.value); clearError('gatePass'); }} placeholder="Existing gate pass number" /></Field>
+            <Field label={`${movementScope.startsWith('Outside') ? 'GM' : 'HOS'} approval reference`} required description={hintFor('Internal movement requires HOS approval and external movement requires GM approval.')} error={fieldErrors.approvalRef}>
               <Input aria-label="Approval reference" value={approvalRef} onChange={e => { setApprovalRef(e.target.value); clearError('approvalRef'); }} placeholder="Existing approval reference" />
             </Field>
           </Row>
@@ -255,7 +249,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </>
       )}
       {notesRequired && (
-        <Field label={kind === 'extend' ? 'Reason for extension' : 'Describe the condition'} error={fieldErrors.notes}>
+        <Field label={kind === 'extend' ? 'Reason for extension' : 'Describe the condition'} required={notesRequired} error={fieldErrors.notes}>
           <Textarea aria-label="Required notes" rows={2} placeholder="A brief, useful explanation…" value={notes} onChange={e => { setNotes(e.target.value); clearError('notes'); }} />
         </Field>
       )}
@@ -274,7 +268,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   );
 }
 
-export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel }: { initialTool?: Tool; defaultDepartment: string; addFiles: AddEvidence; onSave: (tool: Tool) => void; onCancel: () => void }) {
+export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel }: { initialTool?: Tool; defaultDepartment: string; addFiles: AddEvidence; onSave: (tool: Tool) => void | Promise<void>; onCancel: () => void }) {
   const hintFor = useHint();
   const [name, setName] = useState(initialTool?.name || '');
   const [make, setMake] = useState(initialTool?.make || '');
@@ -315,15 +309,14 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const [evidence, setEvidence] = useState<Evidence[]>(initialTool?.evidence || []);
   const [fieldErrors, setFieldErrors] = useState<ToolProblems>({});
   const clearError = (key: keyof ToolProblems) => setFieldErrors(f => (f[key] === undefined ? f : { ...f, [key]: undefined }));
-  const formRef = useRef<HTMLFormElement>(null);
-  const [refusedSubmits, setRefusedSubmits] = useState(0);
-  useEffect(() => { if (refusedSubmits > 0) scrollFirstError(formRef.current); }, [refusedSubmits]);
+  const { formRef, refused } = useRefusedSubmit();
+  const [saving, setSaving] = useState(false);
   const equipmentTypes = equipmentTypesForCategory(category);
   function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
     if (!equipmentTypesForCategory(nextCategory).some(type => type.value === equipmentKind)) setEquipmentKind(defaultEquipmentKind(nextCategory));
   }
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
     const problems: ToolProblems = {};
@@ -342,24 +335,29 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
     if (replacementValue.trim() && Number(replacementValue) < 0) problems.replacementValue = 'Enter 0 or more.';
     if (procurementCost.trim() && Number(procurementCost) < 0) problems.procurementCost = 'Enter 0 or more.';
     setFieldErrors(problems);
-    if (Object.keys(problems).length > 0) { setRefusedSubmits(c => c + 1); return; }
+    if (Object.keys(problems).length > 0) { refused(); return; }
     const specifications = Object.fromEntries(specificationText.split('\n').map(line => { const colon = line.indexOf(':'); return colon < 0 ? [line, ''] : [line.slice(0, colon), line.slice(colon + 1)]; }).filter(parts => parts[0]?.trim() && parts[1]?.trim()).map(parts => [parts[0].trim(), parts[1].trim()]));
-    onSave({
-      ...initialTool, id: id.trim(), name: name.trim(), make: make.trim(), serial: serial.trim() || 'Not recorded', department: department.trim(), section: section.trim(), category, kind: equipmentKind, location,
-      homeStorageLocation: homeStorageLocation.trim() || location.trim(), storageConditions: storageConditions.trim(), maintenanceRequirements: maintenanceRequirements.trim(), preUseCheckRequired, competencyRequired,
-      weeklyInspectionRequired, monthlyInspectionRequired, quarterlyInspectionRequired, calibrationRequired, calibrationFrequencyDays: calibrationRequired ? Number(calibrationFrequencyDays) : undefined,
-      replacementValue: replacementValue ? Number(replacementValue) : undefined, criticality: criticality as Tool['criticality'], cctvRequired: cctvRequired || Number(replacementValue) > 5000, gpsRequired,
-      requiredPpe: requiredPpe.split(',').map(item => item.trim()).filter(Boolean), ownershipType, contractorName: ownershipType === 'contractor' ? contractorName.trim() : undefined,
-      oemManualRef: oemManualRef.trim() || undefined, purchaseDate: purchaseDate || undefined, procurementCost: procurementCost ? Number(procurementCost) : undefined,
-      insured: insured === 'unknown' ? undefined : insured === 'yes', lastVerified: lastVerified.trim() || undefined, workingStatus: workingStatus === 'unknown' ? undefined : workingStatus as Tool['workingStatus'],
-      status: initialTool?.status || 'available', condition, notes: notes.trim(), approvalRef: approvalRef.trim(), evidence, specifications,
-    });
+    setSaving(true);
+    try {
+      await onSave({
+        ...initialTool, id: id.trim(), name: name.trim(), make: make.trim(), serial: serial.trim() || 'Not recorded', department: department.trim(), section: section.trim(), category, kind: equipmentKind, location,
+        homeStorageLocation: homeStorageLocation.trim() || location.trim(), storageConditions: storageConditions.trim(), maintenanceRequirements: maintenanceRequirements.trim(), preUseCheckRequired, competencyRequired,
+        weeklyInspectionRequired, monthlyInspectionRequired, quarterlyInspectionRequired, calibrationRequired, calibrationFrequencyDays: calibrationRequired ? Number(calibrationFrequencyDays) : undefined,
+        replacementValue: replacementValue ? Number(replacementValue) : undefined, criticality: criticality as Tool['criticality'], cctvRequired: cctvRequired || Number(replacementValue) > 5000, gpsRequired,
+        requiredPpe: requiredPpe.split(',').map(item => item.trim()).filter(Boolean), ownershipType, contractorName: ownershipType === 'contractor' ? contractorName.trim() : undefined,
+        oemManualRef: oemManualRef.trim() || undefined, purchaseDate: purchaseDate || undefined, procurementCost: procurementCost ? Number(procurementCost) : undefined,
+        insured: insured === 'unknown' ? undefined : insured === 'yes', lastVerified: lastVerified.trim() || undefined, workingStatus: workingStatus === 'unknown' ? undefined : workingStatus as Tool['workingStatus'],
+        status: initialTool?.status || 'available', condition, notes: notes.trim(), approvalRef: approvalRef.trim(), evidence, specifications,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <form ref={formRef} className="flex flex-col gap-5" onSubmit={submit} noValidate>
       <Row>
-        <Field label="Tool name" error={fieldErrors.name}><Input aria-label="Tool name" value={name} onChange={e => { setName(e.target.value); clearError('name'); }} placeholder="Cordless impact driver" /></Field>
-        <Field label="Make & model" error={fieldErrors.make}><Input aria-label="Make and model" value={make} onChange={e => { setMake(e.target.value); clearError('make'); }} placeholder="Bosch GDX 18V" /></Field>
+        <Field label="Tool name" required error={fieldErrors.name}><Input aria-label="Tool name" value={name} onChange={e => { setName(e.target.value); clearError('name'); }} placeholder="Cordless impact driver" /></Field>
+        <Field label="Make & model" required error={fieldErrors.make}><Input aria-label="Make and model" value={make} onChange={e => { setMake(e.target.value); clearError('make'); }} placeholder="Bosch GDX 18V" /></Field>
         <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={value => { setDepartment(value); clearError('department'); }} historyKey="tools.department" hint="The department that owns this record. Start with Engineering; add other departments as they join." error={fieldErrors.department} />
         <Field label="Category"><Select aria-label="Category" value={category} onValueChange={changeCategory} options={CATEGORIES.map(value => ({ value, label: value }))} /></Field>
         <Field label="Equipment type" description={hintFor('Choose the closest physical form. Test instruments ask for a calibration check when they are returned.')}>
@@ -369,7 +367,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Input aria-label="Tool ID" value={id} disabled={!!initialTool} onChange={e => setId(e.target.value)} placeholder="Existing tool number" />
         </Field>
         <Field label="Serial number" optional><Input aria-label="Serial number" value={serial} onChange={e => setSerial(e.target.value)} placeholder="Manufacturer serial number" /></Field>
-        <Field label="Storage location" description={hintFor('Enter the location as free text. Use the description people actually use on site.')} error={fieldErrors.location}>
+        <Field label="Storage location" required description={hintFor('Enter the location as free text. Use the description people actually use on site.')} error={fieldErrors.location}>
           <Input aria-label="Storage location" disabled={!!initialTool?.holder} value={location} onChange={event => { setLocation(event.target.value); clearError('location'); }} placeholder="Main workshop, electrical cage…" />
         </Field>
         <Field label="Section" optional><Input aria-label="Section" value={section} onChange={e => setSection(e.target.value)} placeholder="Mechanical, electrical…" /></Field>
@@ -380,8 +378,8 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Field label="Ownership"><Select aria-label="Equipment ownership" value={ownershipType} onValueChange={value => setOwnershipType(value as typeof ownershipType)} options={[{ value: 'company', label: 'Company owned' }, { value: 'contractor', label: 'Contractor owned' }]} /></Field>
           {ownershipType === 'contractor' && <Field label="Contractor" error={fieldErrors.contractorName}><Input value={contractorName} onChange={event => { setContractorName(event.target.value); clearError('contractorName'); }} placeholder="Contractor company name" /></Field>}
           <Field label="OEM manual / checklist reference" optional><Input value={oemManualRef} onChange={event => setOemManualRef(event.target.value)} placeholder="Document number or controlled link" /></Field>
-          <Field label="Designated storage place" error={fieldErrors.homeStorageLocation}><Input value={homeStorageLocation} onChange={event => { setHomeStorageLocation(event.target.value); clearError('homeStorageLocation'); }} placeholder="Locked tool room / rack / crib" /></Field>
-          <Field label="Required storage conditions" error={fieldErrors.storageConditions}><Textarea rows={3} value={storageConditions} onChange={event => { setStorageConditions(event.target.value); clearError('storageConditions'); }} /></Field>
+          <Field label="Designated storage place" required error={fieldErrors.homeStorageLocation}><Input value={homeStorageLocation} onChange={event => { setHomeStorageLocation(event.target.value); clearError('homeStorageLocation'); }} placeholder="Locked tool room / rack / crib" /></Field>
+          <Field label="Required storage conditions" required error={fieldErrors.storageConditions}><Textarea rows={3} value={storageConditions} onChange={event => { setStorageConditions(event.target.value); clearError('storageConditions'); }} /></Field>
           <Field label="Replacement value USD" optional error={fieldErrors.replacementValue}><Input type="number" min="0" step="0.01" value={replacementValue} onChange={event => { setReplacementValue(event.target.value); clearError('replacementValue'); if (Number(event.target.value) > 5000) setCctvRequired(true); }} /></Field>
           <Field label="Criticality"><Select aria-label="Criticality" value={criticality} onValueChange={value => setCriticality(value as NonNullable<Tool['criticality']>)} options={[{ value: 'standard', label: 'Standard' }, { value: 'high', label: 'High value' }, { value: 'safety_critical', label: 'Safety critical' }]} /></Field>
         </Row>
@@ -413,7 +411,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Checkbox label="Calibration required" checked={calibrationRequired} onChange={event => setCalibrationRequired(event.target.checked)} />
         </div>
         <Row>
-          <Field label="Maintenance requirements" error={fieldErrors.maintenanceRequirements}><Textarea rows={3} value={maintenanceRequirements} onChange={event => { setMaintenanceRequirements(event.target.value); clearError('maintenanceRequirements'); }} /></Field>
+          <Field label="Maintenance requirements" required error={fieldErrors.maintenanceRequirements}><Textarea rows={3} value={maintenanceRequirements} onChange={event => { setMaintenanceRequirements(event.target.value); clearError('maintenanceRequirements'); }} /></Field>
           {calibrationRequired && <Field label="Calibration frequency in days" error={fieldErrors.calibrationFrequencyDays}><Input type="number" min="1" max="3650" value={calibrationFrequencyDays} onChange={event => { setCalibrationFrequencyDays(event.target.value); clearError('calibrationFrequencyDays'); }} /></Field>}
           <Field label="Required PPE" description="Comma separated"><Input value={requiredPpe} onChange={event => setRequiredPpe(event.target.value)} placeholder="Safety glasses, gloves, hearing protection" /></Field>
         </Row>
@@ -430,29 +428,36 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Field label="Notes"><Textarea aria-label="Notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Condition, missing components or useful context…" /></Field>
         </div>
       </details>
-      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button variant="primary" type="submit">{initialTool ? 'Save changes' : 'Add tool'}</Button></Footer>
+      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button variant="primary" type="submit" pending={saving}>{saving ? 'Saving…' : initialTool ? 'Save changes' : 'Add tool'}</Button></Footer>
       <p className="font-sans text-caption text-ink-muted">Blank IDs are generated as PP-UG-DEPARTMENT-ACTIVITY-01. Existing physical labels may be retained.</p>
     </form>
   );
 }
 
-export function MarkReadyForm({ tool, onSave, onCancel }: { tool: Tool; onSave: (resolutionNote: string) => void; onCancel: () => void }) {
+export function MarkReadyForm({ tool, onSave, onCancel }: { tool: Tool; onSave: (resolutionNote: string) => void | Promise<void>; onCancel: () => void }) {
   const [resolutionNote, setResolutionNote] = useState('');
   const [noteError, setNoteError] = useState<string | undefined>(undefined);
-  function submit(event: FormEvent) {
+  const { formRef, refused } = useRefusedSubmit();
+  const [saving, setSaving] = useState(false);
+  async function submit(event: FormEvent) {
     event.preventDefault();
     // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
     const note = resolutionNote.trim();
-    if (note.length < 2) { setNoteError(note ? 'Use at least 2 characters.' : 'Describe what was repaired or checked.'); return; }
-    onSave(note);
+    if (note.length < 2) { setNoteError(note ? 'Use at least 2 characters.' : 'Describe what was repaired or checked.'); refused(); return; }
+    setSaving(true);
+    try {
+      await onSave(note);
+    } finally {
+      setSaving(false);
+    }
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="success" size="sm" /><span><strong className="text-ink">{tool.name}</strong> · Currently held in Needs attention</span></p>
-      <Field label="Repair or inspection completed" description="This explanation is saved in the permanent history. The tool will return to Ready to use with condition Good." error={noteError}>
+      <Field label="Repair or inspection completed" required description="This explanation is saved in the permanent history. The tool will return to Ready to use with condition Good." error={noteError}>
         <Textarea aria-label="Repair or inspection completed" rows={4} value={resolutionNote} onChange={event => { setResolutionNote(event.target.value); setNoteError(undefined); }} placeholder="For example: Trigger switch replaced and function tested." />
       </Field>
-      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" disabled={!resolutionNote.trim()}>Mark ready for use</Button></Footer>
+      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Marking…' : 'Mark ready for use'}</Button></Footer>
     </form>
   );
 }
@@ -467,11 +472,12 @@ export function RecordCheckForm({ tool, onSave, onCancel }: { tool: Tool; onSave
   const [defects, setDefects] = useState('');
   const [notes, setNotes] = useState('');
   const [defectsError, setDefectsError] = useState<string | undefined>(undefined);
+  const { formRef, refused } = useRefusedSubmit();
   const [saving, setSaving] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
     // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
-    if (outcome === 'failed' && !defects.trim()) { setDefectsError('Describe the defects.'); return; }
+    if (outcome === 'failed' && !defects.trim()) { setDefectsError('Describe the defects.'); refused(); return; }
     setSaving(true);
     try {
       await onSave({ inspection_type: inspectionType, outcome, defects: defects.trim() || undefined, notes: notes.trim() || undefined });
@@ -480,7 +486,7 @@ export function RecordCheckForm({ tool, onSave, onCancel }: { tool: Tool; onSave
     }
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="check" size="sm" /><span><strong className="text-ink">{tool.id} · {tool.name}</strong> · completing a due check unblocks it for issue</span></p>
       <Field label="Check">
         <Select aria-label="Check" value={inspectionType} onValueChange={value => setInspectionType(value as InspectionType)} options={typeOptions} />
@@ -501,7 +507,9 @@ export function RecordCheckForm({ tool, onSave, onCancel }: { tool: Tool; onSave
   );
 }
 
-export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee) => void; onCancel: () => void }) {
+export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee) => void | Promise<void>; onCancel: () => void }) {
+  const { formRef, refused } = useRefusedSubmit();
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
   const [numberUnknown, setNumberUnknown] = useState(false);
@@ -509,28 +517,33 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
   const [jobTitle, setJobTitle] = useState('');
   const [supervisorName, setSupervisorName] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; employeeNumber?: string }>({});
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
     const problems: { name?: string; employeeNumber?: string } = {};
     if (!name.trim()) problems.name = 'Enter the full name.';
     if (!numberUnknown && !employeeNumber.trim()) problems.employeeNumber = 'Enter the employee ID or number.';
     setFieldErrors(problems);
-    if (Object.keys(problems).length > 0) return;
-    onSave({ id: crypto.randomUUID(), name: name.trim(), employeeNumber: numberUnknown ? null : employeeNumber.trim(), department: department.trim(), jobTitle: jobTitle.trim(), supervisorName: supervisorName.trim(), active: true });
+    if (Object.keys(problems).length > 0) { refused(); return; }
+    setSaving(true);
+    try {
+      await onSave({ id: crypto.randomUUID(), name: name.trim(), employeeNumber: numberUnknown ? null : employeeNumber.trim(), department: department.trim(), jobTitle: jobTitle.trim(), supervisorName: supervisorName.trim(), active: true });
+    } finally {
+      setSaving(false);
+    }
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <Row>
-        <Field label="Full name" error={fieldErrors.name}><Input aria-label="Full name" value={name} onChange={event => { setName(event.target.value); setFieldErrors(f => ({ ...f, name: undefined })); }} placeholder="Employee name" /></Field>
-        <Field label="Employee ID / number" optional={numberUnknown} error={fieldErrors.employeeNumber}><Input aria-label="Employee ID or number" value={employeeNumber} disabled={numberUnknown} onChange={event => { setEmployeeNumber(event.target.value); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} placeholder="EMP-001" /></Field>
+        <Field label="Full name" required error={fieldErrors.name}><Input aria-label="Full name" value={name} onChange={event => { setName(event.target.value); setFieldErrors(f => ({ ...f, name: undefined })); }} placeholder="Employee name" /></Field>
+        <Field label="Employee ID / number" required={!numberUnknown} error={fieldErrors.employeeNumber}><Input aria-label="Employee ID or number" value={employeeNumber} disabled={numberUnknown} onChange={event => { setEmployeeNumber(event.target.value); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} placeholder="EMP-001" /></Field>
         <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" />
         <Field label="Job title" optional><Input aria-label="Job title" value={jobTitle} onChange={event => setJobTitle(event.target.value)} placeholder="Artisan, supervisor…" /></Field>
         <Field label="Supervisor name" optional><Input aria-label="Supervisor name" value={supervisorName} onChange={event => setSupervisorName(event.target.value)} placeholder="Immediate supervisor" /></Field>
       </Row>
       <Checkbox label="No mine number yet" description="Tick this instead of inventing a number — it can be added later from the employee record." checked={numberUnknown} onChange={event => { setNumberUnknown(event.target.checked); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} />
       <p className="font-sans text-caption text-ink-muted">This employee register belongs to the Tools &amp; Equipment workspace.</p>
-      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary">Add employee</Button></Footer>
+      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Adding…' : 'Add employee'}</Button></Footer>
     </form>
   );
 }
@@ -540,11 +553,12 @@ export function EmployeeNumberForm({ employee, onSave, onCancel }: { employee: E
   const [number, setNumber] = useState(employee.employeeNumber ?? '');
   const [unknown, setUnknown] = useState(employee.employeeNumber == null);
   const [error, setError] = useState<string | undefined>(undefined);
+  const { formRef, refused } = useRefusedSubmit();
   const [saving, setSaving] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
     // Checked here, not by the browser (the form is noValidate): a quiet message under the field instead of the browser's bubble.
-    if (!unknown && !number.trim()) { setError('Enter the employee ID or number.'); return; }
+    if (!unknown && !number.trim()) { setError('Enter the employee ID or number.'); refused(); return; }
     setSaving(true);
     try {
       await onSave(unknown ? null : number.trim());
@@ -553,9 +567,9 @@ export function EmployeeNumberForm({ employee, onSave, onCancel }: { employee: E
     }
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="user" size="sm" /><span><strong className="text-ink">{employee.name}</strong> · {employee.department}</span></p>
-      <Field label="Employee ID / number" optional={unknown} error={error}>
+      <Field label="Employee ID / number" required={!unknown} error={error}>
         <Input aria-label="Employee ID or number" value={number} disabled={unknown} onChange={event => { setNumber(event.target.value); setError(undefined); }} placeholder="EMP-001" />
       </Field>
       <Checkbox label="No mine number yet" checked={unknown} onChange={event => { setUnknown(event.target.checked); setError(undefined); }} />

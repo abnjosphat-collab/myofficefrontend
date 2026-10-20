@@ -7,7 +7,13 @@ import { toast } from 'sonner';
 import { Button, DataRegion, EmptyState, Icon, IconButton, deriveDataStatus, isTransientStatus, useConfirm } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { formatFileSize } from '@/lib/format';
+import { fileProblem } from '@/lib/files';
 import { deleteAttachment, uploadAttachment, useAttachments } from './useServicesData';
+
+// Mirrors backend/app/uploads.py DOCUMENT_EXTS with services.py's 50 MB cap.
+const ATTACHMENT_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'ppt', 'pptx', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'zip'];
+const ATTACHMENT_RULES = { maxBytes: 50 * 1024 * 1024, extensions: ATTACHMENT_EXTS };
+const ATTACHMENT_ACCEPT = ATTACHMENT_EXTS.map(e => `.${e}`).join(',');
 
 export function AttachmentsPanel({ serviceId }: { serviceId: string }) {
   const confirm = useConfirm();
@@ -17,6 +23,8 @@ export function AttachmentsPanel({ serviceId }: { serviceId: string }) {
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: list.items.length, transient: isTransientStatus(list.errorStatus) });
 
   const upload = async (file: File) => {
+    const problem = fileProblem(file, ATTACHMENT_RULES);
+    if (problem) { toast.error(`${file.name} was not attached: ${problem}`); return; }
     setUploading(true);
     try { await uploadAttachment(serviceId, file); toast.success(`${file.name} attached.`); await list.refetch(); }
     catch (e) { toast.error(`${file.name} was not attached: ${(e as Error).message}`); }
@@ -33,7 +41,7 @@ export function AttachmentsPanel({ serviceId }: { serviceId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-sans text-body-sm text-ink-muted">Completion certificates, invoices, GRVs and other supporting documents.</p>
         <Button icon="upload" pending={uploading} onClick={() => input.current?.click()}>Attach a file</Button>
-        <input ref={input} type="file" hidden aria-label="File to attach" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
+        <input ref={input} type="file" hidden aria-label="File to attach" accept={ATTACHMENT_ACCEPT} onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ''; }} />
       </div>
       <DataRegion status={status} subject="attachments" error={list.error} onRetry={() => list.refetch()} empty={<EmptyState icon="attachment" title="No attachments yet" description="Attach the first file for this job." />}>
         <ul className="flex flex-col gap-2" aria-label="Attachments">

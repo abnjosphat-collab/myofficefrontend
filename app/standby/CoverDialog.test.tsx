@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ConfirmProvider } from '@/components/ui-system';
 import { CoverDialog } from './CoverDialog';
 import type { DutyRotation, StandbyRotation } from './types';
 
@@ -30,7 +31,7 @@ describe('CoverDialog', () => {
   it('refuses an empty save and keeps the dialog open', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<CoverDialog {...base} onSave={onSave} />);
+    render(<ConfirmProvider><CoverDialog {...base} onSave={onSave} /></ConfirmProvider>);
     await user.click(screen.getByRole('button', { name: 'Name cover' }));
     expect(screen.getByText('Choose the rotation this cover belongs to.')).toBeInTheDocument();
     expect(screen.getByText('Choose who is away.')).toBeInTheDocument();
@@ -38,10 +39,10 @@ describe('CoverDialog', () => {
   });
 
   it('arrives prefilled from a leave-warning preset', () => {
-    render(<CoverDialog
+    render(<ConfirmProvider><CoverDialog
       {...base}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11', reason: 'Leave' }}
-    />);
+    /></ConfirmProvider>);
     expect(screen.getByRole('combobox', { name: 'Away' })).toHaveTextContent('Ann Alpha');
     expect(screen.getByDisplayValue('2026-10-10')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Leave')).toBeInTheDocument();
@@ -50,10 +51,10 @@ describe('CoverDialog', () => {
   it('saves the cover once both people are picked', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<CoverDialog
+    render(<ConfirmProvider><CoverDialog
       {...base} onSave={onSave}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11', reason: 'Leave' }}
-    />);
+    /></ConfirmProvider>);
     await user.click(screen.getByRole('combobox', { name: 'Holding in their place' }));
     await user.click(screen.getByRole('option', { name: /Zed Zulu/ }));
     await user.click(screen.getByRole('button', { name: 'Name cover' }));
@@ -68,10 +69,10 @@ describe('CoverDialog', () => {
   it('refuses cover in place of yourself', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<CoverDialog
+    render(<ConfirmProvider><CoverDialog
       {...base} onSave={onSave}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11' }}
-    />);
+    /></ConfirmProvider>);
     await user.click(screen.getByRole('combobox', { name: 'Holding in their place' }));
     await user.click(screen.getByRole('option', { name: /Ann Alpha/ }));
     await user.click(screen.getByRole('button', { name: 'Name cover' }));

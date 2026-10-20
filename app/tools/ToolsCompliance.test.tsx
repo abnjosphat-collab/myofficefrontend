@@ -32,10 +32,10 @@ describe('ToolsCompliance',()=>{
     render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
     await user.click(screen.getByRole('button',{name:'Record'}));
     await user.click(screen.getByText('Report loss, damage or theft'));
-    fireEvent.change(screen.getByLabelText('Occurred at'),{target:{value:'2030-02-01T10:30'}});
+    fireEvent.change(screen.getByLabelText(/Occurred at/),{target:{value:'2030-02-01T10:30'}});
     await user.click(screen.getByRole('combobox',{name:/Employee involved/}));
     await user.click(await screen.findByRole('option',{name:'Tariro Moyo · E-1'}));
-    fireEvent.change(screen.getByLabelText('Immediate report'),{target:{value:'Guard damaged during use and equipment isolated.'}});
+    fireEvent.change(screen.getByLabelText(/Immediate report/),{target:{value:'Guard damaged during use and equipment isolated.'}});
     await user.click(screen.getByRole('button',{name:'Report incident'}));
     await waitFor(()=>expect(onReportIncident).toHaveBeenCalledWith('tool-1',expect.objectContaining({incident_type:'damaged',employee_id:'employee-1',explanation:'Guard damaged during use and equipment isolated.'})));
   });
@@ -122,6 +122,57 @@ describe('ToolsCompliance',()=>{
     expect(within(cover).getByText(/Nobody eligible, cannot be issued/)).toBeVisible();
     await user.click(screen.getByRole('button',{name:'Manage who can use what'}));
     expect(onOpenEmployees).toHaveBeenCalled();
+  });
+
+  it('incident submit with 3 chars shows field errors and focuses one',async()=>{
+    const user=userEvent.setup();
+    const onReportIncident=vi.fn();
+    render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
+    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByText('Report loss, damage or theft'));
+    fireEvent.change(screen.getByLabelText(/Occurred at/),{target:{value:'2030-02-01T10:30'}});
+    fireEvent.change(screen.getByLabelText(/Immediate report/),{target:{value:'abc'}});
+    await user.click(screen.getByRole('button',{name:'Report incident'}));
+    expect(onReportIncident).not.toHaveBeenCalled();
+    expect(screen.getByText('Use at least 5 characters.')).toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByLabelText(/Immediate report/)).toHaveFocus());
+  });
+
+  it('inspection refusal focuses the defects field',async()=>{
+    const user=userEvent.setup();
+    const onRecordInspection=vi.fn();
+    render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
+    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByText('Record inspection or maintenance'));
+    await user.click(screen.getByRole('combobox',{name:'Outcome'}));
+    await user.click(await screen.findByRole('option',{name:/Failed/}));
+    await user.click(screen.getByRole('button',{name:'Record check'}));
+    expect(onRecordInspection).not.toHaveBeenCalled();
+    expect(screen.getByText('Describe the defects.')).toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByLabelText('Defects')).toHaveFocus());
+  });
+
+  it('close refusal focuses the investigation outcome',async()=>{
+    const user=userEvent.setup();
+    const onCloseIncident=vi.fn();
+    const incident={id:'n-9',tool_id:'tool-1',incident_type:'damaged',occurred_at:'2026-09-01T08:00:00Z',reported_at:'2026-09-01T09:00:00Z',reported_by:'Audit Admin',explanation:'Guard cracked',investigation_due_at:'2026-09-02T09:00:00Z',status:'open'} as IncidentRecord;
+    render(<ToolsCompliance {...baseProps} incidents={[incident]} onCloseIncident={onCloseIncident}/>);
+    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByText('Close investigation',{selector:'strong'}));
+    fireEvent.change(screen.getByLabelText(/Investigation outcome/),{target:{value:'abc'}});
+    await user.click(screen.getByRole('button',{name:'Close investigation'}));
+    expect(onCloseIncident).not.toHaveBeenCalled();
+    expect(screen.getByText('Use at least 5 characters.')).toBeInTheDocument();
+    await waitFor(()=>expect(screen.getByLabelText(/Investigation outcome/)).toHaveFocus());
+  });
+
+  it('certificate and qualification read as optional',async()=>{
+    const user=userEvent.setup();
+    render(<ToolsCompliance {...baseProps}/>);
+    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByText('Training and authorization'));
+    expect(screen.getByLabelText(/Training certificate/)).not.toHaveAttribute('aria-required');
+    expect(screen.getByLabelText(/Qualification reference/)).not.toHaveAttribute('aria-required');
   });
 
   it('keeps the Record section and its buttons to managers',()=>{

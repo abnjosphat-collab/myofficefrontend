@@ -22,7 +22,7 @@ import { NecPersonView } from './NecPersonView';
 import { NecQuickView } from './NecQuickView';
 import { NecScanImportPanel } from './necImport/NecScanImportPanel';
 import { TimesheetGrid } from './TimesheetGrid';
-import { LEAVE_TYPE_TO_STATUS, ROSTER_KEYS, fmtDate, fmtPeriod, getDays, getNECPeriod, notesKeyFor, statusMeta } from './timesheetMeta';
+import { LEAVE_TYPE_TO_STATUS, ROSTER_KEYS, fmtDate, defaultPeriodMonth, fmtPeriod, getDays, getNECPeriod, notesKeyFor, statusMeta } from './timesheetMeta';
 import type { EditCell, Employee, Period } from './types';
 import { useTimesheetEditing } from './useTimesheetEditing';
 import { useTimesheetsData } from './useTimesheetsData';
@@ -46,7 +46,7 @@ function PeriodNotes({ storageKey, people }: { storageKey: string; people: Emplo
 
 function TimesheetsContent() {
   const confirm = useConfirm();
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => defaultPeriodMonth());
   const activePeriod: Period = useMemo(() => getNECPeriod(currentMonth), [currentMonth]);
   const days = useMemo(() => getDays(activePeriod), [activePeriod]);
   const periodDateStrs = useMemo(() => days.map(fmtDate), [days]);
@@ -155,7 +155,7 @@ function TimesheetsContent() {
           <IconButton icon="chevron-right" variant="outline" label="Next period" onClick={() => shiftMonth(1)} />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setCurrentMonth(new Date())}>Current period</Button>
+          <Button onClick={() => setCurrentMonth(defaultPeriodMonth())}>Current period</Button>
           <Button icon="copy" disabled={unavailable || rosterEmployees.length === 0} onClick={() => { void edit.copyPrevious(); }}>Copy previous period</Button>
           <Button icon="plus" disabled={unavailable} onClick={() => setShowAdd(true)}>Add employees</Button>
         </div>

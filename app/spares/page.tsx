@@ -60,12 +60,12 @@ function SparesContent() {
   const clear = () => { setF(NO_FILTERS); setPage(1); };
   const toggleFav = (id: number) => setFavIds(favourites.has(id) ? favIds.filter(x => x !== id) : [...favIds, id]);
 
-  const save = async (data: SpareFormData, id?: number) => { if (id) await apiUpdate(id, data); else await apiCreate(data); await list.refetch(); };
+  const save = async (data: SpareFormData, id?: number) => { if (id) await apiUpdate(id, data, formFor?.spare?.updated_at); else await apiCreate(data); await list.refetch(); };
   const remove = async (s: Spare) => {
     await confirmDelete({ title: 'Delete this spare part?', message: `${s.stock_code}, ${s.description}. This cannot be undone.`, what: `${s.stock_code}`, run: async () => { await apiDelete(s.id); setViewingId(null); }, done: `${s.stock_code} deleted.`, after: () => list.refetch() });
   };
   const addToRequisition = (s: Spare) => {
-    setLines(prev => [...prev, { id: newLineId(), spare: s, searchValue: s.stock_code, qty: 1, dropdownOpen: false }]);
+    setLines(prev => [...prev, { id: newLineId(), spare: s, searchValue: s.stock_code, qty: '1', dropdownOpen: false }]);
     setReqOpen(true); setViewingId(null);
     toast.success(`${s.stock_code} added to the requisition.`);
   };

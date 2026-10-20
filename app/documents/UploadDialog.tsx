@@ -69,6 +69,7 @@ export function UploadDialog({ open, flat, defaultFolderId, initialFiles, tagSug
     <FormDialog
       open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="lg" title="Upload files" description={`Into ${pathLabel(flat, folderId)}`}
       submitLabel={files.length > 1 ? `Upload ${files.length} files` : 'Upload'} onSubmit={submit}
+      dirty={files.some(f => !f.uploaded) || folderId !== defaultFolderId || tags.length > 0 || files.some(f => f.name !== f.file.name)}
     >
       <div className="flex flex-col gap-4">
         <button

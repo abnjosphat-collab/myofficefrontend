@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_HEADER, NO_FILTERS, categoriesOf, categoryBreakdown, filterSpares, isFiltered, linesFromSaved, normalizeSpare, requisitionText, requisitionTotal, sortSpares, stockKey, stockOf, summarise, toSaved,
+  DEFAULT_HEADER, NO_FILTERS, categoriesOf, categoryBreakdown, filterSpares, isFiltered, linesFromSaved, normalizeSpare, qtyNum, requisitionText, requisitionTotal, sortSpares, stockKey, stockOf, summarise, toSaved,
 } from './stock';
 import type { ReqLine, Spare } from './types';
 
@@ -60,7 +60,7 @@ describe('filter and sort', () => {
 });
 
 describe('the requisition', () => {
-  const line = (id: string, s: Spare | null, qty: number): ReqLine => ({ id, spare: s, searchValue: '', qty, dropdownOpen: false });
+  const line = (id: string, s: Spare | null, qty: number): ReqLine => ({ id, spare: s, searchValue: '', qty: String(qty), dropdownOpen: false });
   const lines = [line('a', spare({ id: 1, unit_price: 2.5 }), 4), line('b', null, 3), line('c', spare({ id: 2, stock_code: 'Z9', description: 'Hose', unit_price: 10 }), 0), line('d', spare({ id: 3, stock_code: 'Q7', description: 'Clamp', unit_price: 1.25, unit_of_measure: 'EA' }), 2)];
   it('totals only the lines that have a part and a quantity', () => { expect(requisitionTotal(lines)).toBe(12.5); });
   it('saves those lines with the header and total, and loads them back, rebuilding a part no longer in the register', () => {
@@ -71,6 +71,14 @@ describe('the requisition', () => {
     expect(back).toHaveLength(2);
     expect(back[0].spare?.id).toBe(1);
     expect(back[1].spare).toMatchObject({ id: 3, stock_code: 'Q7', unit_price: 1.25, unit_of_measure: 'EA' });
+    expect(back.map(l => l.qty)).toEqual(['4', '2']);
+  });
+  it('counts a cleared or nonsensical quantity as none, and never below zero', () => {
+    expect(qtyNum({ qty: '' })).toBe(0);
+    expect(qtyNum({ qty: 'abc' })).toBe(0);
+    expect(qtyNum({ qty: '-3' })).toBe(0);
+    expect(qtyNum({ qty: '2.9' })).toBe(2);
+    expect(requisitionTotal([line('x', spare({ id: 1, unit_price: 2.5 }), 0), { ...line('y', spare({ id: 2, unit_price: 10 }), 0), qty: '' }])).toBe(0);
   });
   it('renders paste-ready text', () => {
     const t = requisitionText(lines, money);

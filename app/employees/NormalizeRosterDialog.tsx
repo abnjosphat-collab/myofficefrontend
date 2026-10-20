@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, EmptyState, MetricGrid, MetricTile, Notice } from '@/components/ui-system';
+import { Button, Dialog, EmptyState, MetricGrid, MetricTile, Notice, useConfirm } from '@/components/ui-system';
 import { planRosterNormalization, type FieldChange } from './calcNormalizeRoster';
 import type { Employee } from './types';
 import { bulkNormalizeEmployees } from './useEmployeesData';
@@ -18,6 +18,17 @@ export function NormalizeRosterDialog({ open, employees, onOpenChange, onComplet
   const [error, setError] = useState<string | null>(null);
   const preview = plan.items.slice(0, 25);
   const more = plan.items.length - preview.length;
+
+  const confirm = useConfirm();
+  const runGuarded = async () => {
+    const fields = (['designation', 'section', 'phone', 'archived'] as const).filter(f => plan.byField[f] > 0).map(f => `${FIELD_LABELS[f]}: ${plan.byField[f]}`).join(', ');
+    const ok = await confirm({
+      title: `Normalise ${plan.affected} ${plan.affected === 1 ? 'record' : 'records'}?`,
+      message: `This rewrites ${fields} across the roster.`,
+      confirmLabel: `Normalise ${plan.affected} ${plan.affected === 1 ? 'record' : 'records'}`,
+    });
+    if (ok) run();
+  };
 
   const run = async () => {
     setRunning(true); setError(null);
@@ -34,7 +45,7 @@ export function NormalizeRosterDialog({ open, employees, onOpenChange, onComplet
   return (
     <Dialog
       open={open} onOpenChange={o => { if (!running) onOpenChange(o); }} size="lg" title="Normalise the roster" description="Standardise designations, sections and phone numbers across every record."
-      footer={<><Button onClick={() => onOpenChange(false)} disabled={running}>{plan.affected === 0 ? 'Close' : 'Cancel'}</Button>{plan.affected > 0 && <Button variant="primary" icon="normalize" pending={running} onClick={run}>{`Normalise ${plan.affected} ${plan.affected === 1 ? 'record' : 'records'}`}</Button>}</>}
+      footer={<><Button onClick={() => onOpenChange(false)} disabled={running}>{plan.affected === 0 ? 'Close' : 'Cancel'}</Button>{plan.affected > 0 && <Button variant="primary" icon="normalize" pending={running} onClick={runGuarded}>{`Normalise ${plan.affected} ${plan.affected === 1 ? 'record' : 'records'}`}</Button>}</>}
     >
       <div className="flex flex-col gap-4">
         {plan.affected === 0 ? (

@@ -7,7 +7,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, Icon, Input, Textarea } from '@/components/ui-system';
+import { Button, Dialog, Field, Icon, Input, Textarea, useDismissGuard } from '@/components/ui-system';
 import { calculateDailyDelta, calculateEfficiency, readingProblems } from './calcCompressors';
 import { STATUS_KEYS, STATUS_META, hours } from './meta';
 import type { Compressor, PreviousReading } from './types';
@@ -52,18 +52,21 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
   const c = compressor;
   const run = num(running); const load = num(loaded);
   const valid = Number.isFinite(run) && Number.isFinite(load);
-  const problems = valid ? readingProblems(previous, run, load) : {};
+  const problems = readingProblems(previous, run, load);
   const prevRun = previous?.total_running_hours ?? 0;
   const prevLoad = previous?.total_loaded_hours ?? 0;
   const dayRun = valid ? calculateDailyDelta(run, prevRun) : 0;
   const dayLoad = valid ? calculateDailyDelta(load, prevLoad) : 0;
   const eff = calculateEfficiency(dayRun, dayLoad);
   const blocked = previousLoading || previousUnavailable;
+  const dirty = running !== String(c?.total_running_hours ?? '') || loaded !== String(c?.total_loaded_hours ?? '') || pressure !== '' || temperature !== '' || notes !== '';
+  const { guardClose } = useDismissGuard({ when: !!c && dirty && !saving, message: 'The reading is not saved yet.' });
+  const close = () => guardClose(() => onClose());
 
   const save = async () => {
     if (!c) return;
     setTouched(true);
-    if (!valid || problems.running || problems.loaded || blocked) return;
+    if (problems.running || problems.loaded || blocked) return;
     setSaving(true);
     try {
       await onSave(c.id, { running: run, loaded: load, pressure: Number(pressure) || 0, temperature: Number(temperature) || 0, notes: notes.trim() });
@@ -88,7 +91,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
   return (
     <Dialog
       open={!!c}
-      onOpenChange={o => { if (!o) onClose(); }}
+      onOpenChange={o => { if (!o) close(); }}
       placement="right"
       title={c?.name.trim() ?? 'Compressor'}
       description={c ? [c.equipment_code, c.model, c.location].filter(Boolean).join(' · ') || 'Compressor' : undefined}
@@ -96,7 +99,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
       footer={c && (
         <>
           <Button variant="ghost" icon="analytics" className="mr-auto" onClick={() => onHistory(c.id)} disabled={saving}>Week and month</Button>
-          <Button onClick={onClose} disabled={saving}>Close</Button>
+          <Button onClick={close} disabled={saving}>Close</Button>
           <Button variant="primary" pending={saving} disabled={blocked} onClick={save}>{recordedToday ? 'Update reading' : 'Save reading'}</Button>
         </>
       )}

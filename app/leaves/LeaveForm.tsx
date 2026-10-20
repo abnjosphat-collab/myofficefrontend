@@ -3,7 +3,7 @@
 // same person is a warning, not a block. Errors are explained on the field and a refused save keeps what was typed.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Checkbox, Field, FormDialog, Input, Notice, PersonPicker, Select, StatusBadge, Textarea } from '@/components/ui-system';
 import { type EmployeeLookup } from '@/hooks/useLookups';
@@ -56,12 +56,13 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
     reason: !form.reason?.trim(), phone: !hasContactPhone(form.contact_number),
   };
   const err = (isBad: boolean, text: string) => (touched && isBad ? text : undefined);
+  const overlapRef = useRef<HTMLDivElement>(null);
 
   const submit = async () => {
     setTouched(true);
     if (Object.values(bad).some(Boolean)) return false;
     // Two requests cannot cover the same day: refused here and, for a second laptop or a stale list, by the server.
-    if (overlap) return false;
+    if (overlap) { overlapRef.current?.focus(); return false; }
     await onSave(leave?.id ?? null, {
       ...form,
       // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the request since.
@@ -101,9 +102,11 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
           </div>
         )}
         {overlap && (
-          <Notice tone="danger" title="This person already has a leave request on these dates">
-            {overlap.employee_name}, {fmtDate(overlap.start_date)} to {fmtDate(overlap.end_date)}, {LEAVE_TYPES[overlap.leave_type]?.name ?? overlap.leave_type}. <StatusBadge tone={overlap.status === 'approved' ? 'success' : 'warning'}>{overlap.status}</StatusBadge> Two leave requests cannot cover the same day: change the dates, or edit that request instead.
-          </Notice>
+          <div ref={overlapRef} tabIndex={-1} className="focus-ring rounded-control">
+            <Notice tone="danger" title="This person already has a leave request on these dates">
+              {overlap.employee_name}, {fmtDate(overlap.start_date)} to {fmtDate(overlap.end_date)}, {LEAVE_TYPES[overlap.leave_type]?.name ?? overlap.leave_type}. <StatusBadge tone={overlap.status === 'approved' ? 'success' : 'warning'}>{overlap.status}</StatusBadge> Two leave requests cannot cover the same day: change the dates, or edit that request instead.
+            </Notice>
+          </div>
         )}
 
         <Field label="Contact number during leave" required description="If the employee has several numbers on file only the primary one is used." error={err(bad.phone, 'Enter a contact number.')}>

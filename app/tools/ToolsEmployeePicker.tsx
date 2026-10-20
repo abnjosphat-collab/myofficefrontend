@@ -10,8 +10,8 @@ import { Icon, controlClasses } from '@/components/ui-system';
 export type PickerChoice = { label: string; detail?: string };
 
 
-export function EmployeePicker({ label, choices, value, onChange, onSelect, hint, emptyMessage, error }: {
-  label: string; choices: PickerChoice[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; hint?: string; emptyMessage: string; error?: string;
+export function EmployeePicker({ label, required, choices, value, onChange, onSelect, hint, emptyMessage, error }: {
+  label: string; required?: boolean; choices: PickerChoice[]; value: string; onChange: (value: string) => void; onSelect?: (value: string) => void; hint?: string; emptyMessage: string; error?: string;
 }) {
   const id = useId();
   const listId = `${id}-list`;
@@ -27,11 +27,11 @@ export function EmployeePicker({ label, choices, value, onChange, onSelect, hint
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className="font-sans text-label font-medium text-ink">{label}</label>
+        <label htmlFor={id} className="font-sans text-label font-medium text-ink">{label}{required && <span aria-hidden="true" className="ml-0.5 text-danger">*</span>}</label>
         {choices.length > 0 && <span className="font-sans text-caption text-ink-muted">{choices.length} eligible</span>}
       </div>
       <input
-        id={id} role="combobox" aria-label={label} aria-expanded aria-controls={listId} aria-autocomplete="list" aria-activedescendant={matches[current] ? `${id}-option-${current}` : undefined} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+        id={id} role="combobox" aria-label={label} aria-expanded aria-controls={listId} aria-autocomplete="list" aria-activedescendant={matches[current] ? `${id}-option-${current}` : undefined} aria-invalid={error ? true : undefined} aria-required={required || undefined} aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         autoComplete="off" spellCheck={false} value={value} placeholder="Search by name, number or job title"
         className={controlClasses + ' h-10'}
         onChange={event => { onChange(event.target.value); setActive(0); }}

@@ -36,4 +36,16 @@ describe('requisitions data', () => {
     await expect(apiUpdate('1', {})).rejects.toThrow('nope');
     await expect(apiDelete('1')).rejects.toThrow('Forbidden');
   });
+
+  it('update includes expected_updated_at from the loaded row', async () => {
+    vi.mocked(api.patch).mockResolvedValueOnce(raw(1));
+    await apiUpdate('1', { priority: 'High' }, 't0');
+    expect(vi.mocked(api.patch)).toHaveBeenCalledWith('/api/requisitions/1', expect.objectContaining({ expected_updated_at: 't0' }));
+  });
+
+  it('omits expected_updated_at when the loaded row has none', async () => {
+    vi.mocked(api.patch).mockResolvedValueOnce(raw(1));
+    await apiUpdate('1', { priority: 'High' });
+    expect(vi.mocked(api.patch).mock.calls[0][1]).not.toHaveProperty('expected_updated_at');
+  });
 });

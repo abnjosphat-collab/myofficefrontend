@@ -4,7 +4,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Button, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
+import { Button, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger, useMarkDirty } from '@/components/ui-system';
 import { FREQUENT_SHIFT_TIME_PRESETS, findShiftTimePresetId, normalizeClockTime, splitShiftPresets, type ShiftTimePreset } from '@/lib/shiftTimePresets';
 import { formatCompactShiftLabel } from '@/lib/shiftTimePresetsPersonal';
 import { useEffectiveShiftPresets } from '@/lib/useEffectiveShiftPresets';
@@ -12,6 +12,7 @@ import { useEffectiveShiftPresets } from '@/lib/useEffectiveShiftPresets';
 export function ShiftTimeRange({ start, end, onChange, trailing, startError, endError, builtin = FREQUENT_SHIFT_TIME_PRESETS }: {
   start: string; end: string; onChange: (start: string, end: string) => void; trailing?: ReactNode; startError?: string; endError?: string; builtin?: ShiftTimePreset[];
 }) {
+  const markDirty = useMarkDirty();
   const { presets, addCustom } = useEffectiveShiftPresets(builtin);
   const active = findShiftTimePresetId(start, end, presets);
   const canSave = !active && !!normalizeClockTime(start) && !!normalizeClockTime(end);
@@ -21,13 +22,13 @@ export function ShiftTimeRange({ start, end, onChange, trailing, startError, end
     <div className="flex flex-col gap-3">
       <div role="group" aria-label="Quick shift times" className="flex flex-wrap items-center gap-1.5">
         {chips.map(p => (
-          <Button key={p.id} size="sm" variant={active === p.id ? 'primary' : 'secondary'} aria-pressed={active === p.id} title={p.description} onClick={() => onChange(p.start, p.end)}>{p.label}</Button>
+          <Button key={p.id} size="sm" variant={active === p.id ? 'primary' : 'secondary'} aria-pressed={active === p.id} title={p.description} onClick={() => { markDirty(); onChange(p.start, p.end); }}>{p.label}</Button>
         ))}
         {more.length > 0 && (
           <Menu>
             <MenuTrigger asChild><Button size="sm" variant="ghost" iconAfter="chevron-down">More shifts</Button></MenuTrigger>
             <MenuContent align="start">
-              {more.map(p => <MenuItem key={p.id} onSelect={() => onChange(p.start, p.end)}>{p.description}</MenuItem>)}
+              {more.map(p => <MenuItem key={p.id} onSelect={() => { markDirty(); onChange(p.start, p.end); }}>{p.description}</MenuItem>)}
             </MenuContent>
           </Menu>
         )}

@@ -66,13 +66,31 @@ export async function apiFetch(path: string, init: RequestInit = {}, auth?: Auth
   return fetch(resolve(path), { ...init, headers });
 }
 
+/**
+ * The field a FastAPI error location points at (['body', 'contact_number']
+ * becomes 'Contact number'). Skips the envelope segments and any numeric
+ * index; null when the location names nothing, leaving the message bare.
+ */
+function fieldLabel(loc: unknown[] | undefined): string | null {
+  if (!Array.isArray(loc)) return null;
+  const seg = [...loc].reverse().find((s): s is string => typeof s === 'string' && s !== 'body' && s !== 'root');
+  if (!seg) return null;
+  const words = seg.replace(/_/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 async function extractError(res: Response): Promise<string> {
   try {
     const body = await res.json();
     const d = body?.detail ?? body?.message;
     if (Array.isArray(d)) {
-      // FastAPI validation error: [{ loc, msg }, ...]
-      return d.map((x: { msg?: string; loc?: unknown[] }) => x.msg || JSON.stringify(x)).join('; ');
+      // FastAPI validation error: [{ loc, msg }, ...] — name the field so the
+      // banner says which entry failed ("Last name: Field required").
+      return d.map((x: { msg?: string; loc?: unknown[] }) => {
+        const label = fieldLabel(x.loc);
+        const msg = x.msg || JSON.stringify(x);
+        return label ? `${label}: ${msg}` : msg;
+      }).join('; ');
     }
     if (typeof d === 'string') return d;
     if (d) return JSON.stringify(d);

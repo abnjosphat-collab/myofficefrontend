@@ -64,7 +64,7 @@ function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (i
 }
 
 /** One shared list. Mounted per list (keyed by the caller) so switching lists never shows the previous list's values. */
-function ListPane({ list }: { list: (typeof KNOWN_LISTS)[number] }) {
+export function ListPane({ list }: { list: (typeof KNOWN_LISTS)[number] }) {
   const confirm = useConfirm();
   const { items, setItems, loading, loaded, error, errorStatus, refetch } = useApiList<LookupValue>(`/api/lookup-lists/${list.key}`);
   const [newValue, setNewValue] = useState('');
@@ -108,6 +108,7 @@ function ListPane({ list }: { list: (typeof KNOWN_LISTS)[number] }) {
         <Input aria-label={`New ${list.label.toLowerCase()} value`} value={newValue} onChange={e => setNewValue(e.target.value)} placeholder="Add a new value" className="min-w-0 flex-1" />
         <Button type="submit" variant="primary" icon="plus" pending={adding} disabled={!newValue.trim()}>Add</Button>
       </form>
+      {!newValue.trim() && <p className="font-sans text-caption text-ink-muted">Type a value to enable Add.</p>}
       <DataRegion
         status={status}
         subject={list.empty}

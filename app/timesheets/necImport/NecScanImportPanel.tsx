@@ -4,9 +4,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Dialog, Field, Input, MetricGrid, MetricTile, Notice } from '@/components/ui-system';
+import { Button, Dialog, Field, Input, MetricGrid, MetricTile, Notice, useConfirm } from '@/components/ui-system';
 import type { Period } from '../types';
+import { fileProblem } from '@/lib/files';
 import * as necApi from './api';
+
+// Mirrors nec_timesheet_import.py (PDF 80 MB + pdf; review JSON 40 MB + json).
+const NEC_PDF_RULES = { maxBytes: 80 * 1024 * 1024, extensions: ['pdf'] };
+const NEC_REVIEW_RULES = { maxBytes: 40 * 1024 * 1024, extensions: ['json'] };
 import type { NecImportJob, NecImportPreview } from './types';
 import { formatDate } from '@/lib/format';
 
@@ -33,8 +38,24 @@ export function NecScanImportPanel({ period, open, onClose, onApplied }: { perio
 
   const run = useCallback(async (work: () => Promise<void>) => { setBusy(true); setError(null); setInfo(null); try { await work(); } catch (e) { setError(say(e)); } finally { setBusy(false); } }, []);
   const startJob = () => run(async () => { const j = await necApi.createImportJob(pm.year, pm.month); setJob(j); setStep('upload'); setInfo('Import job created.'); });
-  const onPdf = (files: FileList | null) => run(async () => { if (!job || !files?.length) return; for (const f of Array.from(files)) await necApi.uploadPdf(job.id, f); setJob(await necApi.getImportJob(job.id)); setInfo('PDF uploaded.'); });
-  const onReviewJson = (files: FileList | null) => run(async () => { if (!job || !files?.[0]) return; await necApi.uploadReviewJson(job.id, files[0]); setJob(await necApi.getImportJob(job.id)); setInfo('Review JSON attached.'); });
+  const onPdf = (files: FileList | null) => run(async () => {
+    if (!job || !files?.length) return;
+    const skipped: string[] = []; let ok = 0;
+    for (const f of Array.from(files)) {
+      const problem = fileProblem(f, NEC_PDF_RULES);
+      if (problem) { skipped.push(`${f.name}: ${problem}`); continue; }
+      await necApi.uploadPdf(job.id, f); ok += 1;
+    }
+    if (ok === 0) throw new Error(skipped.join(' '));
+    setJob(await necApi.getImportJob(job.id));
+    setInfo(skipped.length ? `PDF uploaded. Skipped: ${skipped.join(' ')}` : 'PDF uploaded.');
+  });
+  const onReviewJson = (files: FileList | null) => run(async () => {
+    if (!job || !files?.[0]) return;
+    const problem = fileProblem(files[0], NEC_REVIEW_RULES);
+    if (problem) throw new Error(problem);
+    await necApi.uploadReviewJson(job.id, files[0]); setJob(await necApi.getImportJob(job.id)); setInfo('Review JSON attached.');
+  });
   const loadPreview = () => run(async () => { if (!job) return; const res = await necApi.fetchPreview(job.id); setJob(res.job); setPreview(res.preview); setStep('review'); });
   const apply = (dryRun: boolean) => run(async () => {
     if (!job) return;
@@ -43,6 +64,20 @@ export function NecScanImportPanel({ period, open, onClose, onApplied }: { perio
     if (dryRun) setInfo(`Dry run complete, nothing was changed.${stats ? ` ${stats}.` : ''}`);
     else { setStep('done'); onApplied?.(); }
   });
+  const confirm = useConfirm();
+  const applyReal = async () => {
+    if (!job || !preview) return;
+    const stats = Object.entries(preview.stats ?? {}).map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ');
+    const missing = preview.missing_sheets.length;
+    const dups = preview.duplicate_sheet_groups.length;
+    const ok = await confirm({
+      title: 'Apply the validated rows?',
+      message: `This writes attendance rows for this period.${stats ? ` ${stats}.` : ''} ${missing} ${missing === 1 ? 'employee has' : 'employees have'} no matched sheet; ${dups} duplicate sheet ${dups === 1 ? 'group' : 'groups'}.`,
+      confirmLabel: 'Apply validated rows',
+      destructive: true,
+    });
+    if (ok) apply(false);
+  };
 
   const exceptions = preview?.line_items.filter(x => x.kind === 'unresolved' || x.kind === 'exception') ?? [];
   return (
@@ -86,7 +121,7 @@ export function NecScanImportPanel({ period, open, onClose, onApplied }: { perio
               </table>
             </div>
             {exceptions.length > 80 && <p className="font-sans text-caption text-ink-muted">Showing 80 of {exceptions.length} exceptions.</p>}
-            <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => apply(true)}>Dry-run apply</Button><Button variant="primary" icon="check" pending={busy} disabled={busy} onClick={() => apply(false)}>Apply validated rows</Button></div>
+            <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => apply(true)}>Dry-run apply</Button><Button variant="primary" icon="check" pending={busy} disabled={busy} onClick={applyReal}>Apply validated rows</Button></div>
           </section>
         )}
 

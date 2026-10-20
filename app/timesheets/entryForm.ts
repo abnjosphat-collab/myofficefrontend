@@ -29,7 +29,7 @@ export function initialForm(entry: TimesheetEntry | undefined, date: Date, holid
   return settle({
     start_time: entry?.start_time ?? DEFAULT_DAY_SHIFT_START, end_time: entry?.end_time ?? DEFAULT_DAY_SHIFT_END, regular_hours: entry?.regular_hours ?? (status === 'holiday_paid' ? 8 : 10),
     nightshift_hours: entry?.nightshift_hours ?? 0, status, standby_allowance: entry?.standby_allowance ?? false, nightshift_allowance: entry?.nightshift_allowance ?? false, notes: entry?.notes || '',
-    callout_overtime_hours: entry?.callout_overtime_hours ?? 0, callout_count: entry?.callout_count ?? 0,
+    callout_overtime_hours: String(entry?.callout_overtime_hours ?? 0), callout_count: String(entry?.callout_count ?? 0),
   });
 }
 
@@ -42,14 +42,15 @@ export function withStatus(form: EntryForm, status: StatusKey): EntryForm {
   return settle({ ...form, status });
 }
 export const withTimes = (form: EntryForm, start_time: string, end_time: string): EntryForm => settle({ ...form, start_time, end_time });
-export const entryTotal = (f: EntryForm): number => f.regular_hours + f.nightshift_hours + f.callout_overtime_hours;
+export const entryTotal = (f: EntryForm): number => f.regular_hours + f.nightshift_hours + (parseFloat(f.callout_overtime_hours) || 0);
 
-/** What stops a save. */
+/** What stops a save. A cleared callout field counts as none, as when the field used to snap to 0. */
 export function entryProblems(f: EntryForm): string[] {
   const out: string[] = [];
   if (!LEAVE_STATUSES.has(f.status) && !ZERO_HOUR_STATUSES.has(f.status) && (!f.start_time || !f.end_time)) out.push('Enter the start and end times.');
-  if (f.callout_overtime_hours < 0 || f.callout_count < 0) out.push('Callout hours and the number of callouts cannot be negative.');
-  if (f.callout_overtime_hours > 24) out.push('Callout hours cannot be more than 24 in a day.');
+  const co = parseFloat(f.callout_overtime_hours), cc = parseInt(f.callout_count, 10);
+  if (co < 0 || cc < 0) out.push('Callout hours and the number of callouts cannot be negative.');
+  if (co > 24) out.push('Callout hours cannot be more than 24 in a day.');
   return out;
 }
 
@@ -60,6 +61,6 @@ export function toEntry(f: EntryForm, employeeId: number, date: Date): Omit<Time
     employee_id: employeeId, date: fmtDate(date), start_time: f.start_time, end_time: f.end_time, regular_hours: dt ? 0 : f.regular_hours, overtime_hours: 0, holiday_overtime_hours: dt ? f.regular_hours : 0,
     nightshift_hours: f.nightshift_hours, standby_allowance: f.standby_allowance,
     nightshift_allowance: deriveNightshiftAllowanceFlag({ nightshift_hours: f.nightshift_hours, start_time: f.start_time, end_time: f.end_time, status: f.status }),
-    total_hours: entryTotal(f), status: f.status, notes: f.notes, overtime_periods: [], callout_overtime_hours: f.callout_overtime_hours, callout_count: f.callout_count,
+    total_hours: entryTotal(f), status: f.status, notes: f.notes, overtime_periods: [], callout_overtime_hours: parseFloat(f.callout_overtime_hours) || 0, callout_count: parseInt(f.callout_count, 10) || 0,
   };
 }

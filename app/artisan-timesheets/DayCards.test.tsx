@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ConfirmProvider } from '@/components/ui-system';
 import { DayCards } from './DayCards';
 import type { AutoPopulateSources } from './autoPopulate';
 import { emptyDayRow } from './calcTotals';
@@ -31,7 +32,7 @@ const pendingSources: AutoPopulateSources = {
 
 describe('DayCards', () => {
   it('shows hours as read-only text with overtime heroed, and no hour inputs', () => {
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}}  /></ConfirmProvider>);
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
     // Summary heroes the month's OT 1.5×; the OT day headlines its own OT.
     expect(screen.getByText('2.00h OT')).toBeInTheDocument();
@@ -47,7 +48,7 @@ describe('DayCards', () => {
   it('toggles standby by hand and flags it so refresh keeps it', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange}  /></ConfirmProvider>);
     const boxes = screen.getAllByRole('checkbox', { name: /On standby/ });
     expect(boxes).toHaveLength(4);
 
@@ -61,7 +62,7 @@ describe('DayCards', () => {
   });
 
   it('locks standby off on leave days', () => {
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}}  /></ConfirmProvider>);
     const boxes = screen.getAllByRole('checkbox', { name: /On standby/ });
     expect(boxes[0]).toBeDisabled(); // the leave day
     expect(boxes[1]).toBeEnabled();
@@ -71,7 +72,7 @@ describe('DayCards', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const stale = [{ ...rows[0], on_standby: true }];
-    render(<DayCards rows={stale} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange} />);
+    render(<ConfirmProvider><DayCards rows={stale} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange}  /></ConfirmProvider>);
     const box = screen.getByRole('checkbox', { name: /On standby/ });
     expect(box).toBeEnabled();
     await user.click(box);
@@ -80,7 +81,7 @@ describe('DayCards', () => {
 
   it('edits sign-in times', () => {
     const onChange = vi.fn();
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={onChange}  /></ConfirmProvider>);
     const inputs = screen.getAllByLabelText(/Sign in time/);
     fireEvent.change(inputs[0], { target: { value: '07:30' } });
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -88,7 +89,7 @@ describe('DayCards', () => {
   });
 
   it('flags items awaiting approval and excludes them from the totals', () => {
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={pendingSources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={pendingSources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}}  /></ConfirmProvider>);
     expect(screen.getByText('Awaiting approval')).toBeInTheDocument();
     expect(screen.getByText('Annual + 2.00h overtime')).toBeInTheDocument();
     expect(screen.getByText('Excludes 2.00h overtime and 2 leave days awaiting approval — counted once approved.')).toBeInTheDocument();
@@ -97,7 +98,7 @@ describe('DayCards', () => {
   });
 
   it('foots standby days for the Pay office instead of standby hours', () => {
-    render(<DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}} />);
+    render(<ConfirmProvider><DayCards rows={rows} employeeName="Ann Alpha" employeeMineNo="C001" sources={emptySources} year={2026} month={10} reuseSignatures={[]} onChange={() => {}}  /></ConfirmProvider>);
     expect(screen.getByText('0 days')).toBeInTheDocument();
     expect(screen.queryByText(/Standby @/)).not.toBeInTheDocument();
   });

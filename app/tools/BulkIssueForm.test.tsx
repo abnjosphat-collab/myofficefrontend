@@ -1,7 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BulkIssueForm } from './BulkIssueForm';
+
+describe('BulkIssueForm footer', () => {
+  it('sticks to the dialog bottom over an opaque surface', () => {
+    render(<BulkIssueForm tools={[]} employees={[]} issuerDepartment="Engineering" locationSuggestions={[]} onSave={() => {}} />);
+    const bar = screen.getByRole('button', { name: 'Next' }).closest('div')!;
+    expect(bar.className).toContain('sticky');
+    expect(bar.className).toContain('bottom-0');
+    expect(bar.className).toContain('bg-surface');
+  });
+});
 import { PEOPLE, type Employee, type Tool } from './prototype';
 import { TEST_TOOLS as SEED_TOOLS } from './testFixtures';
 
@@ -28,6 +38,28 @@ describe('BulkIssueForm borrower step', () => {
     const options = screen.getByRole('listbox', { name: 'Employee suggestions' });
     expect(options).toHaveTextContent('Alex Morgan');
     expect(options).not.toHaveTextContent('Jordan Ellis');
+  });
+
+  it('refused Next focuses the step message', async () => {
+    const user = userEvent.setup();
+    const tools: Tool[] = [{ ...SEED_TOOLS[0], eligibleEmployees: forEmployees(0) }];
+    render(<BulkIssueForm tools={tools} employees={employees} issuerDepartment="Engineering" locationSuggestions={[]} onSave={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Tick at least one available tool.');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
+  });
+
+  it('empty submit jumps to the failing step and focuses its message', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const tools: Tool[] = [{ ...SEED_TOOLS[0], eligibleEmployees: forEmployees(0) }];
+    render(<BulkIssueForm tools={tools} employees={employees} issuerDepartment="Engineering" locationSuggestions={[]} onSave={onSave} />);
+    await user.click(screen.getByRole('tab', { name: 'Details' }));
+    await user.click(screen.getByRole('button', { name: 'Issue tools' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Tick at least one available tool.');
+    expect(screen.getByRole('tab', { name: 'Tools' })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
   });
 
   it('issues to an eligible borrower with no location or job', async () => {

@@ -112,10 +112,17 @@ const spec = {
     await shot(page, 'normalise@1440');
     failNormalise = true;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    const nc = page.getByRole('alertdialog');
+    await nc.waitFor({ timeout: 5000 });
+    check(await nc.getByText(/across the roster/).isVisible(), 'the batch asks first and names what it rewrites');
+    await nc.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.getByText(/Update refused \(fixture\)/).waitFor({ timeout: 8000 }).catch(() => {});
     check(await nr.getByText(/Update refused \(fixture\)/).isVisible(), 'a refused batch says so inside the dialog');
     failNormalise = false;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    const nc2 = page.getByRole('alertdialog');
+    await nc2.waitFor({ timeout: 5000 });
+    await nc2.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
     check(calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize').length === 2, 'a second attempt sends the batch again');
   },

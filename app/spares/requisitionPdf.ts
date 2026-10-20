@@ -3,7 +3,7 @@
 import { todayLocal } from '@/lib/dates';
 import { EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 import { formatCurrency } from '@/components/shared/utils';
-import { filled, lineValue, requisitionTotal } from './stock';
+import { filled, lineValue, qtyNum, requisitionTotal } from './stock';
 import type { ReqHeader, ReqLine } from './types';
 import { formatLongDate } from '@/lib/format';
 
@@ -33,7 +33,7 @@ export async function downloadRequisitionPdf(header: ReqHeader, lines: ReqLine[]
   autoTable(doc, {
     startY: header.reason ? 52 : 46,
     head: [['#', 'Stock Code', 'Description', 'UoM', 'Qty', 'Unit Price', 'Line Total']],
-    body: rows.map((l, i) => [i + 1, l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', l.qty, formatCurrency(l.spare!.unit_price), formatCurrency(lineValue(l.qty, l.spare!.unit_price))]),
+    body: rows.map((l, i) => [i + 1, l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', qtyNum(l), formatCurrency(l.spare!.unit_price), formatCurrency(lineValue(qtyNum(l), l.spare!.unit_price))]),
     foot: [['', '', '', '', '', 'Grand Total', formatCurrency(requisitionTotal(lines))]],
     headStyles: { fillColor: EXPORT_BRAND_RGB, textColor: 255, fontStyle: 'bold', fontSize: 9 },
     footStyles: { fillColor: [220, 231, 240], textColor: EXPORT_BRAND_RGB, fontStyle: 'bold', fontSize: 10 },

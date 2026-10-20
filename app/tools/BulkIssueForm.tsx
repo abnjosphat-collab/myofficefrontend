@@ -3,7 +3,7 @@
 // its own idempotent command, so one refusal never stops the rest.
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button, Checkbox, Field, FieldGroup, Icon, IconButton, Input, Notice, SearchField, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, Textarea } from '@/components/ui-system';
 import { formatDateTime } from '@/lib/format';
 import { daysFromNowAt, tomorrowAt } from '@/lib/dates';
@@ -56,6 +56,10 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const hintFor = useHint();
+  // Step problems are message-level (no single field owns them): bring the
+  // message itself into view and focus so a refused Next/Issue is noticed.
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
   const scoped = useMemo(
     () => tools.filter(t => (!issuerDepartment || departmentOf(t) === issuerDepartment) && !t.archived),
@@ -134,12 +138,12 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
   }
 
   const footer = (last: boolean) => (
-    <div className="flex items-center justify-between gap-2 border-t border-line-subtle pt-4">
+    <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t border-line-subtle bg-surface pb-1 pt-4">
       {step === 'tools'
         ? <span />
         : <Button variant="secondary" onClick={back}>Back</Button>}
       {last
-        ? <Button type="submit" variant="primary" disabled={pickedTools.length === 0} pending={saving}>{saving ? 'Issuing…' : pickedTools.length === 0 ? 'Issue tools' : `Issue ${pickedTools.length} ${pickedTools.length === 1 ? 'tool' : 'tools'}`}</Button>
+        ? <Button type="submit" variant="primary" pending={saving}>{saving ? 'Issuing…' : pickedTools.length === 0 ? 'Issue tools' : `Issue ${pickedTools.length} ${pickedTools.length === 1 ? 'tool' : 'tools'}`}</Button>
         : <Button variant="primary" onClick={next}>Next</Button>}
     </div>
   );
@@ -195,7 +199,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
               {filteredOut} {filteredOut === 1 ? 'person is' : 'people are'} not trained, qualified and authorized for every picked tool. Update the Compliance register to add them.
             </Notice>
           )}
-          <EmployeePicker label="Employee" choices={employeeChoices} value={person} onChange={value => { setPerson(value); setError(''); }}
+          <EmployeePicker label="Employee" required choices={employeeChoices} value={person} onChange={value => { setPerson(value); setError(''); }}
             emptyMessage={departmentEmployees.length ? `Nobody is currently trained, qualified and authorized for all ${pickedTools.length} picked tools. Update the Compliance register first.` : `No active employee is available${issuerDepartment ? ` in ${issuerDepartment}` : ''}.`}
             hint="One borrower for every picked tool — everyone listed can take all of them." />
           {selectedEmployee && (
@@ -271,7 +275,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
           </div>
           <SuggestField label="Current work location" required={false} options={locationSuggestions} value={location} onChange={setLocation} historyKey="tools.work_location" hint="If known — one location for every picked tool, or leave it blank." />
           <SuggestField label="Work order / job" required={false} options={[]} value={job} onChange={setJob} historyKey="tools.job_reference" hint="If there is one — a work order is not required to issue." />
-          <Field label="Expected return" description={hintFor('Choose the local date and time, or take a preset.')}>
+          <Field label="Expected return" required description={hintFor('Choose the local date and time, or take a preset.')}>
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2" role="group" aria-label="Return presets">
                 {DUE_PRESETS.map(preset => (
@@ -292,7 +296,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
           {footer(true)}
         </TabsContent>
       </Tabs>
-      {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
+      {error && <p ref={errorRef} tabIndex={-1} role="alert" className="focus-ring font-sans text-body-sm font-medium text-danger">{error}</p>}
     </form>
   );
 }

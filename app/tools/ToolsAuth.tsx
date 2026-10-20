@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Button, Checkbox, Field, Icon, Input, MetricGrid, MetricTile, Notice, Select, StatusBadge } from '@/components/ui-system';
+import { Button, Checkbox, Field, Icon, Input, MetricGrid, MetricTile, Notice, Select, StatusBadge, useRefusedSubmit } from '@/components/ui-system';
 import type { ApprovalRole } from './complianceTypes';
 import type { AccountRole, WorkspaceAccount } from './prototype';
 
@@ -105,6 +105,8 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; username?: string; password?: string }>({});
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const { formRef, refused } = useRefusedSubmit();
   const [resetAsked, setResetAsked] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
   const [changing, setChanging] = useState(false);
@@ -136,9 +138,9 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
     if (mode === 'create' && name.trim().length < 2) problems.name = 'Enter your name.';
     if (username.trim().length < 3) problems.username = 'Enter your username or email.';
     if (!password) problems.password = 'Enter your password.';
-    else if (password.length < 6) problems.password = 'Use at least 6 characters.';
+    else if (mode === 'create' && password.length < 6) problems.password = 'Use at least 6 characters.';
     setFieldErrors(problems);
-    if (Object.keys(problems).length > 0) return;
+    if (Object.keys(problems).length > 0) { refused(); return; }
     setBusy(true);
     try {
     if (mode === 'login') { const result = await onLogin(username, password); if (result !== true) setError(result); return; }
@@ -180,10 +182,15 @@ export function ToolsAuth({ accounts, currentAccount, onCreate, onLogin, onLogou
     );
   }
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {mode === 'create' && <Field label="Your name" error={fieldErrors.name}><Input aria-label="Your name" placeholder="Your full name" value={name} onChange={event => setName(event.target.value)} autoComplete="name" /></Field>}
       <Field label="Username or email" error={fieldErrors.username}><Input aria-label="Username or email" placeholder="Your username or email" value={username} onChange={event => setUsername(event.target.value)} autoComplete="username" /></Field>
-      <Field label="Password" error={fieldErrors.password}><Input aria-label="Password" type="password" placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></Field>
+      <Field label="Password" error={fieldErrors.password}>
+        <div className="relative">
+          <Input aria-label="Password" type={showPassword ? 'text' : 'password'} className="pr-16" placeholder={mode === 'login' ? 'Enter your password' : 'Choose a password (6 or more characters)'} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+          <button type="button" aria-pressed={showPassword} onClick={() => setShowPassword(s => !s)} className="focus-ring absolute inset-y-0 right-0 rounded-control px-3 font-sans text-caption font-medium text-ink-muted hover:text-ink">{showPassword ? 'Hide' : 'Show'}</button>
+        </div>
+      </Field>
       {mode === 'create' && <p className="font-sans text-caption text-ink-muted">New accounts start as Viewers. An administrator assigns the department and any issuing rights.</p>}
       {error && <p role="alert" className="font-sans text-body-sm font-medium text-danger">{error}</p>}
       <p className="font-sans text-caption text-ink-muted">Your password is verified by the backend and is never stored in this browser.</p>

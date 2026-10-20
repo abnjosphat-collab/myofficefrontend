@@ -18,8 +18,9 @@ export async function apiFetchAll(): Promise<Spare[]> {
 export async function apiCreate(data: Partial<SpareFormData>): Promise<Spare> {
   return api.post<Spare>('/api/spares', data);
 }
-export async function apiUpdate(id: number, data: Partial<SpareFormData>): Promise<Spare> {
-  return api.put<Spare>(`/api/spares/${id}`, data);
+export async function apiUpdate(id: number, data: Partial<SpareFormData>, expectedUpdatedAt?: string): Promise<Spare> {
+  // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the record since.
+  return api.put<Spare>(`/api/spares/${id}`, { ...data, ...(expectedUpdatedAt ? { expected_updated_at: expectedUpdatedAt } : {}) });
 }
 export async function apiDelete(id: number): Promise<void> {
   await api.delete(`/api/spares/${id}`);

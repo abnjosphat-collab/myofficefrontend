@@ -4,6 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ConfirmProvider } from '../overlays/Confirm';
 import { BulkEditDialog, type BulkField } from './BulkEdit';
 import { Input } from '../primitives/Input';
 
@@ -14,11 +15,13 @@ const FIELDS: BulkField[] = [
 
 function Harness({ onSubmit }: { onSubmit: (patch: Record<string, unknown>) => Promise<void> }) {
   return (
+    <ConfirmProvider>
     <BulkEditDialog open onOpenChange={() => {}} title="Edit 2 records" description="Test dialog." count={2}
       fields={FIELDS} submitLabel="Apply" onSubmit={onSubmit}
       renderControl={(f, value, setValue, locked) => (
         <Input aria-label={f.label} value={String(value ?? '')} disabled={locked} onChange={e => setValue(e.target.value)} />
       )} />
+    </ConfirmProvider>
   );
 }
 
@@ -45,7 +48,9 @@ describe('BulkEditDialog', () => {
     const onSubmit = vi.fn(async () => {});
     render(<Harness onSubmit={onSubmit} />);
     await user.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(await screen.findByText('Unlock at least one field — locked fields are left alone.')).toBeInTheDocument();
+    const msg = await screen.findByRole('alert');
+    expect(msg).toHaveTextContent('Unlock at least one field — locked fields are left alone.');
+    expect(screen.queryByText('Could not save')).not.toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -55,7 +60,9 @@ describe('BulkEditDialog', () => {
     render(<Harness onSubmit={onSubmit} />);
     await user.click(screen.getByRole('button', { name: 'Unlock Notes' }));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(await screen.findByText('Fill in the unlocked fields, or lock them again.')).toBeInTheDocument();
+    const msg = await screen.findByRole('alert');
+    expect(msg).toHaveTextContent('Fill in the unlocked fields, or lock them again.');
+    expect(screen.queryByText('Could not save')).not.toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 

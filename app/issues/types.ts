@@ -18,9 +18,11 @@ export interface IssueItemRow {
   id: string;
   stockCode: string;
   description: string;
-  qty: number;
+  /** Typed text, parsed at the edge: clearing the field leaves it empty instead of snapping to 0. */
+  qty: string;
   unit: string;
-  unit_price: number;
+  /** Typed text, parsed at the edge. */
+  unit_price: string;
 }
 
 export interface IssueItem {

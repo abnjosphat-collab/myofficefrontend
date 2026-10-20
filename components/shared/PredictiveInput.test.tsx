@@ -123,4 +123,28 @@ describe('PredictiveInput', () => {
     render(<Controlled historyKey="k13" label="Location" error="This field is required" />);
     expect(screen.getByText('This field is required')).toBeInTheDocument();
   });
+
+  it('sets aria-invalid and aria-describedby from the invalid/describedBy props (single-line)', () => {
+    render(
+      <>
+        <Controlled historyKey="k14" label="Location" invalid describedBy="hint-14" />
+        <p id="hint-14">Helpful hint</p>
+      </>
+    );
+    const input = screen.getByRole('combobox', { name: 'Location' });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'hint-14');
+  });
+
+  it('sets aria-invalid and aria-describedby from the invalid/describedBy props (multiline)', () => {
+    render(<Controlled historyKey="k15" label="Notes" multiline invalid describedBy="hint-15" />);
+    const input = screen.getByRole('combobox', { name: 'Notes' });
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', 'hint-15');
+  });
+
+  it('exposes required to assistive technology', () => {
+    render(<Controlled historyKey="k16" label="Location" required />);
+    expect(screen.getByRole('combobox', { name: 'Location' })).toHaveAttribute('aria-required', 'true');
+  });
 });

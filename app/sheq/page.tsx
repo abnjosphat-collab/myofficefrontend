@@ -429,6 +429,7 @@ function SheqContent() {
               <Field label="Note"><Textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add a safety observation, flag or reminder" /></Field>
               <Button variant="primary" type="submit" icon="plus" disabled={!noteText.trim()}>Add note</Button>
             </form>
+            {!noteText.trim() && <p className="font-sans text-caption text-ink-muted">Write the note to enable Add note.</p>}
             {notes.length === 0 ? <EmptyState icon="draft" title="No notes yet" description="Add safety observations, flags or reminders above." /> : (
               <ul className="flex flex-col gap-2">
                 {notes.map(c => (

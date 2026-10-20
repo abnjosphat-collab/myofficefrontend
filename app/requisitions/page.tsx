@@ -38,46 +38,50 @@ const PRIORITY_META: Record<Requisition['priority'], { tone: Tone; icon: IconMea
 const StatusTag = ({ status }: { status: Requisition['status'] }) => { const m = STATUS_META[status] ?? STATUS_META.Draft; return <StatusBadge tone={m.tone} icon={m.icon}>{status}</StatusBadge>; };
 const PriorityTag = ({ priority }: { priority: Requisition['priority'] }) => { const m = PRIORITY_META[priority]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{priority}</StatusBadge>; };
 
-const newItem = (): RequisitionItem => ({ description: '', costPerUnit: 0, quantity: 1, reason: '' });
-type Form = { date: string; requester: string; section: Requisition['section']; required_for: string; priority: Requisition['priority']; status: Requisition['status']; requisitionNumber: string; items: RequisitionItem[]; notes: string };
+/** The dialog's working copy: cost and qty stay typed text until the edge, so clearing a field leaves it empty instead of snapping. The server `RequisitionItem` keeps its numbers. */
+type RequisitionFormItem = { description: string; costPerUnit: string; quantity: string; reason: string };
+const newItem = (): RequisitionFormItem => ({ description: '', costPerUnit: '0', quantity: '1', reason: '' });
+const toFormItem = (i: RequisitionItem): RequisitionFormItem => ({ description: i.description, costPerUnit: String(i.costPerUnit), quantity: String(i.quantity), reason: i.reason });
+const formItemTotal = (items: RequisitionFormItem[]): number => items.reduce((s, i) => s + (parseFloat(i.costPerUnit) || 0) * (parseInt(i.quantity, 10) || 1), 0);
+type Form = { date: string; requester: string; section: Requisition['section']; required_for: string; priority: Requisition['priority']; status: Requisition['status']; requisitionNumber: string; items: RequisitionFormItem[]; notes: string };
 export const emptyForm = (): Form => ({
   date: todayLocal(), requester: '', section: 'Mechanical', required_for: '', priority: 'Medium', status: 'Draft',
   requisitionNumber: `REQ-${Date.now().toString().slice(-6)}`, items: [newItem()], notes: '',
 });
 
-function ItemFields({ item, index, count, touched, onChange, onRemove }: { item: RequisitionItem; index: number; count: number; touched: boolean; onChange: (i: number, p: Partial<RequisitionItem>) => void; onRemove: (i: number) => void }) {
+function ItemFields({ item, index, count, touched, onChange, onRemove }: { item: RequisitionFormItem; index: number; count: number; touched: boolean; onChange: (i: number, p: Partial<RequisitionFormItem>) => void; onRemove: (i: number) => void }) {
   const n = index + 1;
   return (
     <fieldset className="grid grid-cols-1 gap-3 rounded-card border border-line p-4 sm:grid-cols-6">
       <legend className="px-1 font-sans text-label font-medium text-ink">Item {n}</legend>
       <div className="sm:col-span-6"><Field label={`Description (item ${n})`} required error={touched && !item.description.trim() ? 'Describe the item.' : undefined}><SuggestField historyKey="item_description" placeholder="Item description" value={item.description} onChange={v => onChange(index, { description: v })} /></Field></div>
-      <div className="sm:col-span-2"><Field label={`Unit cost (item ${n})`} optional><Input type="number" min="0" step="0.01" inputMode="decimal" value={item.costPerUnit} onChange={e => onChange(index, { costPerUnit: parseFloat(e.target.value) || 0 })} /></Field></div>
-      <div className="sm:col-span-1"><Field label={`Qty (item ${n})`} optional><Input type="number" min="1" inputMode="numeric" value={item.quantity} onChange={e => onChange(index, { quantity: parseInt(e.target.value, 10) || 1 })} /></Field></div>
+      <div className="sm:col-span-2"><Field label={`Unit cost (item ${n})`} optional><Input type="number" min="0" step="0.01" inputMode="decimal" value={item.costPerUnit} onChange={e => onChange(index, { costPerUnit: e.target.value })} /></Field></div>
+      <div className="sm:col-span-1"><Field label={`Qty (item ${n})`} optional><Input type="number" min="1" inputMode="numeric" value={item.quantity} onChange={e => onChange(index, { quantity: e.target.value })} /></Field></div>
       <div className="sm:col-span-2"><Field label={`Reason (item ${n})`} optional><SuggestField historyKey="requisition_item_reason" placeholder="Optional" value={item.reason} onChange={v => onChange(index, { reason: v })} /></Field></div>
       <div className="flex items-end justify-between gap-2 sm:col-span-1 sm:justify-end">
-        <span className="font-sans text-caption tabular text-ink-muted sm:hidden">{formatCurrency(item.costPerUnit * item.quantity)}</span>
+        <span className="font-sans text-caption tabular text-ink-muted sm:hidden">{formatCurrency((parseFloat(item.costPerUnit) || 0) * (parseInt(item.quantity, 10) || 1))}</span>
         <IconButton icon="delete" variant="danger" label={`Remove item ${n}`} disabled={count <= 1} onClick={() => onRemove(index)} />
       </div>
     </fieldset>
   );
 }
 
-function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+export function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const employees = useEmployees();
   const equipment = useApiList<{ id?: number | string; name?: string; location?: string; department?: string; category?: string }>('/api/equipment');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, req?.id), () => {
     setTouched(false);
-    setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items : [newItem()], notes: req.notes ?? '' } : emptyForm());
+    setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items.map(toFormItem) : [newItem()], notes: req.notes ?? '' } : emptyForm());
   });
   const set = (p: Partial<Form>) => setForm(f => ({ ...f, ...p }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), section: e.department })), [employees]);
   const assets = useMemo(() => equipment.items.filter(e => e.name).map(e => ({ name: String(e.name), section: String(e.location ?? e.department ?? e.category ?? '') })), [equipment.items]);
   const setRequester = (name: string) => { const m = people.find(p => p.name === name); set({ requester: name, ...(m && SECTIONS.includes(m.section as Requisition['section']) ? { section: m.section as Requisition['section'] } : {}) }); };
   const setRequiredFor = (value: string) => { const a = assets.find(x => x.name === value); set({ required_for: value, ...(a && SECTIONS.includes(a.section as Requisition['section']) ? { section: a.section as Requisition['section'] } : {}) }); };
-  const setItem = (i: number, p: Partial<RequisitionItem>) => set({ items: form.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
-  const total = itemTotal(form.items);
+  const setItem = (i: number, p: Partial<RequisitionFormItem>) => set({ items: form.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
+  const total = formItemTotal(form.items);
 
   const submit = async () => {
     setTouched(true);
@@ -85,9 +89,9 @@ function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; op
     const payload = {
       date: form.date, requester: form.requester, section: form.section, required_for: form.required_for, priority: form.priority, status: form.status,
       requisition_number: form.requisitionNumber, notes: form.notes,
-      items: form.items.map(it => ({ description: it.description, cost_per_unit: it.costPerUnit, quantity: it.quantity, reason: it.reason })),
+      items: form.items.map(it => ({ description: it.description, cost_per_unit: parseFloat(it.costPerUnit) || 0, quantity: parseInt(it.quantity, 10) || 1, reason: it.reason })),
     };
-    if (req) await apiUpdate(req.id, payload); else await apiCreate(payload);
+    if (req) await apiUpdate(req.id, payload, req.updatedAt || undefined); else await apiCreate(payload);
     toast.success(req ? 'Requisition updated.' : 'Requisition created.');
     onSaved();
   };

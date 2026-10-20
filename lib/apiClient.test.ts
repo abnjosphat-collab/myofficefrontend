@@ -72,6 +72,50 @@ describe('apiClient MFA 401 handling', () => {
   });
 });
 
+describe('apiClient 422 field labels', () => {
+  beforeEach(() => {
+    authFetch.mockReset();
+    toastError.mockReset();
+  });
+
+  const post = () => api.post('/api/leaves', {}).catch((e: unknown) => e as ApiError) as Promise<ApiError>;
+
+  it('prefixes a 422 message with its field label', async () => {
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [{ loc: ['body', 'name'], msg: 'Fixture server refusal' }] }));
+    const err = await post();
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.message).toBe('Name: Fixture server refusal');
+    expect(err.status).toBe(422);
+  });
+
+  it('prettifies snake_case segments', async () => {
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [{ loc: ['body', 'contact_number'], msg: 'Field required' }] }));
+    expect((await post()).message).toBe('Contact number: Field required');
+  });
+
+  it('leaves string details untouched', async () => {
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: 'Fixture server refusal' }));
+    expect((await post()).message).toBe('Fixture server refusal');
+  });
+
+  it('joins multiple field errors', async () => {
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [
+      { loc: ['body', 'name'], msg: 'Field required' },
+      { loc: ['body', 'age'], msg: 'Must be a number' },
+    ] }));
+    expect((await post()).message).toBe('Name: Field required; Age: Must be a number');
+  });
+
+  it('falls back past numeric segments, bare when the location names nothing', async () => {
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [{ loc: ['body', 'items', 2], msg: 'Bad row' }] }));
+    expect((await post()).message).toBe('Items: Bad row');
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [{ loc: [], msg: 'Fixture server refusal' }] }));
+    expect((await post()).message).toBe('Fixture server refusal');
+    authFetch.mockResolvedValue(jsonResponse(422, { detail: [{ msg: 'Fixture server refusal' }] }));
+    expect((await post()).message).toBe('Fixture server refusal');
+  });
+});
+
 describe('apiFetch auth-header provider', () => {
   const realFetch = globalThis.fetch;
   const fetchMock = vi.fn();

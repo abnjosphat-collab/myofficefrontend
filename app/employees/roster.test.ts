@@ -81,10 +81,17 @@ describe('filter, sort, summarise', () => {
 
 describe('formProblems', () => {
   it('names each missing required field', () => {
-    expect(formProblems({ employee_id: ' ', first_name: 'A', last_name: '', id_number: '', designation: '' })).toEqual({
+    expect(formProblems({ employee_id: ' ', first_name: 'A', last_name: '', id_number: '', designation: '', email: '' })).toEqual({
       employee_id: 'Enter the mine number.', last_name: 'Enter the last name.', id_number: 'Enter the national ID or passport number.', designation: 'Choose the designation.',
     });
-    expect(formProblems({ employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter' })).toEqual({});
+    expect(formProblems({ employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter', email: '' })).toEqual({});
+  });
+
+  it('flags a malformed email but passes empty and good ones', () => {
+    const base = { employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter' };
+    expect(formProblems({ ...base, email: 'not-an-email' })).toEqual({ email: 'Enter a valid email address.' });
+    expect(formProblems({ ...base, email: '' })).toEqual({});
+    expect(formProblems({ ...base, email: 'rudo@mine.co.zw' })).toEqual({});
   });
 });
 

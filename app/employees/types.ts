@@ -31,6 +31,7 @@ export interface Employee {
   previous_employer?: string;
   /** Hidden from the active roster — used for roles like Hoist Driver that may return later. */
   archived?: boolean;
+  updated_at?: string;
 }
 
 export interface EmployeeFormData {

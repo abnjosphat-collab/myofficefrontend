@@ -81,13 +81,15 @@ export function categoryBreakdown(spares: Spare[]) {
 
 // ── The requisition ──────────────────────────────────────────────────────────────────────────────────────
 export const DEFAULT_HEADER: ReqHeader = { requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' };
-export const filled = (lines: ReqLine[]) => lines.filter(l => l.spare && l.qty > 0);
-export const requisitionTotal = (lines: ReqLine[]) => filled(lines).reduce((s, l) => s + lineValue(l.qty, l.spare!.unit_price), 0);
+/** The quantity a line counts as: whole units, never below zero, blank or nonsense counts as none (same clamp the field used to apply on every keystroke). */
+export const qtyNum = (l: Pick<ReqLine, 'qty'>): number => { const n = parseInt(l.qty, 10); return Number.isFinite(n) ? Math.max(0, n) : 0; };
+export const filled = (lines: ReqLine[]) => lines.filter(l => l.spare && qtyNum(l) > 0);
+export const requisitionTotal = (lines: ReqLine[]) => filled(lines).reduce((s, l) => s + lineValue(qtyNum(l), l.spare!.unit_price), 0);
 
 export function toSaved(name: string, header: ReqHeader, lines: ReqLine[]): SavedRequisition {
   return {
     id: '', name: name.trim(), saved_at: new Date().toISOString(), header,
-    lines: filled(lines).map(l => ({ spare_id: l.spare!.id, stock_code: l.spare!.stock_code, description: l.spare!.description, unit_of_measure: l.spare!.unit_of_measure, unit_price: l.spare!.unit_price, qty: l.qty })),
+    lines: filled(lines).map(l => ({ spare_id: l.spare!.id, stock_code: l.spare!.stock_code, description: l.spare!.description, unit_of_measure: l.spare!.unit_of_measure, unit_price: l.spare!.unit_price, qty: qtyNum(l) })),
     grand_total: requisitionTotal(lines),
   };
 }
@@ -95,13 +97,13 @@ export function toSaved(name: string, header: ReqHeader, lines: ReqLine[]): Save
 /** A saved requisition back as editable lines. A part no longer in the register is rebuilt from what was saved so nothing is lost. */
 export function linesFromSaved(saved: SavedRequisition, spares: Spare[], newId: () => string): ReqLine[] {
   return saved.lines.map(l => ({
-    id: newId(), qty: l.qty, searchValue: l.stock_code, dropdownOpen: false,
+    id: newId(), qty: String(l.qty), searchValue: l.stock_code, dropdownOpen: false,
     spare: spares.find(s => s.id === l.spare_id) ?? { id: l.spare_id, stock_code: l.stock_code, description: l.description, unit_of_measure: l.unit_of_measure || 'UN', unit_price: l.unit_price, current_quantity: 0, min_quantity: 0, max_quantity: 0, priority: 'medium', safety_stock: false },
   }));
 }
 
 /** Tab-separated, ready to paste into a spreadsheet or an email. */
 export function requisitionText(lines: ReqLine[], money: (n: number) => string): string {
-  const rows = filled(lines).map(l => [l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', l.qty, money(l.spare!.unit_price), money(lineValue(l.qty, l.spare!.unit_price))].join('\t')).join('\n');
+  const rows = filled(lines).map(l => [l.spare!.stock_code, l.spare!.description, l.spare!.unit_of_measure || 'UN', qtyNum(l), money(l.spare!.unit_price), money(lineValue(qtyNum(l), l.spare!.unit_price))].join('\t')).join('\n');
   return `Stock Code\tDescription\tUoM\tQty\tUnit Price\tTotal\n${rows}\n\nGRAND TOTAL: ${money(requisitionTotal(lines))}`;
 }

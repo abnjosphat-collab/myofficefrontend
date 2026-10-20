@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Field, Input, Notice } from '@/components/ui-system';
+import { Button, Dialog, Field, Input, Notice, useDismissGuard } from '@/components/ui-system';
 import { PPE_TYPES } from './ppeMeta';
 import type { PPERecord } from './types';
 
@@ -16,6 +16,13 @@ export function MatrixDialog({ open, onOpenChange, matrix, loading, error, onRet
   const [busy, setBusy] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const off = loading || !!error;
+  const dirty = Object.entries(draft).some(([key, v]) => Number(v) !== (matrix[key] ?? 0));
+  const { guardClose } = useDismissGuard({ when: dirty && !busy, message: 'Changed intervals are not saved yet.' });
+  const close = (o: boolean) => {
+    if (busy) return;
+    if (!o) { guardClose(() => { setDraft({}); setRowError({}); onOpenChange(false); }); return; }
+    setDraft({}); setRowError({}); onOpenChange(true);
+  };
   const run = async (key: string, fn: () => Promise<void>, after?: () => void) => {
     setBusy(key); setRowError(e => ({ ...e, [key]: '' }));
     try { await fn(); after?.(); } catch (e) { setRowError(r => ({ ...r, [key]: e instanceof Error ? e.message : 'It did not work.' })); }
@@ -23,8 +30,8 @@ export function MatrixDialog({ open, onOpenChange, matrix, loading, error, onRet
   };
   return (
     <Dialog
-      open={open} onOpenChange={o => { if (!busy) { setDraft({}); setRowError({}); onOpenChange(o); } }} size="lg" title="Replacement matrix" description="How long each kind of PPE lasts. Saving an interval recalculates the expiry of every active item of that type."
-      footer={<><Button onClick={() => onOpenChange(false)} disabled={!!busy}>Close</Button><Button icon="refresh" disabled={off} pending={busy === '__all__'} onClick={() => run('__all__', onRecalculateAll)}>Recalculate all types</Button></>}
+      open={open} onOpenChange={close} size="lg" title="Replacement matrix" description="How long each kind of PPE lasts. Saving an interval recalculates the expiry of every active item of that type."
+      footer={<><Button onClick={() => close(false)} disabled={!!busy}>Close</Button><Button icon="refresh" disabled={off} pending={busy === '__all__'} onClick={() => run('__all__', onRecalculateAll)}>Recalculate all types</Button></>}
     >
       <div className="flex flex-col gap-4">
         {loading && <Notice tone="info" title="Loading the saved matrix">Editing is off until it has loaded.</Notice>}

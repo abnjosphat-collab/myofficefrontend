@@ -91,6 +91,38 @@ describe('ToolsAuth sign-in', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Request sent');
   });
 
+  it('attempts sign-in with a short existing password instead of blocking it', async () => {
+    const onLogin = vi.fn(async () => true as const);
+    render(<ToolsAuth {...authProps({ onLogin })} />);
+    fireEvent.change(screen.getByLabelText('Username or email'), { target: { value: 'rudo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(onLogin).toHaveBeenCalledWith('rudo', 'abc'));
+    expect(screen.queryByText('Use at least 6 characters.')).not.toBeInTheDocument();
+  });
+
+  it('creating an account still enforces the 6-character minimum', () => {
+    const onCreate = vi.fn();
+    render(<ToolsAuth {...authProps({ onCreate })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Rudo Moyo' } });
+    fireEvent.change(screen.getByLabelText('Username or email'), { target: { value: 'rudo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(screen.getByText('Use at least 6 characters.')).toBeInTheDocument();
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it('the Show toggle reveals the password and Hide masks it again', () => {
+    render(<ToolsAuth {...authProps()} />);
+    const field = screen.getByLabelText('Password');
+    expect(field).toHaveAttribute('type', 'password');
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect(field).toHaveAttribute('type', 'text');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(field).toHaveAttribute('type', 'password');
+  });
+
   it('stays on the button when the request fails, so the user can retry', async () => {
     const onRequestReset = vi.fn(async () => false);
     render(<ToolsAuth {...authProps({ onRequestReset })} />);

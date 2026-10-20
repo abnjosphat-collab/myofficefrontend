@@ -36,10 +36,12 @@ export function isPreviewableImage(nameOrUrl: string): boolean {
 /** The file-input `accept` attribute — advisory pre-filtering only; the backend's
  *  NOTICE_ATTACHMENT_EXTS is the real enforcement. Kept as one flat list here so it's
  *  obvious at a glance that it's meant to mirror that allowlist. */
-export const NOTICE_ATTACHMENT_ACCEPT =
-  '.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp,' +
-  '.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tif,.tiff,.heic,' +
-  '.zip,.rar,.7z,.tar,.gz,' +
-  '.mp3,.wav,.m4a,.ogg,.aac,' +
-  '.mp4,.mov,.avi,.webm,.mkv,' +
-  '.json,.xml';
+export const NOTICE_ATTACHMENT_EXTS = [
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp',
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tif', 'tiff', 'heic',
+  'zip', 'rar', '7z', 'tar', 'gz',
+  'mp3', 'wav', 'm4a', 'ogg', 'aac',
+  'mp4', 'mov', 'avi', 'webm', 'mkv',
+  'json', 'xml',
+];
+export const NOTICE_ATTACHMENT_ACCEPT = NOTICE_ATTACHMENT_EXTS.map(e => `.${e}`).join(',');

@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthForm } from './AuthForm';
 
+const { signInMock, signUpMock } = vi.hoisted(() => ({ signInMock: vi.fn(), signUpMock: vi.fn() }));
 vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({ signInWithGoogle: vi.fn(), signInWithEmail: vi.fn(), signUpWithEmail: vi.fn() }),
+  useAuth: () => ({ signInWithGoogle: vi.fn(), signInWithEmail: signInMock, signUpWithEmail: signUpMock }),
 }));
 
 const postMock = vi.fn();
@@ -15,6 +16,8 @@ describe('AuthForm password reset request', () => {
   beforeEach(() => {
     postMock.mockReset();
     postMock.mockResolvedValue({});
+    signInMock.mockReset();
+    signUpMock.mockReset();
   });
 
   it('asks for the email before sending', () => {
@@ -40,6 +43,37 @@ describe('AuthForm password reset request', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Forgot your password?' }));
     await waitFor(() => expect(screen.getByText('The request could not be sent. Check your connection and try again.')).toBeInTheDocument());
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('signs in with a short existing password instead of blocking it', async () => {
+    signInMock.mockResolvedValue({ error: 'wrong password (fixture)' });
+    render(<AuthForm />);
+    fireEvent.change(screen.getByPlaceholderText('you@company.com'), { target: { value: 'a@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter your password'), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(signInMock).toHaveBeenCalledWith('a@x.com', 'abc'));
+    expect(screen.queryByText('Use at least 6 characters.')).not.toBeInTheDocument();
+  });
+
+  it('signup still enforces the 6-character minimum', () => {
+    render(<AuthForm />);
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    fireEvent.change(screen.getByPlaceholderText('Your full name'), { target: { value: 'Rudo Moyo' } });
+    fireEvent.change(screen.getByPlaceholderText('you@company.com'), { target: { value: 'a@x.com' } });
+    fireEvent.change(screen.getByPlaceholderText(/Choose a password/), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(screen.getByText('Use at least 6 characters.')).toBeInTheDocument();
+    expect(signUpMock).not.toHaveBeenCalled();
+  });
+
+  it('the Show toggle reveals the password and Hide masks it again', () => {
+    render(<AuthForm />);
+    const field = screen.getByPlaceholderText('Enter your password');
+    expect(field).toHaveAttribute('type', 'password');
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect(field).toHaveAttribute('type', 'text');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(field).toHaveAttribute('type', 'password');
   });
 
   it('surfaces a server refusal instead of a false success', async () => {

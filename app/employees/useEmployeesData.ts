@@ -41,10 +41,12 @@ export async function loadEmployees(timeoutMs = 20_000) {
     if (timeout) clearTimeout(timeout);
   }
 }
-export async function saveEmployee(data: EmployeeFormData, id?: number) {
+export async function saveEmployee(data: EmployeeFormData, id?: number, expectedUpdatedAt?: string) {
   const role = normalizeEmployeeRoleFields(data.designation, data.section, data.first_name, data.last_name);
   const payload = {
     ...data,
+    // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the record since.
+    ...(expectedUpdatedAt ? { expected_updated_at: expectedUpdatedAt } : {}),
     designation: role.designation,
     section: role.section,
     phone: normalizePhoneField(data.phone),

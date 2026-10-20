@@ -76,7 +76,7 @@ function EmployeesContent() {
   const allOpen = groups.every(g => !closed.has(g.section));
   const toggleGroup = (key: string) => setClosed(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
-  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id); await list.refetch(); };
+  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at); await list.refetch(); };
   const remove = async (e: Employee) => {
     await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${e.employee_id}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };

@@ -1,4 +1,4 @@
-// app/spares/SpareForm.tsx — add or edit a spare part: stock code, description and price (required), stock levels and priority,
+// app/spares/SpareForm.tsx — add or edit a spare part: stock code and description (required), price, stock levels and priority,
 // categories (pick from the common ones and those already in use, or add a new one), machine, location and supplier. The stock code
 // is fixed once the part exists. A refused save shows inside the dialog and keeps what was typed.
 'use client';
@@ -62,13 +62,13 @@ export function SpareForm({ open, spare, all, onOpenChange, onSave }: { open: bo
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? `Edit ${spare.stock_code}` : 'Add a spare part'} description={editing ? spare.description : 'Stock code, description and price are required.'} submitLabel={editing ? 'Save changes' : 'Add spare'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? `Edit ${spare.stock_code}` : 'Add a spare part'} description={editing ? spare.description : 'Stock code and description are required.'} submitLabel={editing ? 'Save changes' : 'Add spare'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="sf-req" className="flex flex-col gap-3">
           <h3 id="sf-req" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">The part</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Stock code" required error={err(problems.code)}><Input value={d.stock_code} disabled={editing} onChange={e => set({ stock_code: e.target.value })} placeholder="106335" autoComplete="off" /></Field>
-            <Field label="Unit price (USD)" required><Input type="number" min={0} step={0.01} value={d.unit_price} onChange={e => set({ unit_price: e.target.value })} /></Field>
+            <Field label="Unit price (USD)" optional><Input type="number" min={0} step={0.01} value={d.unit_price} onChange={e => set({ unit_price: e.target.value })} /></Field>
             <Field label="Description" required error={err(problems.description)} className="sm:col-span-2"><Input value={d.description} onChange={e => set({ description: e.target.value })} placeholder="Bearing 6204 2RS" /></Field>
           </div>
         </section>

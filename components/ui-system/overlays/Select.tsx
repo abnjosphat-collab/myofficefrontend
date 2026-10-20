@@ -4,7 +4,7 @@ import { forwardRef, type CSSProperties, type ReactNode } from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
-import { useFieldProps } from '../primitives/Field';
+import { useFieldProps, useMarkDirty } from '../primitives/Field';
 import { COLLISION_PADDING, floatingSurface, optionRow, triggerSurface } from './surfaces';
 
 export type SelectOption = { value: string; label: string; description?: string; disabled?: boolean };
@@ -50,11 +50,12 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   ref,
 ) {
   const field = useFieldProps();
+  const markDirty = useMarkDirty();
   const selected = options.find(option => option.value === value);
   return (
     // A raw '' never comes from a choice (an empty option travels as EMPTY). Radix's hidden form <select> emits it when the
     // options change under a value (e.g. Equipment type after Category), which would silently wipe the value; ignore it.
-    <SelectPrimitive.Root value={toRadix(value)} onValueChange={next => { if (next !== '') onValueChange(fromRadix(next)); }} disabled={disabled} onOpenChange={onOpenChange}>
+    <SelectPrimitive.Root value={toRadix(value)} onValueChange={next => { if (next === '') return; markDirty(); onValueChange(fromRadix(next)); }} disabled={disabled} onOpenChange={onOpenChange}>
       <SelectPrimitive.Trigger ref={ref} {...field} id={field.id ?? id} title={title} aria-label={field.id ? undefined : aria['aria-label']} className={skin ? cn(skin.trigger, className) : cn(triggerSurface, className)}>
         <span className="truncate" data-placeholder={selected ? undefined : ''}>
           {selected ? (triggerLabel ? triggerLabel(selected) : selected.label) : placeholder}

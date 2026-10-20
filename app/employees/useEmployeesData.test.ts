@@ -64,4 +64,14 @@ describe('personnel save (edit round-trip)', () => {
     expect(vi.mocked(api.post).mock.calls[0][0]).toContain('/api/employees');
     expect(vi.mocked(api.put)).not.toHaveBeenCalled();
   });
+  it('update includes expected_updated_at from the loaded row', async () => {
+    vi.mocked(api.put).mockResolvedValueOnce({ id: 9 });
+    await saveEmployee(form(), 9, 't0');
+    expect(vi.mocked(api.put)).toHaveBeenCalledWith(expect.stringContaining('/api/employees/9'), expect.objectContaining({ expected_updated_at: 't0' }));
+  });
+  it('omits expected_updated_at when the loaded row has none', async () => {
+    vi.mocked(api.put).mockResolvedValueOnce({ id: 9 });
+    await saveEmployee(form(), 9);
+    expect(vi.mocked(api.put).mock.calls[0][1]).not.toHaveProperty('expected_updated_at');
+  });
 });
