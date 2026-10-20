@@ -91,6 +91,20 @@ export const sizeCounts = (items: PPERecord[]): [string, number][] => {
   return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 };
 
+/**
+ * The record an order-list issue renews: the one the order entry pointed at, when it is still active and belongs to the same person and
+ * kind of PPE. It is updated in place (new issue date, expiry from the matrix, size), so it reads "In date" again. It is never marked
+ * returned: an item that has worn out or reached its expiry is kept by the person, nobody hands it back. Due or not yet due makes no
+ * difference. Anything else (no entry, a record that is gone or closed, another person or kind) is a plain new issue.
+ */
+export function renewalTarget(records: PPERecord[], orderRecordId: string | null | undefined, issue: Pick<FormState, 'employee_id' | 'ppe_type'>): PPERecord | undefined {
+  if (!orderRecordId) return undefined;
+  const old = records.find(r => String(r.id) === String(orderRecordId));
+  if (!old || old.status !== 'active') return undefined;
+  const samePerson = normalizeEmployeeId(old.employee_id) === normalizeEmployeeId(issue.employee_id);
+  return samePerson && norm(old.ppe_type) === norm(issue.ppe_type) ? old : undefined;
+}
+
 /** The expiry an item gets: issue date plus the matrix months; empty when the type does not expire or has no matrix entry. */
 export function expiryFor(type: string, issued: string, matrix: Record<string, number>): string | undefined {
   const months = matrix[type];

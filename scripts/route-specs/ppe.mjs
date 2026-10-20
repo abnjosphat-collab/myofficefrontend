@@ -99,7 +99,7 @@ const spec = {
     check(await page.getByRole('list', { name: 'Purchase order lines' }).isVisible(), 'opening the section shows the purchase order lines');
     await shot(page, 'order@1440');
     check(await page.getByText('Shared order list').isVisible(), 'the order list says it is shared');
-    // issuing from the order list saves the new item and retires the one that was due, or the card keeps showing it as due
+    // issuing from the order list renews the item in place (new issue date, expiry from the matrix, still active = In date); nothing is marked returned
     const dueId = [...ORDER.keys()][0];
     const before = calls.length;
     await page.getByRole('button', { name: 'Issue', exact: true }).first().click();
@@ -110,8 +110,9 @@ const spec = {
     if (await unknown.waitFor({ timeout: 1500 }).then(() => true).catch(() => false)) await unknown.getByRole('button', { name: 'Save anyway' }).click();
     await page.waitForTimeout(800);
     const after = calls.slice(before);
-    check(after.some(c => c.method === 'POST' && c.pathname === '/api/ppe'), 'issuing from the order list saves the new record');
-    check(after.some(c => c.method === 'PATCH' && c.pathname === `/api/ppe/${dueId}` && c.body.status === 'returned'), 'the item that was due is marked returned', JSON.stringify(after.map(c => `${c.method} ${c.pathname}`)));
+    const renew = after.find(c => c.method === 'PATCH' && c.pathname === `/api/ppe/${dueId}`);
+    check(!!renew && renew.body.status === 'active' && !!renew.body.issue_date, 'issuing from the order list updates that record in place: still active (In date), with the new issue date', JSON.stringify(after.map(c => `${c.method} ${c.pathname}`)));
+    check(!after.some(c => c.method === 'PATCH' && c.body?.status === 'returned') && !after.some(c => c.method === 'POST' && c.pathname === '/api/ppe'), 'nothing is marked returned and no second record is created');
     await page.getByRole('tab', { name: /^Order list/ }).click();
     await page.getByRole('button', { name: /^Remove/ }).first().click().catch(() => {});
     await page.waitForTimeout(400);
