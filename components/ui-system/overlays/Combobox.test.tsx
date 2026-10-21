@@ -207,4 +207,27 @@ describe('Combobox', () => {
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalled();
   });
+
+  it('shows recentOptions first under a Recent heading, without repeating them', async () => {
+    const user = userEvent.setup();
+    render(
+      <Combobox aria-label="Department" value="" onValueChange={() => {}} options={OPTIONS}
+        recentOptions={[{ value: 'ops', label: 'Operations' }]} searchPlaceholder="Search department…" />,
+    );
+    await open(user);
+    expect(screen.getByText('Recent')).toBeInTheDocument();
+    const rows = screen.getAllByRole('option').map(o => o.textContent ?? '');
+    expect(rows[0]).toMatch(/Operations/);
+    expect(rows.filter(r => /Operations/.test(r)).length).toBe(1);
+  });
+
+  it('shows no Recent heading without recentOptions', async () => {
+    const user = userEvent.setup();
+    render(
+      <Combobox aria-label="Department" value="" onValueChange={() => {}} options={OPTIONS}
+        searchPlaceholder="Search department…" />,
+    );
+    await open(user);
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+  });
 });

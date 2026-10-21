@@ -14,6 +14,7 @@ import { Tag } from '../primitives/Badge';
 import { Field } from '../primitives/Field';
 import { Combobox } from '../overlays/Combobox';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
+import { readRecentPeople, recordRecentPerson } from '@/lib/peopleHistory';
 
 /** How one employee reads in every picker: full name, then first + last, then the ID. */
 export function lookupName(e: EmployeeLookup): string {
@@ -21,9 +22,15 @@ export function lookupName(e: EmployeeLookup): string {
     || String(e.employee_id || e.id || 'Employee'));
 }
 
+/** A register segment worth showing: blank and dot-only numbers (junk typed on the register) read as missing. */
+function cleanSegment(raw: string | null | undefined): string {
+  const text = (raw ?? '').trim();
+  return /^\.+$/.test(text) ? '' : text;
+}
+
 /** One description line under the name: ID and designation, skipping blanks. */
 function lookupDescription(e: EmployeeLookup): string {
-  return [e.employee_id, e.designation || e.position].filter(Boolean).join(' · ');
+  return [cleanSegment(e.employee_id), cleanSegment(e.designation || e.position)].filter(s => s !== '').join(' · ');
 }
 
 export interface EmployeeOption {
@@ -85,9 +92,19 @@ export function PersonPicker({ name, employeeId, onPick, label, placeholder, dis
   const shown = name ?? '';
   const value = resolvePersonId(options, shown, employeeId);
   const combo = useMemo(() => options.map(o => ({ value: o.id, label: o.label, description: o.description })), [options]);
+  // Recently picked people first, resolved against the live options so archived or
+  // departed people never resurface.
+  const recent = useMemo(() => {
+    const order = new Map(readRecentPeople(8).map((id, i) => [id, i] as const));
+    return combo.filter(o => order.has(o.value)).sort((a, b) => order.get(a.value)! - order.get(b.value)!);
+  }, [combo]);
   return (
-    <Combobox aria-label={label} value={value} onValueChange={id => onPick(id ? find(id) : null)}
-      options={combo} placeholder={shown || placeholder || 'Search employees'}
+    <Combobox aria-label={label} value={value} onValueChange={id => {
+        const picked = id ? find(id) : null;
+        if (picked) recordRecentPerson(String(picked.id));
+        onPick(picked);
+      }}
+      options={combo} recentOptions={recent} placeholder={shown || placeholder || 'Search employees'}
       searchPlaceholder={SEARCH_PLACEHOLDER} emptyMessage={EMPTY_MESSAGE} disabled={disabled} className={className} clearLabel={clearLabel} />
   );
 }
@@ -114,9 +131,22 @@ export function PeoplePicker({ label, value, onChange, hint, single = false, pla
       .filter(e => e.employee_id && !chosen.has(e.employee_id))
       .map(e => ({ value: String(e.employee_id), label: lookupName(e), description: lookupDescription(e) }));
   }, [employees, value]);
+  const recent = useMemo(() => {
+    const order = new Map(readRecentPeople(8).map((id, i) => [id, i] as const));
+    const byRow = new Map(employees.map(e => [String(e.id), e] as const));
+    return [...order.keys()]
+      .map(id => byRow.get(id))
+      .filter((e): e is EmployeeLookup => !!e?.employee_id)
+      .filter(e => options.some(o => o.value === String(e.employee_id)))
+      .map(e => ({ value: String(e.employee_id), label: lookupName(e), description: lookupDescription(e) }));
+  }, [employees, options]);
   const add = (id: string) => {
     const o = options.find(x => x.value === id);
-    if (o) onChange(single ? [{ employee_id: id, name: o.label }] : [...value, { employee_id: id, name: o.label }]);
+    if (o) {
+      const emp = employees.find(e => String(e.employee_id) === id);
+      if (emp) recordRecentPerson(String(emp.id));
+      onChange(single ? [{ employee_id: id, name: o.label }] : [...value, { employee_id: id, name: o.label }]);
+    }
     setPick('');
   };
   return (
@@ -124,7 +154,7 @@ export function PeoplePicker({ label, value, onChange, hint, single = false, pla
       {!(single && value.length > 0) && (
       <Field label={label} optional description={hint}>
         <Combobox aria-label={single ? label : `Add to ${label}`} value={pick} onValueChange={add}
-          options={options} placeholder={placeholder || 'Search the employee list'}
+          options={options} recentOptions={recent} placeholder={placeholder || 'Search the employee list'}
           searchPlaceholder={SEARCH_PLACEHOLDER} emptyMessage={EMPTY_MESSAGE} />
       </Field>
       )}

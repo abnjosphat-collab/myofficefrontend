@@ -30,6 +30,9 @@ export interface ComboboxProps {
   allowCustomValue?: boolean;
   /** Remember committed values under this field key and offer them back at the top of the list. */
   historyKey?: string;
+  /** A leading "Recent" group; excluded from the main list so values never repeat. */
+  recentOptions?: ComboboxOption[];
+  recentLabel?: string;
   'aria-label'?: string;
   disabled?: boolean;
   className?: string;
@@ -46,7 +49,7 @@ export interface ComboboxProps {
  */
 export function Combobox({
   value, onValueChange, options, placeholder = 'Select…', searchPlaceholder = 'Search…', emptyMessage = 'No matches.',
-  loading = false, shouldFilter = true, onSearchChange, clearLabel, allowCustomValue = false, historyKey, disabled, className, ...aria
+  loading = false, shouldFilter = true, onSearchChange, clearLabel, allowCustomValue = false, historyKey, recentOptions, recentLabel = 'Recent', disabled, className, ...aria
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -60,6 +63,8 @@ export function Combobox({
     const remembered: ComboboxOption[] = past.filter(text => !seen.has(text.toLowerCase())).map(text => ({ value: text, label: text }));
     return [...remembered, ...options];
   }, [past, options]);
+  const recentValues = useMemo(() => new Set((recentOptions ?? []).map(option => option.value)), [recentOptions]);
+  const mainOptions = useMemo(() => allOptions.filter(option => !recentValues.has(option.value)), [allOptions, recentValues]);
   const selected = allOptions.find(option => option.value === value);
   const shown = selected ? selected.label : (allowCustomValue && value ? value : placeholder);
   const trimmed = query.trim();
@@ -71,6 +76,25 @@ export function Combobox({
     }
     markDirty(); onValueChange(next); setQuery(''); setOpen(false);
   };
+  const renderOption = (option: ComboboxOption) => (
+    <Command.Item
+      key={option.value}
+      value={`${option.label} ${option.value}`}
+      keywords={option.keywords}
+      disabled={option.disabled}
+      onSelect={() => commit(option.value)}
+      className={optionRow}
+      data-commit-value={option.value}
+      data-state={option.value === value ? 'checked' : 'unchecked'}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{option.label}</span>
+        {/* Under the label, not beside it: beside it the description squeezed a short code to one letter. */}
+        {option.description && <span className="block truncate text-caption text-ink-muted">{option.description}</span>}
+      </span>
+      {option.value === value && <Icon name="check" size="sm" weight="emphasis" className="absolute right-2.5 text-action" />}
+    </Command.Item>
+  );
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={next => { setOpen(next); if (!next) setQuery(''); }}>
       <PopoverPrimitive.Trigger asChild>
@@ -143,25 +167,12 @@ export function Combobox({
                   <span className="text-ink-muted">{clearLabel}</span>
                 </Command.Item>
               )}
-              {allOptions.map(option => (
-                <Command.Item
-                  key={option.value}
-                  value={`${option.label} ${option.value}`}
-                  keywords={option.keywords}
-                  disabled={option.disabled}
-                  onSelect={() => commit(option.value)}
-                  className={optionRow}
-                  data-commit-value={option.value}
-                  data-state={option.value === value ? 'checked' : 'unchecked'}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{option.label}</span>
-                    {/* Under the label, not beside it: beside it the description squeezed a short code to one letter. */}
-                    {option.description && <span className="block truncate text-caption text-ink-muted">{option.description}</span>}
-                  </span>
-                  {option.value === value && <Icon name="check" size="sm" weight="emphasis" className="absolute right-2.5 text-action" />}
-                </Command.Item>
-              ))}
+              {recentValues.size > 0 && (
+                <Command.Group heading={recentLabel} className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:font-sans [&_[cmdk-group-heading]]:text-caption [&_[cmdk-group-heading]]:text-ink-muted">
+                  {(recentOptions ?? []).map(option => renderOption(option))}
+                </Command.Group>
+              )}
+              {mainOptions.map(option => renderOption(option))}
               {allowCustomValue && trimmed !== '' && !exact && (
                 <Command.Item value={trimmed} data-custom-row data-commit-value={trimmed} onSelect={() => commit(trimmed)} className={optionRow}>
                   <span className="block truncate">Use &ldquo;{trimmed}&rdquo;</span>
