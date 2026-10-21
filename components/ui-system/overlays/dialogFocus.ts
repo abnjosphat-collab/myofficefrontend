@@ -1,9 +1,11 @@
-const FIELD_SELECTOR = 'input:not([type="hidden"]), select, textarea';
+const FIELD_SELECTOR = 'input:not([type="hidden"]), select, textarea, button[role="combobox"]:not(:disabled)';
 
 /**
  * The first form field a keyboard user would reach inside an opened dialog: visible and enabled.
- * Detail dialogs have none, so they fall back to the title; form dialogs land in their first field
- * instead of on the close button. Exported for tests.
+ * Covers native fields plus picker/select triggers (Combobox and the Radix Select both render
+ * button[role=combobox]), so a dialog that starts with a picker focuses it instead of skipping
+ * to a later native field. Detail dialogs have none, so they fall back to the title; form dialogs
+ * land in their first field instead of on the close button. Exported for tests.
  */
 export function firstDialogField(root: HTMLElement | null): HTMLElement | null {
   if (!root) return null;
