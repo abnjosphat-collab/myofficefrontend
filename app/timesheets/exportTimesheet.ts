@@ -92,9 +92,12 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
       const ws = wb.addWorksheet('Timesheet Summary');
       const FIXED_COLS = 3;
       const SUM_COLS = 6;
+      /** Row 1 is the title, row 2 the column headers, the employees follow. Every row reference below derives from these two. */
+      const HEADER_ROW = 2;
+      const FIRST_DATA_ROW = HEADER_ROW + 1;
       const sumHdr = ['Actual h', 'Reg h', 'OT 1.5×', 'OT 2.0×', 'Standby h', 'Night Allow. h'] as const;
       const totalCols = FIXED_COLS + days.length + SUM_COLS;
-      ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 3 }];
+      ws.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: HEADER_ROW }];
 
       const FONT = 'Calibri';
       const thinBorder = {
@@ -110,14 +113,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
       titleCell.font = { name: FONT, bold: true, size: 14, color: { argb: EXCEL_BW.black } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       ws.getRow(1).height = 24;
-      ws.mergeCells(2, 1, 2, totalCols);
-      const legendCell = ws.getCell(2, 1);
-      legendCell.value = `Actual h = SUM(all day columns, incl. 2.0× days). Use OT 2.0× for double-time pay. OT 1.5× = MAX(0, Actual h − ${NEC_REG_CAP}) + …`;
-      legendCell.font = { name: FONT, size: 9, italic: true, color: { argb: EXCEL_BW.black } };
-      legendCell.alignment = { wrapText: true, vertical: 'middle' };
-      ws.getRow(2).height = 28;
-
-      const hdrRow = ws.getRow(3);
+      const hdrRow = ws.getRow(HEADER_ROW);
       hdrRow.values = ['Mine No', 'Employee', 'Position', ...days.map(d => `${d.getDate()}\n${formatWeekday(d)}`), ...sumHdr];
       hdrRow.height = 32;
       hdrRow.eachCell({ includeEmpty: true }, (c, col) => {
@@ -141,7 +137,7 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
         const ot15Addends = moduleOt15FormulaAddends(emp.id, emp.employeeId || '', timesheets, approvedOvertime, periodDateStrs);
         rowVals.push(totals.actual, totals.reg, totals.ot15, totals.ot20, totals.standbyBonus, totals.nightAllowanceBonus);
 
-        const dataRow = ws.getRow(4 + ei);
+        const dataRow = ws.getRow(FIRST_DATA_ROW + ei);
         dataRow.values = rowVals;
         const actualCol = FIXED_COLS + days.length + 1;
         const ot15Col = actualCol + 2;
@@ -200,14 +196,14 @@ export function makeExporters({ employees, timesheets, approvedOvertime, getHour
         ot15Cell.numFmt = '0.00';
       });
 
-      const firstDataRow = 4;
-      const lastDataRow = 4 + targets.length - 1;
+      const firstDataRow = FIRST_DATA_ROW;
+      const lastDataRow = FIRST_DATA_ROW + targets.length - 1;
       const actualCol = FIXED_COLS + days.length + 1;
       const ot15Col = actualCol + 2;
       const ot15L = excelColumnLetter(ot15Col);
       const actualL = excelColumnLetter(actualCol);
 
-      const gtRow = ws.getRow(4 + targets.length + 1);
+      const gtRow = ws.getRow(FIRST_DATA_ROW + targets.length + 1);
       gtRow.values = ['', 'TOTALS', `${targets.length} employees`, ...days.map(() => ''),
         null,
         targets.reduce((s, e) => s + getHourTotals(e.id).reg, 0),
