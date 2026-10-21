@@ -88,6 +88,14 @@ const spec = {
     check(await tree.getByRole('button', { name: /^All files/ }).isVisible() && await tree.getByRole('button', { name: /^Trash/ }).isVisible(), 'the views are listed: all files, recent, starred, unfiled, trash');
     check(await tree.getByRole('button', { name: /^4\. Support/ }).isVisible(), 'the AMS folders show in the tree');
     check(await page.getByRole('button', { name: 'Preview Pump SOP.docx' }).isVisible(), 'files are listed');
+    const rail = await page.evaluate(() => Math.round(document.querySelector('aside')?.getBoundingClientRect().width ?? -1));
+    check(rail < 100, 'the shell sidebar rests as a rail: the folder tree is the navigation', `${rail}px`);
+    await page.getByRole('button', { name: /expand sidebar/i }).click();
+    await page.waitForTimeout(400);
+    const wide = await page.evaluate(() => Math.round(document.querySelector('aside')?.getBoundingClientRect().width ?? -1));
+    check(wide > 150, 'the person can still expand it', `${wide}px`);
+    await page.getByRole('button', { name: /collapse sidebar/i }).click();
+    await page.waitForTimeout(400);
     check(await page.getByText('The Asset Management System folders are not all set up').isVisible(), 'managers are told the AMS folders are not all set up');
     await shot(page, 'home@1440');
     await page.getByRole('button', { name: 'Set up the AMS folders' }).click();

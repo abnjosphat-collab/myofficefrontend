@@ -27,6 +27,9 @@ export function useAppShellState() {
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
+  // A route's temporary collapse (Documents, which brings its own folder tree): never persisted, cleared when the
+  // route unmounts, and always overruled by the person's own toggle. The sidebar reads collapsed || forced.
+  const [sidebarForceCollapsed, setSidebarForceCollapsed] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -225,6 +228,7 @@ export function useAppShellState() {
     visibleCategories,
     sidebarOpen, setSidebarOpen,
     sidebarCollapsed, setSidebarCollapsed,
+    sidebarForceCollapsed, setSidebarForceCollapsed,
 
     searchQuery, setSearchQuery,
     customizeOpen, setCustomizeOpen,

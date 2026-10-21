@@ -4,7 +4,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { AppShell } from '@/components/app-shell';
+import { AppShell, useRouteSidebarCollapsed } from '@/components/app-shell';
 import { Button, Drawer, EmptyState, IconButton, Notice, PageHeader, VIEW_CARDS_TABLE, useViewPreference } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { BulkBar } from './BulkBar';
@@ -36,6 +36,8 @@ function fromLink(): { place: Place; q: string } {
 }
 
 function DocumentsContent() {
+  // The folder tree is the navigation here; the shell sidebar would be a second one.
+  useRouteSidebarCollapsed();
   const { isAtLeast } = useAuth();
   const isManager = isAtLeast('manager');
   const overview = useOverview();
