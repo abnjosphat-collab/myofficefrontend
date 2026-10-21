@@ -57,6 +57,8 @@ const spec = {
     const cards = page.getByRole('list', { name: 'Overtime requests' }).getByRole('button', { name: /^Open the request/ });
     check(await cards.count() === 4, 'four request cards (a legacy record with no times, hours or known type does not crash)', String(await cards.count()));
     check(await page.getByText('4.0h').first().isVisible() && await page.getByText('Hours only').first().isVisible(), 'an hours-only request shows its hours, and one with neither shows "Hours only"');
+    await page.getByText('do not match the employee register').waitFor({ timeout: 5000 });
+    check(await page.getByRole('button', { name: /^Delete \d+ unmatched/ }).isVisible(), 'the register notice offers to delete the unmatched requests');
     await shot(page, 'cards@1440');
 
     await page.getByRole('button', { name: /^Pending\s*\d/ }).click();
@@ -176,7 +178,8 @@ const spec = {
     await bk.waitFor({ timeout: 5000 });
     await bk.getByRole('button', { name: 'Submit' }).click();
     check(await bk.getByText('Add at least one employee.').isVisible(), 'submitting with nobody chosen is explained');
-    for (const who of [/Eve Epsilon/, /Fay Zeta/]) { await bk.getByRole('combobox', { name: /^Employees/ }).click(); await page.getByRole('option', { name: who }).click(); }
+    for (const who of [/Eve Epsilon/, /Fay Zeta/]) { await bk.getByRole('checkbox', { name: who }).click(); }
+    check(await bk.getByText(/2 picked\./).isVisible(), 'ticked names show a picked count');
     refuseFor = 'Fay Zeta';
     await bk.getByRole('button', { name: 'Submit 2 requests' }).click();
     await bk.getByText(/1 submitted, 1 not saved/).waitFor({ timeout: 8000 }).catch(() => {});
@@ -184,6 +187,8 @@ const spec = {
     await shot(page, 'bulk-error@1440');
     refuseFor = null;
     await bk.getByRole('button', { name: 'Cancel' }).click();
+    check(await page.getByRole('alertdialog').isVisible(), 'cancelling with an unsaved refused person asks first');
+    await page.getByRole('button', { name: 'Discard changes' }).click();
 
     // insights
     await page.getByRole('tab', { name: 'Insights' }).click();

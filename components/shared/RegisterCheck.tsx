@@ -29,16 +29,36 @@ export function RegisterFlag({ match }: { match: RegisterMatch }) {
   return <span title={t.why}><StatusBadge tone={match === 'not-on-register' ? 'danger' : 'warning'} icon="warning">{t.label}</StatusBadge></span>;
 }
 
-/** A one-line notice with the count and a switch to show only the unmatched records. */
-export function RegisterNotice({ count, noun, only, onToggle }: { count: number; noun: string; only: boolean; onToggle: () => void }) {
+/** A one-line notice with the count, a switch to show only the unmatched records, and — when the page
+ *  passes `onDeleteAll` — a quiet delete-all for exactly the records the page can delete. */
+export function RegisterNotice({ count, noun, only, onToggle, onDeleteAll }: {
+  count: number; noun: string; only: boolean; onToggle: () => void;
+  /** The page filters out what its single-delete refuses and names it in the confirm (see D15). */
+  onDeleteAll?: { count: number; pending: boolean; run: () => void };
+}) {
   if (count === 0 && !only) return null;
+  const plural = onDeleteAll && onDeleteAll.count !== 1;
   return (
     <Notice
       tone="warning"
       title={`${count} ${count === 1 ? noun : `${noun}s`} ${count === 1 ? 'does' : 'do'} not match the employee register`}
-      action={<Button size="sm" onClick={onToggle}>{only ? 'Show all' : 'Show them'}</Button>}
+      action={
+        <div className="flex items-center gap-2">
+          {onDeleteAll && (
+            <Button
+              size="sm" variant="danger-quiet" icon="delete" pending={onDeleteAll.pending} onClick={onDeleteAll.run}
+              aria-label={`Delete ${onDeleteAll.count} unmatched ${plural ? `${noun}s` : noun}`}
+            >
+              Delete {onDeleteAll.count}
+            </Button>
+          )}
+          <Button size="sm" onClick={onToggle}>{only ? 'Show all' : 'Show them'}</Button>
+        </div>
+      }
     >
-      Their employee number is not on the register. Open each one to correct the person, or delete it.
+      {onDeleteAll
+        ? 'Their employee number is not on the register. Open each one to correct the person, or delete them all at once.'
+        : 'Their employee number is not on the register. Open each one to correct the person, or delete it.'}
     </Notice>
   );
 }

@@ -18,6 +18,7 @@ import type { Leave } from './types';
 import { bulkSetLeaveStatus, createLeave, deleteLeave, setLeaveStatus, updateLeave, useLeaves } from './useLeavesData';
 import { formatDate } from '@/lib/format';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
 const SORTS = [
@@ -38,6 +39,7 @@ const TypeTag = ({ type }: { type: string }) => { const t = typeOf(type); return
 function LeavesContent() {
   const confirm = useConfirm();
   const confirmDelete = useConfirmDelete();
+  const { confirmBulkDelete, deleting } = useBulkDelete();
   const list = useLeaves();
   const leaves = list.items;
   const [view, setView] = useViewPreference('leaves', VIEW_CARDS_TABLE);
@@ -54,6 +56,7 @@ function LeavesContent() {
 
   const viewing = useMemo(() => leaves.find(l => l.id === viewingId) ?? null, [leaves, viewingId]);
   const unmatched = useMemo(() => leaves.filter(l => register.matchOf(l) !== 'linked'), [leaves, register]);
+  const deletableUnmatched = useMemo(() => unmatched.filter(l => l.status !== 'approved'), [unmatched]);
   const filtered = useMemo(() => filterLeaves(unmatchedOnly ? unmatched : leaves, f), [leaves, unmatched, unmatchedOnly, f]);
   const stats = useMemo(() => statsFromLeaves(leaves, todayLocal()), [leaves]);
   const byType = useMemo(() => summariseByType(leaves, Object.keys(LEAVE_TYPES)), [leaves]);
@@ -82,6 +85,16 @@ function LeavesContent() {
   const remove = async (l: Leave) => {
     if (l.status === 'approved') { toast.error('An approved leave cannot be deleted: it may already have been counted. Reject it instead (Update status, then Reject); that keeps the history.'); return; }
     await confirmDelete({ title: 'Delete this leave request?', message: `${l.employee_name}, ${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteLeave(l.id); setViewingId(null); }, done: 'Leave request deleted.', after: () => list.refetch() });
+  };
+  const removeUnmatched = () => {
+    if (!deletableUnmatched.length) return;
+    const n = deletableUnmatched.length;
+    const kept = unmatched.length - n;
+    void confirmBulkDelete({
+      title: `Delete ${n} unmatched leave ${n === 1 ? 'request' : 'requests'}?`,
+      message: `${summariseNames(deletableUnmatched.map(l => l.employee_name))}.${kept > 0 ? ` ${kept} approved ${kept === 1 ? 'request is' : 'requests are'} kept — reject ${kept === 1 ? 'it' : 'them'} instead.` : ''} This cannot be undone.`,
+      ids: deletableUnmatched.map(l => l.id), run: id => deleteLeave(String(id)), singular: 'leave request', plural: 'leave requests', after: () => list.refetch(),
+    });
   };
   const runBulk = async () => {
     if (!bulk) return;
@@ -161,7 +174,7 @@ function LeavesContent() {
             </div>
           )}
 
-          <RegisterNotice count={unmatched.length} noun="leave request" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} />
+          <RegisterNotice count={unmatched.length} noun="leave request" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} onDeleteAll={deletableUnmatched.length > 0 ? { count: deletableUnmatched.length, pending: deleting, run: removeUnmatched } : undefined} />
 
           <DataRegion
             status={status} subject="leave requests" error={list.error} onRetry={() => list.refetch()}

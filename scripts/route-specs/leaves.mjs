@@ -30,6 +30,8 @@ const spec = {
     check(await page.getByText('Odd').first().isVisible(), 'an unrecognised status is shown as it is');
     check(await page.getByText('5 days').first().isVisible() && await page.getByText('—').first().isVisible(), 'a missing day count is a dash, not "undefined days"');
     check(await page.getByText('100% of decided').isVisible(), 'the approval rate says what it is a share of');
+    await page.getByText('do not match the employee register').waitFor({ timeout: 5000 });
+    check(await page.getByRole('button', { name: /^Delete \d+ unmatched/ }).isVisible(), 'the register notice offers to delete the unmatched requests');
     await shot(page, 'cards@1440');
 
     await page.getByRole('button', { name: /^Pending\s*\d/ }).click();
