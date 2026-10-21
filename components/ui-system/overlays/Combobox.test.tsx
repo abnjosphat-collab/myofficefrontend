@@ -230,4 +230,23 @@ describe('Combobox', () => {
     await open(user);
     expect(screen.queryByText('Recent')).not.toBeInTheDocument();
   });
+
+  it('autoFocusSearch opens on mount with the caret in the search box', async () => {
+    render(
+      <Combobox aria-label="Department" value="" onValueChange={() => {}} options={OPTIONS}
+        searchPlaceholder="Search department…" autoFocusSearch />,
+    );
+    const box = await screen.findByPlaceholderText('Search department…');
+    expect(box).toHaveFocus();
+    expect(screen.getByRole('combobox', { name: 'Department' })).toHaveAttribute('data-autofocus-search');
+  });
+
+  it('autoFocusSearch stays closed when disabled', () => {
+    render(
+      <Combobox aria-label="Department" value="" onValueChange={() => {}} options={OPTIONS}
+        searchPlaceholder="Search department…" autoFocusSearch disabled />,
+    );
+    expect(screen.queryByPlaceholderText('Search department…')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Department' })).not.toHaveAttribute('data-autofocus-search');
+  });
 });

@@ -78,7 +78,7 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
     <FormDialog open={open} onOpenChange={onOpenChange} title={leave ? 'Edit leave request' : 'New leave request'} description="Who is going on leave, when, and how to reach them." submitLabel={leave ? 'Update request' : 'Submit request'} onSubmit={submit} size="lg">
       <div className="flex flex-col gap-4">
         <Field label="Employee" required error={err(bad.employee, 'Choose the employee.')}>
-          <PersonPicker label="Employee" name={form.employee_name} employeeId={form.employee_id} onPick={pick} disabled={!!leave} placeholder="Search by name or employee ID" />
+          <PersonPicker label="Employee" name={form.employee_name} employeeId={form.employee_id} onPick={pick} disabled={!!leave} placeholder="Search by name or employee ID" autoFocusSearch={!leave} />
         </Field>
         {form.employee_name && (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-control bg-surface-subtle p-3 sm:grid-cols-4" aria-label="Employee details">
