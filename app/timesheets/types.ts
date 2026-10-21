@@ -12,6 +12,8 @@ export interface Employee {
   id: string; employeeId: string; name: string; position: string;
   department: string; email: string; is_active: boolean;
   employmentType: 'NEC' | 'SALARIED' | '';
+  /** Left the company: kept off the automatic roster, still addable by hand. */
+  archived?: boolean;
 }
 
 // Legacy shape — no longer created by the UI (overtime is entered exclusively in the

@@ -41,7 +41,7 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
   const effective = { ...form, expiry_date: expiry };
   const problems = formProblems(effective);
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
-  const options = useMemo(() => employees.map(e => ({ value: e.employee_id, label: e.employee_name || e.employee_id, description: [e.employee_id, e.position].filter(Boolean).join(' · ') })), [employees]);
+  const options = useMemo(() => employees.filter(e => e.archived !== true).map(e => ({ value: e.employee_id, label: e.employee_name || e.employee_id, description: [e.employee_id, e.position].filter(Boolean).join(' · ') })), [employees]);
   const pick = (id: string) => { const e = employees.find(x => x.employee_id === id); if (e) set({ employee_id: e.employee_id, employee_name: e.employee_name, position: e.position, mine_section: e.section || form.mine_section }); };
 
   const submit = async () => {
@@ -49,6 +49,8 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
     if (Object.keys(problems).length > 0) return false;
     // A typed ID can differ from the register's even when the name beside it is right; ask rather than save one that matches no one.
     if (!employees.some(e => e.employee_id === form.employee_id.trim()) && !await confirm({ title: 'Employee ID not found', message: `"${form.employee_id.trim()}" does not match anyone in the personnel register. Save it anyway?`, confirmLabel: 'Save anyway' })) return false;
+    const typed = employees.find(e => e.employee_id === form.employee_id.trim());
+    if (!editing && typed?.archived === true && !await confirm({ title: 'This person is archived', message: `"${form.employee_name.trim() || form.employee_id.trim()}" has left (archived on the register). Issue PPE to them anyway?`, confirmLabel: 'Issue anyway' })) return false;
     await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim(), ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
     toast.success(editing ? 'PPE record updated.' : 'PPE issued.');
   };

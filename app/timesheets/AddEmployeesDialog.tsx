@@ -31,7 +31,7 @@ export function AddEmployeesDialog({ allEmployees, currentIds, loading, onAdd, o
             <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto" aria-label="Employees to add">
               {available.map(e => (
                 <li key={e.id} className="rounded-control px-2 py-1.5 hover:bg-surface-subtle">
-                  <Checkbox label={e.name} description={[e.position, e.department].filter(Boolean).join(', ')} checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
+                  <Checkbox label={e.name} description={`${[e.position, e.department].filter(Boolean).join(', ')}${e.archived === true ? ' · Archived' : ''}`} checked={selected.has(e.id)} onChange={() => toggle(e.id)} />
                 </li>
               ))}
             </ul>

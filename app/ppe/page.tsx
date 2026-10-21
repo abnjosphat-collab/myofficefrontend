@@ -25,6 +25,7 @@ import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setM
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
 const ALL = 'all';
@@ -32,6 +33,7 @@ const ALL = 'all';
 function PPEContent() {
   const confirm = useConfirm();
   const confirmDelete = useConfirmDelete();
+  const { confirmBulkDelete, deleting } = useBulkDelete();
   const recs = usePPERecords();
   const roster = useRosterRows();
   const matrix = usePPEMatrix();
@@ -47,16 +49,27 @@ function PPEContent() {
 
   const records = useMemo(() => enrichPPERecords(recs.items, roster.items), [recs.items, roster.items]);
   const holders = useMemo(() => groupByEmployee(records, roster.items), [records, roster.items]);
+  // Archived people are hidden from the browsing views by default but never from the data-quality notice
+  // (unmatched), the issue form, the order list or the matrix (D17); due always excludes them (D18).
+  const [showArchived, setShowArchived] = useState(false);
+  const archivedCount = useMemo(() => holders.filter(h => h.archived === true).length, [holders]);
+  const visibleHolders = useMemo(() => (showArchived ? holders : holders.filter(h => h.archived !== true)), [holders, showArchived]);
+  const visibleRecords = useMemo(() => visibleHolders.flatMap(h => h.records), [visibleHolders]);
+  const activeHolders = useMemo(() => holders.filter(h => h.archived !== true), [holders]);
   const people = useMemo(() => selectableEmployees(roster.items, holders), [roster.items, holders]);
-  const sections = useMemo(() => sectionCounts(holders), [holders]);
-  const inSection = useMemo(() => (f.section === ALL ? holders : holders.filter(h => normalizeSection(h.section) === f.section)), [holders, f.section]);
+  const sections = useMemo(() => sectionCounts(visibleHolders), [visibleHolders]);
+  const dueSections = useMemo(() => sectionCounts(activeHolders), [activeHolders]);
+  const inSection = useMemo(() => (f.section === ALL ? activeHolders : activeHolders.filter(h => normalizeSection(h.section) === f.section)), [activeHolders, f.section]);
   const sectionRecords = useMemo(() => inSection.flatMap(h => h.records), [inSection]);
   const unmatched = useMemo(() => holders.filter(h => register.matchOf(h) !== 'linked'), [holders, register]);
-  const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : holders, f), [holders, unmatched, unmatchedOnly, f]);
-  const stats = useMemo(() => summarise(records, holders), [records, holders]);
+  const unmatchedRecordIds = useMemo(() => unmatched.flatMap(h => h.records.map(r => r.id)), [unmatched]);
+  const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, f), [visibleHolders, unmatched, unmatchedOnly, f]);
+  const stats = useMemo(() => summarise(visibleRecords, visibleHolders), [visibleRecords, visibleHolders]);
   const scoped = useMemo(() => summarise(sectionRecords, inSection), [sectionRecords, inSection]);
   const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
   const item = useMemo(() => records.find(r => String(r.id) === itemId) ?? null, [records, itemId]);
+  const itemReadOnly = item ? holders.find(h => h.employee_id === item.employee_id)?.archived === true : false;
+  const hiddenAllArchived = !showArchived && archivedCount > 0 && visibleHolders.length === 0;
   const status = deriveDataStatus({ loaded: recs.loaded, loading: recs.loading, error: recs.error, errorStatus: recs.errorStatus, count: shown.length, transient: isTransientStatus(recs.errorStatus) });
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
@@ -83,6 +96,15 @@ function PPEContent() {
   };
   const remove = async (r: PPERecord) => {
     await confirmDelete({ title: 'Delete this PPE record?', message: `${typeName(r.ppe_type)} for ${r.employee_name}. This cannot be undone.`, what: 'The record', run: async () => { await deletePPERecord(r.id); setItemId(null); }, done: 'Record deleted.', after: () => recs.refetch() });
+  };
+  const removeUnmatched = () => {
+    if (!unmatchedRecordIds.length) return;
+    const n = unmatchedRecordIds.length;
+    void confirmBulkDelete({
+      title: `Delete ${n} unmatched PPE ${n === 1 ? 'record' : 'records'}?`,
+      message: `All PPE records for ${summariseNames(unmatched.map(h => h.employee_name))}. This cannot be undone.`,
+      ids: unmatchedRecordIds, run: id => deletePPERecord(String(id)), singular: 'PPE record', plural: 'PPE records', after: () => recs.refetch(),
+    });
   };
   const toggleNotRequired = async (r: PPERecord) => {
     const next = r.status === 'not_required' ? 'active' : 'not_required';
@@ -130,7 +152,7 @@ function PPEContent() {
     return <>{o > 0 && <StatusBadge tone="danger">{o} overdue</StatusBadge>}{s > 0 && <StatusBadge tone="warning">{s} expiring soon</StatusBadge>}{o === 0 && s === 0 && <StatusBadge tone="success">Up to date</StatusBadge>}</>;
   };
   const VIEWS: { value: EmployeeView; label: string }[] = [
-    { value: 'all', label: `Everyone (${holders.length})` }, { value: 'active', label: `Has active (${holders.filter(h => h.records.some(r => r.status === 'active')).length})` },
+    { value: 'all', label: `Everyone (${visibleHolders.length})` }, { value: 'active', label: `Has active (${visibleHolders.filter(h => h.records.some(r => r.status === 'active')).length})` },
     { value: 'soon', label: `Expiring soon (${stats.employeesSoon})` }, { value: 'overdue', label: `Overdue (${stats.employeesOverdue})` },
   ];
 
@@ -171,23 +193,26 @@ function PPEContent() {
             <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search name, ID or position" wrapperClassName="min-w-48 max-w-sm flex-1" />
             <Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
             {filtered && <Button variant="ghost" icon="close" onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>}
+            {archivedCount > 0 && <Button size="sm" variant="ghost" icon="archive" aria-pressed={showArchived} onClick={() => setShowArchived(v => !v)}>{showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}</Button>}
           </div>
           <Segmented label="Show" value={f.view} onValueChange={v => set({ view: v as EmployeeView })} options={VIEWS} />
-          <RegisterNotice count={unmatched.reduce((n, h) => n + h.records.length, 0)} noun="PPE record" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} />
+          <RegisterNotice count={unmatchedRecordIds.length} noun="PPE record" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} onDeleteAll={unmatchedRecordIds.length > 0 ? { count: unmatchedRecordIds.length, pending: deleting, run: removeUnmatched } : undefined} />
           <DataRegion
             status={status} subject="PPE records" error={recs.error} onRetry={reload}
             empty={filtered
               ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>} />
+              : hiddenAllArchived
+              ? <EmptyState icon="archive" title="Everyone with PPE is archived" description="Show them to look through their records." action={<Button onClick={() => setShowArchived(true)}>Show archived</Button>} />
               : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== holders.length ? ` of ${holders.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}</p>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees with PPE">
               {shown.map(h => (
                 <li key={h.employee_id} className="relative">
                   <RecordCard
-                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} /></>}
+                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
                     facts={[{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }, ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
-                    action={<IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}
+                    action={h.archived === true ? undefined : <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}
                   />
                 </li>
               ))}
@@ -196,7 +221,7 @@ function PPEContent() {
         </TabsContent>
 
         <TabsContent value="due" className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
+          <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...dueSections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
           {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
         </TabsContent>
 
@@ -208,11 +233,11 @@ function PPEContent() {
             <OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} />
           </DataRegion>
         </TabsContent>
-        <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={records} employeeCount={holders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
+        <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
       </Tabs>
 
-      <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} />
-      <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} />
+      <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
+      <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
       <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} employees={people} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>

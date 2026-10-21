@@ -35,15 +35,17 @@ export function ItemMenu({ r, a }: { r: PPERecord; a: ItemActions }) {
   );
 }
 
-export function EmployeePPEDetail({ employee, onClose, onIssue, actions }: { employee: EmployeeWithPPE | null; onClose: () => void; onIssue: (e: EmployeeWithPPE) => void; actions: ItemActions }) {
+export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnly = false }: { employee: EmployeeWithPPE | null; onClose: () => void; onIssue: (e: EmployeeWithPPE) => void; actions: ItemActions; readOnly?: boolean }) {
   const e = employee;
   const items = e ? [...e.records].sort((a, b) => (a.expiry_date ?? '9999').localeCompare(b.expiry_date ?? '9999')) : [];
   return (
     <Dialog
       open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e?.employee_name ?? 'Employee'} description={e ? [e.employee_id, e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
-      footer={e && (<DetailActions onClose={onClose}><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></DetailActions>)}
+      footer={e && (readOnly ? (<DetailActions onClose={onClose} />) : (<DetailActions onClose={onClose}><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></DetailActions>))}
     >
       {e && (
+        <>
+        {readOnly && <p className="mb-2 font-sans text-caption text-ink-muted">Archived — kept for history. Un-archive this person on the Employees page to act on these records.</p>}
         <ul className="flex flex-col gap-2" aria-label={`PPE held by ${e.employee_name}`}>
           {items.map(r => (
             <li key={r.id} className="flex items-center gap-3 rounded-control border border-line bg-surface-subtle px-3 py-2.5">
@@ -52,20 +54,21 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions }: { emp
                 <p className="font-sans text-caption text-ink-muted tabular">{r.item_name}{r.item_name && ', '}issued {fmtDate(r.issue_date)}{r.expiry_date ? `, expires ${fmtDate(r.expiry_date)}` : ', no expiry'}</p>
               </div>
               <StandingBadge r={r} />
-              <ItemMenu r={r} a={actions} />
+              {readOnly ? <IconButton icon="eye" size="sm" variant="ghost" label={`View details for ${r.item_name || typeName(r.ppe_type)}, ${r.employee_name}`} onClick={() => actions.onView(r)} /> : <ItemMenu r={r} a={actions} />}
             </li>
           ))}
         </ul>
+        </>
       )}
     </Dialog>
   );
 }
 
-export function PPEItemDetail({ item: r, onClose, onEdit }: { item: PPERecord | null; onClose: () => void; onEdit: (r: PPERecord) => void }) {
+export function PPEItemDetail({ item: r, onClose, onEdit, readOnly = false }: { item: PPERecord | null; onClose: () => void; onEdit: (r: PPERecord) => void; readOnly?: boolean }) {
   const cond = r ? conditionMeta(r.condition) : null;
   return (
     <Dialog open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="md" title={r ? typeName(r.ppe_type) : 'PPE item'} description={r ? `${r.employee_name}, ${r.employee_id}` : undefined}
-      footer={r && (<DetailActions onClose={onClose} onEdit={() => onEdit(r)} />)}>
+      footer={r && (<DetailActions onClose={onClose} onEdit={readOnly ? undefined : () => onEdit(r)} />)}>
       {r && cond && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2"><StandingBadge r={r} /><StatusBadge tone={cond.tone}>{cond.label}</StatusBadge></div>

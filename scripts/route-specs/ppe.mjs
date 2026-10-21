@@ -11,8 +11,12 @@ const RECS = [
   rec(4, { employee_id: 'C200', employee_name: 'Bob Beta', position: 'Electrician', mine_section: 'Electrical', ppe_type: 'overall', item_name: 'Acid-proof overall', size: 'L', expiry_date: day(-3) }),
   // a legacy record with almost nothing on it must render rather than crash
   { id: '5', employee_id: 'C300', employee_name: 'Cy Gamma', ppe_type: 'safety_shoes', status: 'active' },
+  // an archived holder's record: hidden from the live views by default, on the register so never unmatched
+  rec(6, { employee_id: 'C500', employee_name: 'Eve Epsilon', position: 'Hoist Driver', mine_section: 'Shaft', expiry_date: day(-5) }),
 ];
 let failSave = false;
+// the register is served under both paths: the page reads /api/employees (no slash) for the register check
+const EMPLOYEES = [{ employee_id: 'C100', first_name: 'Ann', last_name: 'Alpha', designation: 'Fitter', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C400', first_name: 'Dee', last_name: 'Delta', designation: 'Welder', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C300', first_name: '', last_name: '', designation: '', section: '' }, { employee_id: 'C500', first_name: 'Eve', last_name: 'Epsilon', designation: 'Hoist Driver', department: 'MAINTENANCE', section: 'Shaft', archived: true }];
 
 const spec = {
   route: '/ppe',
@@ -29,7 +33,8 @@ const spec = {
     },
     'POST /api/ppe-order-list/remove': request => { for (const id of request.postDataJSON().record_ids) ORDER.delete(id); return { ok: true }; },
     '/api/ppe/matrix': request => (request.method() === 'PUT' ? { updated: 2 } : { safety_shoes: 12, helmet: 24 }),
-    '/api/employees/': [{ employee_id: 'C100', first_name: 'Ann', last_name: 'Alpha', designation: 'Fitter', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C400', first_name: 'Dee', last_name: 'Delta', designation: 'Welder', department: 'MAINTENANCE', section: 'Mechanical' }, { employee_id: 'C300', first_name: '', last_name: '', designation: '', section: '' }],
+    '/api/employees/': EMPLOYEES,
+    '/api/employees': EMPLOYEES,
   },
   async ready(page, calls, { check, shot }) {
     const dialog = name => page.getByRole('dialog', { name });
@@ -73,11 +78,69 @@ const spec = {
     await det.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
     check(!(await det.isVisible()), 'Escape closes the employee detail after a refused delete');
 
+    // unmatched delete-all: the notice offers it, cancelling deletes nothing, confirming deletes each and refetches
+    await page.getByText('2 PPE records do not match the employee register').waitFor({ timeout: 5000 });
+    await shot(page, 'unmatched-notice@1440');
+    await page.getByRole('button', { name: 'Delete 2 unmatched PPE records' }).click();
+    const c2 = page.getByRole('alertdialog');
+    await c2.waitFor({ timeout: 5000 });
+    check(await c2.getByText('Bob Beta').isVisible(), 'the bulk confirm names who is affected');
+    await c2.getByRole('button', { name: 'Cancel' }).click();
+    check(!calls.some(c => c.method === 'DELETE' && (c.pathname === '/api/ppe/3' || c.pathname === '/api/ppe/4')), 'cancelling the bulk confirm deletes nothing');
+    const getsBefore = calls.filter(c => c.method === 'GET' && c.pathname === '/api/ppe').length;
+    await page.getByRole('button', { name: 'Delete 2 unmatched PPE records' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+    await page.getByText('2 PPE records deleted.').waitFor({ timeout: 5000 }).catch(() => {});
+    check(calls.some(c => c.method === 'DELETE' && c.pathname === '/api/ppe/3') && calls.some(c => c.method === 'DELETE' && c.pathname === '/api/ppe/4'), 'confirming deletes each unmatched record');
+    check(await page.getByText('2 PPE records deleted.').isVisible(), 'the bulk delete reports how many went');
+    check(calls.filter(c => c.method === 'GET' && c.pathname === '/api/ppe').length > getsBefore, 'the list refetches after the bulk delete');
+
+    // archived holders are hidden by default and open read-only when shown (left shown: due must still exclude them)
+    await page.getByRole('button', { name: 'Show archived (1)' }).waitFor({ timeout: 5000 });
+    check(await page.getByRole('button', { name: 'Show archived (1)' }).isVisible(), 'an archived holder is hidden behind a toggle');
+    await page.getByRole('button', { name: 'Show archived (1)' }).click();
+    check(await cards.count() === 4, 'showing archived reveals the hidden holder', String(await cards.count()));
+    await shot(page, 'archived-shown@1440');
+    await page.getByRole('button', { name: 'Open the PPE held by Eve Epsilon' }).click();
+    const arch = dialog('Eve Epsilon');
+    await arch.waitFor({ timeout: 5000 });
+    check(!(await arch.getByRole('button', { name: 'Issue PPE' }).isVisible().catch(() => false)), 'an archived holder opens read-only: no issue action');
+    check(await arch.getByText('kept for history').isVisible(), 'the archived detail says why it is read-only');
+    await shot(page, 'archived-detail@1440');
+    await page.keyboard.press('Escape');
+    await arch.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+
+    // new issues exclude archived people from the picker and question a typed archived ID
+    await page.getByRole('button', { name: 'Issue PPE' }).first().click();
+    const iss = dialog('Issue PPE');
+    await iss.waitFor({ timeout: 5000 });
+    await iss.getByRole('combobox', { name: 'Pick an employee' }).click();
+    await page.getByRole('option', { name: /Ann Alpha/ }).waitFor({ timeout: 5000 });
+    check(!(await page.getByRole('option', { name: /Eve Epsilon/ }).isVisible().catch(() => false)), 'the issue picker offers no archived people');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    await page.keyboard.press('Escape'); await iss.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    await page.getByRole('button', { name: 'Issue PPE' }).first().click();
+    await iss.waitFor({ timeout: 5000 });
+    await iss.getByLabel(/^Employee ID/).fill('C500');
+    await iss.getByLabel(/^Full name/).fill('Eve Epsilon');
+    await iss.getByLabel(/^Position/).fill('Hoist Driver');
+    await iss.getByLabel(/^Item or brand/).fill('Fixture boots');
+    await iss.getByRole('button', { name: 'Issue PPE' }).click();
+    const isArch = page.getByRole('alertdialog');
+    await isArch.waitFor({ timeout: 5000 });
+    check(/has left/.test(await isArch.textContent()), 'a typed archived ID is questioned, not silently accepted');
+    await isArch.getByRole('button', { name: 'Cancel' }).click();
+    check(!calls.some(c => c.method === 'POST' && c.pathname === '/api/ppe' && c.body?.employee_id === 'C500'), 'cancelling the archived ask issues nothing');
+    await iss.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await iss.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+
     // due items: select, order list
     await page.getByRole('tab', { name: 'Due items' }).click();
     const due = page.getByRole('table', { name: 'Overdue PPE' });
     await due.waitFor({ timeout: 5000 });
     check(await due.getByRole('row').count() === 3, 'two overdue items are listed', String(await due.getByRole('row').count()));
+    check(!(await due.getByText('Eve Epsilon').isVisible().catch(() => false)), 'due never lists an archived holder, even while shown');
     await shot(page, 'due@1440');
     await due.getByRole('checkbox').nth(1).check();
     await page.getByRole('button', { name: 'Add to the order list' }).click();

@@ -32,6 +32,13 @@ describe('who holds what', () => {
   it('offers the roster plus holders who are not on it', () => {
     expect(selectableEmployees(roster, holders).map(e => e.employee_id).sort()).toEqual(['C1', 'C2', 'C9']);
   });
+  it('marks a holder archived from the roster, and never marks off-roster holders', () => {
+    const withArchived: EmployeeRow[] = [...roster, { employee_id: 'C2', employee_name: 'Bo Beta', position: '', department: '', section: '', archived: true }];
+    const hs = groupByEmployee(rows, withArchived);
+    expect(hs.find(h => h.employee_id === 'C2')?.archived).toBe(true);
+    expect(hs.find(h => h.employee_id === 'C1')?.archived).toBe(false);
+    expect(groupByEmployee(rows, []).every(h => h.archived === false)).toBe(true);
+  });
   it('filters by view, section and search, and counts sections in order', () => {
     const ids = (f: Partial<typeof NO_EMPLOYEE_FILTERS>) => filterEmployees(holders, { ...NO_EMPLOYEE_FILTERS, ...f }).map(h => h.employee_id);
     expect(ids({ view: 'soon' })).toEqual(['C1']);

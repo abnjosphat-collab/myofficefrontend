@@ -32,6 +32,7 @@ export const api = {
       department: (d.department || 'General') as string,
       email: (d.email || '') as string,
       is_active: d.is_active !== false,
+      archived: d.archived === true,
       employmentType: ((d.employment_type as string) === 'NEC' || (d.employment_type as string) === 'SALARIED') ? (d.employment_type as 'NEC' | 'SALARIED') : '',
     }));
   },
