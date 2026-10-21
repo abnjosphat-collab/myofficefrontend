@@ -1,11 +1,12 @@
 // app/timesheets/EntryDialog.tsx — one person's one day: the status, the shift times (the hours, night hours and night allowance follow the
-// times), callout overtime, standby and notes. Overtime itself is not typed here: it comes from the Overtime module. Opening a derived
-// (unsaved) cell pre-fills this, and saving turns it into a real entry. A refused save stays in the dialog with its reason.
+// times), standby and notes. Overtime itself is not typed here: it comes from the Overtime module, and stored callout overtime shows
+// read-only and is kept as it is. Opening a derived (unsaved) cell pre-fills this, and saving turns it into a real entry. A refused save
+// stays in the dialog with its reason.
 'use client';
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Checkbox, Field, FormDialog, Input, Notice, Select, StatusBadge, useConfirm } from '@/components/ui-system';
+import { Button, Checkbox, Fact, FactList, FactSection, Field, FormDialog, Input, Notice, Select, StatusBadge, useConfirm } from '@/components/ui-system';
 import { ShiftTimeRange } from '@/components/shared/ShiftTimeRange';
 import { TIMESHEET_BULK_SHIFT_PRESETS } from '@/lib/shiftTimePresets';
 import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
@@ -29,7 +30,10 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
   const dt = DOUBLE_TIME_STATUSES.has(form.status);
   const problems = entryProblems(form);
   const timeError = touched && problems.find(p => /times/.test(p));
-  const calloutError = touched ? problems.find(p => /[Cc]allout/.test(p)) : undefined;
+  // Stored callout values pass through untouched; they show read-only below only when there is something to show.
+  const calloutHours = parseFloat(form.callout_overtime_hours) || 0;
+  const calloutCount = parseInt(form.callout_count, 10) || 0;
+  const hasCallouts = calloutHours > 0 || calloutCount > 0;
 
   const submit = async () => {
     setTouched(true);
@@ -67,21 +71,22 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
               <div className="rounded-control bg-surface p-3 text-center"><p className="font-sans text-caption text-ink-muted">{dt ? 'Hours at 2.0×' : 'Regular hours'}</p><p className="font-sans text-title font-semibold tabular text-ink">{form.regular_hours.toFixed(2)}h</p></div>
               <div className="rounded-control bg-surface p-3 text-center"><p className="font-sans text-caption text-ink-muted">Night hours</p><p className="font-sans text-title font-semibold tabular text-ink">{form.nightshift_hours.toFixed(2)}h</p></div>
             </div>
-            {form.nightshift_hours > 0 && <p className="font-sans text-caption text-ink-muted">{form.nightshift_hours.toFixed(2)}h between 18:00 and 06:00 count as night allowance. Breakdown or callout work at night goes in Callout hours below, not here.</p>}
+            {form.nightshift_hours > 0 && <p className="font-sans text-caption text-ink-muted">{form.nightshift_hours.toFixed(2)}h between 18:00 and 06:00 count as night allowance. Callout hours are kept separately.</p>}
           </section>
         )}
 
         <p className="font-sans text-caption text-ink-muted">Overtime is not entered here. Log it in the Overtime module and it is picked up automatically.</p>
         <div className="flex items-center justify-between rounded-control bg-surface-subtle px-4 py-3"><span className="font-sans text-label font-semibold text-ink">Total hours</span><StatusBadge tone="brand">{entryTotal(form).toFixed(2)}h</StatusBadge></div>
 
-        <section aria-label="Callout overtime" className="flex flex-col gap-2">
-          <h3 className="font-sans text-label font-semibold text-ink">Callout overtime</h3>
-          <p className="font-sans text-caption text-ink-muted">Hours worked when phoned in after hours or called out off-site.</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Callout hours" error={calloutError}><Input type="number" min={0} max={24} step={0.5} value={form.callout_overtime_hours} onChange={e => set({ callout_overtime_hours: e.target.value })} /></Field>
-            <Field label="Number of callouts"><Input type="number" min={0} step={1} value={form.callout_count} onChange={e => set({ callout_count: e.target.value })} /></Field>
-          </div>
-        </section>
+        {hasCallouts && (
+          <FactSection title="Callout overtime">
+            <FactList>
+              <Fact label="Callout hours">{`${calloutHours.toFixed(2)}h`}</Fact>
+              <Fact label="Number of callouts">{calloutCount}</Fact>
+            </FactList>
+            <p className="font-sans text-caption text-ink-muted">Callouts are no longer entered here; these are kept from the stored record.</p>
+          </FactSection>
+        )}
         <Checkbox label="Standby allowance" description="Adds a flat 8 hours once for this standby period, whatever its length." checked={form.standby_allowance} onChange={e => set({ standby_allowance: e.target.checked })} />
         <Field label="Notes" optional><Input value={form.notes} onChange={e => set({ notes: e.target.value })} placeholder="Optional" /></Field>
       </div>
