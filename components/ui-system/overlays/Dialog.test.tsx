@@ -47,6 +47,22 @@ describe('Dialog initial focus', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Close dialog' })).toHaveFocus());
   });
 
+  it('leaves focus alone when the body holds a typing-ready picker', async () => {
+    // The picker's own effect focuses its search box; without the stand-down the
+    // input below would win the dialog's first-field move (see the test above it).
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue(rects);
+    render(
+      <Dialog open onOpenChange={() => {}} title="New request">
+        <button data-autofocus-search aria-label="Pick">Pick</button>
+        <label>Name<input aria-label="Name" /></label>
+      </Dialog>,
+    );
+    await screen.findByRole('textbox', { name: 'Name' });
+    expect(screen.getByRole('textbox', { name: 'Name' })).not.toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'New request' })).not.toHaveFocus();
+    expect(document.body).toHaveFocus();
+  });
+
   it('returns focus to the opener on Escape', async () => {
     const user = userEvent.setup();
     function Harness() {

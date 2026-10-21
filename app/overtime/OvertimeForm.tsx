@@ -94,7 +94,7 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Pick an employee" optional description="Fills the name, ID, position and phone." className="sm:col-span-2">
-            <PersonPicker label="Pick an employee" name="" onPick={pickEmployee} disabled={editing} placeholder="Search the employee list" />
+            <PersonPicker label="Pick an employee" name="" onPick={pickEmployee} disabled={editing} placeholder="Search the employee list" autoFocusSearch={!editing} />
           </Field>
           <Field label="Employee name" required error={err(missing.name, 'Enter the employee name.')}><Input value={form.employee_name} disabled={editing} onChange={e => set({ employee_name: e.target.value })} autoComplete="off" /></Field>
           <Field label="Employee ID" required error={err(missing.id, 'Enter the employee ID.')}><Input value={form.employee_id} disabled={editing} onChange={e => set({ employee_id: e.target.value })} placeholder="C1165" autoComplete="off" /></Field>

@@ -94,7 +94,11 @@ export function Dialog({
           {...skin?.attrs}
           onOpenAutoFocus={event => {
             opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-            if (focusTitle !== false) { event.preventDefault(); const root = titleRef.current?.closest('[role="dialog"]'); (focusTitle ? titleRef.current : (firstDialogField(root instanceof HTMLElement ? root : null) ?? titleRef.current))?.focus(); }
+            // A picker that opens typing-ready owns the caret: its own effect focuses the search box,
+            // so the dialog cancels Radix's automatic focus and leaves the caret to the picker.
+            const root = titleRef.current?.closest('[role="dialog"]');
+            if (root instanceof HTMLElement && root.querySelector('[data-autofocus-search]')) { event.preventDefault(); return; }
+            if (focusTitle !== false) { event.preventDefault(); (focusTitle ? titleRef.current : (firstDialogField(root instanceof HTMLElement ? root : null) ?? titleRef.current))?.focus(); }
           }}
           onCloseAutoFocus={event => {
             const target = opener.current;

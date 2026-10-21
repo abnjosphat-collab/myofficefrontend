@@ -77,7 +77,7 @@ export function resolvePersonId(options: EmployeeOption[], name: string, employe
  * placeholder and re-selects the matching row); `employeeId` pins the match when
  * two people share a name. The caller fills its own fields from `onPick`.
  */
-export function PersonPicker({ name, employeeId, onPick, label, placeholder, disabled, excludeIds, className, clearLabel }: {
+export function PersonPicker({ name, employeeId, onPick, label, placeholder, disabled, excludeIds, className, clearLabel, autoFocusSearch }: {
   name?: string;
   employeeId?: string;
   onPick: (employee: EmployeeLookup | null) => void;
@@ -87,6 +87,8 @@ export function PersonPicker({ name, employeeId, onPick, label, placeholder, dis
   excludeIds?: string[];
   className?: string;
   clearLabel?: string;
+  /** Open on mount with the caret in the search box. The dialog leaves focus alone while this is set. */
+  autoFocusSearch?: boolean;
 }) {
   const { options, find } = useEmployeeOptions(excludeIds);
   const shown = name ?? '';
@@ -104,7 +106,7 @@ export function PersonPicker({ name, employeeId, onPick, label, placeholder, dis
         if (picked) recordRecentPerson(String(picked.id));
         onPick(picked);
       }}
-      options={combo} recentOptions={recent} placeholder={shown || placeholder || 'Search employees'}
+      options={combo} recentOptions={recent} placeholder={shown || placeholder || 'Search employees'} autoFocusSearch={autoFocusSearch}
       searchPlaceholder={SEARCH_PLACEHOLDER} emptyMessage={EMPTY_MESSAGE} disabled={disabled} className={className} clearLabel={clearLabel} />
   );
 }

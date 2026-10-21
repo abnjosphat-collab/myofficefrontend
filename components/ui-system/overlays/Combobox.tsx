@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Command } from 'cmdk';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
@@ -33,6 +33,11 @@ export interface ComboboxProps {
   /** A leading "Recent" group; excluded from the main list so values never repeat. */
   recentOptions?: ComboboxOption[];
   recentLabel?: string;
+  /**
+   * Open on mount with the caret in the search box (a New dialog that starts with this picker).
+   * The dialog leaves focus alone while this is set. Ignored when disabled.
+   */
+  autoFocusSearch?: boolean;
   'aria-label'?: string;
   disabled?: boolean;
   className?: string;
@@ -49,10 +54,12 @@ export interface ComboboxProps {
  */
 export function Combobox({
   value, onValueChange, options, placeholder = 'Select…', searchPlaceholder = 'Search…', emptyMessage = 'No matches.',
-  loading = false, shouldFilter = true, onSearchChange, clearLabel, allowCustomValue = false, historyKey, recentOptions, recentLabel = 'Recent', disabled, className, ...aria
+  loading = false, shouldFilter = true, onSearchChange, clearLabel, allowCustomValue = false, historyKey, recentOptions, recentLabel = 'Recent', disabled, className, autoFocusSearch = false, ...aria
 }: ComboboxProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoFocusSearch && !disabled);
   const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (autoFocusSearch && !disabled) searchRef.current?.focus({ preventScroll: true }); }, [autoFocusSearch, disabled]);
   const listId = useId();
   const field = useFieldProps();
   const markDirty = useMarkDirty();
@@ -106,6 +113,7 @@ export function Combobox({
           aria-label={field.id ? undefined : aria['aria-label']}
           {...field}
           disabled={disabled}
+          data-autofocus-search={autoFocusSearch && !disabled ? '' : undefined}
           data-placeholder={selected || (allowCustomValue && value) ? undefined : ''}
           className={cn(triggerSurface, className)}
         >
@@ -124,6 +132,7 @@ export function Combobox({
             <div data-combobox-search className="flex items-center gap-2 border-b border-line-subtle px-3">
               <Icon name="search" size="sm" className="shrink-0 text-ink-muted" />
               <Command.Input
+                ref={searchRef}
                 placeholder={searchPlaceholder}
                 onValueChange={next => { setQuery(next); onSearchChange?.(next); }}
                 onKeyDown={event => {
