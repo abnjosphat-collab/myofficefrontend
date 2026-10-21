@@ -4,7 +4,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Field, FormDialog, Input, Notice, Segmented, Select, Textarea } from '@/components/ui-system';
+import { Checkbox, Field, FormDialog, Input, Notice, PeopleChecklist, Segmented, Select, Textarea } from '@/components/ui-system';
 import { RecentChoices, rememberChoice } from '@/components/shared/RecentChoices';
 import { ShiftTimeRange } from '@/components/shared/ShiftTimeRange';
 import { useEmployees } from '@/hooks/useLookups';
@@ -12,7 +12,7 @@ import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { primaryContactPhone } from '@/lib/phone';
 import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
 import { calcHours } from './calcOvertime';
-import { EmployeePicks, type PickedPerson } from './EmployeePicks';
+import { type PickedPerson } from './EmployeePicks';
 import { REASON_HISTORY_KEY, blankForm } from './OvertimeForm';
 import { countDuplicates } from './overtimeLogic';
 import { PAYOUT_LABELS, PLANNING_LABELS, TYPE_LABELS } from './overtimeMeta';
@@ -70,7 +70,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Bulk overtime" description="One request per person, all with these details." submitLabel={people.length > 0 ? `Submit ${people.length} ${people.length === 1 ? 'request' : 'requests'}` : 'Submit'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
-        <EmployeePicks label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Everyone who worked the same overtime.'} />
+        <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone who worked the same overtime.'} />
         {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}
         {touched && noPosition.length > 0 && <Notice tone="danger" title="No position on record">The server needs a position for every request. Use New request for {noPosition.map(p => p.name).join(', ')}.</Notice>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

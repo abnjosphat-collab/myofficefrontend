@@ -83,6 +83,7 @@ export type { DataStatus, DataStatusInput } from './patterns/dataStatus';
 export { nextSort, sortRows, selectionState, toggleAllVisible, toggleOne, pruneSelection, pageSlice, pageCount, pageRangeLabel, clampPage } from './patterns/tableLogic';
 export type { SortState, SortDirection } from './patterns/tableLogic';
 export { PersonPicker, PeoplePicker, useEmployeeOptions, lookupName } from './patterns/PeoplePicker';
+export { PeopleChecklist } from './patterns/PeopleChecklist';
 export type { PickedPerson, EmployeeOption } from './patterns/PeoplePicker';
 export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/BulkEdit';
 export type { BulkField } from './patterns/BulkEdit';
