@@ -445,9 +445,10 @@ export function SignaturePad({
         </form>
       )}
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row">
-        <Button fullWidth onClick={onCancel} disabled={submitting}>Cancel</Button>
-        <Button variant="primary" fullWidth onClick={mode === 'draw' ? confirm : unlockAndSign}
+      {/* Same rhythm as the Dialog footer: stacked on phones, natural widths right-aligned on sm+; wraps instead of clipping. */}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        <Button onClick={onCancel} disabled={submitting}>Cancel</Button>
+        <Button variant="primary" onClick={mode === 'draw' ? confirm : unlockAndSign}
           disabled={submitting || (mode === 'draw' ? !hasInk : !password || unlocking)}>
           {submitting && !unlocking ? 'Processing…' : unlocking ? 'Unlocking…' : actionLabel}
         </Button>

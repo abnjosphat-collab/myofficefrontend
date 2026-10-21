@@ -44,13 +44,10 @@ export function withStatus(form: EntryForm, status: StatusKey): EntryForm {
 export const withTimes = (form: EntryForm, start_time: string, end_time: string): EntryForm => settle({ ...form, start_time, end_time });
 export const entryTotal = (f: EntryForm): number => f.regular_hours + f.nightshift_hours + (parseFloat(f.callout_overtime_hours) || 0);
 
-/** What stops a save. A cleared callout field counts as none, as when the field used to snap to 0. */
+/** What stops a save. Callout values pass through from the stored record untouched — nothing here validates what the dialog cannot change. */
 export function entryProblems(f: EntryForm): string[] {
   const out: string[] = [];
   if (!LEAVE_STATUSES.has(f.status) && !ZERO_HOUR_STATUSES.has(f.status) && (!f.start_time || !f.end_time)) out.push('Enter the start and end times.');
-  const co = parseFloat(f.callout_overtime_hours), cc = parseInt(f.callout_count, 10);
-  if (co < 0 || cc < 0) out.push('Callout hours and the number of callouts cannot be negative.');
-  if (co > 24) out.push('Callout hours cannot be more than 24 in a day.');
   return out;
 }
 

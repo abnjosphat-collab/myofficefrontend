@@ -25,6 +25,7 @@ import { WeeklySummary } from './WeeklySummary';
 import { TakeLieuLeaveDialog } from './TakeLieuLeaveDialog';
 import { bulkUpdateOTStatus, createOT, deleteOT, fetchTakenLieuLeave, updateOT, useOvertime, type TakeLieuLeaveResult, type TakenLieuLeave } from './useOvertimeData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 
@@ -67,6 +68,7 @@ function Badges({ r }: { r: OTRecord }) {
 
 function OvertimeContent() {
   const confirmDelete = useConfirmDelete();
+  const { confirmBulkDelete, deleting } = useBulkDelete();
   const confirm = useConfirm();
   const employees = useEmployees();
   const list = useOvertime();
@@ -108,6 +110,7 @@ function OvertimeContent() {
     setTakeFor(null);
   };
   const unmatched = useMemo(() => records.filter(r => register.matchOf(r) !== 'linked'), [records, register]);
+  const deletableUnmatched = useMemo(() => unmatched.filter(r => r.status !== 'approved' && r.status !== 'paid'), [unmatched]);
   const matches = useMemo(() => filterRecords(unmatchedOnly ? unmatched : records, effective, order), [records, unmatched, unmatchedOnly, effective, order]);
   const rows = useMemo(() => sortRows(matches, sort, (r, id) => (id === 'hours' ? recordHours(r) : id === 'date' ? r.date : id === 'employee' ? r.employee_name.toLowerCase() : String(r[id as keyof OTRecord] ?? '').toLowerCase())), [matches, sort]);
   const visible = pageSlice(rows, page, pageSize);
@@ -149,6 +152,16 @@ function OvertimeContent() {
   const remove = async (r: OTRecord) => {
     if (r.status === 'approved' || r.status === 'paid') { toast.error('An approved request cannot be deleted: it may already have been counted in payroll. Use Cancel request instead; that keeps the history.'); return; }
     await confirmDelete({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteOT(r.id); setViewingId(null); }, done: 'Request deleted.', after: () => list.refetch() });
+  };
+  const removeUnmatched = () => {
+    if (!deletableUnmatched.length) return;
+    const n = deletableUnmatched.length;
+    const kept = unmatched.length - n;
+    void confirmBulkDelete({
+      title: `Delete ${n} unmatched overtime ${n === 1 ? 'request' : 'requests'}?`,
+      message: `${summariseNames(deletableUnmatched.map(r => r.employee_name))}.${kept > 0 ? ` ${kept} approved ${kept === 1 ? 'request is' : 'requests are'} kept — cancel ${kept === 1 ? 'it' : 'them'} instead.` : ''} This cannot be undone.`,
+      ids: deletableUnmatched.map(r => r.id), run: id => deleteOT(id), singular: 'overtime request', plural: 'overtime requests', after: () => list.refetch(),
+    });
   };
   const cancelRequest = async (r: OTRecord) => {
     if (!await confirm({ title: 'Cancel this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. It stays in the history as cancelled and no longer counts.`, confirmLabel: 'Cancel request', destructive: true })) return;
@@ -277,7 +290,7 @@ function OvertimeContent() {
             </div>
           )}
 
-          <RegisterNotice count={unmatched.length} noun="overtime request" only={unmatchedOnly} onToggle={() => { setUnmatchedOnly(v => !v); setPage(1); }} />
+          <RegisterNotice count={unmatched.length} noun="overtime request" only={unmatchedOnly} onToggle={() => { setUnmatchedOnly(v => !v); setPage(1); }} onDeleteAll={deletableUnmatched.length > 0 ? { count: deletableUnmatched.length, pending: deleting, run: removeUnmatched } : undefined} />
 
           <DataRegion
             status={status} subject="overtime requests" error={list.error} onRetry={() => list.refetch()}

@@ -22,7 +22,7 @@ export function groupByEmployee(records: PPERecord[], roster: EmployeeRow[]): Em
   const live = new Map(roster.map(e => [normalizeEmployeeId(e.employee_id), e]));
   const map = new Map<string, EmployeeWithPPE>();
   for (const r of records) {
-    if (!map.has(r.employee_id)) map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, section: live.get(normalizeEmployeeId(r.employee_id))?.section || r.mine_section || '', records: [] });
+    if (!map.has(r.employee_id)) map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, section: live.get(normalizeEmployeeId(r.employee_id))?.section || r.mine_section || '', archived: live.get(normalizeEmployeeId(r.employee_id))?.archived === true, records: [] });
     map.get(r.employee_id)!.records.push(r);
   }
   return [...map.values()].sort((a, b) => a.employee_name.localeCompare(b.employee_name));
@@ -32,7 +32,7 @@ export function groupByEmployee(records: PPERecord[], roster: EmployeeRow[]): Em
 export function selectableEmployees(roster: EmployeeRow[], holders: EmployeeWithPPE[]): EmployeeRow[] {
   const map = new Map<string, EmployeeRow>();
   roster.forEach(e => map.set(e.employee_id, e));
-  holders.forEach(h => { if (!map.has(h.employee_id)) map.set(h.employee_id, { employee_id: h.employee_id, employee_name: h.employee_name, position: h.position, department: '', section: h.section }); });
+  holders.forEach(h => { if (!map.has(h.employee_id)) map.set(h.employee_id, { employee_id: h.employee_id, employee_name: h.employee_name, position: h.position, department: '', section: h.section, archived: h.archived }); });
   return [...map.values()].sort((a, b) => a.employee_name.localeCompare(b.employee_name));
 }
 

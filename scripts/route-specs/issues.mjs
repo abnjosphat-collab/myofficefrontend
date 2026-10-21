@@ -76,6 +76,18 @@ const spec = {
     await page.waitForTimeout(600);
     check(calls.some(c => c.method === 'DELETE' && c.pathname === '/api/issues/2'), 'confirming sends the delete');
 
+    // find a part without starting an issue
+    await page.getByRole('tab', { name: 'Find a part' }).click();
+    check(await page.getByText('2 parts in the catalogue').isVisible(), 'the lookup lists the catalogue');
+    check(await page.getByText('Bearing 6204').isVisible() && await page.getByText('3 in stock').isVisible(), 'each match shows its description and stock');
+    await shot(page, 'lookup@1440');
+    await page.getByPlaceholder('Search code, description or category').fill('seal');
+    check(await page.getByText('1 match').isVisible() && !(await page.getByText('Bearing 6204').isVisible().catch(() => false)), 'typing narrows to the matches');
+    await page.getByPlaceholder('Search code, description or category').fill('gearbox');
+    check(await page.getByText('No spare matches').isVisible(), 'no match says so');
+    await page.getByRole('button', { name: 'Clear the search' }).click();
+    check(await page.getByText('2 parts in the catalogue').isVisible(), 'clearing restores the catalogue');
+
     // analytics
     await page.getByRole('tab', { name: 'Analytics' }).click();
     check(await page.getByRole('heading', { name: 'Cost over time' }).isVisible() && await page.getByRole('heading', { name: /Top recipients/ }).isVisible(), 'analytics shows the cost charts');

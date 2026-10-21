@@ -51,6 +51,8 @@
   }
   input::placeholder, textarea::placeholder { color: var(--mo-ink-subtle); opacity: 1; }
   button, [role='button'], a { touch-action: manipulation; }
+  /* Clickable things show a hand; the Tailwind reset leaves buttons with the arrow cursor. Base layer, so utilities still win. */
+  button:not(:disabled), [role='button']:not([aria-disabled='true']), summary, a[href] { cursor: pointer; }
   :where(button):disabled { cursor: not-allowed; }
 
   /* Calm, thin scrollbars that match the surfaces. */

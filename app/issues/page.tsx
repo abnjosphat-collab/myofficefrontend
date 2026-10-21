@@ -9,6 +9,7 @@ import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/c
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { IssueForm } from './IssueForm';
+import { SpareLookup } from './SpareLookup';
 import { hasPrice, issueCost } from './analytics';
 import { exportIssuesExcel, exportIssuesPdf } from './exportIssues';
 import { invalidateSparesCache } from '@/hooks/useLookups';
@@ -106,6 +107,7 @@ function IssuesContent() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Stock issue sections">
           <TabsTrigger value="log" icon="issues">Issue log</TabsTrigger>
+          <TabsTrigger value="lookup" icon="search">Find a part</TabsTrigger>
           <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -136,6 +138,16 @@ function IssuesContent() {
               rowActions={i => <IconButton icon="delete" variant="danger" size="sm" label={`Delete the issue to ${i.recipient_name} on ${fmtDateTime(i.issued_at)}`} onClick={() => remove(i)} />}
             />
           </DataRegion>
+        </TabsContent>
+
+        <TabsContent value="lookup" className="mt-4">
+          <SpareLookup
+            spares={spares.items}
+            loading={spares.loading}
+            loaded={spares.loaded}
+            error={spares.error && !spares.loaded ? spares.error : null}
+            onRetry={() => spares.refetch()}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">

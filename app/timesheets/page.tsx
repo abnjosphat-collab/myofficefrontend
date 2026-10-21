@@ -67,8 +67,8 @@ function TimesheetsContent() {
   const [personId, setPersonId] = useState('');
   const [downloadPreset, setDownloadPreset] = useState<{ scope: 'combined' | 'individual'; empId: string } | null>(null);
 
-  // The automatic roster: everyone on NEC employment (no one is left off by number), plus the people added by hand, less those hidden here.
-  const autoIds = useMemo(() => allEmployees.filter(e => e.employmentType === 'NEC').map(e => e.id), [allEmployees]);
+  // The automatic roster: everyone on NEC employment who has not left (archived people stay addable by hand below), plus the people added by hand, less those hidden here.
+  const autoIds = useMemo(() => allEmployees.filter(e => e.employmentType === 'NEC' && e.archived !== true).map(e => e.id), [allEmployees]);
   const rosterIds = useMemo(() => { const h = new Set(hiddenIds); return [...new Set([...autoIds, ...extraIds])].filter(id => !h.has(id)); }, [autoIds, extraIds, hiddenIds]);
   const addToRoster = (ids: string[]) => {
     setExtraIds(prev => { const next = [...new Set([...prev, ...ids])]; writeList(ROSTER_KEYS.extra, next); return next; });

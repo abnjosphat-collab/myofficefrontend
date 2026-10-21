@@ -1,19 +1,25 @@
 // components/ui-system/patterns/PeoplePicker.test.tsx — the shared employee
 // pickers: one person calls back with the register record, several people pile up
 // as chips, and a duplicate name resolves by employee ID, not by label order.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PersonPicker, PeoplePicker, lookupName, resolvePersonId, type EmployeeOption, type PickedPerson } from './PeoplePicker';
+import { clearRecentPeople, recordRecentPerson } from '@/lib/peopleHistory';
 
 vi.mock('@/hooks/useLookups', () => ({
   useEmployees: () => [
     { id: 1, employee_id: 'C001', first_name: 'Ann', last_name: 'Alpha', designation: 'Electrician' },
     { id: 2, employee_id: 'C009', first_name: 'Zed', last_name: 'Zulu', designation: 'Artisan' },
     { id: 3, employee_id: 'C017', first_name: 'Ann', last_name: 'Alpha', designation: 'Fitter' },
+    { id: 4, employee_id: '.............', first_name: 'Dot', last_name: 'ty', designation: 'Driver' },
   ],
 }));
+
+beforeEach(() => {
+  clearRecentPeople();
+});
 
 describe('lookupName', () => {
   it('prefers the full name, then first + last, then the ID', () => {
@@ -47,6 +53,45 @@ describe('PersonPicker', () => {
   it('shows the stored name as the placeholder', () => {
     render(<PersonPicker name="Zed Zulu" onPick={() => {}} label="Official" />);
     expect(screen.getByRole('combobox', { name: 'Official' })).toHaveTextContent('Zed Zulu');
+  });
+
+  it('reads a dot-only register number as missing, not as dots', async () => {
+    const user = userEvent.setup();
+    render(<PersonPicker name="" onPick={() => {}} label="Official" />);
+    await user.click(screen.getByRole('combobox', { name: 'Official' }));
+    const row = screen.getByRole('option', { name: /Dot ty/ });
+    expect(row).toHaveTextContent('Driver');
+    expect(row.textContent).not.toContain('...');
+  });
+
+  it('remembers a pick for the Recent group', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<PersonPicker name="" onPick={onPick} label="Official" />);
+    await user.click(screen.getByRole('combobox', { name: 'Official' }));
+    await user.click(screen.getByRole('option', { name: /Zed Zulu/ }));
+    expect(window.localStorage.getItem('oz_recentPeople')).toContain('"2"');
+  });
+
+  it('lists recently picked people first, once each', async () => {
+    const user = userEvent.setup();
+    recordRecentPerson('2');
+    recordRecentPerson('1');
+    render(<PersonPicker name="" onPick={() => {}} label="Official" />);
+    await user.click(screen.getByRole('combobox', { name: 'Official' }));
+    expect(screen.getByText('Recent')).toBeInTheDocument();
+    const rows = screen.getAllByRole('option').map(o => o.textContent ?? '');
+    expect(rows[0]).toMatch(/Ann Alpha/);
+    expect(rows[1]).toMatch(/Zed Zulu/);
+    expect(rows.filter(r => /Zed Zulu/.test(r)).length).toBe(1);
+  });
+
+  it('drops recent people who left the register', async () => {
+    const user = userEvent.setup();
+    recordRecentPerson('999');
+    render(<PersonPicker name="" onPick={() => {}} label="Official" />);
+    await user.click(screen.getByRole('combobox', { name: 'Official' }));
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument();
   });
 });
 

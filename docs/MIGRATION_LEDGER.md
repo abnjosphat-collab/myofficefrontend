@@ -40,7 +40,7 @@
 | `/engineering-dashboard` | Migrated | Yes | No | Yes, 2026-10-03 | Only real figures; invented KPIs removed. |
 | `/equipment` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog. |
 | `/inventory` | Migrated | Yes | 2 | Yes, 2026-10-03 | Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data. |
-| `/issues` | Migrated | Yes | 3 | Yes, 2026-10-04 | Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF). |
+| `/issues` | Migrated | Yes | 4 | Yes, 2026-10-04 | Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF). |
 | `/job-cards` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register and details dialog with task toggles and save; dead New job card button removed. |
 | `/leave-management` | Redirect | No | No | Yes, 2026-10-04 | Retired demo prototype (sample data, no backend; owner decision 4 Oct 2026); replaced by a redirect to /leaves. |
 | `/leaves` | Migrated | Yes | 3 | Yes, 2026-10-04 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |

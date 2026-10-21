@@ -31,6 +31,7 @@ export const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
       position: normalizeDesignation(designation) || designation,
       department: typeof e.department === 'string' ? e.department : '',
       section: typeof e.section === 'string' ? e.section : '',
+      archived: e.archived === true,
     };
   });
 };

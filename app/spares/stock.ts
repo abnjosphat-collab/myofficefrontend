@@ -1,6 +1,7 @@
 // app/spares/stock.ts — pure rules for the spares register and the requisition builder: how well stocked a part is, the filters and
 // sort, the headline numbers and category breakdown, and the requisition's totals, saved form and copy-to-clipboard text.
 import type { Tone } from '@/components/ui-system';
+import { matchSpare } from '@/lib/spareSearch';
 import { priorityTone, statusTone } from '@/lib/status';
 import type { ReqHeader, ReqLine, SavedRequisition, Spare } from './types';
 
@@ -40,7 +41,7 @@ export function filterSpares(spares: Spare[], f: SpareFilters, favourites: Reado
     if (f.category !== 'all' && !categoriesOf(s).includes(f.category)) return false;
     if (f.priority !== 'all' && s.priority !== f.priority) return false;
     if (f.stock === 'safety' ? !s.safety_stock : f.stock !== 'all' && stockOf(s).key !== f.stock) return false;
-    return !q || [s.stock_code, s.description, categoriesOf(s).join(' '), s.supplier, s.notes, s.machine_type, s.storage_location].some(v => (v || '').toLowerCase().includes(q));
+    return matchSpare(s, q);
   });
 }
 

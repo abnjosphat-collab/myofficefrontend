@@ -21,9 +21,10 @@ const EMP = [
   { id: 3, employee_id: 'C300', first_name: 'Cy', last_name: 'Gamma', designation: 'Lamp Room Attendant', department: 'Lamp Room', employment_type: 'NEC' },
   { id: 4, employee_id: 'C400', first_name: 'Dee', last_name: 'Delta', designation: 'Foreman', department: 'Maintenance', employment_type: 'SALARIED' },
   { id: 5, employee_id: 'C500', first_name: 'Eve', last_name: 'Epsilon', designation: 'Welder', department: 'Workshop' },
+  { id: 6, employee_id: 'C600', first_name: 'Gail', last_name: 'Greer', designation: 'Hoist Driver', department: 'Shaft', employment_type: 'NEC', archived: true },
 ];
 const entry = (id, employee_id, date, over = {}) => ({ id, employee_id, date, status: 'work', start_time: '07:00', end_time: '17:00', regular_hours: 10, overtime_hours: 0, holiday_overtime_hours: 0, nightshift_hours: 0, standby_allowance: false, nightshift_allowance: false, total_hours: 10, notes: '', overtime_periods: [], callout_overtime_hours: 0, callout_count: 0, ...over });
-const CURRENT = [entry(501, 1, D(w0))];
+const CURRENT = [entry(501, 1, D(w0)), entry(502, 1, D(w4), { callout_overtime_hours: 2.5, callout_count: 2 })];
 const PREVIOUS = [entry(700, 1, iso(new Date(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate() + w0))), entry(701, 1, iso(new Date(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate() + w1)))];
 let created = 0; let refuseEmployees = false;
 
@@ -38,6 +39,7 @@ const spec = {
       return q.get('start_date') === iso(prevStart) ? PREVIOUS : CURRENT;
     },
     'PATCH /api/timesheets/501': request => ({ ...CURRENT[0], ...request.postDataJSON() }),
+    'PATCH /api/timesheets/502': request => ({ ...CURRENT[1], ...request.postDataJSON() }),
     'DELETE /api/timesheets/501': {},
     '/api/leaves': [{ id: 1, employee_id: 'C200', leave_type: 'annual', start_date: D(w2), end_date: D(w3), status: 'approved', reason: 'Family visit' }],
     '/api/overtime': [{ id: 1, employee_id: 'C100', overtime_type: 'regular', date: D(w1), start_time: '17:00', end_time: '19:00', hours: 2, status: 'pending', reason: 'Pump callout' }],
@@ -66,16 +68,41 @@ const spec = {
     check(await grid.getByRole('row').count() === 1 + 2, 'search narrows the roster', String(await grid.getByRole('row').count()));
     await page.getByRole('searchbox').fill('');
 
+    // archived NEC people stay off the automatic roster but can be added by hand
+    await page.getByRole('button', { name: 'Add employees' }).click();
+    const addArch = page.getByRole('dialog', { name: 'Add employees' });
+    await addArch.waitFor({ timeout: 5000 });
+    check(await addArch.getByText('Gail Greer').isVisible(), 'an archived person is offered for adding by hand');
+    check(await addArch.getByText(/Archived/).first().isVisible(), 'and marked as archived');
+    await addArch.getByRole('checkbox', { name: /Gail Greer/ }).check();
+    await addArch.getByRole('button', { name: 'Add 1 employee' }).click();
+    await addArch.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    check(await grid.getByText('Gail Greer').isVisible(), 'adding by hand puts them on the roster');
+    await shot(page, 'archived-added@1440');
+
     // enter a day
     await cellOf('Bob Beta', w0).click();
     const dlg = page.getByRole('dialog', { name: 'Timesheet entry' });
     await dlg.waitFor({ timeout: 5000 });
     check(await dlg.getByText('Regular hours').isVisible(), 'the day opens as a work day');
+    check(!(await dlg.getByText('Callout overtime').isVisible().catch(() => false)), 'a day without callouts shows no callout section');
     await shot(page, 'entry@1440');
     await dlg.getByRole('button', { name: 'Save entry' }).click();
     await dlg.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     const post = calls.filter(c => c.method === 'POST' && c.pathname === '/api/timesheets').pop();
     check(post?.body.employee_id === 2 && post.body.date === D(w0) && post.body.status === 'work' && post.body.regular_hours === 10, 'saving a day sends the person, the date and the hours', JSON.stringify(post?.body).slice(0, 120));
+
+    // stored callouts show read-only and are kept on save
+    await cellOf('Ann Alpha', w4).click();
+    const co = page.getByRole('dialog', { name: 'Timesheet entry' });
+    await co.waitFor({ timeout: 5000 });
+    check(!(await co.getByLabel('Callout hours').isVisible().catch(() => false)), 'a day with callouts offers no callout inputs');
+    check(await co.getByText('2.50h', { exact: true }).isVisible(), 'stored callout hours show read-only');
+    await shot(page, 'entry-callouts@1440');
+    await co.getByRole('button', { name: 'Save entry' }).click();
+    await co.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const copatch = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/timesheets/502').pop();
+    check(copatch?.body.callout_overtime_hours === 2.5 && copatch.body.callout_count === 2, 'saving keeps the stored callout values', JSON.stringify(copatch?.body).slice(0, 160));
 
     // quick add and quick remove
     await page.getByRole('button', { name: `Quick add a shift for Cy Gamma on ${D(w4)}` }).click({ force: true });

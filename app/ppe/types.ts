@@ -20,11 +20,15 @@ export interface PPERecord {
 export interface EmployeeRow {
   employee_id: string; employee_name: string;
   position: string; department: string; section: string;
+  /** Left the company: hidden from live views, still on the register. */
+  archived?: boolean;
 }
 
 export interface EmployeeWithPPE {
   employee_id: string; employee_name: string;
   position: string; records: PPERecord[];
+  /** From the roster match; holders off the roster are never archived. */
+  archived?: boolean;
   // Employee's Mechanical/Electrical/Civil/Instrumentation section — see lib/sections.ts.
   // Not yet normalized here; normalize at the point of display/filter (matches how the
   // rest of this file leaves raw strings as-is and lets calcPPE.ts do the shaping).

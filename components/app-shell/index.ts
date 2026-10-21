@@ -2,6 +2,7 @@
 export { AppShell } from './AppShell';
 export { useAppShellState } from './useAppShellState';
 export { useAppShell } from './context';
+export { useRouteSidebarCollapsed } from './useRouteSidebarCollapsed';
 export { useDashboardData } from './useDashboardData';
 export type { DashboardStats, ActivityItem } from './useDashboardData';
 export * from './modules';

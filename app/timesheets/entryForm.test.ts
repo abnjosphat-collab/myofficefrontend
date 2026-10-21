@@ -56,13 +56,12 @@ describe('what is saved', () => {
     expect(e).toMatchObject({ regular_hours: 10, holiday_overtime_hours: 0, callout_overtime_hours: 2, callout_count: 1, total_hours: 12 });
     expect(entryTotal(f)).toBe(12);
   });
-  it('refuses a work day with no times, and impossible callout hours', () => {
+  it('refuses a work day with no times, and never blocks on stored callout values', () => {
     const f = initialForm(undefined, MON, null);
     expect(entryProblems(f)).toEqual([]);
     expect(entryProblems({ ...f, start_time: '' })).toContain('Enter the start and end times.');
     expect(entryProblems(withStatus(f, 'off'))).toEqual([]);
-    expect(entryProblems({ ...f, callout_overtime_hours: '30' })).toContain('Callout hours cannot be more than 24 in a day.');
-    expect(entryProblems({ ...f, callout_count: '-1' })).toContain('Callout hours and the number of callouts cannot be negative.');
-    expect(entryProblems({ ...f, callout_overtime_hours: '', callout_count: '' })).toEqual([]);
+    // callouts pass through from the stored record — the dialog cannot change them, so they cannot stop a save
+    expect(entryProblems({ ...f, callout_overtime_hours: '30', callout_count: '9' })).toEqual([]);
   });
 });

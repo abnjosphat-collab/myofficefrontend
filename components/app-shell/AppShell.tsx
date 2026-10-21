@@ -62,14 +62,18 @@ export function AppShell({ children, migrated = false }: { children: ReactNode; 
           <ShellSidebar
             open={s.sidebarOpen}
             onOpenChange={s.setSidebarOpen}
-            collapsed={s.sidebarCollapsed}
-            onToggleCollapsed={() => s.setSidebarCollapsed(!s.sidebarCollapsed)}
+            collapsed={s.sidebarCollapsed || s.sidebarForceCollapsed}
+            onToggleCollapsed={() => {
+              // A route's temporary collapse never traps the person: expanding clears it and keeps their choice.
+              if (s.sidebarForceCollapsed) { s.setSidebarForceCollapsed(false); s.setSidebarCollapsed(false); }
+              else s.setSidebarCollapsed(!s.sidebarCollapsed);
+            }}
             favoriteModules={s.favoriteModules}
             recentModules={NO_RECENT_MODULES}
             onToggleFavorite={s.toggleFavorite}
             visibleCategories={s.visibleCategories}
             search={<ShellSearch value={s.searchQuery} onValueChange={s.setSearchQuery} visibleCategories={s.visibleCategories} focusSignal={searchFocusSignal} />}
-            onSearchExpand={() => { s.setSidebarCollapsed(false); setSearchFocusSignal(n => n + 1); }}
+            onSearchExpand={() => { s.setSidebarForceCollapsed(false); s.setSidebarCollapsed(false); setSearchFocusSignal(n => n + 1); }}
           />
         )}
       >
