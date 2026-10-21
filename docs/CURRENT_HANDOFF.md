@@ -246,6 +246,20 @@ Trigger: files were "lost" across email, OneDrive, WhatsApp and Windows folders.
 
 Owner steps, in order: (1) run `backend/supabase_migration_documents_v2.sql` BEFORE deploying (until then the page shows a plain "needs the upgrade SQL" notice); (2) open Documents, press "Set up the AMS folders", then "Read them now"; (3) move files out of Unfiled over time. `next.config.ts` report-only CSP was widened for the storage host (frames, media) and `blob:` fonts so preview keeps working when the policy is enforced.
 
+## 8f. Owner UX items 1-10 (Muse, 21 Oct 2026, NOT COMMITTED)
+
+All 10 owner UX items done on frontend branch `ux-fixes-2026-10`, uncommitted, in 10 independently reversible batches (patches in `audit/ux-fixes-2026-10-21/muse/patches/`). Every fix is at shared-component level; backend untouched. The full account is `audit/ux-fixes-2026-10-21/muse/COMPLETION-REPORT.md`; decisions in `DECISIONS.md` (D1-D18); owner follow-ups in `OWNER-ATTENTION.md`.
+
+- Bulk delete of unmatched records from the register notice (PPE/leaves/overtime), skipping what single-delete refuses and naming it.
+- Signature action row mirrors the Dialog footer rhythm (was two full-width buttons in a 448px panel).
+- Bulk overtime tick-list (`PeopleChecklist`); overtime dialogs focus the picker and remember recent people.
+- Timesheet callout inputs removed; stored callouts show read-only and pass through (callout capture gap → OWNER-ATTENTION).
+- Archived people hidden by default in PPE (toggle + read-only details + picker exclusion + typed-ID ask) and off the timesheet auto-roster.
+- Find-a-part lookup tab on Stock issues over the shared `lib/spareSearch` matcher.
+- Documents rests the shell sidebar as a rail (transient, never persisted; user expand wins).
+- Pointer cursor for actionable elements.
+- Verified: tsc clean, eslint 0 errors, full vitest green, docs:check green, production build green (63/63), all 7 touched route specs green; full sweep failures on /admin, /employees, /maintenance, /pachedu, /training exonerated against the base (2 pre-existing, 3 sweep-context flakes). Every item rendered and looked at at desktop + 390.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
