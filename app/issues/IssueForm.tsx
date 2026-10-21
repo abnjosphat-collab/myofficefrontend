@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Button, Combobox, Field, Icon, IconButton, Input, Notice, Panel, useRefusedSubmit } from '@/components/ui-system';
 import { useEmployees } from '@/hooks/useLookups';
 import { formatCurrency, lineTotal, nowLocal } from '@/components/shared/utils';
+import { searchSpares } from '@/lib/spareSearch';
 import { invalidateSparesCache } from '@/hooks/useLookups';
 import { createIssue } from './useIssuesData';
 import type { IssueItemRow, Spare } from './types';
@@ -20,8 +21,7 @@ const ROW = 'sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_5.5rem_4.5rem_6.5rem_2.
 function SparePick({ spares, value, onPick }: { spares: Spare[]; value: string; onPick: (s: Spare | null) => void }) {
   const [query, setQuery] = useState('');
   const options = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const hits = (q ? spares.filter(s => s.stock_code.toLowerCase().includes(q) || s.description.toLowerCase().includes(q) || (s.category || '').toLowerCase().includes(q)) : spares).slice(0, 40);
+    const hits = searchSpares(spares, query).hits;
     const chosen = spares.find(s => s.stock_code === value);
     if (chosen && !hits.includes(chosen)) hits.unshift(chosen);
     return hits.map(s => ({ value: s.stock_code, label: s.stock_code, description: `${s.description} · ${formatCurrency(s.unit_price)} · ${s.current_quantity} in stock`, keywords: [s.description] }));
