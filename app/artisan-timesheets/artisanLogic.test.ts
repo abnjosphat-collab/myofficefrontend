@@ -19,15 +19,17 @@ describe('who is an artisan', () => {
 
 describe('opening a month', () => {
   it('starts a blank month with one row per day and no signatures', () => {
-    const { draft, recordId } = openMonth(artisans[0], 2026, 2, [], NONE);
+    const { draft, recordId, updatedAt } = openMonth(artisans[0], 2026, 2, [], NONE);
     expect(recordId).toBeNull();
+    expect(updatedAt).toBeNull();
     expect(draft.daily_rows).toHaveLength(28);
     expect(draft).toMatchObject({ employee_id: 'C100', employee_name: 'Ann Alpha', id_number: '12-345', compiled_by_signature: '' });
   });
   it('opens the saved timesheet for that artisan and month instead', () => {
-    const saved = { id: 5, employee_id: 'C100', employee_name: 'Ann Alpha', year: 2026, month: 2, shift_rate: 12.5, hourly_rate: null, daily_rows: [], compiled_by: 'Lee' } as unknown as ArtisanTimesheetRecord;
-    const { draft, recordId } = openMonth(artisans[0], 2026, 2, [saved], NONE);
+    const saved = { id: 5, employee_id: 'C100', employee_name: 'Ann Alpha', year: 2026, month: 2, shift_rate: 12.5, hourly_rate: null, daily_rows: [], compiled_by: 'Lee', updated_at: '2026-02-10T12:00:00' } as unknown as ArtisanTimesheetRecord;
+    const { draft, recordId, updatedAt } = openMonth(artisans[0], 2026, 2, [saved], NONE);
     expect(recordId).toBe(5);
+    expect(updatedAt).toBe('2026-02-10T12:00:00');
     expect(draft).toMatchObject({ shift_rate: '12.5', hourly_rate: '', compiled_by: 'Lee' });
     expect(openMonth(artisans[0], 2026, 3, [saved], NONE).recordId).toBeNull();
   });

@@ -23,7 +23,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), lab
 const YEARS = (() => { const y = new Date().getFullYear(); return Array.from({ length: 6 }, (_, i) => ({ value: String(y - 2 + i), label: String(y - 2 + i) })); })();
 const ANY = 'all';
 
-interface Open { draft: ArtisanTimesheetDraft; baseline: string; recordId: number | null }
+interface Open { draft: ArtisanTimesheetDraft; baseline: string; recordId: number | null; updatedAt: string | null }
 
 function ArtisanContent() {
   const confirm = useConfirm();
@@ -69,9 +69,9 @@ function ArtisanContent() {
     try {
       const existing = await fetchMonth(artisanKey(emp), Number(year), Number(month));
       if (token !== openToken.current) return; // a newer pick superseded this open
-      const { draft, recordId } = openMonth(emp, Number(year), Number(month), existing, reference.sources);
+      const { draft, recordId, updatedAt } = openMonth(emp, Number(year), Number(month), existing, reference.sources);
       if (token !== openToken.current) return;
-      reset({ draft, baseline: snapshot(draft), recordId }); setTab('editor');
+      reset({ draft, baseline: snapshot(draft), recordId, updatedAt }); setTab('editor');
     } catch (e) { toast.error(`The timesheet could not be opened: ${(e as Error).message}`); }
     finally { if (token === openToken.current) setOpening(false); }
   };
@@ -95,9 +95,9 @@ function ArtisanContent() {
     if (!await discardOk()) return;
     try {
       const r = await fetchTimesheet(summary.id); // the list holds no days or signatures; this brings them
-      const { draft, recordId } = openMonth({ id: r.employee_db_id ?? 0, employee_id: r.employee_id, name: r.employee_name, id_number: r.id_number || '', designation: '' }, r.year, r.month, [r], reference.sources);
+      const { draft, recordId, updatedAt } = openMonth({ id: r.employee_db_id ?? 0, employee_id: r.employee_id, name: r.employee_name, id_number: r.id_number || '', designation: '' }, r.year, r.month, [r], reference.sources);
       setPick(r.employee_id); setYear(String(r.year)); setMonth(String(r.month));
-      reset({ draft, baseline: snapshot(draft), recordId }); setTab('editor');
+      reset({ draft, baseline: snapshot(draft), recordId, updatedAt }); setTab('editor');
     } catch (e) { toast.error(`The timesheet could not be opened: ${(e as Error).message}`); }
   };
   const refreshFromSystem = () => {
@@ -113,10 +113,12 @@ function ArtisanContent() {
     if (p.length) return;
     setSaving(true);
     try {
-      const payload = draftToPayload(editor.draft);
+      const payload = { ...draftToPayload(editor.draft), ...(editor.recordId && editor.updatedAt ? { expected_updated_at: editor.updatedAt } : {}) };
       let id = editor.recordId;
-      if (id) await updateArtisanTimesheet(id, payload); else id = (await createArtisanTimesheet(payload)).id;
-      setEditor({ ...editor, recordId: id, baseline: snapshot(editor.draft) });
+      let stamp = editor.updatedAt;
+      if (id) stamp = (await updateArtisanTimesheet(id, payload)).updated_at ?? stamp;
+      else { const created = await createArtisanTimesheet(payload); id = created.id; stamp = created.updated_at ?? stamp; }
+      setEditor({ ...editor, recordId: id, updatedAt: stamp, baseline: snapshot(editor.draft) });
       if (!opts?.silent) toast.success(editor.recordId ? 'Timesheet updated.' : 'Timesheet saved.');
       await saved.refetch();
     } catch (e) { setSaveError((e as Error).message); }

@@ -49,7 +49,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
     setTouched(true);
     if (Object.values(missing).some(Boolean)) return false;
     if (editing && order) {
-      const updated = await updateWorkOrder(order.id, editOrderBody({ ...form, equipment_info: machines[0] }));
+      const updated = await updateWorkOrder(order.id, { ...editOrderBody({ ...form, equipment_info: machines[0] }), expected_updated_at: order.updated_at });
       rememberPeople();
       onChanged(updated);
       toast.success('Work order updated.');

@@ -47,12 +47,13 @@ export function draftToPayload(d: ArtisanTimesheetDraft) {
 
 export interface Sources { leaves: ApprovedLeaveRecord[]; overtime: ApprovedOvertimeRecord[]; standbyAssignments: ShiftAssignment[] }
 /** The month to edit: the saved timesheet if there is one, otherwise a blank month filled from leave, overtime, standby and holidays. */
-export function openMonth(emp: ArtisanEmployeeOption, year: number, month: number, saved: ArtisanTimesheetRecord[], sources: Sources): { draft: ArtisanTimesheetDraft; recordId: number | null } {
+export function openMonth(emp: ArtisanEmployeeOption, year: number, month: number, saved: ArtisanTimesheetRecord[], sources: Sources): { draft: ArtisanTimesheetDraft; recordId: number | null; updatedAt: string | null } {
   const key = artisanKey(emp);
   const existing = saved.find(s => sameEmployee(s.employee_id, key) && s.year === year && s.month === month);
-  if (existing) return { draft: recordToDraft(existing), recordId: existing.id };
+  if (existing) return { draft: recordToDraft(existing), recordId: existing.id, updatedAt: existing.updated_at ?? null };
   return {
     recordId: null,
+    updatedAt: null,
     draft: {
       employee_id: key, employee_db_id: emp.id, employee_name: emp.name, id_number: emp.id_number, year, month, shift_rate: '', hourly_rate: '',
       daily_rows: autoPopulateMonthRows(mergeMonthRows(year, month, []), key, sources),

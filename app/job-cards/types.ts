@@ -17,4 +17,7 @@ export interface JobCard {
   description: string; section: string; assigned_to: string; supervisor: string;
   scheduled_date: string; tasks: Task[]; parts_used: PartUsed[];
   labour_hours: number; notes: string;
+  updated_at?: string;
+  /** Write-only: the updated_at the editor opened, refused with 409 when stale. Never stored. */
+  expected_updated_at?: string;
 }

@@ -213,7 +213,7 @@ function JobCardsContent() {
         <DataTable caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
       </DataRegion>
 
-      {selected && <JobCardDetail key={selected.id} jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, updated); refetch(); }} />}
+      {selected && <JobCardDetail key={selected.id} jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, { ...updated, expected_updated_at: selected?.updated_at }); refetch(); }} />}
     </div>
   );
 }

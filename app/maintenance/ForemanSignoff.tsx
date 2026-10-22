@@ -25,7 +25,7 @@ export function ForemanSignoff({ order, onSaved }: { order: WorkOrder; onSaved: 
   const save = async () => {
     setPending(true); setError(null);
     try {
-      const updated = await updateWorkOrder(order.id, f);
+      const updated = await updateWorkOrder(order.id, { ...f, expected_updated_at: order.updated_at });
       if (f.foreman_name.trim()) storeValue('maint_foreman_name', f.foreman_name.trim());
       if (f.notes.trim()) rememberChoice('maint_foreman_notes', f.notes);
       toast.success('Foreman sign-off saved.');
