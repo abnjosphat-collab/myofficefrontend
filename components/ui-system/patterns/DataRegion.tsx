@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { Icon } from '../foundations/Icon';
@@ -96,10 +96,32 @@ export function DataRegion({ status, subject, error, onRetry, empty, children, l
   const cap = subject.charAt(0).toUpperCase() + subject.slice(1);
   const loading = loadingContent ?? <LoadingPulse label={`Loading ${subject}`} detail={loadingDetail} />;
   const retry = onRetry ? <Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button> : undefined;
+  // A retry that drags on says so: after 20 s of continuous retrying the region
+  // adds a "still trying" line with a Try again button. The retry loop underneath
+  // keeps going either way; the line only clears when the status moves on.
+  const [slowRetry, setSlowRetry] = useState(false);
+  // A fresh status restarts the 20 s wait (previous-render comparison: no effect setState).
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (prevStatus !== status) {
+    setPrevStatus(status);
+    setSlowRetry(false);
+  }
+  useEffect(() => {
+    if (status !== 'retrying') return;
+    const timer = setTimeout(() => setSlowRetry(true), 20_000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
-  // Retrying looks like loading: the animation says the work is still going, so there is no "slow to respond" or "last answer" notice.
-  // If the retries run out the status becomes error, which says plainly what went wrong and offers Try again.
-  if (status === 'loading' || status === 'retrying') return <div className={className}>{loading}</div>;
+  // Retrying looks like loading until the 20 s mark above; if the retries run out
+  // the status becomes error, which says plainly what went wrong and offers Try again.
+  if (status === 'loading' || status === 'retrying') {
+    return (
+      <div className={className}>
+        {loading}
+        {status === 'retrying' && slowRetry && <StatusLine tone="warning" action={retry}>Still trying to reach the server.</StatusLine>}
+      </div>
+    );
+  }
   if (status === 'unauthorized') {
     return <EmptyState icon="lock" title={`You do not have access to ${subject}`} description={error ?? 'Ask an administrator to grant access, or sign in with a different account.'} className={className} />;
   }
