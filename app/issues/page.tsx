@@ -1,15 +1,15 @@
 // app/issues/page.tsx — stock issues: record what was issued to whom, browse the log, analyse the costs.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
-import { IssueForm } from './IssueForm';
-import { SpareLookup } from './SpareLookup';
+import { IssueForm, type IssueFormHandle } from './IssueForm';
+import { SpareLookup, type LookupSpare } from './SpareLookup';
 import { hasPrice, issueCost } from './analytics';
 import { exportIssuesExcel, exportIssuesPdf } from './exportIssues';
 import { invalidateSparesCache } from '@/hooks/useLookups';
@@ -28,6 +28,13 @@ function IssuesContent() {
   const [sort, setSort] = useState<SortState>(null);
   const [viewingId, setViewingId] = useState<number | null>(null);
   const viewing = useMemo(() => issues.find(i => i.id === viewingId) ?? null, [issues, viewingId]);
+  // The lookup's Add path: open the issue panel, then fill a row through the form's handle.
+  const issueFormRef = useRef<IssueFormHandle>(null);
+  const [openSignal, setOpenSignal] = useState(0);
+  const addToIssue = (spare: LookupSpare) => {
+    setOpenSignal(s => s + 1);
+    issueFormRef.current?.addSpare(spare);
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,18 +103,32 @@ function IssuesContent() {
         {stats.error && <Notice tone={stats.loaded ? 'warning' : 'danger'} title={stats.loaded ? 'Summary figures may be out of date' : 'Summary figures could not be loaded'} action={<Button size="sm" icon="refresh" onClick={() => stats.refetch()}>Try again</Button>}>{stats.error}</Notice>}
       </div>
 
+      <Panel title="Find a part" description="Type a code or a description — add what you find straight to the issue below.">
+        <SpareLookup
+          spares={spares.items}
+          loading={spares.loading}
+          loaded={spares.loaded}
+          error={spares.error && !spares.loaded ? spares.error : null}
+          onRetry={() => spares.refetch()}
+          onAdd={addToIssue}
+        />
+      </Panel>
+
       <IssueForm
+        ref={issueFormRef}
         spares={spares.items}
         sparesError={spares.error && !spares.loaded ? spares.error : null}
         onRetrySpares={() => spares.refetch()}
         defaultIssuedBy={profile?.full_name || profile?.email || ''}
         onRecorded={refresh}
+        collapsible
+        forceOpenSignal={openSignal}
+        onActivity={() => setOpenSignal(s => s + 1)}
       />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Stock issue sections">
           <TabsTrigger value="log" icon="issues">Issue log</TabsTrigger>
-          <TabsTrigger value="lookup" icon="search">Find a part</TabsTrigger>
           <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -138,16 +159,6 @@ function IssuesContent() {
               rowActions={i => <IconButton icon="delete" variant="danger" size="sm" label={`Delete the issue to ${i.recipient_name} on ${fmtDateTime(i.issued_at)}`} onClick={() => remove(i)} />}
             />
           </DataRegion>
-        </TabsContent>
-
-        <TabsContent value="lookup" className="mt-4">
-          <SpareLookup
-            spares={spares.items}
-            loading={spares.loading}
-            loaded={spares.loaded}
-            error={spares.error && !spares.loaded ? spares.error : null}
-            onRetry={() => spares.refetch()}
-          />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">

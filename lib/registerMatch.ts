@@ -32,3 +32,8 @@ export function matchToRegister(record: RecordRef, index: RegisterIndex): Regist
   if ((record.employee_id && index.rowIds.has(String(record.employee_id).trim())) || index.names.has(norm(record.employee_name))) return 'number-differs';
   return 'not-on-register';
 }
+
+/** A mine number for display: dotted or blank numbers (never issued one) read as words, never as dots. */
+export function formatMineNumber(id?: string | null): string {
+  return (id ?? '').replace(/^\.+$/, '').trim() || 'No mine number';
+}

@@ -26,8 +26,14 @@ const spec = {
     const log = page.getByRole('table', { name: 'Stock issue log' });
     check(await log.getByRole('row').count() === 4, 'header plus three issues (a legacy record with no items or date does not crash)');
     check(await log.getByText('No price').first().isVisible(), 'an issue with no price says so instead of $0');
-    check(await page.getByText(/is taken off that spare in the Spares register/).isVisible(), 'the page says issuing takes stock off the spare');
     await shot(page, 'page@1440');
+
+    // the form starts collapsed behind its one-line summary
+    check(await page.getByRole('button', { name: 'New issue — 0 items to nobody yet' }).isVisible(), 'the form starts collapsed behind its summary');
+    check(await page.getByRole('button', { name: 'Record issue' }).count() === 0, 'Record issue is hidden until expanded');
+    await page.getByRole('button', { name: /New issue —/ }).click();
+    check(await page.getByLabel('Issued to').isVisible(), 'the form opens at the top');
+    check(await page.getByText(/is taken off that spare in the Spares register/).isVisible(), 'the open form says issuing takes stock off the spare');
 
     // validation is explained on the field and nothing is sent
     await page.getByRole('button', { name: 'Record issue' }).click();
@@ -37,7 +43,8 @@ const spec = {
     // picking a spare fills the row; a quantity above stock warns
     await page.getByLabel('Issued to').fill('Ann Alpha');
     await page.getByRole('combobox', { name: 'Stock code' }).first().click();
-    await page.getByRole('option', { name: /BRG-1/ }).click();
+    // Scoped to the picker's popup: the page-top lookup has its own listbox of options.
+    await page.locator('[cmdk-list]').getByRole('option', { name: /BRG-1/ }).click();
     check((await page.getByLabel('Description, item 1').inputValue()) === 'Bearing 6204' && (await page.getByLabel('Unit cost, item 1').inputValue()) === '12.5', 'choosing a spare fills its description and unit cost');
     await page.getByLabel('Quantity, item 1').fill('5');
     check(await page.getByText('Only 3 of BRG-1 in stock.').isVisible(), 'a quantity above stock is flagged');
@@ -76,17 +83,25 @@ const spec = {
     await page.waitForTimeout(600);
     check(calls.some(c => c.method === 'DELETE' && c.pathname === '/api/issues/2'), 'confirming sends the delete');
 
-    // find a part without starting an issue
-    await page.getByRole('tab', { name: 'Find a part' }).click();
+    // find a part at the top of the page, without starting an issue
+    check(await page.getByRole('tab', { name: 'Find a part' }).count() === 0, 'the lookup tab is gone');
+    check(await page.getByRole('heading', { name: 'Find a part' }).isVisible(), 'the lookup sits at the top of the page');
+    // Scoped to the lookup listbox: the issue log below shows the same part names.
+    const lookupBox = page.getByRole('listbox', { name: 'Matching spares' });
     check(await page.getByText('2 parts in the catalogue').isVisible(), 'the lookup lists the catalogue');
-    check(await page.getByText('Bearing 6204').isVisible() && await page.getByText('3 in stock').isVisible(), 'each match shows its description and stock');
+    check(await lookupBox.getByText('Bearing 6204').isVisible() && await lookupBox.getByText('3 in stock').isVisible(), 'each match shows its description and stock');
     await shot(page, 'lookup@1440');
     await page.getByPlaceholder('Search code, description or category').fill('seal');
-    check(await page.getByText('1 match').isVisible() && !(await page.getByText('Bearing 6204').isVisible().catch(() => false)), 'typing narrows to the matches');
+    check(await page.getByText('1 match').isVisible() && await lookupBox.getByText('Bearing 6204').count() === 0 && await page.locator('mark').count() >= 2, 'typing narrows to the matches and highlights the word');
     await page.getByPlaceholder('Search code, description or category').fill('gearbox');
-    check(await page.getByText('No spare matches').isVisible(), 'no match says so');
+    check(await page.getByText('No spare matches').isVisible() && await page.getByText(/try words from the name/).isVisible(), 'no match says so and suggests the other field');
     await page.getByRole('button', { name: 'Clear the search' }).click();
     check(await page.getByText('2 parts in the catalogue').isVisible(), 'clearing restores the catalogue');
+    await page.getByRole('button', { name: 'Collapse', exact: true }).click();
+    check(await page.getByRole('button', { name: 'Record issue' }).count() === 0, 'the form collapses');
+    await page.getByRole('button', { name: 'Add to issue' }).first().click();
+    check(await page.getByRole('button', { name: 'Record issue' }).count() === 1, 'add reopens the panel');
+    check((await page.getByLabel('Description, item 1').inputValue()) === 'Bearing 6204', 'add fills the first free row');
 
     // analytics
     await page.getByRole('tab', { name: 'Analytics' }).click();

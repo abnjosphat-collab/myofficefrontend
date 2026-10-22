@@ -1,10 +1,10 @@
 // app/sheq_inspection/page.tsx — SHEQ Inspections register
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -13,11 +13,12 @@ import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatTime } from '@/lib/format';
 import type { FindingStatus, InspectionFinding, InspectionStatus, PriorityType, SectionType, SHEQFormData } from './types';
-import { createInspection, deleteInspection, updateInspection, useSheqInspectionData } from './useSheqInspectionData';
+import { createInspection, deleteInspection, fetchInspectionById, updateInspection, useSheqInspectionData } from './useSheqInspectionData';
 import { exportStatusColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 
 const SECTIONS: SectionType[] = ['mechanical', 'electrical'];
 const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
@@ -242,6 +243,19 @@ function InspectionContent() {
   const [editing, setEditing] = useState<SHEQFormData | undefined>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewing, setViewing] = useState<SHEQFormData | null>(null);
+  // Bell deep link (?open=<id>): land on the inspection.
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records: inspections,
+    ready: loaded || !!error,
+    listFailed: !loaded && !!error,
+    getId: i => i.id,
+    fetchById: fetchInspectionById,
+    onOpen: record => setViewing(record),
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That inspection (#${id}) no longer exists — it may have been deleted.`
+      : `That inspection (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const stats = useMemo(() => {
     const all = inspections.flatMap(i => i.findings || []);
@@ -302,6 +316,10 @@ function InspectionContent() {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Inspections" value={stats.total} loading={pending} unavailable={unavailable} />
@@ -390,5 +408,5 @@ function InspectionContent() {
 }
 
 export default function SHEQInspectionPage() {
-  return <AppShell migrated><InspectionContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><InspectionContent /></Suspense></AppShell>;
 }

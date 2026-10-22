@@ -1,12 +1,10 @@
 // app/timesheets/useTimesheetEditing.ts — everything that writes timesheet rows: one day, many days (with an Undo that restores exactly what
-// was there), clearing days, the quick add and remove on a cell, filling across days, and copying the previous period. Moved here from the
-// page with its behaviour unchanged, except that copying the previous period now says how many existing entries it will replace.
+// was there), clearing days, the quick add and remove on a cell, and filling across days.
 'use client';
 
 import { toast } from 'sonner';
-import type { ConfirmFn } from '@/components/ui-system';
 import { applyNormalHoursFill, applyOffFill, buildDefaultEntry, canFillFromSource, extractFillFromSource, isFillProtectedTarget } from './fillEntry';
-import { fmtDate, getDays, getNECPeriod } from './timesheetMeta';
+import { fmtDate } from './timesheetMeta';
 import { resolveFillTargetEntry, timesheetWritePayload } from './timesheetWritePayload';
 import type { Employee, TimesheetEntry } from './types';
 import { api } from './useTimesheetsData';
@@ -19,21 +17,8 @@ const isConflictRejection = (reason: unknown): boolean =>
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 const withoutId = (e: TimesheetEntry): Entry => { const copy = { ...e }; delete copy.id; return copy; };
 
-/** The entries copying from the previous period would write, matched day by day from the start of each period. */
-export function previousPeriodEntries(args: { previous: TimesheetEntry[]; employees: Employee[]; currentDays: Date[]; previousDays: Date[] }): Entry[] {
-  const { previous, employees, currentDays, previousDays } = args;
-  const out: Entry[] = [];
-  employees.forEach(emp => currentDays.forEach((curDay, idx) => {
-    if (idx >= previousDays.length) return;
-    const prev = previous.find(ts => String(ts.employee_id) === String(emp.id) && ts.date === fmtDate(previousDays[idx]));
-    if (prev) out.push({ ...prev, employee_id: parseInt(emp.id), date: fmtDate(curDay), id: undefined } as Entry);
-  }));
-  return out;
-}
-
-export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets, rosterEmployees, currentMonth, activePeriod, confirm }: {
-  timesheets: TimesheetEntry[]; setTimesheets: React.Dispatch<React.SetStateAction<TimesheetEntry[]>>; effectiveTimesheets: TimesheetEntry[]; rosterEmployees: Employee[];
-  currentMonth: Date; activePeriod: { start: Date; end: Date }; confirm: ConfirmFn;
+export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets }: {
+  timesheets: TimesheetEntry[]; setTimesheets: React.Dispatch<React.SetStateAction<TimesheetEntry[]>>; effectiveTimesheets: TimesheetEntry[];
 }) {
   const saveEntry = async (empId: string, date: Date, data: Entry) => {
     const ds = fmtDate(date);
@@ -174,18 +159,5 @@ export function useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesh
     if (skipped > 0) toast.info(`Skipped ${skipped} leave ${plural(skipped, 'day', 'days')} (owned by the Leaves module).`);
   };
 
-  const copyPrevious = async () => {
-    const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-    const prevPeriod = getNECPeriod(prevMonth);
-    try {
-      const previous = await api.timesheets(fmtDate(prevPeriod.start), fmtDate(prevPeriod.end));
-      const entries = previousPeriodEntries({ previous, employees: rosterEmployees, currentDays: getDays(activePeriod), previousDays: getDays(prevPeriod) });
-      if (entries.length === 0) { toast.info('No entries found in the previous period.'); return; }
-      const replacing = entries.filter(e => timesheets.some(ts => String(ts.employee_id) === String(e.employee_id) && ts.date === e.date)).length;
-      if (replacing > 0 && !await confirm({ title: 'Copy the previous period over this one?', message: `${entries.length} ${plural(entries.length, 'entry', 'entries')} are copied, ${replacing} of them replacing what is already entered here.`, confirmLabel: 'Copy', destructive: true })) return;
-      await bulkSave(entries);
-    } catch (e) { toast.error(`Copy failed: ${(e as Error).message}`); }
-  };
-
-  return { saveEntry, deleteEntry, bulkSave, bulkClear, quickAdd, quickRemove, fillDays, copyPrevious };
+  return { saveEntry, deleteEntry, bulkSave, bulkClear, quickAdd, quickRemove, fillDays };
 }

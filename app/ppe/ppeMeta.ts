@@ -14,7 +14,11 @@ export const typeName = (t: string) => PPE_TYPES[t]?.name ?? t;
 export const typeShort = (t: string) => PPE_TYPES[t]?.short ?? t;
 export const TYPE_OPTIONS = Object.entries(PPE_TYPES).map(([value, v]) => ({ value, label: v.name }));
 
-/** Company defaults, in months until replacement; 0 means the item does not expire. The saved matrix overrides these. */
+/** Company defaults, in months until replacement; 0 means the item does not expire. The saved matrix overrides these.
+ * Contract (D8): keys are the server vocabulary, matched EXACTLY — the frontend seeds from these and fills gaps, the
+ * server wins. Counts against matrix keys (dialog, recalculate confirms) stay exact so they mirror what the server
+ * will act on; loose matching (normalizePpeType) is for frontend-only browsing: the lens, fulfilled lines, renewal
+ * targets and the choose filter. Unknown codes (e.g. live `boots` rows) display raw, never aliased. */
 export const PPE_MATRIX_DEFAULTS: Record<string, number> = {
   worksuit: 6, gumboots: 6, safety_shoes: 6, helmet: 24, Cap_lamp_belt: 24, pneumo_jacket: 24, harness: 24, safety_chain_belt: 24,
   vest: 3, glasses: 3, respirator: 1, rainsuit: 6, gloves: 0, overall: 6,

@@ -2,10 +2,12 @@
 // Offence records are held on the person and edited in the form, but are not displayed here.
 'use client';
 
-import { Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
+import Link from 'next/link';
+import { Button, Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { normalizeDesignation, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay, telHref } from '@/lib/phone';
+import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
 import { CLASS_TONE, ETYPE_LABEL, ETYPE_TONE, fullName, tenure } from './roster';
 import type { Employee } from './types';
@@ -23,8 +25,8 @@ export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { emp
   const licence = e ? resolveDriverLicense(e.drivers_license_class) : '';
   return (
     <Dialog
-      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e ? fullName(e) : 'Employee'} description={e ? [e.employee_id, designation].filter(Boolean).join(', ') : undefined}
-      footer={e && (<DetailActions onDelete={() => onDelete(e)} onClose={onClose} onEdit={() => onEdit(e)} />)}
+      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e ? fullName(e) : 'Employee'} description={e ? [formatMineNumber(e.employee_id), designation].filter(Boolean).join(', ') : undefined}
+      footer={e && (<DetailActions onDelete={() => onDelete(e)} onClose={onClose} onEdit={() => onEdit(e)} primary="edit"><Button asChild variant="ghost" icon="ppe"><Link href={`/ppe?person=${encodeURIComponent(e.employee_id)}`}>PPE</Link></Button></DetailActions>)}
     >
       {e && (
         <div className="flex flex-col gap-4">

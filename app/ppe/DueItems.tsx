@@ -4,33 +4,36 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, DataTable, EmptyState, Field, Input, Notice, SearchField, Segmented, Select, type Column } from '@/components/ui-system';
+import { Button, DataTable, EmptyState, Field, Input, MultiSelectFilter, Notice, SearchField, Segmented, Select, type Column, type FilterOption } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { daysUntil } from '@/lib/dates';
 import { thisWeekRange, type OrderListEntry } from './calcPPE';
 import { ItemMenu, StandingBadge, type ItemActions } from './PPEItemViews';
 import { NO_DUE_FILTERS, dueItems, sizeCounts, sizeOf, type DueFilters, type DueMode } from './ppeLogic';
-import { TYPE_OPTIONS, typeName } from './ppeMeta';
+import { typeName } from './ppeMeta';
+import { type TypeFilter } from './ppeTypes';
 import type { PPERecord } from './types';
 
 const ALL = 'all';
 export const toOrderEntry = (r: PPERecord): OrderListEntry => ({ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date, added_at: new Date().toISOString() });
 
-export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToOrder, sectionActive }: {
+export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToOrder, sectionActive, typeFilter, typeOptions, onTypeFilterChange }: {
   records: PPERecord[]; counts: { overdue: number; soon: number }; actions: ItemActions; onBulkNotRequired: (ids: string[]) => Promise<void>; onAddToOrder: (entries: OrderListEntry[]) => void; sectionActive: boolean;
+  typeFilter: TypeFilter; typeOptions: FilterOption[]; onTypeFilterChange: (patch: Partial<TypeFilter>) => void;
 }) {
   const [mode, setMode] = useState<DueMode>('overdue');
   const [f, setF] = useState<DueFilters>(NO_DUE_FILTERS);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<DueFilters>) => setF(prev => ({ ...prev, ...patch }));
-  const reset = () => { setF(NO_DUE_FILTERS); setSelected(new Set()); };
+  const reset = () => { setF(NO_DUE_FILTERS); setSelected(new Set()); }; // the shared type lens has its own Reset and stays
 
-  const typed = useMemo(() => dueItems(records, mode, f), [records, mode, f]);
+  const typed = useMemo(() => dueItems(records, mode, f, typeFilter), [records, mode, f, typeFilter]);
   const sizes = useMemo(() => sizeCounts(typed), [typed]);
   const sizeChoice = sizes.some(([s]) => s === f.size) ? f.size : ALL; // a size that no longer applies is not applied
   const rows = useMemo(() => typed.filter(r => sizeChoice === ALL || sizeOf(r) === sizeChoice), [typed, sizeChoice]);
-  const filtered = f.type !== ALL || sizeChoice !== ALL || f.search !== '' || f.from !== '' || f.to !== '';
+  const filtered = typeFilter.types.length > 0 || sizeChoice !== ALL || f.search !== '' || f.from !== '' || f.to !== '';
+  const localActive = sizeChoice !== ALL || f.search !== '' || f.from !== '' || f.to !== ''; // Clear is for these; the shared lens has its own Reset
   const chosen = rows.filter(r => selected.has(String(r.id)));
 
   const COLUMNS: Column<PPERecord>[] = [
@@ -48,12 +51,12 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
       </div>
       <div className="flex flex-wrap items-end gap-3">
         <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search employee or item" wrapperClassName="min-w-48 max-w-sm flex-1" />
-        <Select aria-label="PPE type" className="w-44" value={f.type} onValueChange={v => set({ type: v })} options={[{ value: ALL, label: 'All types' }, ...TYPE_OPTIONS]} />
+        <MultiSelectFilter label="PPE types" unit="types" allLabel="All types" options={typeOptions} value={typeFilter.types} onChange={types => onTypeFilterChange({ types })} mode={typeFilter.mode} onModeChange={mode => onTypeFilterChange({ mode })} />
         <Select aria-label="Size" className="w-36" value={sizeChoice} onValueChange={v => set({ size: v })} options={[{ value: ALL, label: 'All sizes' }, ...sizes.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
         <Field label="Expires from" className="w-40"><Input type="date" value={f.from} onChange={e => set({ from: e.target.value })} /></Field>
         <Field label="Expires to" className="w-40"><Input type="date" value={f.to} onChange={e => set({ to: e.target.value })} /></Field>
         <Button onClick={() => { const w = thisWeekRange(); set({ from: w.from, to: w.to }); }}>This week</Button>
-        {filtered && <Button variant="ghost" icon="close" onClick={reset}>Clear filters</Button>}
+        {localActive && <Button variant="ghost" icon="close" onClick={reset}>Clear filters</Button>}
       </div>
       {sizes.length > 0 && <p className="font-sans text-caption text-ink-muted" aria-label="Items needed per size">Needed by size: {sizes.map(([s, n]) => `${s} ${n}`).join(', ')}</p>}
 
@@ -68,7 +71,7 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
 
       {rows.length === 0 ? (
         filtered
-          ? <EmptyState icon="search" title="Nothing matches" description="Try fewer filters." action={<Button onClick={reset}>Clear filters</Button>} />
+          ? <EmptyState icon="search" title="Nothing matches" description="Try fewer filters." action={localActive ? <Button onClick={reset}>Clear filters</Button> : undefined} />
           : <EmptyState icon="success" title={`No ${mode === 'overdue' ? 'overdue' : 'expiring soon'} items${sectionActive ? ' in this section' : ''}`} description={sectionActive ? 'Choose All sections to see everything.' : 'All PPE is up to date.'} />
       ) : (
         <>

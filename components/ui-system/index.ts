@@ -84,6 +84,12 @@ export { nextSort, sortRows, selectionState, toggleAllVisible, toggleOne, pruneS
 export type { SortState, SortDirection } from './patterns/tableLogic';
 export { PersonPicker, PeoplePicker, useEmployeeOptions, lookupName } from './patterns/PeoplePicker';
 export { PeopleChecklist } from './patterns/PeopleChecklist';
+export { ChoiceCards } from './patterns/ChoiceCards';
+export type { ChoiceCardOption } from './patterns/ChoiceCards';
+export { OptionChecklist } from './patterns/OptionChecklist';
+export type { ChecklistOption } from './patterns/OptionChecklist';
+export { MultiSelectFilter } from './patterns/MultiSelectFilter';
+export type { FilterOption } from './patterns/MultiSelectFilter';
 export type { PickedPerson, EmployeeOption } from './patterns/PeoplePicker';
 export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/BulkEdit';
 export type { BulkField } from './patterns/BulkEdit';

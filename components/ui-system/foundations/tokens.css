@@ -80,6 +80,8 @@
 
   /* ── Geometry ───────────────────────────────────────────────────────────── */
   --mo-radius-xs: 4px;
+  --mo-radius-cell: 2px; /* data-grid cells (timesheet roster): crisp, ledger-like */
+  --mo-radius-grid: 4px; /* data-grid containers: matches xs, named for the use */
   --mo-radius-control: 7px;
   --mo-radius-pill: 999px;
   --mo-radius-card: 12px;

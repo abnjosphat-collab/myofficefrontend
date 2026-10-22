@@ -10,6 +10,7 @@ import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, Men
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 import { minutesToDisplay } from './calcBreakdowns';
 import { BreakdownDetail } from './BreakdownDetail';
 import { BreakdownForm } from './BreakdownForm';
@@ -17,7 +18,7 @@ import { ALL, NO_FILTERS, OPEN, costOf, distinct, downtimeOf, filterBreakdowns, 
 import { PRIORITIES, STATUSES, TYPES, priorityMeta, statusMeta, typeMeta } from './breakdownMeta';
 import { InsightsPanel } from './insights/InsightsPanel';
 import type { Breakdown, BreakdownFormData } from './types';
-import { createBreakdown, deleteBreakdown, insightQuery, updateBreakdown, useBreakdowns } from './useBreakdownsData';
+import { createBreakdown, deleteBreakdown, fetchBreakdownById, insightQuery, updateBreakdown, useBreakdowns } from './useBreakdownsData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const PAGE_SIZE = 24;
@@ -49,6 +50,20 @@ function BreakdownsContent() {
   const clear = () => { setF(NO_FILTERS); setPage(1); };
 
   const viewing = useMemo(() => rows.find(b => b.id === viewingId) ?? null, [rows, viewingId]);
+  // Bell deep link (?open=<id>): land on the breakdown.
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records: rows,
+    ready: list.loaded || !!list.error,
+    listFailed: !list.loaded && !!list.error,
+    getId: b => b.id,
+    fetchById: fetchBreakdownById,
+    merge: row => list.setItems(prev => (prev.some(b => b.id === row.id) ? prev : [...prev, row])),
+    onOpen: record => setViewingId(record.id),
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That breakdown (#${id}) no longer exists — it may have been deleted.`
+      : `That breakdown (#${id}) could not be loaded — try again from the bell.`),
+  });
   const matches = useMemo(() => sortBreakdowns(filterBreakdowns(rows, f), sort, dir), [rows, f, sort, dir]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
   const stats = useMemo(() => summarise(rows), [rows]);
@@ -97,6 +112,10 @@ function BreakdownsContent() {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Total" value={stats.total} selected={!filtered} onClick={clear} {...tile} />

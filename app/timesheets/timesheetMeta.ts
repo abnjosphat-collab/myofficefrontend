@@ -3,7 +3,7 @@
 // the roster exceptions. Pure and tested; the rules that carry money (hours, overtime, the 208 cap) stay in calcTotals.
 import type { IconMeaning, Tone } from '@/components/ui-system';
 import { toLocalISODate } from '@/lib/dates';
-import type { Period, StatusKey } from './types';
+import type { Employee, Period, StatusKey } from './types';
 import { absenceTone } from '@/lib/status';
 import { formatDate } from '@/lib/format';
 
@@ -66,6 +66,15 @@ export function timeFromHours(startHHMM: string, hours: number): string {
 }
 export const normalShiftEnd = (hours: number): string => timeFromHours('07:00', hours);
 
-/** The roster is automatic (each person's employment type), with exceptions kept in this browser: people added by hand and people hidden. */
-export const ROSTER_KEYS = { extra: 'ts_nec_extra_ids', hidden: 'ts_nec_hidden_ids' } as const;
+/** Keys of the retired per-browser roster exceptions (removed 2026-10-21): read once to clean up, then forgotten. */
+export const RETIRED_ROSTER_KEYS = ['ts_nec_extra_ids', 'ts_nec_hidden_ids'] as const;
+/** The roster is exactly the register: everyone on NEC employment who has not left. No exceptions, no hand-added people. */
+export const necRosterIds = (all: Pick<Employee, 'id' | 'employmentType' | 'archived'>[]): string[] =>
+  all.filter(e => e.employmentType === 'NEC' && e.archived !== true).map(e => e.id);
+/** Active people with no employment type: on no roster until classified in Personnel. */
+export const missingEmploymentType = (all: Pick<Employee, 'id' | 'name' | 'employmentType' | 'archived'>[]): Pick<Employee, 'id' | 'name'>[] =>
+  all.filter(e => e.archived !== true && e.employmentType === '').map(e => ({ id: e.id, name: e.name }));
+/** Suggest bulk entry on first sight of a mostly-empty period (more than half the working cells unfilled). */
+export const shouldShowBulkHint = (filled: number, possible: number): boolean =>
+  possible > 0 && (possible - filled) / possible > 0.5;
 export const notesKeyFor = (period: Period): string => `ts_notes_nec_${fmtDate(period.start)}`;

@@ -41,17 +41,16 @@ export function entryCellTitle(entry: TimesheetEntry): string {
 const TH = 'sticky top-0 z-30 bg-surface-muted border-b border-line px-1 py-2 text-center font-sans text-caption font-semibold text-ink-muted';
 const num = 'px-2 py-2 text-center font-sans text-body-sm tabular text-ink border-b border-line-subtle';
 
-export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onRemoveEmployee, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect }: {
+export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCellClick, onQuickAdd, onQuickRemove, onBulkAssign, onBulkDay, onFillDays, selectedEmployeeIds, onToggleEmployeeSelect, onToggleAllEmployeeSelect }: {
   employees: Employee[]; timesheets: TimesheetEntry[]; days: Date[]; getHourTotals: (empId: string) => HourTotals;
   onCellClick: (emp: Employee, day: Date, entry?: TimesheetEntry) => void; onQuickAdd: (emp: Employee, day: Date) => void; onQuickRemove: (emp: Employee, entry: TimesheetEntry) => void;
-  onBulkAssign: (emp: Employee) => void; onBulkDay: (day: Date) => void; onRemoveEmployee: (id: string) => void;
+  onBulkAssign: (emp: Employee) => void; onBulkDay: (day: Date) => void;
   onFillDays: (emp: Employee, sourceDay: Date, targetDays: Date[], sourceEntry?: TimesheetEntry) => Promise<void>;
   selectedEmployeeIds: Set<string>; onToggleEmployeeSelect: (id: string) => void; onToggleAllEmployeeSelect: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const getEntry = useCallback((eid: string, d: Date) => timesheets.find(ts => String(ts.employee_id) === String(eid) && ts.date === fmtDate(d)), [timesheets]);
   const today = fmtDate(new Date());
-  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [fillDrag, setFillDrag] = useState<FillDragState | null>(null);
   const fillCleanupRef = useRef<(() => void) | null>(null);
   const suppressCellClickUntil = useRef(0);
@@ -101,7 +100,7 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
     return dayIndex >= lo && dayIndex <= hi && dayIndex !== fillDrag.sourceDayIndex;
   };
 
-  if (employees.length === 0) return <EmptyState icon="employees" title="No employees on this roster" description='Set NEC or Salaried on the Employees page, or use "Add employees" to add someone by hand.' />;
+  if (employees.length === 0) return <EmptyState icon="employees" title="No employees on this roster" description="Set NEC employment on the Personnel page and they appear here on their own." />;
 
   const hint = fillDrag && (() => {
     const emp = employees.find(e => e.id === fillDrag.empId);
@@ -118,7 +117,7 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
       <div className="flex flex-wrap items-center gap-3 px-1 font-sans text-caption text-ink-muted"><span>Leaves and overtime</span><ModuleApprovalIndicator approval={{ approved: 1, pending: 1 }} legend /></div>
       {/* A scrollable region must be keyboard-focusable so keyboard users can scroll it. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-      <div ref={scrollRef} tabIndex={0} role="region" aria-label="Timesheet grid (scrollable)" className={cn('max-h-[min(72dvh,880px)] min-h-72 overflow-auto rounded-card border border-line', fillDrag && 'cursor-ew-resize select-none')}>
+      <div ref={scrollRef} tabIndex={0} role="region" aria-label="Timesheet grid (scrollable)" className={cn('max-h-[min(72dvh,880px)] min-h-72 overflow-auto rounded-grid border border-line', fillDrag && 'cursor-ew-resize select-none')}>
         <table className="w-full border-separate border-spacing-0">
           <caption className="sr-only">Timesheet: one row for each person, one column for each day, then their totals</caption>
           <thead>
@@ -129,9 +128,9 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
               {days.map(d => {
                 const ds = fmtDate(d); const holiday = zimHolidayName(ds); const wk = d.getDay() === 0 || d.getDay() === 6;
                 return (
-                  <th key={ds} scope="col" className={cn(TH, 'min-w-[4.75rem] px-0.5', holiday && 'bg-action-soft')}>
+                  <th key={ds} scope="col" className={cn(TH, 'min-w-[4.75rem] border-r border-line-subtle px-0.5', holiday && 'bg-action-soft')}>
                     <button type="button" aria-label={holiday ? `Bulk assign ${holiday}, ${ds}` : `Bulk assign all employees on ${ds}`} title={holiday ? `${holiday}: bulk assign this day` : 'Bulk assign this day for everyone'} onClick={() => onBulkDay(d)}
-                      className="focus-ring flex w-full flex-col items-center gap-0.5 rounded-control py-1.5 hover:bg-surface-subtle">
+                      className="focus-ring flex w-full flex-col items-center gap-0.5 rounded-cell py-1.5 hover:bg-surface-subtle">
                       <span className={wk ? 'text-ink-subtle' : undefined}>{formatWeekday(d)}</span>
                       <span className={cn('font-sans text-body-sm tabular', ds === today ? 'font-bold text-ink' : 'text-ink')}>{d.getDate()}</span>
                       <span className="text-tip font-normal">{holiday ? 'Holiday' : formatMonth(d)}</span>
@@ -153,7 +152,7 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
               const excess = t.excess || 0; const added = t.ot15Module ?? Math.max(0, t.ot15 - excess);
               return (
                 <tr key={emp.id} className="group/row hover:bg-surface-subtle/50">
-                  <TimesheetEmployeeCell emp={emp} confirmRemoveId={confirmRemoveId} setConfirmRemoveId={setConfirmRemoveId} selected={selectedEmployeeIds.has(emp.id)} onToggleSelect={onToggleEmployeeSelect} onBulkAssign={onBulkAssign} onRemoveEmployee={onRemoveEmployee} />
+                  <TimesheetEmployeeCell emp={emp} selected={selectedEmployeeIds.has(emp.id)} onToggleSelect={onToggleEmployeeSelect} onBulkAssign={onBulkAssign} />
                   {days.map((day, dayIndex) => {
                     const entry = getEntry(emp.id, day);
                     return (
@@ -175,7 +174,8 @@ export function TimesheetGrid({ employees, timesheets, days, getHourTotals, onCe
               <th scope="row" className="sticky left-0 z-20 border-r border-t-2 border-line bg-surface-muted px-3 py-3 text-left"><p className="font-sans text-label text-ink">Period totals</p><p className="font-sans text-caption font-normal text-ink-muted">{employees.length} {employees.length === 1 ? 'employee' : 'employees'}</p></th>
               {days.map(day => {
                 const sum = employees.reduce((s, emp) => { const e = getEntry(emp.id, day); return s + (e?.regular_hours || 0) + (e?.overtime_hours || 0); }, 0);
-                return <td key={fmtDate(day)} className="border-t-2 border-line px-0.5 py-3 text-center font-sans text-caption font-normal tabular text-ink-muted">{sum > 0 ? sum.toFixed(0) : ''}</td>;
+                // Two sides, two colors (strong top rule, subtle column rule) — not competing; split so the one-string check stays meaningful.
+                return <td key={fmtDate(day)} className={cn('border-t-2 border-t-line px-0.5 py-3 text-center font-sans text-caption font-normal tabular text-ink-muted', 'border-r border-r-line-subtle')}>{sum > 0 ? sum.toFixed(0) : ''}</td>;
               })}
               {[grand.actual, grand.reg, grand.ot15, grand.ot20, grand.standby, grand.night].map((v, i) => <td key={i} className="border-t-2 border-line px-2 py-3 text-center font-sans text-body tabular text-ink">{v.toFixed(1)}</td>)}
             </tr>

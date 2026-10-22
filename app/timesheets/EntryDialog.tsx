@@ -19,8 +19,8 @@ import { formatFullDate, formatDayMonth } from '@/lib/format';
 
 const OPTIONS = STATUS_KEYS.map(k => ({ value: k as string, label: statusMeta(k).label }));
 
-export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }: {
-  employee: Employee; date: Date; entry?: TimesheetEntry; onSave: (data: Omit<TimesheetEntry, 'id'>) => Promise<void>; onDelete?: () => Promise<void>; onClose: () => void;
+export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose, onBulk }: {
+  employee: Employee; date: Date; entry?: TimesheetEntry; onSave: (data: Omit<TimesheetEntry, 'id'>) => Promise<void>; onDelete?: () => Promise<void>; onClose: () => void; onBulk?: () => void;
 }) {
   const confirm = useConfirm();
   const holiday = zimHolidayName(fmtDate(date));
@@ -89,6 +89,7 @@ export function EntryDialog({ employee, date, entry, onSave, onDelete, onClose }
         )}
         <Checkbox label="Standby allowance" description="Adds a flat 8 hours once for this standby period, whatever its length." checked={form.standby_allowance} onChange={e => set({ standby_allowance: e.target.checked })} />
         <Field label="Notes" optional><Input value={form.notes} onChange={e => set({ notes: e.target.value })} placeholder="Optional" /></Field>
+        {onBulk && <p className="font-sans text-body-sm text-ink-muted">Filling many days like this one? <button type="button" className="font-medium text-action underline" onClick={onBulk}>Assign shifts in bulk instead</button></p>}
       </div>
     </FormDialog>
   );

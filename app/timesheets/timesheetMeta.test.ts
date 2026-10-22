@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPeriodMonth, fmtDate, getNECPeriod } from './timesheetMeta';
+import { RETIRED_ROSTER_KEYS, defaultPeriodMonth, fmtDate, getNECPeriod, missingEmploymentType, necRosterIds, shouldShowBulkHint } from './timesheetMeta';
 
 // The page opens on the cycle for defaultPeriodMonth(today): this month's cycle (13th of last month to 12th of this one) up to the 16th,
 // next month's from the 17th. So on 17 October it opens on 13 October to 12 November, not on the 13 September to 12 October cycle that ended.
@@ -43,5 +43,31 @@ describe('defaultPeriodMonth', () => {
     const p = getNECPeriod(new Date(2026, 10, 1));
     expect(fmtDate(p.start)).toBe('2026-10-13');
     expect(fmtDate(p.end)).toBe('2026-11-12');
+  });
+});
+
+describe('roster from the register', () => {
+  const all = [
+    { id: '1', name: 'Ann', employmentType: 'NEC', archived: false },
+    { id: '2', name: 'Bob', employmentType: 'NEC', archived: true },
+    { id: '3', name: 'Cy', employmentType: 'SALARIED', archived: false },
+    { id: '4', name: 'Dee', employmentType: '', archived: false },
+    { id: '5', name: 'Eli', employmentType: '', archived: true },
+  ] as const;
+  it('necRosterIds keeps NEC and unarchived only', () => {
+    expect(necRosterIds([...all])).toEqual(['1']);
+  });
+  it('missingEmploymentType names active unclassified people only', () => {
+    expect(missingEmploymentType([...all])).toEqual([{ id: '4', name: 'Dee' }]);
+  });
+  it('RETIRED_ROSTER_KEYS names the old exception keys for cleanup', () => {
+    expect([...RETIRED_ROSTER_KEYS]).toEqual(['ts_nec_extra_ids', 'ts_nec_hidden_ids']);
+  });
+  it('shouldShowBulkHint fires past half empty, never on a full or empty period', () => {
+    expect(shouldShowBulkHint(0, 93)).toBe(true);
+    expect(shouldShowBulkHint(46, 93)).toBe(true);
+    expect(shouldShowBulkHint(47, 93)).toBe(false);
+    expect(shouldShowBulkHint(93, 93)).toBe(false);
+    expect(shouldShowBulkHint(0, 0)).toBe(false);
   });
 });

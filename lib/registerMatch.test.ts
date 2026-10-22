@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indexRegister, matchToRegister } from './registerMatch';
+import { formatMineNumber, indexRegister, matchToRegister } from './registerMatch';
 
 const register = indexRegister([
   { id: 7, employee_id: 'C1042', first_name: 'Tariro', last_name: 'Moyo' },
@@ -22,5 +22,14 @@ describe('matchToRegister', () => {
   it('says not on register when neither the number nor the name matches', () => {
     expect(matchToRegister({ employee_id: 'X-1', employee_name: 'Nobody Here' }, register)).toBe('not-on-register');
     expect(matchToRegister({ employee_id: '', employee_name: '' }, register)).toBe('not-on-register');
+  });
+});
+
+describe('formatMineNumber', () => {
+  it('shows dotted and blank mine numbers as words', () => {
+    expect(formatMineNumber('.............')).toBe('No mine number');
+    expect(formatMineNumber('')).toBe('No mine number');
+    expect(formatMineNumber(null)).toBe('No mine number');
+    expect(formatMineNumber('C1165')).toBe('C1165');
   });
 });

@@ -1,10 +1,10 @@
 // app/leaves/page.tsx — leave requests: apply, review, approve or reject (singly or in bulk), and summaries.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
@@ -15,11 +15,15 @@ import { NO_FILTERS, filterLeaves, statsFromLeaves, summariseByEmployee, summari
 import { daysText, statusMeta } from './leaveMeta';
 import { LEAVE_TYPES, typeOf } from './leaveTypes';
 import type { Leave } from './types';
-import { bulkSetLeaveStatus, createLeave, deleteLeave, setLeaveStatus, updateLeave, useLeaves } from './useLeavesData';
+import { bulkSetLeaveStatus, createLeave, deleteLeave, fetchLeaveById, setLeaveStatus, updateLeave, useLeaves } from './useLeavesData';
 import { formatDate } from '@/lib/format';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
+import { useAuth } from '@/lib/auth-context';
+import { deepSignDecision } from '@/lib/deepSign';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
+import { readStatusParam } from '@/lib/useDeepLink';
 
 const SORTS = [
   { value: 'date-desc', label: 'Newest first' }, { value: 'date-asc', label: 'Oldest first' }, { value: 'days-desc', label: 'Most days' },
@@ -53,6 +57,41 @@ function LeavesContent() {
   const register = useRegisterCheck();
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const set = (patch: Partial<LeaveFilters>) => setF(p => ({ ...p, ...patch }));
+  // ?status=pending arrives from the bell's "View all" — apply once on mount (an
+  // effect, not an initializer, so server and client render the same first HTML).
+  useEffect(() => {
+    const s = readStatusParam(['all', 'pending', 'approved', 'rejected']);
+    // Mount-once external read (the URL), not a cascading render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (s) setF(prev => ({ ...prev, status: s }));
+  }, []);
+  // Bell deep link (?open=<id>&sign=approve): land on the record, gate up for a manager.
+  const { isAtLeast, loading: authLoading } = useAuth();
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  const [deepSign, setDeepSign] = useState<'approved' | null>(null);
+  useRecordDeepLink({
+    records: leaves,
+    // Auth must be settled too: the sign guard reads the role, and deciding
+    // while the profile is still loading would refuse a real manager.
+    ready: (list.loaded || !!list.error) && !authLoading,
+    listFailed: !list.loaded && !!list.error,
+    getId: l => l.id,
+    fetchById: fetchLeaveById,
+    merge: row => list.setItems(prev => (prev.some(l => l.id === row.id) ? prev : [...prev, row])),
+    flags: ['sign'],
+    onOpen: (record, flags) => {
+      setViewingId(record.id);
+      const decision = deepSignDecision('leave request', record, flags.sign, isAtLeast('manager'));
+      if (decision.notice) setDeepNotice(decision.notice);
+      // Deferred past this commit: the gate must mount strictly after the
+      // detail dialog, or Radix hides the wrong one (same-commit mounting
+      // inverts the pair). The tick is imperceptible under the animation.
+      if (decision.gate) setTimeout(() => setDeepSign('approved'), 0);
+    },
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That leave request (#${id}) no longer exists — it may have been deleted.`
+      : `That leave request (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const viewing = useMemo(() => leaves.find(l => l.id === viewingId) ?? null, [leaves, viewingId]);
   const unmatched = useMemo(() => leaves.filter(l => register.matchOf(l) !== 'linked'), [leaves, register]);
@@ -129,6 +168,10 @@ function LeavesContent() {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Requests" value={stats.total} selected={f.status === 'all'} onClick={() => set({ status: 'all' })} {...tile} />
@@ -243,7 +286,7 @@ function LeavesContent() {
         </TabsContent>
       </Tabs>
 
-      <LeaveDetails leave={viewing} onClose={() => setViewingId(null)} onEdit={openForm} onDelete={remove} onStatus={changeStatus} />
+      <LeaveDetails leave={viewing} initialAction={deepSign} onClose={() => { setViewingId(null); setDeepSign(null); }} onEdit={openForm} onDelete={remove} onStatus={changeStatus} />
       <LeaveForm open={formOpen} leave={editing} leaves={leaves} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} />
       {bulk && (
         <ApprovalGate
@@ -259,5 +302,5 @@ function LeavesContent() {
 }
 
 export default function LeavesPage() {
-  return <AppShell migrated><LeavesContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><LeavesContent /></Suspense></AppShell>;
 }

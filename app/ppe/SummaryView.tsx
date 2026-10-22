@@ -42,7 +42,6 @@ export function SummaryView({ records, employeeCount }: { records: PPERecord[]; 
     <div className="flex flex-col gap-5">
       <MetricGrid columns={3}>
         <MetricTile label="Compliance" icon="compliance" tone={compliance == null ? 'default' : compliance >= 80 ? 'success' : compliance >= 60 ? 'warning' : 'danger'} value={compliance == null ? 'No data' : `${compliance}%`} detail="Active items not past expiry" />
-        <MetricTile label="Active items" icon="ppe" value={active.length} detail={`${employeeCount} ${employeeCount === 1 ? 'person' : 'people'}`} />
         <MetricTile label="To reorder" icon="cart" tone={sizes.some(([, s]) => s.some(([, b]) => b.reorder > 0)) ? 'warning' : 'default'} value={sizes.reduce((a, [, s]) => a + s.reduce((x, [, b]) => x + b.reorder, 0), 0)} detail="Past their expiry" />
       </MetricGrid>
       <section aria-label="Downloads" className="grid grid-cols-1 gap-3 sm:grid-cols-2">

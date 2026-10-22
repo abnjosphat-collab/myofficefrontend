@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
+  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
   Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
   LoadingPulse,
 } from '@/components/ui-system';
@@ -15,7 +15,8 @@ import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButto
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
-import { deleteWorkOrder, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
+import { deleteWorkOrder, fetchWorkOrderById, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
 import { AnalyticsView } from './AnalyticsView';
 import { NO_FILTERS, countByStatus, filterOrders, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
 import { PRIORITY, classificationLabel, priorityMeta, statusMeta } from './meta';
@@ -82,6 +83,20 @@ function MaintenanceContent() {
   const clear = () => { setF(NO_FILTERS); setPage(1); };
   const chosen = useMemo(() => items.filter(w => selected.has(String(w.id))), [items, selected]);
   const merge = (updated?: WorkOrder) => { if (updated) orders.setItems(prev => prev.map(w => (String(w.id) === String(updated.id) ? { ...w, ...updated } : w))); else void orders.refetch(); };
+  // Bell deep link (?open=<id>): land on the work order.
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records: items,
+    ready: orders.loaded || !!orders.error,
+    listFailed: !orders.loaded && !!orders.error,
+    getId: w => w.id,
+    fetchById: fetchWorkOrderById,
+    merge: row => orders.setItems(prev => (prev.some(w => String(w.id) === String(row.id)) ? prev : [...prev, row])),
+    onOpen: record => setViewingId(String(record.id)),
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That work order (#${id}) no longer exists — it may have been deleted.`
+      : `That work order (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const remove = async (w: WorkOrder) => {
     await confirmDelete({ title: 'Delete this work order?', message: `${w.work_order_number}, ${w.equipment_info}. This cannot be undone.`, what: 'The work order', run: async () => { await deleteWorkOrder(w.id); setViewingId(null); }, done: 'Work order deleted.', after: () => orders.refetch() });
@@ -127,6 +142,10 @@ function MaintenanceContent() {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Work orders" value={counts.all} selected={tab === 'orders' && f.status === 'all'} onClick={() => { setTab('orders'); set({ status: 'all' }); }} {...tile} />

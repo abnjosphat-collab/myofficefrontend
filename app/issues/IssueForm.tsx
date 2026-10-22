@@ -2,7 +2,7 @@
 // catalogue or described by hand). Validation is explained on the field; a refused save keeps everything typed.
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Combobox, Field, Icon, IconButton, Input, Notice, Panel, useRefusedSubmit } from '@/components/ui-system';
 import { useEmployees } from '@/hooks/useLookups';
@@ -16,6 +16,10 @@ const uid = () => Math.random().toString(36).slice(2);
 const blankItem = (): IssueItemRow => ({ id: uid(), stockCode: '', description: '', qty: '1', unit: 'UN', unit_price: '0' });
 const num = (v: string) => parseFloat(v);
 const ROW = 'sm:grid-cols-[minmax(0,13rem)_minmax(0,1fr)_5.5rem_4.5rem_6.5rem_2.5rem]';
+/** One mapping from a catalogue spare to a row patch, shared by the row picker and the lookup's Add. */
+export const spareToPatch = (s: { stock_code: string; description: string; unit_of_measure?: string | null; unit_price: number | null }) => ({
+  stockCode: s.stock_code, description: s.description, unit: s.unit_of_measure || 'UN', unit_price: String(s.unit_price),
+});
 
 /** Choose a spare from the catalogue. Only the best matches are rendered, so a catalogue of thousands stays fast. */
 function SparePick({ spares, value, onPick }: { spares: Spare[]; value: string; onPick: (s: Spare | null) => void }) {
@@ -35,13 +39,29 @@ function SparePick({ spares, value, onPick }: { spares: Spare[]; value: string; 
   );
 }
 
-export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy, onRecorded }: {
+export interface IssueFormHandle {
+  /** Fill the first free row with a catalogue spare (or append one); opens the panel. */
+  addSpare: (spare: { stock_code: string; description: string; unit_of_measure?: string | null; unit_price: number | null }) => void;
+}
+
+interface IssueFormProps {
   spares: Spare[];
   sparesError: string | null;
   onRetrySpares: () => void;
   defaultIssuedBy: string;
   onRecorded: () => Promise<void>;
-}) {
+  /** Start collapsed behind a one-line summary (the issues page); open by default without it. */
+  collapsible?: boolean;
+  /** Bump to open a collapsed panel (the lookup's Add path). */
+  forceOpenSignal?: number;
+  /** Fired once, on the user's first edit (lets the page assert the panel open). */
+  onActivity?: () => void;
+}
+
+export const IssueForm = forwardRef<IssueFormHandle, IssueFormProps>(function IssueForm(
+  { spares, sparesError, onRetrySpares, defaultIssuedBy, onRecorded, collapsible = false, forceOpenSignal = 0, onActivity },
+  ref,
+) {
   const employees = useEmployees();
   const people = useMemo(() => [...new Set(employees.map(e => `${e.first_name} ${e.last_name}`.trim()).filter(Boolean))].sort(), [employees]);
   const [recipient, setRecipient] = useState('');
@@ -54,9 +74,39 @@ export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy,
   const [error, setError] = useState<string | null>(null);
   const { formRef, refused } = useRefusedSubmit();
   const itemsMsgRef = useRef<HTMLParagraphElement>(null);
+  const [open, setOpen] = useState(!collapsible);
+  const activityFired = useRef(false);
+
+  // A bump from the page (lookup Add) opens the panel. A mount-once external
+  // signal, not a cascading render.
+  useEffect(() => {
+    if (forceOpenSignal > 0) setOpen(true);
+  }, [forceOpenSignal]);
+
+  // First user edit asserts open (the page re-asserts; harmless once open).
+  // No dep array: this is a once-only latch checked after every render.
+  useEffect(() => {
+    if (activityFired.current || !collapsible || !open) return;
+    const dirty = recipient.trim() !== '' || notes.trim() !== '' || items.some(i => i.stockCode.trim() !== '' || i.description.trim() !== '');
+    if (!dirty) return;
+    activityFired.current = true;
+    onActivity?.();
+  });
+
+  useImperativeHandle(ref, () => ({
+    addSpare: (spare) => {
+      setOpen(true);
+      setItems(prev => {
+        const free = prev.find(i => i.stockCode.trim() === '' && i.description.trim() === '');
+        const patch = spareToPatch(spare);
+        if (free) return prev.map(i => (i.id === free.id ? { ...i, ...patch } : i));
+        return [...prev, { ...blankItem(), ...patch }];
+      });
+    },
+  }), []);
 
   const update = (id: string, patch: Partial<IssueItemRow>) => setItems(p => p.map(i => (i.id === id ? { ...i, ...patch } : i)));
-  const pick = (id: string, s: Spare | null) => update(id, s ? { stockCode: s.stock_code, description: s.description, unit: s.unit_of_measure || 'UN', unit_price: String(s.unit_price) } : { stockCode: '' });
+  const pick = (id: string, s: Spare | null) => update(id, s ? spareToPatch(s) : { stockCode: '' });
   const used = items.filter(i => i.description.trim() || i.stockCode.trim());
   const total = used.reduce((s, i) => s + lineTotal(num(i.qty), num(i.unit_price)), 0);
   const bad = { recipient: !recipient.trim(), items: used.length === 0, qty: used.some(i => !(num(i.qty) > 0)) };
@@ -83,8 +133,22 @@ export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy,
     finally { setSaving(false); }
   };
 
+  const summary = `New issue — ${used.length} ${used.length === 1 ? 'item' : 'items'} to ${recipient.trim() || 'nobody yet'}`;
+  if (collapsible && !open) {
+    return (
+      <Panel title="Record a new issue" description="Who received what, and when.">
+        <Button variant="ghost" iconAfter="chevron-down" onClick={() => setOpen(true)} className="w-full justify-between" aria-expanded={false}>
+          {summary}
+        </Button>
+      </Panel>
+    );
+  }
+
   return (
-    <Panel title="Record a new issue" description="Who received what, and when.">
+    <Panel
+      title="Record a new issue" description="Who received what, and when."
+      actions={collapsible ? <Button size="sm" variant="ghost" icon="chevron-up" onClick={() => setOpen(false)} aria-expanded={true}>Collapse</Button> : undefined}
+    >
       <form ref={formRef} className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); submit(); }} noValidate>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Issued to" required error={touched && bad.recipient ? 'Enter who received the items.' : undefined}>
@@ -134,4 +198,4 @@ export function IssueForm({ spares, sparesError, onRetrySpares, defaultIssuedBy,
       </form>
     </Panel>
   );
-}
+});

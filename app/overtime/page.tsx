@@ -2,10 +2,10 @@
 // the pattern of overtime, and roll a week up per person.
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -23,11 +23,15 @@ import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeM
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { WeeklySummary } from './WeeklySummary';
 import { TakeLieuLeaveDialog } from './TakeLieuLeaveDialog';
-import { bulkUpdateOTStatus, createOT, deleteOT, fetchTakenLieuLeave, updateOT, useOvertime, type TakeLieuLeaveResult, type TakenLieuLeave } from './useOvertimeData';
+import { bulkUpdateOTStatus, createOT, deleteOT, fetchOTById, fetchTakenLieuLeave, updateOT, useOvertime, type TakeLieuLeaveResult, type TakenLieuLeave } from './useOvertimeData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
+import { useAuth } from '@/lib/auth-context';
+import { deepSignDecision } from '@/lib/deepSign';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
+import { readStatusParam } from '@/lib/useDeepLink';
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'employee_name', label: 'Employee', width: 20 }, { key: 'employee_id', label: 'ID', width: 20 }, { key: 'position', label: 'Position', width: 20 },
@@ -92,6 +96,14 @@ function OvertimeContent() {
   const register = useRegisterCheck();
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const set = (patch: Partial<OTFilters>) => { setFilters(f => ({ ...f, ...patch })); setPage(1); };
+  // ?status=pending arrives from the bell's "View all" — apply once on mount (an
+  // effect, not an initializer, so server and client render the same first HTML).
+  useEffect(() => {
+    const s = readStatusParam(['all', ...STATUSES]);
+    // Mount-once external read (the URL), not a cascading render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (s) setFilters(prev => ({ ...prev, status: s }));
+  }, []);
   const employeeIds = useMemo(() => people.map(p => p.employee_id), [people]);
   const effective = useMemo<OTFilters>(() => ({ ...filters, employeeIds }), [filters, employeeIds]);
   const filtered = unmatchedOnly || isFiltered(effective);
@@ -191,6 +203,31 @@ function OvertimeContent() {
     setViewingId(null);
   };
   const openGate = (kind: 'approve' | 'reject', rs: OTRecord[]) => { setViewingId(null); setGate({ kind, ids: rs.map(r => String(r.id)) }); };
+  // Bell deep link (?open=<id>&sign=approve): land on the record, gate up for a manager.
+  const { isAtLeast, loading: authLoading } = useAuth();
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records,
+    // Auth must be settled too: the sign guard reads the role, and deciding
+    // while the profile is still loading would refuse a real manager.
+    ready: (list.loaded || !!list.error) && !authLoading,
+    listFailed: !list.loaded && !!list.error,
+    getId: r => r.id,
+    fetchById: fetchOTById,
+    merge: row => list.setItems(prev => (prev.some(r => String(r.id) === String(row.id)) ? prev : [...prev, row])),
+    flags: ['sign'],
+    onOpen: (record, flags) => {
+      const decision = deepSignDecision('overtime request', record, flags.sign, isAtLeast('manager'));
+      if (decision.gate) openGate('approve', [record]);
+      else {
+        setViewingId(String(record.id));
+        if (decision.notice) setDeepNotice(decision.notice);
+      }
+    },
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That overtime request (#${id}) no longer exists — it may have been deleted.`
+      : `That overtime request (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const actionsOf = (r: OTRecord) => (
     <span className="inline-flex gap-1">
@@ -229,6 +266,10 @@ function OvertimeContent() {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Requests" value={stats.total} selected={filters.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
@@ -358,5 +399,5 @@ function OvertimeContent() {
 }
 
 export default function OvertimePage() {
-  return <AppShell migrated><OvertimeContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><OvertimeContent /></Suspense></AppShell>;
 }

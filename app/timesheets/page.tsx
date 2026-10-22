@@ -1,16 +1,16 @@
 // app/timesheets/page.tsx — the NEC timesheets: the Roster tab shows one row for each person on the NEC roster and one cell for
 // each day of the NEC cycle, with leave and overtime from the other modules laid over what was entered; the Person tab opens one
 // person's period as day cards or a quick-view table on the shared timesheet shells, like an artisan's month. Enter a day, fill
-// across days, assign shifts in bulk (with undo), see each person's totals, and download the result as Excel or PDF. Roster
-// exceptions and period notes stay in this browser. The payroll rules (the 208 cap, overtime buckets, night allowance) are in
+// across days, assign shifts in bulk (with undo), see each person's totals, and download the result as Excel or PDF. Period
+// notes stay in this browser; the roster itself is exactly the register (NEC, not archived). The payroll rules (the 208 cap,
+// overtime buckets, night allowance) are in
 // calcTotals and are unchanged.
 // Salaried artisans have their own module (artisan-timesheets); this page lists NEC employment types only.
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Button, Combobox, EmptyState, Field, IconButton, Notice, PageHeader, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, useConfirm, MoreMenu, LoadingPulse } from '@/components/ui-system';
-import { AddEmployeesDialog } from './AddEmployeesDialog';
+import { Button, Combobox, EmptyState, Field, IconButton, Notice, PageHeader, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, MoreMenu, LoadingPulse, asString, usePersistentState } from '@/components/ui-system';
 import { BulkAssignDialog } from './BulkAssignDialog';
 import { calcEmployeeTotals, buildEarlyMorningOtDatesForEmployee, buildModuleOt15ByDateForEmployee } from './calcTotals';
 import { countPeriodCompletion } from './completion';
@@ -22,13 +22,10 @@ import { NecPersonView } from './NecPersonView';
 import { NecQuickView } from './NecQuickView';
 import { NecScanImportPanel } from './necImport/NecScanImportPanel';
 import { TimesheetGrid } from './TimesheetGrid';
-import { LEAVE_TYPE_TO_STATUS, ROSTER_KEYS, fmtDate, defaultPeriodMonth, fmtPeriod, getDays, getNECPeriod, notesKeyFor, statusMeta } from './timesheetMeta';
+import { LEAVE_TYPE_TO_STATUS, RETIRED_ROSTER_KEYS, fmtDate, defaultPeriodMonth, fmtPeriod, getDays, getNECPeriod, missingEmploymentType, necRosterIds, notesKeyFor, shouldShowBulkHint, statusMeta } from './timesheetMeta';
 import type { EditCell, Employee, Period } from './types';
 import { useTimesheetEditing } from './useTimesheetEditing';
 import { useTimesheetsData } from './useTimesheetsData';
-
-const readList = (key: string): string[] => { try { const v = JSON.parse(window.localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []; } catch { return []; } };
-const writeList = (key: string, val: string[]) => { try { window.localStorage.setItem(key, JSON.stringify(val)); } catch { /* storage unavailable: the change lasts until the page is closed */ } };
 
 /** Per-person notes for one period, kept in this browser. Mounted with the period as its key, so a new period starts from its own notes. */
 function PeriodNotes({ storageKey, people }: { storageKey: string; people: Employee[] }) {
@@ -45,7 +42,6 @@ function PeriodNotes({ storageKey, people }: { storageKey: string; people: Emplo
 }
 
 function TimesheetsContent() {
-  const confirm = useConfirm();
   const [currentMonth, setCurrentMonth] = useState(() => defaultPeriodMonth());
   const activePeriod: Period = useMemo(() => getNECPeriod(currentMonth), [currentMonth]);
   const days = useMemo(() => getDays(activePeriod), [activePeriod]);
@@ -53,12 +49,9 @@ function TimesheetsContent() {
 
   const { allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments, loading, refreshing, retrying, loadError, refresh: load } = useTimesheetsData(activePeriod);
 
-  const [extraIds, setExtraIds] = useState<string[]>(() => readList(ROSTER_KEYS.extra));
-  const [hiddenIds, setHiddenIds] = useState<string[]>(() => readList(ROSTER_KEYS.hidden));
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'dept'>('name');
   const [editCell, setEditCell] = useState<EditCell | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [bulkOpen, setBulkOpen] = useState<{ anchor: Employee; dates?: string[]; ids?: string[] } | null>(null);
@@ -67,18 +60,15 @@ function TimesheetsContent() {
   const [personId, setPersonId] = useState('');
   const [downloadPreset, setDownloadPreset] = useState<{ scope: 'combined' | 'individual'; empId: string } | null>(null);
 
-  // The automatic roster: everyone on NEC employment who has not left (archived people stay addable by hand below), plus the people added by hand, less those hidden here.
-  const autoIds = useMemo(() => allEmployees.filter(e => e.employmentType === 'NEC' && e.archived !== true).map(e => e.id), [allEmployees]);
-  const rosterIds = useMemo(() => { const h = new Set(hiddenIds); return [...new Set([...autoIds, ...extraIds])].filter(id => !h.has(id)); }, [autoIds, extraIds, hiddenIds]);
-  const addToRoster = (ids: string[]) => {
-    setExtraIds(prev => { const next = [...new Set([...prev, ...ids])]; writeList(ROSTER_KEYS.extra, next); return next; });
-    setHiddenIds(prev => { const next = prev.filter(id => !ids.includes(id)); writeList(ROSTER_KEYS.hidden, next); return next; }); // re-adding someone hidden shows them again
-  };
-  /** An automatic person is hidden (they would reappear on every load otherwise); a person added by hand is just dropped from the list. */
-  const removeFromRoster = (id: string) => {
-    if (autoIds.includes(id)) setHiddenIds(prev => { const next = [...new Set([...prev, id])]; writeList(ROSTER_KEYS.hidden, next); return next; });
-    else setExtraIds(prev => { const next = prev.filter(x => x !== id); writeList(ROSTER_KEYS.extra, next); return next; });
-  };
+  // The roster is the register, nothing else: NEC employment, not archived.
+  const rosterIds = useMemo(() => necRosterIds(allEmployees), [allEmployees]);
+  // One-time cleanup of the retired per-browser roster exceptions (2026-10-21): anyone who added or hid people by hand
+  // had those choices silently dropped, so the keys go too instead of lingering.
+  useEffect(() => { try { RETIRED_ROSTER_KEYS.forEach(k => window.localStorage.removeItem(k)); } catch { /* storage unavailable */ } }, []);
+  const unclassified = useMemo(() => missingEmploymentType(allEmployees), [allEmployees]);
+  const unclassifiedSignature = useMemo(() => unclassified.map(p => p.id).sort().join(','), [unclassified]);
+  const [dismissedUnclassified, setDismissedUnclassified] = usePersistentState('ts_blank_type_dismissed_v1', '', asString);
+  const [bulkHintDismissed, setBulkHintDismissed] = usePersistentState('ts_bulk_hint_dismissed_v1', '', asString);
 
   const rosterEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -115,7 +105,8 @@ function TimesheetsContent() {
     return { count: sel.length, ...sel.reduce((a, e) => { const t = getHourTotals(e.id); return { actual: a.actual + t.actual, reg: a.reg + t.reg, ot15: a.ot15 + t.ot15, ot20: a.ot20 + t.ot20 }; }, { actual: 0, reg: 0, ot15: 0, ot20: 0 }) };
   }, [rosterEmployees, selectedIds, getHourTotals]);
 
-  const edit = useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets, rosterEmployees, currentMonth, activePeriod, confirm });
+  const edit = useTimesheetEditing({ timesheets, setTimesheets, effectiveTimesheets });
+  const showBulkHint = bulkHintDismissed !== '1' && shouldShowBulkHint(summary.filled, summary.possible);
 
   const toggleEmployee = useCallback((id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }), []);
   const toggleAll = useCallback(() => setSelectedIds(prev => (rosterEmployees.length > 0 && rosterEmployees.every(e => prev.has(e.id)) ? new Set() : new Set(rosterEmployees.map(e => e.id)))), [rosterEmployees]);
@@ -143,7 +134,7 @@ function TimesheetsContent() {
               { label: 'Import scans', icon: 'documents' as const, disabled: unavailable, onSelect: () => setShowImport(true) },
               { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => openDownload(null) },
             ]} />
-            <Button variant="primary" icon="calendar" disabled={unavailable || rosterEmployees.length === 0} onClick={() => setBulkOpen({ anchor: rosterEmployees[0] })}>Bulk entry</Button>
+            <Button variant="primary" icon="calendar" title="Fill or clear shifts for many people and days at once" disabled={unavailable || rosterEmployees.length === 0} onClick={() => setBulkOpen({ anchor: rosterEmployees[0] })}>Bulk assign shifts</Button>
           </>
         )}
       />
@@ -156,8 +147,6 @@ function TimesheetsContent() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setCurrentMonth(defaultPeriodMonth())}>Current period</Button>
-          <Button icon="copy" disabled={unavailable || rosterEmployees.length === 0} onClick={() => { void edit.copyPrevious(); }}>Copy previous period</Button>
-          <Button icon="plus" disabled={unavailable} onClick={() => setShowAdd(true)}>Add employees</Button>
         </div>
       </section>
 
@@ -166,6 +155,12 @@ function TimesheetsContent() {
       {!loading && loadError && <Notice tone="danger" title="Could not load timesheets" action={<Button size="sm" icon="refresh" disabled={refreshing} onClick={() => { void load(allEmployees.length > 0); }}>Try again</Button>}>{loadError}{allEmployees.length > 0 ? ' The figures shown may be out of date.' : ''}</Notice>}
 
       {!loading && initialUnavailable && <EmptyState icon="warning" title="The roster is unavailable" description="The people could not be loaded, so no grid is shown. Try again." action={<Button icon="refresh" onClick={() => { void load(); }}>Try again</Button>} />}
+
+      {!loading && !initialUnavailable && unclassified.length > 0 && dismissedUnclassified !== unclassifiedSignature && (
+        <Notice tone="warning" title={`${unclassified.length} ${unclassified.length === 1 ? 'person has' : 'people have'} no employment type`} action={<Button size="sm" variant="ghost" aria-label="Dismiss the employment-type notice" onClick={() => setDismissedUnclassified(unclassifiedSignature)}>Dismiss</Button>}>
+          {unclassified.map(p => p.name).join(', ')} {unclassified.length === 1 ? 'is' : 'are'} on no timesheet roster until classified. Set it in Personnel.
+        </Notice>
+      )}
 
       {!loading && !initialUnavailable && (
         <Tabs value={view} onValueChange={v => setView(v === 'person' ? 'person' : 'roster')}>
@@ -188,14 +183,22 @@ function TimesheetsContent() {
               <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" wrapperClassName="min-w-48 max-w-md flex-1" />
               <Button icon="sort" onClick={() => setSortBy(s => (s === 'name' ? 'dept' : 'name'))}>{sortBy === 'name' ? 'Sorted by name' : 'Sorted by department'}</Button>
               {search !== '' && <Button variant="ghost" icon="close" onClick={() => setSearch('')}>Clear search</Button>}
+              <Button icon="calendar" disabled={unavailable || rosterEmployees.length === 0} onClick={() => { const anchor = rosterEmployees[0]; if (anchor) setBulkOpen({ anchor }); }}>Assign shifts to many people / days</Button>
             </Toolbar>
+
+      {!loading && !initialUnavailable && showBulkHint && (
+        <Notice tone="info" title="Entering the same shift for many people?" action={<Button size="sm" variant="ghost" aria-label="Dismiss the bulk-entry suggestion" onClick={() => setBulkHintDismissed('1')}>Dismiss</Button>}>
+          Fill or clear whole weeks at once instead of day by day.{' '}
+          <button type="button" className="font-medium text-action underline" onClick={() => { const anchor = rosterEmployees[0]; if (anchor) setBulkOpen({ anchor }); }}>Open bulk assign</button>
+        </Notice>
+      )}
 
       {selectedIds.size > 0 && (
         <section aria-label="Selected employees" className="flex flex-col gap-2 rounded-control border border-line bg-action-soft px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-sans text-body-sm text-ink"><strong>{selectedIds.size}</strong> {selectedIds.size === 1 ? 'employee' : 'employees'} selected</span>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="primary" icon="calendar" onClick={() => { const anchor = rosterEmployees.find(e => selectedIds.has(e.id)) ?? rosterEmployees[0]; if (anchor) setBulkOpen({ anchor, ids: [...selectedIds] }); }}>Same shift for the selected</Button>
+              <Button size="sm" variant="primary" icon="calendar" onClick={() => { const ids = rosterEmployees.filter(e => selectedIds.has(e.id)).map(e => e.id); const anchor = rosterEmployees.find(e => e.id === ids[0]) ?? rosterEmployees[0]; if (anchor && ids.length > 0) setBulkOpen({ anchor, ids }); }}>Assign or clear shifts</Button>
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear selection</Button>
             </div>
           </div>
@@ -206,7 +209,7 @@ function TimesheetsContent() {
             <TimesheetGrid
               employees={rosterEmployees} timesheets={effectiveTimesheets} days={days} getHourTotals={getHourTotals}
               onCellClick={(emp, day, entry) => setEditCell({ employee: emp, date: day, entry })} onQuickAdd={edit.quickAdd} onQuickRemove={edit.quickRemove}
-              onBulkAssign={emp => setBulkOpen({ anchor: emp, ids: [emp.id] })} onBulkDay={openBulkForDay} onRemoveEmployee={removeFromRoster} onFillDays={edit.fillDays}
+              onBulkAssign={emp => setBulkOpen({ anchor: emp, ids: [emp.id] })} onBulkDay={openBulkForDay} onFillDays={edit.fillDays}
               selectedEmployeeIds={selectedIds} onToggleEmployeeSelect={toggleEmployee} onToggleAllEmployeeSelect={toggleAll}
             />
 
@@ -226,6 +229,7 @@ function TimesheetsContent() {
         <EntryDialog
           key={`${editCell.employee.id}:${fmtDate(editCell.date)}`} employee={editCell.employee} date={editCell.date} entry={editCell.entry}
           onSave={data => edit.saveEntry(editCell.employee.id, editCell.date, data)} onDelete={editCell.entry?.id ? () => edit.deleteEntry(editCell.entry!.id!) : undefined} onClose={() => setEditCell(null)}
+          onBulk={() => { const emp = editCell.employee; const ds = fmtDate(editCell.date); setEditCell(null); setBulkOpen({ anchor: emp, dates: [ds], ids: [emp.id] }); }}
         />
       )}
       {bulkOpen && (
@@ -234,7 +238,6 @@ function TimesheetsContent() {
           onSave={entries => edit.bulkSave(entries)} onClear={edit.bulkClear} onClose={() => setBulkOpen(null)}
         />
       )}
-      {showAdd && <AddEmployeesDialog allEmployees={allEmployees} currentIds={rosterIds} loading={loading} onAdd={emps => addToRoster(emps.map(e => e.id))} onClose={() => setShowAdd(false)} />}
       {showDownload && <DownloadDialog key={downloadPreset ? `preset-${downloadPreset.scope}-${downloadPreset.empId}` : 'default'} employees={rosterEmployees} timesheets={effectiveTimesheets} approvedOvertime={approvedOvertime} getHourTotals={getHourTotals} period={activePeriod} initialScope={downloadPreset?.scope} initialEmpId={downloadPreset?.empId} onClose={() => setShowDownload(false)} />}
       {showImport && <NecScanImportPanel open period={activePeriod} onClose={() => setShowImport(false)} onApplied={() => { void load(true); setShowImport(false); }} />}
     </div>

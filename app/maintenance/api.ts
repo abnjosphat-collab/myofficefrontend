@@ -1,6 +1,6 @@
 // frontend/app/maintenance/api.ts — work order + schedule API calls, shared
 // between the maintenance page and its extracted modal components.
-import { api } from '@/lib/apiClient';
+import { api, ApiError } from '@/lib/apiClient';
 import type { WorkOrder, MaintenanceSchedule } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
@@ -37,6 +37,16 @@ export async function deleteWorkOrder(id: string): Promise<void> {
  * server is still missing before the local copy is discarded. Runs once per
  * browser; only fills blanks, never overwrites a server value.
  */
+/** One work order for a `?open=` deep link; null when the server has no such record. */
+export async function fetchWorkOrderById(id: string | number): Promise<WorkOrder | null> {
+  try {
+    return await api.get<WorkOrder>(`/api/maintenance/work-orders/${id}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 export async function uploadStrandedLocalFields(server: WorkOrder[]): Promise<number> {
   if (typeof window === 'undefined') return 0;
   if (localStorage.getItem(LEGACY_UPLOAD_DONE)) return 0;

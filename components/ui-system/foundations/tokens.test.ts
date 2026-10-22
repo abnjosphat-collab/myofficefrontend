@@ -129,4 +129,20 @@ describe('foundation token contrast', () => {
       }
     }
   });
+
+  it('grid tone pairs hold 4.5:1 (the status test above covers info/warning/danger/success)', () => {
+    expect(ratio(token('mo-ink'), token('mo-surface-subtle')), 'neutral cell text').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(token('mo-action'), token('mo-action-soft')), 'brand cell text').toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('data-grid radii exist and stay sharper than controls (2px cells, 4px container)', () => {
+    const px = (name: string): number => {
+      const m = css.match(new RegExp(`--${name}:\\s*(\\d+)px`));
+      if (!m) throw new Error(`token --${name} not found in tokens.css`);
+      return Number(m[1]);
+    };
+    expect(px('mo-radius-cell')).toBe(2);
+    expect(px('mo-radius-grid')).toBe(4);
+    expect(px('mo-radius-grid')).toBeLessThan(px('mo-radius-control'));
+  });
 });

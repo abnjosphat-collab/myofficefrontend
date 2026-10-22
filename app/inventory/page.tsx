@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
-  Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference,
+  SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference,
   type Column, type SortState, type Tone, FilterField
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -25,7 +25,6 @@ const STATUS: Record<StockStatus, { label: string; tone: Tone; icon: 'valid' | '
   'low-stock': { label: 'Low stock', tone: statusTone('low_stock'), icon: 'low-stock' },
   'out-of-stock': { label: 'Out of stock', tone: statusTone('out_of_stock'), icon: 'out-of-stock' },
 };
-const STATUS_FILTERS: { value: 'all' | StockStatus; label: string }[] = [{ value: 'all', label: 'All' }, ...(Object.keys(STATUS) as StockStatus[]).map(s => ({ value: s, label: STATUS[s].label }))];
 const ALL = '__all__';
 const EMPTY_FORM = { name: '', sku: '', category: '', description: '', currentStock: '0', minStock: '0', maxStock: '0', unit: 'pcs', cost: '0', supplier: '', location: '' };
 
@@ -195,7 +194,6 @@ function InventoryPageContent() {
         moreFilters={suppliers.length > 0 ? <FilterField label="Supplier"><Select aria-label="Filter by supplier" value={supplier} onValueChange={setSupplier} options={[{ value: ALL, label: 'All suppliers' }, ...suppliers.map(s => ({ value: s, label: s }))]} /></FilterField> : undefined}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search name, SKU or description" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Segmented label="Stock status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTERS} />
         {categories.length > 0 && <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />}
       </Toolbar>
 

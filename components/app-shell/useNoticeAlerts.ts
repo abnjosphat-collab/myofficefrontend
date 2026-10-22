@@ -12,10 +12,10 @@
 // shown to everyone rather than faking targeting the data model can't support.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Bell, Pin, type LucideIcon } from '@/components/ui-system';
-import { timeAgo, type ActivityItem } from './useDashboardData';
+import { timeAgo, type ActivityItem, type SourceResult } from './useDashboardData';
 import { getAllNotices } from '@/app/noticeboard/useNoticeboardData';
 import type { Notice } from '@/app/noticeboard/types';
 
@@ -31,6 +31,8 @@ function toActivityItem(n: Notice): ActivityItem {
   const icon: LucideIcon = n.is_pinned ? Pin : Bell;
   return {
     id: `notice-${n.id}`,
+    href: `/noticeboard?open=${n.id}`,
+    group: 'notices',
     action: n.title,
     module: 'Noticeboard',
     icon,
@@ -72,6 +74,10 @@ export function useNoticeAlerts() {
   const [alerts, setAlerts] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(!!user);
   const [failed, setFailed] = useState(false);
+  // A retry re-runs the load below (same cancelled-guard, same shaping); single source, no per-source routing needed.
+  const [reloadTick, setReloadTick] = useState(0);
+  const reload = useCallback(() => setReloadTick(t => t + 1), []);
+  const sources: SourceResult[] = user ? [{ source: 'notices', label: 'Notices', ok: !failed }] : [];
 
   useEffect(() => {
     if (!user) { setNotices([]); setAlerts([]); setLoading(false); return; }
@@ -94,7 +100,7 @@ export function useNoticeAlerts() {
 
     load();
     return () => { cancelled = true; };
-  }, [user, isManager]);
+  }, [user, isManager, reloadTick]);
 
-  return { notices, alerts, loading, failed };
+  return { notices, alerts, loading, failed, sources, reload };
 }

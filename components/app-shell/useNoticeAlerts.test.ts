@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { buildNoticeAlerts } from './useNoticeAlerts';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuth } from '@/lib/auth-context';
+import { getAllNotices } from '@/app/noticeboard/useNoticeboardData';
+import { buildNoticeAlerts, useNoticeAlerts } from './useNoticeAlerts';
 import type { Notice } from '@/app/noticeboard/types';
+
+vi.mock('@/lib/auth-context', () => ({ useAuth: vi.fn() }));
+vi.mock('@/app/noticeboard/useNoticeboardData', () => ({ getAllNotices: vi.fn() }));
 
 function notice(over: Partial<Notice> = {}): Notice {
   return {
@@ -97,6 +103,12 @@ describe('buildNoticeAlerts', () => {
     expect(alerts[0].module).toBe('Noticeboard');
   });
 
+  it('links each notice alert to its noticeboard record (U3.1)', () => {
+    const { alerts } = buildNoticeAlerts([notice({ id: '42', title: 'Payroll update' })], false);
+    expect(alerts[0].href).toBe('/noticeboard?open=42');
+    expect(alerts[0].actionLabel).toBeUndefined();
+  });
+
   it('maps Critical priority to "critical" status and Low to "normal"', () => {
     const { alerts } = buildNoticeAlerts(
       [notice({ id: '1', priority: 'Critical' }), notice({ id: '2', priority: 'Low' })],
@@ -108,5 +120,50 @@ describe('buildNoticeAlerts', () => {
 
   it('returns empty arrays for empty input', () => {
     expect(buildNoticeAlerts([], false)).toEqual({ notices: [], alerts: [] });
+  });
+});
+
+describe('useNoticeAlerts sources and reload (U3.3)', () => {
+  const authMock = vi.mocked(useAuth);
+  const noticesMock = vi.mocked(getAllNotices);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authMock.mockReturnValue({ user: { id: 'u1' }, isAtLeast: () => true } as never);
+    noticesMock.mockResolvedValue([]);
+  });
+
+  it('reports its source as ok when notices load', async () => {
+    const { result } = renderHook(() => useNoticeAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.sources).toEqual([{ source: 'notices', label: 'Notices', ok: true }]);
+    expect(result.current.failed).toBe(false);
+  });
+
+  it('reports its source failed when the fetch throws', async () => {
+    noticesMock.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useNoticeAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.failed).toBe(true);
+    expect(result.current.sources).toEqual([{ source: 'notices', label: 'Notices', ok: false }]);
+  });
+
+  it('reload re-fires the fetch and clears the failure', async () => {
+    noticesMock.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useNoticeAlerts());
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(noticesMock).toHaveBeenCalledTimes(1);
+    act(() => { result.current.reload(); });
+    await waitFor(() => expect(result.current.failed).toBe(false));
+    expect(noticesMock).toHaveBeenCalledTimes(2);
+    expect(result.current.sources).toEqual([{ source: 'notices', label: 'Notices', ok: true }]);
+  });
+
+  it('reports no sources without a user', async () => {
+    authMock.mockReturnValue({ user: null, isAtLeast: () => false } as never);
+    const { result } = renderHook(() => useNoticeAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.sources).toEqual([]);
+    expect(noticesMock).not.toHaveBeenCalled();
   });
 });

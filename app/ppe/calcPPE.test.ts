@@ -160,13 +160,28 @@ describe('groupOrderList', () => {
     expect(rows[0].count).toBe(2);
   });
 
-  it('lists the same employee twice if they have two distinct due records of that size', () => {
+  it('names each person once no matter how many lines they have', () => {
     const rows = groupOrderList([
       orderEntry({ record_id: '1', employee_name: 'John Moyo', size: '8' }),
       orderEntry({ record_id: '2', employee_name: 'John Moyo', size: '8' }),
     ]);
     expect(rows[0].count).toBe(2);
-    expect(rows[0].people).toEqual(['John Moyo', 'John Moyo']);
+    expect(rows[0].people).toEqual(['John Moyo']);
+  });
+
+  it('adds quantities up instead of counting lines', () => {
+    const rows = groupOrderList([
+      orderEntry({ record_id: '1', qty: 4 }),
+      orderEntry({ record_id: '2', employee_name: 'Tendai Banda' }),
+    ]);
+    expect(rows[0].count).toBe(5);
+    expect(rows[0].people).toEqual(['Jane Doe', 'Tendai Banda']);
+  });
+
+  it('skips a blank person label (a free line with nobody named)', () => {
+    const rows = groupOrderList([orderEntry({ record_id: 'free:1', employee_id: '', employee_name: '' })]);
+    expect(rows[0].count).toBe(1);
+    expect(rows[0].people).toEqual([]);
   });
 
   it('sorts by count descending, then item name for ties', () => {
@@ -216,7 +231,8 @@ describe('filterOrderList', () => {
   ];
 
   it('filters by type, size, search, and urgency', () => {
-    expect(filterOrderList(entries, { type: 'helmet' })).toHaveLength(2);
+    expect(filterOrderList(entries, { type: { types: ['helmet'], mode: 'include' } })).toHaveLength(2);
+    expect(filterOrderList(entries, { type: { types: ['helmet'], mode: 'exclude' } })).toHaveLength(1);
     expect(filterOrderList(entries, { urgency: 'overdue' })).toHaveLength(1);
     expect(filterOrderList(entries, { urgency: 'soon' })).toHaveLength(1);
     expect(filterOrderList(entries, { search: 'bob' })).toHaveLength(1);
@@ -247,6 +263,13 @@ describe('orderEntryFulfilled', () => {
     const entry = orderEntry({ employee_id: 'C1000', ppe_type: 'helmet', size: ' L ' });
     expect(orderEntryFulfilled(entry, 'C1000', 'helmet', 'L')).toBe(true);
     expect(orderEntryFulfilled(entry, 'C1000', 'gloves', 'L')).toBe(false);
+  });
+  it('matches the type without regard to case', () => {
+    expect(orderEntryFulfilled(orderEntry({ employee_id: 'C1000', ppe_type: 'Helmet' }), 'C1000', 'helmet', '8')).toBe(true);
+    expect(orderEntryFulfilled(orderEntry({ employee_id: 'C1000', ppe_type: 'helmet' }), 'C1000', 'HELMET', '8')).toBe(true);
+  });
+  it('never matches a free line, which names nobody', () => {
+    expect(orderEntryFulfilled(orderEntry({ employee_id: '' }), 'C1000', 'safety_shoes', '8')).toBe(false);
   });
 });
 

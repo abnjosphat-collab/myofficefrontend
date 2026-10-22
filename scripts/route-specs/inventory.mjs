@@ -30,9 +30,10 @@ const spec = {
     check(await page.getByRole('button', { name: /^Edit Fixture/ }).count() === 4, 'three items from the server plus the moved one');
     const body = await page.locator('main').innerText();
     check(!/Industrial Circuit Boards|CNC Cutting Tools|Laser Printer Toner/.test(body), 'no seeded sample items');
-    await page.getByRole('button', { name: 'Low stock', exact: true }).first().click();
+    await page.getByRole('button', { name: /^Low stock \d/ }).click();
     check(await page.getByRole('button', { name: /^Edit Fixture/ }).count() === 1, 'status filter shows only the low-stock item');
-    await page.getByRole('button', { name: 'All', exact: true }).click();
+    check(await page.getByRole('group', { name: 'Stock status' }).count() === 0, 'the tiles are the only stock-status control');
+    await page.getByRole('button', { name: /^Items \d/ }).click();
     await page.getByRole('button', { name: 'Table view' }).click();
     check(await page.getByRole('table', { name: 'Inventory items' }).isVisible(), 'table view renders');
     await page.getByRole('button', { name: 'Card view' }).click();

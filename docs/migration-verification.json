@@ -45,8 +45,8 @@
     },
     "/inventory": {
       "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected); ready, empty and failed-load states; the page's own interactions; keyboard and dialog focus where applicable. No live data.",
+      "date": "2026-10-22",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected); ready, empty and failed-load states; the page's own interactions; keyboard and dialog focus where applicable. No live data. Re-rendered Oct 2026 (U8.6): the duplicate stock-status Segmented is removed, the tiles keep figures and filtering; route spec drives the tiles; 1440/390 screenshots inspected.",
       "note": "Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data."
     },
     "/training": {
@@ -99,26 +99,26 @@
     },
     "/maintenance": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail and schedules screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save and emptied spares and a cleared classification, foreman sign-off from the current status), edit with a cleared due date, raising two machines with one refused, schedules (raise now per machine, a refused pause that reverts, validation) and analytics with a filter. No live data, no real signatures.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail and schedules screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save and emptied spares and a cleared classification, foreman sign-off from the current status), edit with a cleared due date, raising two machines with one refused, schedules (raise now per machine, a refused pause that reverts, validation) and analytics with a filter. No live data, no real signatures. Re-rendered Oct 2026 (U3.1): notification deep-link landing; 1440 screenshot inspected. (U9) route spec repaired to drive the dirty-guard Discard flow, green.",
       "note": "Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns."
     },
     "/timesheets": {
-      "status": "unverified",
-      "date": "2026-10-08",
-      "scope": "Route spec (NEC-only roster with salaried exclusion, period summary, grid, entry, bulk, copy-previous, person tab, downloads, honest failure) plus unit tests for the payroll math, the shared timesheet shells and the person view; no fixture browser run since the shared-shell rebuild.",
-      "note": "NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green."
+      "status": "verified",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px. Oct 2026 verification (U2): register-only roster (copy/add removed), NEC ledger grid (contrast-tested), bulk cues (renamed header/toolbar/selection bar, first-use hint) and the reworked bulk dialog (ChoiceCards, numbered steps, live equation) in times/role/leave variants; route spec green. Screenshots inspected; no live data.",
+      "note": "NEC Timesheets on the shared timesheet shells: Roster grid plus a Person tab (day cards / quick-view table) reusing the artisan components; payroll rules (calcTotals), merging, fill and write rules and exports unchanged with their tests green. Oct 2026: register-only roster, ledger grid, bulk cues + reworked bulk dialog."
     },
     "/employees": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, normalise and phone screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search, section collapse, archived people on request, cards grouped by section and trade and the table, detail (no offence records shown), edit with a field error and a cleared date, delete with a refusal, the organised roster export and the registry download (both produce a workbook), and the roster clean-up with a refused batch. No live data.",
+      "date": "2026-10-22",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, normalise and phone screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search, section collapse, archived people on request, cards grouped by section and trade and the table, detail (no offence records shown), edit with a field error and a cleared date, delete with a refusal, the organised roster export and the registry download (both produce a workbook), and the roster clean-up with a refused batch. No live data. Re-rendered Oct 2026 (U4/U8): Personnel-PPE links, ?person= ring, Type-not-set badges, employment type required for new people, the letter-or-digit mine-number rule, picker/register wording; route spec green; 1440/390 screenshots inspected.",
       "note": "Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs)."
     },
     "/leaves": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session (admin) and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; filters including the overlapping date range, table selection and bulk approve gate, detail, edit with validation, apply with a refused save, delete with confirmation, summary. The signature step was opened and dismissed; an actual signed approval was not driven. No live data.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session (admin) and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; filters including the overlapping date range, table selection and bulk approve gate, detail, edit with validation, apply with a refused save, delete with confirmation, summary. The signature step was opened and dismissed; an actual signed approval was not driven. No live data. Re-rendered Oct 2026 (U3.1): notification deep-link landings (review-and-sign, decided and gone flows) plus ?status=pending; route spec green; 1440 screenshots inspected.",
       "note": "Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role)."
     },
     "/standby": {
@@ -165,8 +165,8 @@
     },
     "/sheq": {
       "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected, every tab at 320); ready, empty and failed-load states; the page's own interactions (period filter, weekly targets, notes, analysis); keyboard and dialog focus where applicable. No live data. The analysis call was exercised against a mocked response, not the real AI service.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected, every tab at 320); ready, empty and failed-load states; the page's own interactions (period filter, weekly targets, notes, analysis); keyboard and dialog focus where applicable. No live data. The analysis call was exercised against a mocked response, not the real AI service. Re-rendered Oct 2026 (U3.1): notification deep-link landing; route spec green; 1440 screenshots inspected.",
       "note": "Collapsible sections became tabs (Overview, Weekly targets, Modules, Analytics, Analysis, Notes); tiles link to their modules. Two data corrections: (1) near-miss records have no status or severity, so the old Resolved/Open donut and 'NM resolution' bar, which fell back to invented 70/30 figures, are gone and only the section split is shown; (2) the safety score now averages only the measures that have records and shows 'No score' for an empty period, where it used to show 100 'Good standing' (near miss always contributed a fixed 100). Weekly targets and notes stay in this browser's local storage and are labelled as device-only. A chart legend made the module bar chart draw no bars, so it was removed."
     },
     "/pto": {
@@ -195,8 +195,8 @@
     },
     "/noticeboard": {
       "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected, with and without the shell's active-notices popup, and the form at 320); ready, empty and failed-load states; the page's own interactions including a real file pick through the upload endpoint (mocked); keyboard and dialog focus where applicable. No live data and no real storage upload.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 and 320 px (screenshots inspected, with and without the shell's active-notices popup, and the form at 320); ready, empty and failed-load states; the page's own interactions including a real file pick through the upload endpoint (mocked); keyboard and dialog focus where applicable. No live data and no real storage upload. Re-rendered Oct 2026 (U3.1): notification deep-link landing; route spec green; 1440 screenshots inspected.",
       "note": "Pinned and other notices as cards or a table, status/pinned tiles as filters, server-side filters and a debounced search (one request per finished word), detail dialog with attachment thumbnails and download links, optimistic pin with revert, archive-all-expired and unpin-all now ask first, hide-expired stays a view-only toggle, add/edit/delete with multi-file attachment upload (failures shown in place and the save waits for uploads). Tiles count the current view and say so when filters are on. The list route is unbounded (CrudRouter) and not paged. The shell's active-notices popup was rebuilt on the UI system and moved to the bottom (it covered the top bar and page title on phones and the header actions on desktop)."
     },
     "/compressors": {
@@ -219,8 +219,8 @@
     },
     "/tasks-events": {
       "status": "verified",
-      "date": "2026-10-03",
-      "scope": "Rendered with a fixture session (admin) and mocked API at 1440, 820 and 390 px (1440 screenshot inspected); ready, empty and failed-load states; overdue filter, optimistic complete with a refused change put back, details with comments, edit, delete with confirmation, add. No live data.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session (admin) and mocked API at 1440, 820 and 390 px (1440 screenshot inspected); ready, empty and failed-load states; overdue filter, optimistic complete with a refused change put back, details with comments, edit, delete with confirmation, add. No live data. Re-rendered Oct 2026 (U3.1): notification deep-link landing; route spec green; 1440 screenshots inspected.",
       "note": "Manager-only board. The list is only requested once the caller is a manager; a failed load or comment load is stated, never empty."
     },
     "/av": {
@@ -243,8 +243,8 @@
     },
     "/issues": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 px (1440 and 390 screenshots inspected) and 844/1180 by the no-overflow checks; ready, empty and failed-load states; form validation, picking a spare, over-stock warning, a refused save keeping input, save, detail, delete with confirmation, analytics. No live data.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820, 390 px (1440 and 390 screenshots inspected) and 844/1180 by the no-overflow checks; ready, empty and failed-load states; form validation, picking a spare, over-stock warning, a refused save keeping input, save, detail, delete with confirmation, analytics. No live data. Re-rendered Oct 2026 (U7): find-a-part lookup at page top (add/copy/highlight/keyboard) and the collapsible issue form; route spec green; 1440/390 screenshots inspected.",
       "note": "Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF)."
     },
     "/equipment": {
@@ -273,8 +273,8 @@
     },
     "/overtime": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail, patterns and weekly screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search, month shortcuts and the employee scope, cards and table, the bulk bar and the signature step (opened and dismissed, nothing approved), detail, edit (hours-to-times switch, refused save), delete with a refusal, bulk entry with a refused person, insights (overview, analytics, patterns with the heatmap, causes, a failed re-run), and the weekly summary with its Excel download. No live data, no real signature, no real analysis.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail, patterns and weekly screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search, month shortcuts and the employee scope, cards and table, the bulk bar and the signature step (opened and dismissed, nothing approved), detail, edit (hours-to-times switch, refused save), delete with a refusal, bulk entry with a refused person, insights (overview, analytics, patterns with the heatmap, causes, a failed re-run), and the weekly summary with its Excel download. No live data, no real signature, no real analysis. Re-rendered Oct 2026 (U3.0/U3.1): the single-record GET, notification deep-link landings (sign/gone flows) plus ?status=pending; route spec green; 1440 screenshots inspected.",
       "note": "Register pattern with three tabs. The largest page: 2789 lines became a page of about 200 plus 17 focused files."
     },
     "/employees-preview": {
@@ -285,14 +285,14 @@
     },
     "/ppe": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (employees, due items, matrix and summary screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; tiles as filters, search, employee detail, delete with confirmation and a refusal, due items selected into the order list and marked not required, the order list, the matrix interval save, the summary, and a refused issue that keeps the typing. No live data; the Excel and PDF downloads were not opened in their apps.",
-      "note": "Register pattern with tabs. The order list stays browser-local by design and says so."
+      "date": "2026-10-22",
+      "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px (820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states. Oct 2026 re-verification (U4/U5/U6): register-driven people (blank cards, unmatched pseudos, PersonPicker, server stamp, Personnel links, ?person= ring), the shared order basket (automatic/manual/free lines, exclusions, LineEdit/Choose/Free dialogs, PO lines, tidy banner), the persisted type lens (include/exclude, counts, week/choose helpers); two spec entries green. Screenshots inspected; no live data; downloads not opened in their apps.",
+      "note": "Register pattern with tabs. The order list is shared (server): automatic overdue lines plus manual and free lines, per-record exclusions, tidy banner for legacy rows."
     },
     "/breakdowns": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, table, detail and the analytics views inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; tiles as filters, search, cards and table, detail, edit (nature, machine ID and HH:MM times sent), delete with confirmation and a refusal, a refused log that keeps the typing, and the Analytics tab (overview, when, machines, people and parts, mix). No live data; the Excel download was not opened in its app.",
+      "date": "2026-10-21",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, table, detail and the analytics views inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; tiles as filters, search, cards and table, detail, edit (nature, machine ID and HH:MM times sent), delete with confirmation and a refusal, a refused log that keeps the typing, and the Analytics tab (overview, when, machines, people and parts, mix). No live data; the Excel download was not opened in its app. Re-rendered Oct 2026 (U3.1): notification deep-link landing; route spec green; 1440 screenshots inspected.",
       "note": "Register pattern with Records and Analytics tabs. The Analytics tab follows the page filters (not the search)."
     },
     "/breakdowns/analytics": {

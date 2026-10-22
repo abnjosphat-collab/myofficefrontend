@@ -41,7 +41,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
-  const problems = formProblems(form);
+  const problems = formProblems(form, { requireEmploymentType: !employee });
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
   const editing = !!employee;
 
@@ -61,7 +61,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id}` : 'Mine number, name, ID number and designation are required.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id}` : 'Mine number, name, ID number, designation and employment type are required.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="ef-personal" className="flex flex-col gap-3">
           <h3 id="ef-personal" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Personal</h3>
@@ -84,7 +84,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
             <Field label="Date of engagement" optional><Input type="date" value={form.date_of_engagement} onChange={e => set({ date_of_engagement: e.target.value })} /></Field>
             <Field label="Foreman or supervisor" optional><Select aria-label="Foreman or supervisor" value={form.supervisor} onValueChange={v => set({ supervisor: v })} options={supervisors} /></Field>
             <Field label="Employee class" optional><Select aria-label="Employee class" value={form.employee_class} onValueChange={v => set({ employee_class: v })} options={CLASSES} /></Field>
-            <Field label="Employment type" optional><Select aria-label="Employment type" value={form.employment_type} onValueChange={v => set({ employment_type: v as EmployeeFormData['employment_type'] })} options={ETYPES} /></Field>
+            <Field label="Employment type" required={!editing} optional={editing} error={err('employment_type')}><Select aria-label="Employment type" value={form.employment_type} onValueChange={v => set({ employment_type: v as EmployeeFormData['employment_type'] })} options={ETYPES} /></Field>
             <Field label="Grade" optional><Input list="ef-grades" value={form.grade} onChange={e => set({ grade: e.target.value })} autoComplete="off" /><datalist id="ef-grades" aria-label="Grades in use">{grades.map(g => <option key={g} value={g}>{g}</option>)}</datalist></Field>
             <Field label="Previous employer" optional><Input list="ef-employers" value={form.previous_employer} onChange={e => set({ previous_employer: e.target.value })} autoComplete="off" /><datalist id="ef-employers" aria-label="Previous employers in use">{employers.map(g => <option key={g} value={g}>{g}</option>)}</datalist></Field>
             <Field label="Driver's licence class" optional><Select aria-label="Driver's licence class" value={form.drivers_license_class} onValueChange={v => set({ drivers_license_class: v })} options={licences} /></Field>

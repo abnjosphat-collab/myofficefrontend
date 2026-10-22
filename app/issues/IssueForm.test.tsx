@@ -1,7 +1,8 @@
+import { createRef, type Ref } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { IssueForm } from './IssueForm';
+import { IssueForm, type IssueFormHandle } from './IssueForm';
 import type { Spare } from './types';
 
 vi.mock('@/hooks/useLookups', () => ({ useEmployees: () => [], invalidateSparesCache: () => {} }));
@@ -79,5 +80,81 @@ describe('IssueForm numbers', () => {
     setup();
     await user.click(screen.getByRole('button', { name: 'Record issue' }));
     await waitFor(() => expect(screen.getByLabelText(/Issued to/)).toHaveFocus());
+  });
+});
+
+describe('IssueForm collapse and lookup handle (U7)', () => {
+  const SPARE_ROW = { stock_code: 'S1', description: 'Bearing', unit_of_measure: 'EA', unit_price: 12.5 };
+
+  function setupC(over: Record<string, unknown> = {}, ref?: Ref<IssueFormHandle>) {
+    const onRecorded = vi.fn(async () => {});
+    const onActivity = vi.fn();
+    render(
+      <IssueForm
+        spares={[SPARE]} sparesError={null} onRetrySpares={() => {}} defaultIssuedBy="" onRecorded={onRecorded}
+        collapsible onActivity={onActivity} ref={ref} {...over}
+      />,
+    );
+    return { onRecorded, onActivity };
+  }
+
+  it('starts collapsed behind the one-line summary', () => {
+    setupC();
+    expect(screen.getByRole('button', { name: 'New issue — 0 items to nobody yet' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record issue' })).not.toBeInTheDocument();
+  });
+
+  it('summary opens, Collapse closes', async () => {
+    const user = userEvent.setup();
+    setupC();
+    await user.click(screen.getByRole('button', { name: /New issue —/ }));
+    expect(screen.getByRole('button', { name: 'Record issue' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Collapse' }));
+    expect(screen.queryByRole('button', { name: 'Record issue' })).not.toBeInTheDocument();
+  });
+
+  it('a force-open bump opens the panel', () => {
+    const { rerender } = render(
+      <IssueForm spares={[SPARE]} sparesError={null} onRetrySpares={() => {}} defaultIssuedBy="" onRecorded={async () => {}} collapsible forceOpenSignal={0} />,
+    );
+    expect(screen.queryByRole('button', { name: 'Record issue' })).not.toBeInTheDocument();
+    rerender(
+      <IssueForm spares={[SPARE]} sparesError={null} onRetrySpares={() => {}} defaultIssuedBy="" onRecorded={async () => {}} collapsible forceOpenSignal={1} />,
+    );
+    expect(screen.getByRole('button', { name: 'Record issue' })).toBeInTheDocument();
+  });
+
+  it('fires onActivity once on the first edit', async () => {
+    const user = userEvent.setup();
+    const { onActivity } = setupC();
+    await user.click(screen.getByRole('button', { name: /New issue —/ }));
+    fireEvent.change(screen.getByLabelText(/Issued to/), { target: { value: 'Ann' } });
+    await waitFor(() => expect(onActivity).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText(/Issued to/), { target: { value: 'Ann Alpha' } });
+    expect(onActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('addSpare opens the panel and fills the first free row with the picker mapping', () => {
+    const ref = createRef<IssueFormHandle>();
+    setupC({}, ref);
+    act(() => { ref.current?.addSpare(SPARE_ROW); });
+    expect(screen.getByRole('button', { name: 'Record issue' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Description, item 1')).toHaveValue('Bearing');
+    expect(screen.getByLabelText('Unit cost, item 1')).toHaveValue(12.5);
+  });
+
+  it('addSpare appends when every row is used', () => {
+    const ref = createRef<IssueFormHandle>();
+    setupC({}, ref);
+    act(() => { ref.current?.addSpare(SPARE_ROW); });
+    act(() => { ref.current?.addSpare({ ...SPARE_ROW, stock_code: 'S2', description: 'Seal' }); });
+    expect(screen.getByLabelText('Description, item 2')).toHaveValue('Seal');
+  });
+
+  it('addSpare falls back to UN without a unit of measure', () => {
+    const ref = createRef<IssueFormHandle>();
+    setupC({}, ref);
+    act(() => { ref.current?.addSpare({ stock_code: 'S1', description: 'Bearing', unit_price: 12.5 }); });
+    expect(screen.getByLabelText('Description, item 1')).toHaveValue('Bearing');
   });
 });

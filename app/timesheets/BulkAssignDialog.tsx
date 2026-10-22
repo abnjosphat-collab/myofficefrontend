@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Checkbox, Dialog, Field, Input, Notice, Segmented, Select, StatusBadge, cn } from '@/components/ui-system';
+import { Button, Checkbox, ChoiceCards, Dialog, Field, Input, Notice, Select, StatusBadge, cn } from '@/components/ui-system';
 import { ShiftTimeRange } from '@/components/shared/ShiftTimeRange';
 import { TIMESHEET_BULK_SHIFT_PRESETS } from '@/lib/shiftTimePresets';
 import { recordShiftTimeUsage } from '@/lib/shiftTimePresetsPersonal';
@@ -46,7 +46,7 @@ export function BulkAssignDialog({ initialEmployee, allEmployees, period, timesh
   const ids = [...empIds];
   const entriesCount = dates.size * empIds.size;
   const total = estimatedHours(settings, ids, allEmployees, dates.size);
-  const breakdown = useMemo(() => (byRole ? normalShiftBreakdown(empIds, allEmployees) : []), [byRole, empIds, allEmployees]);
+  const breakdown = useMemo(() => normalShiftBreakdown(empIds, allEmployees), [empIds, allEmployees]);
   const preview = useMemo(() => {
     if (!anchor || !hover) return new Set<string>();
     const [a, b] = anchor < hover ? [anchor, hover] : [hover, anchor];
@@ -89,6 +89,7 @@ export function BulkAssignDialog({ initialEmployee, allEmployees, period, timesh
       open onOpenChange={o => { if (!o && !busy) onClose(); }} size="xl" title="Bulk assign or clear shifts" description={`${fmtPeriod(period)}. Select days, then Apply to mark them or Clear to unmark them.`}
       footer={(
         <>
+          {entriesCount > 0 && <span className="mr-auto font-sans text-caption text-ink-muted">{entriesCount} {plural(entriesCount, 'entry', 'entries')} = {empIds.size} {plural(empIds.size, 'person', 'people')} × {dates.size} {plural(dates.size, 'day', 'days')}</span>}
           <Button variant="ghost" onClick={onClose} disabled={!!busy}>Done</Button>
           <Button variant="danger" icon="delete" pending={busy === 'clear'} disabled={!!busy || entriesCount === 0} onClick={clear}>{entriesCount > 0 ? `Clear ${entriesCount}` : 'Clear'}</Button>
           <Button variant="primary" pending={busy === 'apply'} disabled={!!busy || entriesCount === 0} onClick={apply}>{entriesCount > 0 ? `Apply ${entriesCount} ${plural(entriesCount, 'entry', 'entries')}` : 'Apply'}</Button>
@@ -101,39 +102,52 @@ export function BulkAssignDialog({ initialEmployee, allEmployees, period, timesh
 
         <section aria-label="People" className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-sans text-label font-semibold text-ink">People ({empIds.size} selected)</h3>
+            <h3 className="font-sans text-label font-semibold text-ink">1. People ({empIds.size} selected)</h3>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="ghost" onClick={missing}>Missing on selected days</Button>
               <Button size="sm" variant="ghost" onClick={() => setEmpIds(empIds.size === allEmployees.length ? new Set([initialEmployee.id]) : new Set(allEmployees.map(e => e.id)))}>{empIds.size === allEmployees.length ? 'Deselect all' : 'Select all'}</Button>
             </div>
           </div>
+          <p className="font-sans text-caption text-ink-muted">Tick the people these entries are for.</p>
           <div role="group" aria-label="People to assign" className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto p-0.5">
             {allEmployees.map(e => <Button key={e.id} size="sm" variant={empIds.has(e.id) ? 'primary' : 'secondary'} aria-pressed={empIds.has(e.id)} onClick={() => toggleEmp(e.id)}>{e.name}{byRole && <span className="opacity-70"> {normalShiftHours(e.position)}h</span>}</Button>)}
           </div>
         </section>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Status"><Select aria-label="Status" value={status} onValueChange={v => setStatus(v as StatusKey)} options={STATUS_OPTIONS} /></Field>
-          {!leaveOrZero && <Segmented label="Shift" value={byRole ? 'role' : 'times'} onValueChange={v => setByRole(v === 'role')} options={[{ value: 'times', label: 'Set times' }, { value: 'role', label: 'Normal, by role' }]} />}
-        </div>
+        <section aria-label="What to enter" className="flex flex-col gap-3">
+          <h3 className="font-sans text-label font-semibold text-ink">2. What to enter</h3>
+          <Field label="Status" className="max-w-xs"><Select aria-label="Status" value={status} onValueChange={v => setStatus(v as StatusKey)} options={STATUS_OPTIONS} /></Field>
+          {!leaveOrZero && (
+            <ChoiceCards
+              label="How are the hours set?" value={byRole ? 'role' : 'times'} onValueChange={v => setByRole(v === 'role')}
+              options={[
+                { value: 'times', title: 'Same times for everyone', description: 'You choose the start and end time below. Everyone selected gets that shift.' },
+                {
+                  value: 'role', title: "Standard shift for each person's role",
+                  description: 'Starts at 07:00. Most roles work 10 hours; lamp room and compressor attendants work 8.',
+                  footer: breakdown.length === 0
+                    ? <span className="font-sans text-caption text-ink-muted">Select people above to see their normal hours.</span>
+                    : <span className="font-sans text-caption font-medium text-ink">{breakdown.map(([h, n]) => `${n} ${plural(n, 'person', 'people')} × ${h} h`).join(', ')}</span>,
+                },
+              ]}
+            />
+          )}
         {leaveOrZero && <p className="font-sans text-body-sm text-ink-muted">{LEAVE_STATUSES.has(status) ? `Leave is credited 8 hours on the standard shift (${statusMeta(status).label}).` : `${statusMeta(status).label} days are written with no hours.`}</p>}
-        {!leaveOrZero && (byRole ? (
-          <div className="rounded-control bg-surface-subtle p-3 font-sans text-body-sm text-ink">
-            {breakdown.length === 0 ? <span className="text-ink-muted">Select people to see their normal hours.</span> : <><span className="font-medium">Each person gets their own role&apos;s normal shift:</span> {breakdown.map(([h, n]) => `${n} ${plural(n, 'person', 'people')} at ${h}h`).join(', ')}.</>}
-          </div>
-        ) : (
+        {!leaveOrZero && !byRole && (
           <div className="rounded-control bg-surface-subtle p-3">
             <ShiftTimeRange start={startTime} end={endTime} builtin={TIMESHEET_BULK_SHIFT_PRESETS} onChange={(s, e) => { setStartTime(s); setEndTime(e); }}
               trailing={<div className="flex flex-col justify-end pb-1"><span className="font-sans text-caption text-ink-muted">Per person per day</span><span className="font-sans text-title font-semibold tabular text-ink">{day.hours.toFixed(1)}h</span>{day.night > 0 && <span className="font-sans text-caption text-ink-muted">{day.night.toFixed(1)}h night</span>}</div>} />
           </div>
-        ))}
+        )}
         <div className="flex flex-wrap gap-5">
           <Checkbox label="Skip weekends" checked={skipWeekends} onChange={e => setSkipWeekends(e.target.checked)} />
           <Checkbox label="Standby (a flat 8 hours of overtime for the period)" checked={standby} onChange={e => setStandby(e.target.checked)} />
         </div>
+        </section>
 
         <section aria-label="Days" className="flex flex-col gap-3">
-          <h3 className="font-sans text-label font-semibold text-ink">Days</h3>
+          <h3 className="font-sans text-label font-semibold text-ink">3. Days</h3>
+          <p className="font-sans text-caption text-ink-muted">Which days the entries go on: a quick pick, a range, or click days on the calendar.</p>
           <div role="group" aria-label="Quick picks" className="flex flex-wrap gap-1.5">
             <Button size="sm" variant="secondary" onClick={() => { setSkipWeekends(true); setDates(new Set(weekdayDates(days))); }}>Weekdays</Button>
             {[0, 1, 2, 3].map(w => <Button key={w} size="sm" variant="secondary" onClick={() => { addDates(weekDates(days, w, skipWeekends)); setAnchor(null); }}>Week {w + 1}</Button>)}
