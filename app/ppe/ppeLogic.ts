@@ -3,6 +3,7 @@
 import { addMonths } from '@/lib/dates';
 import { SECTION_ORDER, normalizeSection } from '@/lib/sections';
 import { isExpired, isExpiringSoon, normalizeEmployeeId } from './calcPPE';
+import { NO_TYPE_FILTER, matchesTypeFilter, normalizePpeType, type TypeFilter } from './ppeTypes';
 import type { EmployeeRow, EmployeeWithPPE, FormState, PPERecord } from './types';
 
 export type Standing = 'overdue' | 'soon' | 'ok' | 'none';
@@ -17,26 +18,38 @@ export const STANDING_LABEL: Record<Standing, string> = { overdue: 'Overdue', so
 
 const norm = (v?: string) => (v ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 
-/** One entry per person who holds anything, with the section taken from the live roster when they are on it. */
+/** One entry per person on the register, each with the records stamped with their number; a register person with no PPE
+ * gets a blank card. Record ids that match nobody become unmatched pseudo-holders. Records group by normalised id so
+ * 'pm453' and 'PM453' never split into two cards. Archived people appear only when they hold something. */
 export function groupByEmployee(records: PPERecord[], roster: EmployeeRow[]): EmployeeWithPPE[] {
-  const live = new Map(roster.map(e => [normalizeEmployeeId(e.employee_id), e]));
-  const map = new Map<string, EmployeeWithPPE>();
+  const rest = new Map<string, PPERecord[]>();
   for (const r of records) {
-    if (!map.has(r.employee_id)) map.set(r.employee_id, { employee_id: r.employee_id, employee_name: r.employee_name, position: r.position, section: live.get(normalizeEmployeeId(r.employee_id))?.section || r.mine_section || '', archived: live.get(normalizeEmployeeId(r.employee_id))?.archived === true, records: [] });
-    map.get(r.employee_id)!.records.push(r);
+    const key = normalizeEmployeeId(r.employee_id);
+    const list = rest.get(key);
+    if (list) list.push(r); else rest.set(key, [r]);
   }
-  return [...map.values()].sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  const holders: EmployeeWithPPE[] = [];
+  for (const e of roster) {
+    const key = normalizeEmployeeId(e.employee_id);
+    const recs = rest.get(key) ?? [];
+    rest.delete(key);
+    if (e.archived === true && recs.length === 0) continue;
+    const first = recs[0];
+    holders.push({
+      employee_id: e.employee_id, employee_name: e.employee_name || first?.employee_name || '',
+      position: e.position || first?.position || '', section: e.section || first?.mine_section || '',
+      archived: e.archived === true, records: recs,
+    });
+  }
+  for (const recs of rest.values()) {
+    const first = recs[0];
+    holders.push({ employee_id: first.employee_id, employee_name: first.employee_name, position: first.position, section: first.mine_section || '', archived: false, unmatched: true, records: recs });
+  }
+  return holders.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
 }
 
-/** The people who can be chosen on an issue: the roster, plus anyone who already holds PPE but is not on it. */
-export function selectableEmployees(roster: EmployeeRow[], holders: EmployeeWithPPE[]): EmployeeRow[] {
-  const map = new Map<string, EmployeeRow>();
-  roster.forEach(e => map.set(e.employee_id, e));
-  holders.forEach(h => { if (!map.has(h.employee_id)) map.set(h.employee_id, { employee_id: h.employee_id, employee_name: h.employee_name, position: h.position, department: '', section: h.section, archived: h.archived }); });
-  return [...map.values()].sort((a, b) => a.employee_name.localeCompare(b.employee_name));
-}
-
-export type EmployeeView = 'all' | 'active' | 'soon' | 'overdue';
+/** 'none' lists the register people with no PPE at all: the blank cards, for follow-up. */
+export type EmployeeView = 'all' | 'active' | 'soon' | 'overdue' | 'none';
 export interface EmployeeFilters { view: EmployeeView; section: string; search: string }
 export const NO_EMPLOYEE_FILTERS: EmployeeFilters = { view: 'all', section: 'all', search: '' };
 
@@ -47,6 +60,7 @@ export function filterEmployees(list: EmployeeWithPPE[], f: EmployeeFilters): Em
     if (f.view === 'active' && !e.records.some(r => r.status === 'active')) return false;
     if (f.view === 'soon' && !e.records.some(r => standing(r) === 'soon')) return false;
     if (f.view === 'overdue' && !e.records.some(r => standing(r) === 'overdue')) return false;
+    if (f.view === 'none' && e.records.length > 0) return false;
     return !q || [e.employee_name, e.employee_id, e.position].some(v => norm(v).includes(q));
   });
 }
@@ -60,26 +74,28 @@ export function sectionCounts(list: EmployeeWithPPE[]): [string, number][] {
   return [...ordered, ...rest, ...(counts.has('Unassigned') ? [['Unassigned', counts.get('Unassigned')!] as [string, number]] : [])];
 }
 
+/** People counts register people (blank cards included); unmatched pseudo-holders are records to fix, not people. */
 export function summarise(records: PPERecord[], holders: EmployeeWithPPE[]) {
   const active = records.filter(r => r.status === 'active');
   const has = (s: Standing) => holders.filter(e => e.records.some(r => standing(r) === s)).length;
   return {
-    employees: holders.length, active: active.length, soon: active.filter(r => standing(r) === 'soon').length, overdue: active.filter(r => standing(r) === 'overdue').length,
+    employees: holders.filter(h => h.unmatched !== true).length, active: active.length, soon: active.filter(r => standing(r) === 'soon').length, overdue: active.filter(r => standing(r) === 'overdue').length,
     employeesSoon: has('soon'), employeesOverdue: has('overdue'),
   };
 }
 
 export type DueMode = 'overdue' | 'soon';
-export interface DueFilters { type: string; size: string; search: string; from: string; to: string }
-export const NO_DUE_FILTERS: DueFilters = { type: 'all', size: 'all', search: '', from: '', to: '' };
+/** The type lens is page-owned (shared with the basket); the rest stays local to the Due list. */
+export interface DueFilters { size: string; search: string; from: string; to: string }
+export const NO_DUE_FILTERS: DueFilters = { size: 'all', search: '', from: '', to: '' };
 export const sizeOf = (r: Pick<PPERecord, 'size'>) => (r.size || '').trim() || 'Unspecified';
 
 /** Items in the chosen state (before the size choice, so the size list and counts are about what is being looked at), oldest expiry first. */
-export function dueItems(records: PPERecord[], mode: DueMode, f: DueFilters): PPERecord[] {
+export function dueItems(records: PPERecord[], mode: DueMode, f: DueFilters, typeFilter: TypeFilter = NO_TYPE_FILTER): PPERecord[] {
   const q = norm(f.search);
   return records.filter(r => {
     if (standing(r) !== mode) return false;
-    if (f.type !== 'all' && r.ppe_type !== f.type) return false;
+    if (!matchesTypeFilter(r.ppe_type, typeFilter)) return false;
     if (f.from && (!r.expiry_date || r.expiry_date < f.from)) return false;
     if (f.to && (!r.expiry_date || r.expiry_date > f.to)) return false;
     return !q || norm(r.employee_name).includes(q) || norm(r.item_name).includes(q);
@@ -102,7 +118,7 @@ export function renewalTarget(records: PPERecord[], orderRecordId: string | null
   const old = records.find(r => String(r.id) === String(orderRecordId));
   if (!old || old.status !== 'active') return undefined;
   const samePerson = normalizeEmployeeId(old.employee_id) === normalizeEmployeeId(issue.employee_id);
-  return samePerson && norm(old.ppe_type) === norm(issue.ppe_type) ? old : undefined;
+  return samePerson && normalizePpeType(old.ppe_type) === normalizePpeType(issue.ppe_type) ? old : undefined;
 }
 
 /** The expiry an item gets: issue date plus the matrix months; empty when the type does not expire or has no matrix entry. */
@@ -112,11 +128,10 @@ export function expiryFor(type: string, issued: string, matrix: Record<string, n
   return months > 0 ? addMonths(issued, months) : '';
 }
 
-export function formProblems(f: Pick<FormState, 'employee_id' | 'employee_name' | 'position' | 'item_name' | 'ppe_type' | 'issue_date' | 'expiry_date'>) {
-  const out: Partial<Record<'employee_id' | 'employee_name' | 'position' | 'item_name' | 'issue_date' | 'expiry_date', string>> = {};
-  if (!f.employee_id.trim()) out.employee_id = 'Enter the employee ID.';
-  if (!f.employee_name.trim()) out.employee_name = 'Enter the employee name.';
-  if (!f.position.trim()) out.position = 'Enter the position.';
+/** The person comes only from the register picker (name and position follow the pick; the server stamps them). */
+export function formProblems(f: Pick<FormState, 'employee_id' | 'item_name' | 'ppe_type' | 'issue_date' | 'expiry_date'>) {
+  const out: Partial<Record<'employee_id' | 'item_name' | 'issue_date' | 'expiry_date', string>> = {};
+  if (!f.employee_id.trim()) out.employee_id = 'Pick the person from the register.';
   if (!f.item_name.trim()) out.item_name = 'Enter the item or brand.';
   if (!f.issue_date) out.issue_date = 'Choose the issue date.';
   if (f.expiry_date && f.issue_date && f.expiry_date < f.issue_date) out.expiry_date = 'The expiry cannot be before the issue date.';

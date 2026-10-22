@@ -4,7 +4,7 @@
 // load is reported through useApiList (the stale list stays visible on a failed refresh), never as an empty board.
 'use client';
 
-import { api } from '@/lib/apiClient';
+import { api, ApiError } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
@@ -26,6 +26,16 @@ export async function getAllNotices(filters: Record<string, string | boolean | u
   const data = await api.get<unknown>(`/api/notices${params.toString() ? `?${params.toString()}` : ''}`);
   if (!Array.isArray(data)) throw new Error('Notices returned an unexpected response.');
   return data as Notice[];
+}
+
+/** One notice for a `?open=` deep link; null when the server has no such record. */
+export async function fetchNoticeById(id: string): Promise<Notice | null> {
+  try {
+    return await api.get<Notice>(`/api/notices/${id}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
 }
 
 export const createNotice = (data: NoticeFormData) => api.post('/api/notices', data);

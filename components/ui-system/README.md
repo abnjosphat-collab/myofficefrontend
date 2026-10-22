@@ -51,7 +51,7 @@ meanings to glyphs; `Glyph` renders a glyph component supplied by data (module l
 call: control icons are light, navigation icons regular, emphasis (status, selected spotlight) fill. Phosphor may be
 imported directly only inside `foundations/` (enforced by ESLint).
 
-**Geometry and motion.** Radii: control 7 px, card 12 px, panel 16 px. Cards are stationary: no lift, tilt or glow.
+**Geometry and motion.** Radii: control 7 px, card 12 px, panel 16 px. Data grids use their own sharper pair: cells 2 px (`--mo-radius-cell`), containers 4 px (`--mo-radius-grid`). Cards are stationary: no lift, tilt or glow.
 Durations 120/180/260 ms with `--mo-ease-standard`; a global `prefers-reduced-motion: reduce` rule in `tokens.css` zeroes the duration tokens and stops spinners and skeleton pulses (implemented; **not yet exercised in a browser**). Layers:
 sticky 20, header 30, sidebar 35, overlay 60, dialog 61, popover 70, toast 80, tooltip 90.
 
@@ -87,6 +87,11 @@ Heatmaps and charts are `aria-hidden`; the summary carries the information.
 
 **Search.** `SearchField` filters a local list. `DestinationSearch` navigates: an ARIA combobox that keeps DOM focus in the
 input (`aria-activedescendant`), idle recent results, portalled list with collision handling.
+
+**Choices and multi-filters.** `ChoiceCards` is a labelled radio group of explained cards for pick-one-of-a-few-modes
+(a `Segmented` label is screen-reader-only, so anything needing a visible explanation is cards). `MultiSelectFilter` is the
+one include/exclude tick-list-in-a-popover with counts, chips and Reset; its list core `OptionChecklist` is shared with
+`PeopleChecklist`, so search, select-all-filtered and chip behaviour never drift between people and value pickers.
 
 **Fields.** Wrap controls in `Field` (label, description, error, required/optional text). `useFieldProps()` lets a control
 join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hosted inside Fields through

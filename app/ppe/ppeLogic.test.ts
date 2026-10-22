@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { indexRegister, matchToRegister } from '@/lib/registerMatch';
-import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, renewalTarget, sectionCounts, selectableEmployees, sizeCounts, standing, summarise } from './ppeLogic';
+import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, renewalTarget, sectionCounts, sizeCounts, standing, summarise } from './ppeLogic';
 import { enrichPPERecords } from './calcPPE';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import { todayLocal, addMonths } from '@/lib/dates';
@@ -25,12 +25,14 @@ describe('who holds what', () => {
   const rows = [rec({ id: '1' }), rec({ id: '2', ppe_type: 'gloves', expiry_date: day(5) }), rec({ id: '3', employee_id: 'C2', employee_name: 'Bo Beta', mine_section: '', expiry_date: day(-2) })];
   const holders = groupByEmployee(rows, roster);
   it('groups per person, taking the section from the live roster first', () => {
-    expect(holders.map(h => h.employee_id)).toEqual(['C1', 'C2']);
+    expect(holders.map(h => h.employee_id)).toEqual(['C1', 'C2', 'C9']);
     expect(holders[0]).toMatchObject({ section: 'Electrical' });
     expect(holders[0].records).toHaveLength(2);
   });
-  it('offers the roster plus holders who are not on it', () => {
-    expect(selectableEmployees(roster, holders).map(e => e.employee_id).sort()).toEqual(['C1', 'C2', 'C9']);
+  it('gives a register person with no PPE a blank card, and flags off-roster ids as unmatched', () => {
+    expect(holders[2]).toMatchObject({ employee_id: 'C9', employee_name: 'Zed Nine', position: 'Welder', section: 'Mechanical', archived: false, records: [] });
+    expect(holders[2].unmatched).toBeUndefined();
+    expect(holders[1]).toMatchObject({ employee_id: 'C2', unmatched: true, archived: false });
   });
   it('marks a holder archived from the roster, and never marks off-roster holders', () => {
     const withArchived: EmployeeRow[] = [...roster, { employee_id: 'C2', employee_name: 'Bo Beta', position: '', department: '', section: '', archived: true }];
@@ -43,11 +45,13 @@ describe('who holds what', () => {
     const ids = (f: Partial<typeof NO_EMPLOYEE_FILTERS>) => filterEmployees(holders, { ...NO_EMPLOYEE_FILTERS, ...f }).map(h => h.employee_id);
     expect(ids({ view: 'soon' })).toEqual(['C1']);
     expect(ids({ view: 'overdue' })).toEqual(['C2']);
+    expect(ids({ view: 'none' })).toEqual(['C9']);
     expect(ids({ section: 'Electrical' })).toEqual(['C1']);
     expect(ids({ search: 'bo b' })).toEqual(['C2']);
-    expect(sectionCounts(holders)).toEqual([['Electrical', 1], ['Unassigned', 1]]);
+    expect(sectionCounts(holders)).toEqual([['Mechanical', 1], ['Electrical', 1], ['Unassigned', 1]]);
   });
   it('counts items and people', () => {
+    // Two register people (Ann and the blank Zed); Bo's pseudo-holder is records to fix, not a person.
     expect(summarise(rows, holders)).toMatchObject({ employees: 2, active: 3, soon: 1, overdue: 1, employeesSoon: 1, employeesOverdue: 1 });
   });
 });
@@ -58,10 +62,13 @@ describe('due items', () => {
     expect(dueItems(rows, 'overdue', NO_DUE_FILTERS).map(r => r.id)).toEqual(['b', 'a']);
     expect(dueItems(rows, 'soon', NO_DUE_FILTERS).map(r => r.id)).toEqual(['c']);
   });
-  it('narrows by type, search and date range', () => {
-    expect(dueItems(rows, 'overdue', { ...NO_DUE_FILTERS, type: 'safety_shoes' }).map(r => r.id)).toEqual(['a']);
+  it('narrows by search and date range', () => {
     expect(dueItems(rows, 'overdue', { ...NO_DUE_FILTERS, search: 'boots' }).map(r => r.id)).toEqual(['a']);
     expect(dueItems(rows, 'overdue', { ...NO_DUE_FILTERS, from: day(-5) }).map(r => r.id)).toEqual(['a']);
+  });
+  it('narrows by the shared type lens, include or exclude', () => {
+    expect(dueItems(rows, 'overdue', NO_DUE_FILTERS, { types: ['safety_shoes'], mode: 'include' }).map(r => r.id)).toEqual(['a']);
+    expect(dueItems(rows, 'overdue', NO_DUE_FILTERS, { types: ['safety_shoes'], mode: 'exclude' }).map(r => r.id)).toEqual(['b']);
   });
   it('counts sizes, biggest first, naming a blank size', () => {
     expect(sizeCounts([rec({ size: '8' }), rec({ size: '8' }), rec({ size: '' })])).toEqual([['8', 2], ['Unspecified', 1]]);
@@ -78,7 +85,7 @@ describe('expiry from the matrix and the form', () => {
   it('names what an issue is missing', () => {
     const base = { employee_id: 'C1', employee_name: 'A', position: 'P', item_name: 'Helmet', ppe_type: 'helmet', issue_date: todayLocal(), expiry_date: '' };
     expect(formProblems(base)).toEqual({});
-    expect(formProblems({ ...base, employee_id: ' ', item_name: '' })).toEqual({ employee_id: 'Enter the employee ID.', item_name: 'Enter the item or brand.' });
+    expect(formProblems({ ...base, employee_id: ' ', item_name: '' })).toEqual({ employee_id: 'Pick the person from the register.', item_name: 'Enter the item or brand.' });
     expect(formProblems({ ...base, issue_date: '2026-05-10', expiry_date: '2026-05-01' }).expiry_date).toMatch(/before the issue date/);
   });
   it('labels with fallbacks', () => {
@@ -103,13 +110,31 @@ describe('stale stored positions (live register wins)', () => {
   it('keeps the stored copy, flagged as unmatched, when the record id matches nobody', () => {
     // His rows actually say TBA2, which is on no register row: enrichment cannot help until the link is fixed,
     // so the page must show the stored values and flag the broken link rather than silently showing stale data.
+    // TBA34 himself gets a blank card: he is on the register with nothing linked to him.
     const broken = rec({ id: '9', employee_id: 'TBA2', employee_name: 'Tafadzwa  Matangira', position: 'Maintenance Engineer', mine_section: 'Management' });
     const holders = groupByEmployee(enrichPPERecords([broken], roster), roster);
-    expect(holders).toHaveLength(1);
-    expect(holders[0]).toMatchObject({ position: 'Maintenance Engineer', section: 'Management' });
+    expect(holders).toHaveLength(2);
+    const pseudo = holders.find(h => h.unmatched) ?? holders[0];
+    expect(pseudo).toMatchObject({ employee_id: 'TBA2', position: 'Maintenance Engineer', section: 'Management' });
+    expect(holders.find(h => h.employee_id === 'TBA34')).toMatchObject({ records: [] });
     // The register flag indexes the personnel rows (first/last name), as useRegisterCheck does in production.
     const lookup = [{ id: 38839, employee_id: 'TBA34', first_name: 'Tafadzwa', last_name: 'Matangira' }];
-    expect(matchToRegister(holders[0], indexRegister(lookup))).toBe('number-differs');
+    expect(matchToRegister(pseudo, indexRegister(lookup))).toBe('number-differs');
+  });
+});
+
+describe('register-driven join edges', () => {
+  it('merges record ids that differ only by case or spaces into one card', () => {
+    const holders = groupByEmployee([rec({ id: '1', employee_id: 'PM453' }), rec({ id: '2', employee_id: ' pm453 ' })], []);
+    expect(holders).toHaveLength(1);
+    expect(holders[0].records).toHaveLength(2);
+  });
+  it('hides an archived person with no PPE, but keeps one who holds something', () => {
+    const arch: EmployeeRow[] = [{ employee_id: 'C7', employee_name: 'Gone No Records', position: '', department: '', section: '', archived: true }];
+    expect(groupByEmployee([], arch)).toHaveLength(0);
+    const kept = groupByEmployee([rec({ id: '1', employee_id: 'C7', employee_name: 'Gone No Records' })], arch);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatchObject({ archived: true });
   });
 });
 

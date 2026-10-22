@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/lib/auth-context';
 import { fetchOrNull } from './fetchOrNull';
@@ -40,5 +40,183 @@ describe('useOperationalAlerts password requests', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/password-reset-requests'))).toBe(false);
     expect(result.current.alerts.some(a => a.id.startsWith('pw-'))).toBe(false);
     expect(result.current.failed).toBe(false);
+  });
+});
+
+describe('useOperationalAlerts link map (U3.1)', () => {
+  it('gives every alert id-prefix its destination href', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      const u = String(url);
+      if (u.includes('/password-reset-requests')) return [{ id: 'r1', identifier: 'a@x.com', created_at: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/leaves')) return [{ id: 11, employee_name: 'Ann', leave_type: 'annual', total_days: 2, applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/overtime')) return [{ id: 22, employee_name: 'Bob', date: '2026-10-18', applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/sheq')) return [{ id: 33, status: 'open', title: 'Guard rail', date: '2026-10-17' }];
+      if (u.includes('/api/maintenance/work-orders')) return [{ id: 44, work_order_number: 'WO-1', due_date: '2020-01-01', requested_by: 'Cy' }];
+      if (u.includes('/api/tasks-events')) return [{ id: 55, task_type: 'Task', title: 'Fix pump', due_date: '2020-01-01', responsible_people: ['Dan'] }];
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const hrefOf = (id: string) => result.current.alerts.find(a => a.id === id)?.href;
+    expect(hrefOf('pw-r1')).toBe('/admin');
+    expect(hrefOf('leave-11')).toBe('/leaves?open=11&sign=approve');
+    expect(hrefOf('ot-22')).toBe('/overtime?open=22&sign=approve');
+    expect(hrefOf('sheq-33')).toBe('/sheq_inspection?open=33');
+    expect(hrefOf('wo-overdue-44')).toBe('/maintenance?open=44');
+    expect(hrefOf('te-overdue-55')).toBe('/tasks-events?open=55');
+  });
+
+  it('labels only the approval items as "Review and sign"', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/leaves')) return [{ id: 11, employee_name: 'Ann', leave_type: 'annual', total_days: 2, applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/overtime')) return [{ id: 22, employee_name: 'Bob', date: '2026-10-18', applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/sheq')) return [{ id: 33, status: 'open', title: 'Guard rail', date: '2026-10-17' }];
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const labelOf = (id: string) => result.current.alerts.find(a => a.id === id)?.actionLabel;
+    expect(labelOf('leave-11')).toBe('Review and sign');
+    expect(labelOf('ot-22')).toBe('Review and sign');
+    expect(labelOf('sheq-33')).toBeUndefined();
+  });
+});
+
+describe('useOperationalAlerts totals and groups (U3.2)', () => {
+  it('counts the backlog behind each slice', async () => {
+    const leaves = Array.from({ length: 7 }, (_, i) => ({
+      id: i + 1, employee_name: `E${i}`, leave_type: 'annual', total_days: 1, applied_date: '2026-10-17T10:00:00Z',
+    }));
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/leaves')) return leaves;
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.totals.leave).toEqual({ total: 7, shown: 5 });
+    expect(result.current.alerts.filter(a => a.id.startsWith('leave-'))).toHaveLength(5);
+    expect(result.current.totals.overtime).toEqual({ total: 0, shown: 0 });
+  });
+
+  it('reports a failed source as an empty backlog with failed set', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/leaves')) return null;
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.failed).toBe(true);
+    expect(result.current.totals.leave).toEqual({ total: 0, shown: 0 });
+  });
+
+  it('counts a dateless item in its total but not in shown', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/leaves')) return [{ id: 1, employee_name: 'Ann', leave_type: 'annual', total_days: 1 }];
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.totals.leave).toEqual({ total: 1, shown: 0 });
+    expect(result.current.alerts.some(a => a.id === 'leave-1')).toBe(false);
+  });
+
+  it('tags every alert with its bell group', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      const u = String(url);
+      if (u.includes('/password-reset-requests')) return [{ id: 'r1', identifier: 'a@x.com', created_at: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/leaves')) return [{ id: 11, employee_name: 'Ann', leave_type: 'annual', total_days: 2, applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/overtime')) return [{ id: 22, employee_name: 'Bob', date: '2026-10-18', applied_date: '2026-10-17T10:00:00Z' }];
+      if (u.includes('/api/sheq')) return [{ id: 33, status: 'open', title: 'Guard rail', date: '2026-10-17' }];
+      if (u.includes('/api/maintenance/work-orders')) return [{ id: 44, work_order_number: 'WO-1', due_date: '2020-01-01', requested_by: 'Cy' }];
+      if (u.includes('/api/tasks-events')) return [{ id: 55, task_type: 'Task', title: 'Fix pump', due_date: '2020-01-01', responsible_people: ['Dan'] }];
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const groupOf = (id: string) => result.current.alerts.find(a => a.id === id)?.group;
+    expect(groupOf('pw-r1')).toBe('pw');
+    expect(groupOf('leave-11')).toBe('leave');
+    expect(groupOf('ot-22')).toBe('overtime');
+    expect(groupOf('sheq-33')).toBe('sheq');
+    expect(groupOf('wo-overdue-44')).toBe('workorders');
+    expect(groupOf('te-overdue-55')).toBe('tasks');
+  });
+});
+
+describe('useOperationalAlerts sources and retry (U3.3)', () => {
+  it('lists all six sources as asked for an admin', async () => {
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.sources).toEqual([
+      { source: 'pw', label: 'Password resets', ok: true },
+      { source: 'leave', label: 'Leave approvals', ok: true },
+      { source: 'overtime', label: 'Overtime approvals', ok: true },
+      { source: 'sheq', label: 'SHEQ follow-ups', ok: true },
+      { source: 'workorders', label: 'Overdue work orders', ok: true },
+      { source: 'tasks', label: 'Overdue tasks', ok: true },
+    ]);
+  });
+
+  it('omits the unasked password source for a manager, without an error', async () => {
+    authMock.mockReturnValue({ isAtLeast: (role: string) => role === 'manager' } as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.sources.map(s => s.source)).toEqual(['leave', 'overtime', 'sheq', 'workorders', 'tasks']);
+    expect(result.current.failed).toBe(false);
+  });
+
+  it('marks a failed source not-ok', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/overtime')) return null;
+      if (String(url).includes('/password-reset-requests')) return [];
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.failed).toBe(true);
+    expect(result.current.sources.find(s => s.source === 'overtime')).toEqual(
+      { source: 'overtime', label: 'Overtime approvals', ok: false },
+    );
+  });
+
+  it('reloadSource re-fires only that source and picks up its rows', async () => {
+    let overtimeAnswer: unknown = [];
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/overtime')) return overtimeAnswer;
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const callsFor = (part: string) => fetchMock.mock.calls.filter(([url]) => String(url).includes(part)).length;
+    expect(callsFor('/api/overtime')).toBe(1);
+    overtimeAnswer = [{ id: 22, employee_name: 'Bob', date: '2026-10-18', applied_date: '2026-10-17T10:00:00Z' }];
+    await act(async () => { await result.current.reloadSource('overtime'); });
+    await waitFor(() => expect(result.current.alerts.some(a => a.id === 'ot-22')).toBe(true));
+    expect(callsFor('/api/overtime')).toBe(2);
+    expect(callsFor('/api/leaves')).toBe(1);
+    expect(result.current.totals.overtime).toEqual({ total: 1, shown: 1 });
+  });
+
+  it('a retry that fails again keeps the old rows and still names the source', async () => {
+    fetchMock.mockImplementation((async () => []) as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    fetchMock.mockImplementation((async (url: string) => {
+      if (String(url).includes('/api/leaves')) return null;
+      return [];
+    }) as never);
+    await act(async () => { await result.current.reloadSource('leave'); });
+    await waitFor(() => expect(result.current.sources.find(s => s.source === 'leave')?.ok).toBe(false));
+    expect(result.current.failed).toBe(true);
+  });
+
+  it('reloading an unasked source fetches nothing', async () => {
+    authMock.mockReturnValue({ isAtLeast: (role: string) => role === 'manager' } as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    fetchMock.mockClear();
+    await act(async () => { await result.current.reloadSource('pw'); });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

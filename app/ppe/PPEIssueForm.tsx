@@ -1,17 +1,21 @@
-// app/ppe/PPEIssueForm.tsx — issue PPE to someone or edit an issue: who, what, the size, the dates, the condition and status. The expiry
-// is worked out from the issue date and the replacement matrix until someone types their own. An employee ID that is not on the
-// roster asks before saving. A refused save shows inside the dialog and keeps what was typed.
+// app/ppe/PPEIssueForm.tsx — issue PPE to someone or edit an issue: who (picked from the personnel register, never
+// typed), what, the size, the dates, the condition and status. The expiry is worked out from the issue date and the
+// replacement matrix until someone types their own. The server stamps the person's details from the register on save.
+// A refused save shows inside the dialog and keeps what was typed.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { Combobox, Field, FormDialog, Input, Select, Textarea, useConfirm } from '@/components/ui-system';
+import { Fact, FactList, Field, FormDialog, Input, PersonPicker, Select, Textarea, lookupName } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
+import type { EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
-import { SECTION_ORDER } from '@/lib/sections';
+import { normalizeDesignation } from '@/lib/employeeCatalog';
+import { formatMineNumber } from '@/lib/registerMatch';
+import { normalizeSection } from '@/lib/sections';
 import { expiryFor, formProblems } from './ppeLogic';
 import { CONDITIONS, STATUSES, TYPE_OPTIONS } from './ppeMeta';
-import type { EmployeeRow, EmployeeWithPPE, FormState, PPERecord } from './types';
+import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const blank = (): FormState => ({ employee_name: '', employee_id: '', position: '', ppe_type: 'helmet', item_name: '', size: '', issue_date: todayLocal(), expiry_date: '', condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop', mine_section: '' });
@@ -20,13 +24,11 @@ const seedOf = (r: PPERecord, employee: EmployeeWithPPE | null): FormState => ({
   item_name: r.item_name || '', size: r.size || '', issue_date: r.issue_date || todayLocal(), expiry_date: r.expiry_date || '', condition: r.condition || 'good', status: r.status || 'active',
   notes: r.notes || '', issued_by: r.issued_by || '', location: r.location || 'Workshop', mine_section: r.mine_section || '',
 });
-const SECTIONS = [{ value: '', label: 'Not set' }, ...SECTION_ORDER.map(s => ({ value: s, label: s }))];
 
-export function PPEIssueForm({ open, record, prefill, employee, employees, matrix, onOpenChange, onSave }: {
-  open: boolean; record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; employees: EmployeeRow[]; matrix: Record<string, number>;
+export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenChange, onSave }: {
+  open: boolean; record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; matrix: Record<string, number>;
   onOpenChange: (open: boolean) => void; onSave: (form: FormState, id?: string) => Promise<void>;
 }) {
-  const confirm = useConfirm();
   const [form, setForm] = useState<FormState>(blank);
   const [touchedExpiry, setTouchedExpiry] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -41,16 +43,19 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
   const effective = { ...form, expiry_date: expiry };
   const problems = formProblems(effective);
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
-  const options = useMemo(() => employees.filter(e => e.archived !== true).map(e => ({ value: e.employee_id, label: e.employee_name || e.employee_id, description: [e.employee_id, e.position].filter(Boolean).join(' · ') })), [employees]);
-  const pick = (id: string) => { const e = employees.find(x => x.employee_id === id); if (e) set({ employee_id: e.employee_id, employee_name: e.employee_name, position: e.position, mine_section: e.section || form.mine_section }); };
+  // Editing a record whose number matches nobody is a re-link: saving writes the picked register number.
+  const relink = editing && employee?.unmatched === true;
+  const personLabel = !editing ? 'Pick an employee' : relink ? 'Re-link to the right person' : 'Person';
+  const personHint = !editing ? 'Fills the number, name, position and section from the register.' : relink ? "This record's mine number matches nobody on the register." : 'Change to move this record to someone else.';
+  const onPick = (picked: EmployeeLookup | null) => {
+    if (!picked) { set({ employee_id: '', employee_name: '', position: '', mine_section: '' }); return; }
+    const designation = picked.designation || picked.position || '';
+    set({ employee_id: picked.employee_id || '', employee_name: lookupName(picked), position: normalizeDesignation(designation) || designation, mine_section: picked.section || '' });
+  };
 
   const submit = async () => {
     setTouched(true);
     if (Object.keys(problems).length > 0) return false;
-    // A typed ID can differ from the register's even when the name beside it is right; ask rather than save one that matches no one.
-    if (!employees.some(e => e.employee_id === form.employee_id.trim()) && !await confirm({ title: 'Employee ID not found', message: `"${form.employee_id.trim()}" does not match anyone in the personnel register. Save it anyway?`, confirmLabel: 'Save anyway' })) return false;
-    const typed = employees.find(e => e.employee_id === form.employee_id.trim());
-    if (!editing && typed?.archived === true && !await confirm({ title: 'This person is archived', message: `"${form.employee_name.trim() || form.employee_id.trim()}" has left (archived on the register). Issue PPE to them anyway?`, confirmLabel: 'Issue anyway' })) return false;
     await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim(), ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
     toast.success(editing ? 'PPE record updated.' : 'PPE issued.');
   };
@@ -59,11 +64,17 @@ export function PPEIssueForm({ open, record, prefill, employee, employees, matri
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit PPE record' : 'Issue PPE'} description={editing ? `${record.employee_name}, ${record.item_name}` : 'Who it is for, what it is and the size.'} submitLabel={editing ? 'Save changes' : 'Issue PPE'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Pick an employee" optional description="Fills the ID, name, position and section." className="sm:col-span-2"><Combobox aria-label="Pick an employee" value="" onValueChange={pick} options={options} placeholder="Search the personnel register" /></Field>
-          <Field label="Employee ID" required error={err('employee_id')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} placeholder="C1165" autoComplete="off" /></Field>
-          <Field label="Full name" required error={err('employee_name')}><Input value={form.employee_name} onChange={e => set({ employee_name: e.target.value })} autoComplete="off" /></Field>
-          <Field label="Position" required error={err('position')}><Input value={form.position} onChange={e => set({ position: e.target.value })} /></Field>
-          <Field label="Mine section" optional><Select aria-label="Mine section" value={form.mine_section} onValueChange={v => set({ mine_section: v })} options={SECTIONS} /></Field>
+          <Field label={personLabel} required error={err('employee_id')} description={personHint} className="sm:col-span-2">
+            <PersonPicker label={personLabel} name={form.employee_name} employeeId={form.employee_id} onPick={onPick} autoFocusSearch={!editing} />
+          </Field>
+          {form.employee_id !== '' && (
+            <FactList aria-label="Person" className="sm:col-span-2">
+              <Fact label="Mine number">{formatMineNumber(form.employee_id)}</Fact>
+              <Fact label="Full name">{form.employee_name}</Fact>
+              <Fact label="Position">{form.position}</Fact>
+              <Fact label="Section">{form.mine_section ? normalizeSection(form.mine_section) : ''}</Fact>
+            </FactList>
+          )}
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="PPE type" required><Select aria-label="PPE type" value={form.ppe_type} onValueChange={v => set({ ppe_type: v })} options={TYPE_OPTIONS} /></Field>

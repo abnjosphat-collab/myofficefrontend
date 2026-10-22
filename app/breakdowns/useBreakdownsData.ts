@@ -13,6 +13,16 @@ import type { Breakdown, BreakdownFormData } from './types';
 
 export const useBreakdowns = () => useApiList<Breakdown>('/api/breakdowns/get-breakdowns', undefined, { paged: true, pick: unwrapRows<Breakdown> });
 
+/** One breakdown for a `?open=` deep link; null when the server has no such record. */
+export async function fetchBreakdownById(id: number | string): Promise<Breakdown | null> {
+  try {
+    return await api.get<Breakdown>(`/api/breakdowns/${id}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 export const createBreakdown = (form: BreakdownFormData) => api.post('/api/breakdowns/', toPayload(form));
 export const updateBreakdown = (id: number, form: BreakdownFormData) => api.patch(`/api/breakdowns/${id}`, toPayload(form));
 export const deleteBreakdown = (id: number) => api.delete(`/api/breakdowns/${id}`);

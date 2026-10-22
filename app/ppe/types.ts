@@ -29,6 +29,8 @@ export interface EmployeeWithPPE {
   position: string; records: PPERecord[];
   /** From the roster match; holders off the roster are never archived. */
   archived?: boolean;
+  /** Set on pseudo-holders whose record id matches nobody on the register (excluded from the People count). */
+  unmatched?: boolean;
   // Employee's Mechanical/Electrical/Civil/Instrumentation section — see lib/sections.ts.
   // Not yet normalized here; normalize at the point of display/filter (matches how the
   // rest of this file leaves raw strings as-is and lets calcPPE.ts do the shaping).

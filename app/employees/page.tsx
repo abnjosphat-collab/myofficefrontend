@@ -12,6 +12,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay } from '@/lib/phone';
+import { formatMineNumber } from '@/lib/registerMatch';
 import { SECTION_ORDER, normalizeSection } from '@/lib/sections';
 import { EmployeeDetail } from './EmployeeDetail';
 import { EmployeeForm } from './EmployeeForm';
@@ -78,7 +79,7 @@ function EmployeesContent() {
 
   const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at); await list.refetch(); };
   const remove = async (e: Employee) => {
-    await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${e.employee_id}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
+    await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${formatMineNumber(e.employee_id)}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
   const downloadRegistry = async () => {
     setExporting(true);
@@ -105,23 +106,23 @@ function EmployeesContent() {
     <>
       {e.archived && <StatusBadge tone="neutral">Archived</StatusBadge>}
       {withSection && e.section && <StatusBadge tone="info">{normalizeSection(e.section)}</StatusBadge>}
-      {e.employment_type && <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge>}
+      {e.employment_type ? <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge> : <StatusBadge tone="warning">Type not set</StatusBadge>}
       {e.employee_class && <StatusBadge tone={CLASS_TONE[e.employee_class] ?? 'neutral'}>{e.employee_class}</StatusBadge>}
     </>
   );
   const card = (e: Employee, withSection: boolean) => (
     <RecordCard
-      eyebrow={e.employee_id} title={fullName(e)} subtitle={normalizeDesignation(e.designation) || 'No designation'} openLabel={`Open ${fullName(e)}`} onOpen={() => setViewingId(e.id)}
+      eyebrow={formatMineNumber(e.employee_id)} title={fullName(e)} subtitle={normalizeDesignation(e.designation) || 'No designation'} openLabel={`Open ${fullName(e)}`} onOpen={() => setViewingId(e.id)}
       status={badges(e, withSection)}
       facts={[...(e.phone ? [{ label: 'Phone', value: formatPhoneDisplay(e.phone) }] : []), ...(tenure(e.date_of_engagement) ? [{ label: 'Time here', value: tenure(e.date_of_engagement) }] : []), ...(e.supervisor ? [{ label: 'Supervisor', value: e.supervisor }] : [])]}
       action={actionsOf(e)}
     />
   );
   const COLUMNS: Column<Employee>[] = [
-    { id: 'name', header: 'Name', sticky: true, cell: e => <div className="min-w-0"><p className="font-medium text-ink">{fullName(e)}</p><p className="font-mono text-caption text-ink-muted">{e.employee_id}</p></div> },
+    { id: 'name', header: 'Name', sticky: true, cell: e => <div className="min-w-0"><p className="font-medium text-ink">{fullName(e)}</p><p className="font-mono text-caption text-ink-muted">{formatMineNumber(e.employee_id)}</p></div> },
     { id: 'designation', header: 'Designation', hideBelow: 'md', cell: e => normalizeDesignation(e.designation) || <span className="text-ink-muted">None</span> },
     { id: 'section', header: 'Section', hideBelow: 'md', cell: e => (e.section ? normalizeSection(e.section) : <span className="text-ink-muted">Unassigned</span>) },
-    { id: 'type', header: 'Type', hideBelow: 'lg', cell: e => (e.employment_type ? <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge> : <span className="text-ink-muted">Not set</span>) },
+    { id: 'type', header: 'Type', hideBelow: 'lg', cell: e => (e.employment_type ? <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge> : <StatusBadge tone="warning">Type not set</StatusBadge>) },
     { id: 'class', header: 'Class', cell: e => (e.employee_class ? <StatusBadge tone={CLASS_TONE[e.employee_class] ?? 'neutral'}>{e.employee_class}</StatusBadge> : <span className="text-ink-muted">Unclassified</span>) },
     { id: 'tenure', header: 'Time here', hideBelow: 'lg', cell: e => <span className="tabular">{tenure(e.date_of_engagement) || 'Not recorded'}</span> },
   ];

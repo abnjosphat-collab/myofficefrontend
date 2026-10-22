@@ -7,8 +7,8 @@
 'use client';
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import { useDashboardData, type ActivityItem } from './useDashboardData';
-import { useOperationalAlerts } from './useOperationalAlerts';
+import { useDashboardData, type ActivityItem, type DashActivitySource, type SourceResult } from './useDashboardData';
+import { OP_GROUPS, useOperationalAlerts, type GroupTotal, type OpGroup } from './useOperationalAlerts';
 import { useNoticeAlerts } from './useNoticeAlerts';
 
 const SEEN_KEY = 'oz_notifSeen';
@@ -57,10 +57,14 @@ export interface Notification extends ActivityItem {
   unread: boolean;
 }
 
+/** The bell groups with backlog counts: the six approval/follow-up sources plus notices. The activity feed has none. */
+export type BellGroup = OpGroup | 'notices';
+export type BellTotals = Record<BellGroup, GroupTotal>;
+
 export function useNotifications() {
-  const { activity, loading: activityLoading, activityFailed } = useDashboardData();
-  const { alerts, loading: alertsLoading, failed: alertsFailed } = useOperationalAlerts();
-  const { alerts: noticeAlerts, loading: noticeLoading, failed: noticeFailed } = useNoticeAlerts();
+  const { activity, loading: activityLoading, activityFailed, sources: dashSources, reloadSource: reloadDash } = useDashboardData();
+  const { alerts, loading: alertsLoading, failed: alertsFailed, totals: opTotals, sources: opSources, reloadSource: reloadOp } = useOperationalAlerts();
+  const { alerts: noticeAlerts, loading: noticeLoading, failed: noticeFailed, sources: noticeSources, reload: reloadNotices } = useNoticeAlerts();
   /** True when any source could not be loaded, so an empty list is not mistaken for "nothing to report". */
   const failed = activityFailed || alertsFailed || noticeFailed;
   const loading = activityLoading || alertsLoading || noticeLoading;
@@ -80,6 +84,13 @@ export function useNotifications() {
 
   const unreadCount = useMemo(() => notifications.filter(n => n.unread).length, [notifications]);
 
+  // Notices are never sliced, so their total is what arrived; the backlog
+  // sources report the count behind their slice from useOperationalAlerts.
+  const totals = useMemo<BellTotals>(() => ({
+    ...opTotals,
+    notices: { total: noticeAlerts.length, shown: noticeAlerts.length },
+  }), [opTotals, noticeAlerts]);
+
   const markRead = useCallback((ids: string[]) => {
     const combined = Array.from(new Set([...readSeen(), ...ids]));
     writeSeen(combined); // announces the change, which re-reads the store in every subscriber, this one included
@@ -89,5 +100,21 @@ export function useNotifications() {
     markRead(merged.map(a => a.id));
   }, [merged, markRead]);
 
-  return { notifications, unreadCount, loading, failed, markAllRead, markRead };
+  /** Every asked source that did not answer, in feed order: the bell warning names these. */
+  const failedSources = useMemo<SourceResult[]>(
+    () => [...opSources, ...noticeSources, ...dashSources].filter(s => !s.ok),
+    [opSources, noticeSources, dashSources],
+  );
+
+  /** Route a bell Retry to the hook that owns the source; unknown keys are ignored. */
+  const retry = useCallback((source: string) => {
+    if (source === 'notices') { reloadNotices(); return; }
+    if (source === 'activity-workorders' || source === 'activity-breakdowns') {
+      reloadDash(source as DashActivitySource);
+      return;
+    }
+    if ((OP_GROUPS as readonly string[]).includes(source)) reloadOp(source as OpGroup);
+  }, [reloadOp, reloadDash, reloadNotices]);
+
+  return { notifications, unreadCount, loading, failed, markAllRead, markRead, totals, failedSources, retry };
 }

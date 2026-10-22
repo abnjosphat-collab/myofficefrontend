@@ -141,6 +141,8 @@
   --radius-2xl: var(--mo-radius-panel);
   --radius-3xl: 20px;
   --radius-nav: 9px; /* sidebar items and the spotlight pill (Tools geometry) */
+  --radius-cell: var(--mo-radius-cell);
+  --radius-grid: var(--mo-radius-grid);
   --radius-control: var(--mo-radius-control);
   --radius-card: var(--mo-radius-card);
   --radius-panel: var(--mo-radius-panel);

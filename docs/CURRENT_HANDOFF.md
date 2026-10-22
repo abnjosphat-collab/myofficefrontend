@@ -69,6 +69,7 @@ Not wired: nothing. No route renders a legacy body any more, and `/inventory` re
 ## 5. Route ledger summary
 
 57 routes (generated ledger, 10 Oct 2026): **49 migrated**, 0 legacy body, 4 redirects, 4 own chrome; 50 browser-verified. Not marked verified: `/login`, `/auth/set-password`, `/auth/callback` and `/tools` (covered by screenshots and `scripts/verify-tools.mjs` instead), and `/timesheets`, `/standby`, `/test-homepage` (the parallel session's). Still open in the layout pass: a real-device check (below).
+(22 Oct 2026, Muse ppe-timesheets run: ledger regen'd — 59 routes, 49 migrated, 51 browser-verified. `/timesheets` verified; `/leaves`, `/overtime`, `/noticeboard`, `/breakdowns`, `/sheq`, `/tasks-events`, `/ppe`, `/issues`, `/employees`, `/inventory`, `/maintenance` re-verified with appended scopes. Per-route table stays authoritative.)
 Migrated and verified at 1440/820/390/320 (`/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard` added 3 Oct): `/`, `/contractors`, `/competency`, `/compliance-register`, `/reliability`,
 `/condition-monitoring`, `/engineering-dashboard`, `/job-cards`, `/inventory`, `/training`, `/sop-library`, `/drivers`,
 `/admin/lists`, `/engineering_report`, `/usage-analyzer`, `/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard`. Everything else: not checked. The authoritative per-route table is
@@ -102,7 +103,7 @@ node scripts/verify-pwa-update.mjs   # needs a build; serves two stamps on 3201
 - Capped list routes: pages were showing only the newest 100/200/30 rows. Fixed for `/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/pto`, `/reliability`, `/engineering-dashboard`, `/engineering_report` and the `/sheq` dashboard (see `ENGINEERING_STANDARDS.md` section 6). Legacy pages not yet migrated, and any other page that calls a `limit` route plainly, may still be cut off. `/pachedu` is now on the shared paged hook. `/api/compliance` and `/api/lubrication` rely on the database's own row cap.
 - Those three engineering pages called `/api/breakdowns` (an info object, not records), so live they could never have shown breakdowns. Corrected, but not yet run against real data.
 - The MyOffice `REPORT_TARGETS` values are placeholders awaiting the owner.
-- `npm run docs:check` fails its ledger step while the parallel session's untracked `app/timesheets - Copy/` folder exists (migrated route, no verification entry, no route spec). Pre-existing, 17 Oct 2026; the folder is preserved by the owner's instruction, so the failure stays until that session lands or removes it. typedoc (0 errors) and the link check pass.
+- `npm run docs:check` fails its ledger step while the parallel session's untracked `app/timesheets - Copy/` folder exists (migrated route, no verification entry, no route spec). Pre-existing, 17 Oct 2026; the folder is preserved by the owner's instruction, so the failure stays until that session lands or removes it. Resolved 22 Oct 2026: the folder is gone, and `docs:check` (typedoc 0 errors, ledger, links, css) is green on the ppe-timesheets branch. typedoc (0 errors) and the link check pass.
 
 Finish ("fine linen") pass: audited nine pages at desktop, tablet and phone (`docs/linen/`), refined shared wrapping, numerals, caption tracking and legacy heading weight; decisions in `components/ui-system/README.md`. Remaining: installed-PWA and touch-device check, and the same audit on each route as it migrates (run `node scripts/linen-audit.mjs --label <name>`).
 
@@ -259,6 +260,18 @@ All 10 owner UX items done on frontend branch `ux-fixes-2026-10`, uncommitted, i
 - Documents rests the shell sidebar as a rail (transient, never persisted; user expand wins).
 - Pointer cursor for actionable elements.
 - Verified: tsc clean, eslint 0 errors, full vitest green, docs:check green, production build green (63/63), all 7 touched route specs green; full sweep failures on /admin, /employees, /maintenance, /pachedu, /training exonerated against the base (2 pre-existing, 3 sweep-context flakes). Every item rendered and looked at at desktop + 390.
+
+## 8g. PPE/timesheets/notifications run (Muse, 21-22 Oct 2026, NOT COMMITTED)
+
+12 owner items (timesheets edges, stock-issues find-a-part, notification deep-links + backlog honesty, PPE register/basket/lens/cleanup, related issues, reusable components) on branches `ppe-timesheets-2026-10` (frontend + backend), uncommitted, in independently reversible batches (patches `01`, `02`, `03a-d`, `04`, `05a/b`, `06a/b`, `07`, `08a/b`, `09` in `audit/ppe-timesheets-notifications-2026-10-21/muse/patches/`). Full account: that folder's `COMPLETION-REPORT.md`; decisions `DECISIONS.md` (D1-D118); owner follow-ups `OWNER-ATTENTION.md`; PPE number/filter inventory `U6-INVENTORY.md`.
+
+- Shared first: ChoiceCards, OptionChecklist (+PeopleChecklist rewrap), MultiSelectFilter, useDeepLink/useRecordDeepLink, grid tokens; ui-system README updated.
+- Timesheets: register-only roster (copy/add/row-X gone), NEC ledger grid (contrast-tested), bulk cues + reworked bulk dialog (times/role/leave).
+- Notifications: bell items link to records (7 pages deep-link), grouped backlog with honest unread, per-source Retry; `?status=pending` initializers; additive GET /api/overtime/{id}.
+- Stock issues: find-a-part lookup atop the page (add/copy/highlight/keyboard), collapsible issue form.
+- PPE: register-driven people (blank cards, unmatched pseudos, pick-only PersonPicker, server stamp + rename-follow), shared order basket (auto/manual/free lines, exclusions, LineEdit/Choose/Free dialogs, PO lines, PATCH + legacy graduation), persisted type lens (include/exclude, week/choose helpers), two restated tiles removed; one-shot SQL written, never run (owner item 13).
+- Related: mine-number letter-or-digit rule both layers, employment type required for new + Type-not-set badges, formatMineNumber in pickers/register, normalizePpeType in frontend matching (matrix keys stay exact, D8 contract commented), inventory duplicate Segmented removed.
+- Verified (Stage D, 22 Oct): tsc clean, eslint 0 errors (11 pre-existing warnings), vitest 1920/1920 across 253 files (exit 0; two earlier full-scale runs flaked at teardown after all-pass summaries — teardown race, zero failing tests), backend 2206 pytest green, docs:check green (ledger regen'd: 59 routes, 49 migrated, 51 verified), production build green ("Compiled successfully", exit 0), route suite 634/634 across the 12 touched routes incl. /maintenance (spec repaired to drive the dirty-guard Discard flow), 164-scale bell render 11/11 (9+ cap, "showing 5 of 164", no overflow at 1440 + 390). 77 shots in muse/shots/, every batch looked at at 1440 + 390.
 
 ## 8. Next bounded item
 

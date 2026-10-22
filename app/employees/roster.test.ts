@@ -93,6 +93,21 @@ describe('formProblems', () => {
     expect(formProblems({ ...base, email: '' })).toEqual({});
     expect(formProblems({ ...base, email: 'rudo@mine.co.zw' })).toEqual({});
   });
+
+  it('rejects dot-only mine numbers but passes every prefixed one', () => {
+    const base = { first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter', email: '' };
+    expect(formProblems({ ...base, employee_id: '...' })).toEqual({ employee_id: 'A mine number needs at least one letter or digit.' });
+    expect(formProblems({ ...base, employee_id: 'TBA03' })).toEqual({});
+    expect(formProblems({ ...base, employee_id: 'PM365' })).toEqual({});
+    expect(formProblems({ ...base, employee_id: 'C1165' })).toEqual({});
+  });
+
+  it('requires the employment type for new employees only', () => {
+    const base = { employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter', email: '' };
+    expect(formProblems(base, { requireEmploymentType: true })).toEqual({ employment_type: 'Choose the employment type.' });
+    expect(formProblems({ ...base, employment_type: 'NEC' }, { requireEmploymentType: true })).toEqual({});
+    expect(formProblems(base)).toEqual({});
+  });
 });
 
 describe('necEmployees', () => {

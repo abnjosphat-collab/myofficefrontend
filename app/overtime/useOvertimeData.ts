@@ -3,7 +3,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '@/lib/apiClient';
+import { api, ApiError } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { timeoutError } from '@/lib/transientRetry';
 import type { OTAnalysisResult, OTRecord, OTForm } from './types';
@@ -42,6 +42,16 @@ export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
 /** `useHours`: send `hours` and omit start/end (the fast path); otherwise send start/end and omit hours, never both, matching the
  *  backend's either/or validator. When EDITING, the other pair is sent as null: the server only changes what it is sent, so a record
  *  switched from hours to times would otherwise keep its old hours, and those win over the times everywhere. */
+/** One request for a `?open=` deep link; null when the server has no such record. */
+export async function fetchOTById(id: number | string): Promise<OTRecord | null> {
+  try {
+    return await api.get<OTRecord>(`/api/overtime/${id}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 export function buildOvertimePayload(form: OTForm, useHours: boolean, editing = false) {
   const { start_time, end_time, hours, ...rest } = form;
   return useHours

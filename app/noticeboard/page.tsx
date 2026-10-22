@@ -1,21 +1,22 @@
 // app/noticeboard/page.tsx — company notices and announcements
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { fmtDate as formatDate, fmtDateTime as formatDateTime } from '@/components/shared/utils';
 import type { Attachment, Notice, NoticeFilters, NoticeFormData } from './types';
-import { archiveNotice, createNotice, deleteNotice, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
+import { archiveNotice, createNotice, deleteNotice, fetchNoticeById, togglePin, updateNotice, uploadNoticeAttachment, useNoticeboardData } from './useNoticeboardData';
 import { attachmentKind, isPreviewableImage, NOTICE_ATTACHMENT_ACCEPT, NOTICE_ATTACHMENT_EXTS, type AttachmentKind } from './attachments';
 import { fileProblem } from '@/lib/files';
 import { exportPriorityColor, priorityTone, statusTone } from '@/lib/status';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 
 const CATEGORIES = ['HR', 'Safety', 'IT', 'General', 'Operations', 'Finance'];
 const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
@@ -226,6 +227,20 @@ function NoticeboardContent() {
   const [now] = useState(() => Date.now());
   const { notices, setNotices, loading, loaded, error, errorStatus, refetch } = useNoticeboardData(filters, search);
   const viewing = useMemo(() => notices.find(n => n.id === viewingId) ?? null, [notices, viewingId]);
+  // Bell deep link (?open=<id>): land on the notice.
+  const [deepLinkNotice, setDeepLinkNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records: notices,
+    ready: loaded || !!error,
+    listFailed: !loaded && !!error,
+    getId: n => n.id,
+    fetchById: fetchNoticeById,
+    merge: row => setNotices(prev => (prev.some(n => n.id === row.id) ? prev : [...prev, row])),
+    onOpen: record => setViewingId(record.id),
+    onMissing: (id, reason) => setDeepLinkNotice(reason === 'gone'
+      ? `That notice (#${id}) no longer exists — it may have been deleted.`
+      : `That notice (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const expiredNotices = useMemo(() => notices.filter(n => expiry(n, now).expired), [notices, now]);
   const shown = useMemo(() => (hideExpired ? notices.filter(n => !expiry(n, now).expired) : notices), [notices, hideExpired, now]);
@@ -323,6 +338,10 @@ function NoticeboardContent() {
         )}
       />
 
+      {deepLinkNotice && (
+        <NoticeBanner tone="warning" title={deepLinkNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepLinkNotice(null)}>Dismiss</Button>} />
+      )}
+
       <MetricGrid compact>
         <MetricTile compact label="Total notices" detail={scope} value={notices.length} loading={pending} unavailable={unavailable} />
         <MetricTile compact label="Active" tone="success" detail={scope} value={notices.filter(n => n.status === 'Active').length} loading={pending} unavailable={unavailable} selected={filters.status === 'Active'} onClick={() => setFilter('status', filters.status === 'Active' ? ALL : 'Active')} />
@@ -398,5 +417,5 @@ function NoticeboardContent() {
 }
 
 export default function NoticeboardManagement() {
-  return <AppShell migrated><NoticeboardContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><NoticeboardContent /></Suspense></AppShell>;
 }

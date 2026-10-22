@@ -2,7 +2,9 @@
 // replacement matrix that sets expiry dates, and the summaries and downloads. Everything on the page comes from the issued records.
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -11,14 +13,17 @@ import {
   LoadingPulse,
 } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
+import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
-import { enrichPPERecords, type OrderListEntry } from './calcPPE';
+import { enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
 import { MatrixDialog } from './MatrixDialog';
-import { OrderListView } from './OrderListView';
+import { OrderListView, type BasketAddables } from './OrderListView';
 import { PPEIssueForm } from './PPEIssueForm';
 import { EmployeePPEDetail, PPEItemDetail, type ItemActions } from './PPEItemViews';
-import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, renewalTarget, sectionCounts, selectableEmployees, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
+import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, renewalTarget, sectionCounts, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
+import { addableInWindow, addableSoon, buildBasket, coveredRecordIds, excludedRecordIds, weekWindow, type BasketRegister } from './orderBasket';
+import { NO_TYPE_FILTER, loadTypeFilter, matchesTypeFilter, saveTypeFilter, typeOptions, type TypeFilter } from './ppeTypes';
 import { typeName } from './ppeMeta';
 import { SummaryView } from './SummaryView';
 import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
@@ -46,9 +51,52 @@ function PPEContent() {
   const [matrixOpen, setMatrixOpen] = useState(false);
   const register = useRegisterCheck();
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
+  const [typeFilter, setTypeFilterState] = useState<TypeFilter>(() => (typeof window === 'undefined' ? NO_TYPE_FILTER : loadTypeFilter(k => window.localStorage.getItem(k))));
+  // Patches merge functionally: the lens Reset fires two changes at once (clear the types, back to include), and two
+  // full-object sets would clobber each other on the stale render's copy, leaving the old types behind.
+  const patchTypeFilter = (patch: Partial<TypeFilter>) => setTypeFilterState(prev => ({ ...prev, ...patch }));
+  useEffect(() => { saveTypeFilter((k, v) => window.localStorage.setItem(k, v), typeFilter); }, [typeFilter]);
 
   const records = useMemo(() => enrichPPERecords(recs.items, roster.items), [recs.items, roster.items]);
   const holders = useMemo(() => groupByEmployee(records, roster.items), [records, roster.items]);
+  const today = todayLocal();
+  const basketRegister = useMemo<BasketRegister>(() => {
+    const known = new Set<string>(); const archived = new Set<string>();
+    roster.items.forEach(e => { const id = normalizeEmployeeId(e.employee_id); if (!id) return; known.add(id); if (e.archived === true) archived.add(id); });
+    return { known, archived };
+  }, [roster.items]);
+  const basket = useMemo(() => buildBasket(records, order.entries, basketRegister, today), [records, order.entries, basketRegister, today]);
+  const covered = useMemo(() => coveredRecordIds(basket), [basket]);
+  const shutOut = useMemo(() => excludedRecordIds(basket.excluded), [basket]);
+  // The type lens narrows what the basket shows and offers, never what covers a record (adding stays gated on the whole
+  // list) nor the tidy banner (data hygiene transcends the lens).
+  const visibleByType = useMemo(() => records.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), [records, typeFilter]);
+  const basketView = useMemo(() => {
+    const b = buildBasket(visibleByType, order.entries, basketRegister, today);
+    const lines = b.lines.filter(l => matchesTypeFilter(l.ppe_type, typeFilter));
+    return { ...b, lines, counts: { auto: lines.filter(l => l.origin === 'auto').length, manual: lines.filter(l => l.origin === 'manual').length, free: lines.filter(l => l.origin === 'free').length, excluded: b.excluded.length }, twins: basket.twins, notDueLegacy: basket.notDueLegacy };
+  }, [visibleByType, order.entries, basketRegister, today, basket, typeFilter]);
+  const thisWeek = useMemo(() => weekWindow(today, 0), [today]);
+  const nextWeek = useMemo(() => weekWindow(today, 1), [today]);
+  const addables = useMemo<BasketAddables>(() => ({
+    thisWeek: { ...thisWeek, records: addableInWindow(visibleByType, basketRegister, covered, shutOut, thisWeek.from, thisWeek.to) },
+    nextWeek: { ...nextWeek, records: addableInWindow(visibleByType, basketRegister, covered, shutOut, nextWeek.from, nextWeek.to) },
+    soon: addableSoon(visibleByType, basketRegister, covered, shutOut, today),
+  }), [visibleByType, basketRegister, covered, shutOut, thisWeek, nextWeek, today]);
+  // ?person= from a Personnel link: the matching card is ringed and scrolled to, once, without opening it.
+  // Read once (a later navigation keeps its own URL); an unknown or filtered-out number is silently ignored.
+  const params = useSearchParams();
+  const [personParam] = useState(() => (params.get('person') || '').trim());
+  const personTarget = useMemo(() => (personParam ? holders.find(h => normalizeEmployeeId(h.employee_id) === normalizeEmployeeId(personParam)) ?? null : null), [holders, personParam]);
+  const personRef = useRef<HTMLLIElement | null>(null);
+  const personScrolled = useRef(false);
+  useEffect(() => {
+    if (personTarget && personRef.current && !personScrolled.current) {
+      personScrolled.current = true;
+      const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      personRef.current.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    }
+  }, [personTarget]);
   // Archived people are hidden from the browsing views by default but never from the data-quality notice
   // (unmatched), the issue form, the order list or the matrix (D17); due always excludes them (D18).
   const [showArchived, setShowArchived] = useState(false);
@@ -56,7 +104,6 @@ function PPEContent() {
   const visibleHolders = useMemo(() => (showArchived ? holders : holders.filter(h => h.archived !== true)), [holders, showArchived]);
   const visibleRecords = useMemo(() => visibleHolders.flatMap(h => h.records), [visibleHolders]);
   const activeHolders = useMemo(() => holders.filter(h => h.archived !== true), [holders]);
-  const people = useMemo(() => selectableEmployees(roster.items, holders), [roster.items, holders]);
   const sections = useMemo(() => sectionCounts(visibleHolders), [visibleHolders]);
   const dueSections = useMemo(() => sectionCounts(activeHolders), [activeHolders]);
   const inSection = useMemo(() => (f.section === ALL ? activeHolders : activeHolders.filter(h => normalizeSection(h.section) === f.section)), [activeHolders, f.section]);
@@ -65,7 +112,9 @@ function PPEContent() {
   const unmatchedRecordIds = useMemo(() => unmatched.flatMap(h => h.records.map(r => r.id)), [unmatched]);
   const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, f), [visibleHolders, unmatched, unmatchedOnly, f]);
   const stats = useMemo(() => summarise(visibleRecords, visibleHolders), [visibleRecords, visibleHolders]);
-  const scoped = useMemo(() => summarise(sectionRecords, inSection), [sectionRecords, inSection]);
+  const scoped = useMemo(() => summarise(sectionRecords.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), inSection), [sectionRecords, inSection, typeFilter]);
+  const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(h => normalizeEmployeeId(h.employee_id))); return records.filter(r => r.status === 'active' && !arch.has(normalizeEmployeeId(r.employee_id))); }, [records, holders]);
+  const typeOpts = useMemo(() => typeOptions(lensPool), [lensPool]);
   const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
   const item = useMemo(() => records.find(r => String(r.id) === itemId) ?? null, [records, itemId]);
   const itemReadOnly = item ? holders.find(h => h.employee_id === item.employee_id)?.archived === true : false;
@@ -119,10 +168,11 @@ function PPEContent() {
     if (first) toast.error(`${ids.length - ok} could not be updated: ${(first.reason as Error).message}`);
     await recs.refetch();
   };
-  const addToOrder = (entries: OrderListEntry[]) => { const fresh = entries.filter(e => !order.has(e.record_id)).length; order.addMany(entries); toast.success(fresh ? `${fresh} ${fresh === 1 ? 'item' : 'items'} added to the order list.` : 'Already on the order list.'); };
+  const addToOrder = (entries: OrderListEntry[]) => { const addable = entries.filter(e => !covered.has(e.record_id)); const fresh = addable.filter(e => !order.has(e.record_id)).length; order.addMany(addable); toast.success(fresh ? `${fresh} ${fresh === 1 ? 'item' : 'items'} added to the order list.` : 'Already on the order list.'); };
+  const keepManual = (ids: string[]) => { ids.forEach(id => order.update(id, { kind: 'line', source: 'manual' })); };
   const actions: ItemActions = {
     onView: r => setItemId(String(r.id)), onEdit: openEdit, onDelete: remove, onToggleNotRequired: toggleNotRequired,
-    onOrder: r => { addToOrder([{ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date }]); }, ordered: r => order.has(String(r.id)),
+    onOrder: r => { addToOrder([{ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date }]); }, ordered: r => covered.has(String(r.id)),
   };
 
   const setInterval = async (type: string, months: number) => {
@@ -148,12 +198,14 @@ function PPEContent() {
   };
 
   const badges = (h: EmployeeWithPPE) => {
+    if (h.records.length === 0) return <StatusBadge tone="neutral">No PPE issued yet</StatusBadge>;
     const o = h.records.filter(r => standing(r) === 'overdue').length; const s = h.records.filter(r => standing(r) === 'soon').length;
     return <>{o > 0 && <StatusBadge tone="danger">{o} overdue</StatusBadge>}{s > 0 && <StatusBadge tone="warning">{s} expiring soon</StatusBadge>}{o === 0 && s === 0 && <StatusBadge tone="success">Up to date</StatusBadge>}</>;
   };
   const VIEWS: { value: EmployeeView; label: string }[] = [
     { value: 'all', label: `Everyone (${visibleHolders.length})` }, { value: 'active', label: `Has active (${visibleHolders.filter(h => h.records.some(r => r.status === 'active')).length})` },
     { value: 'soon', label: `Expiring soon (${stats.employeesSoon})` }, { value: 'overdue', label: `Overdue (${stats.employeesOverdue})` },
+    { value: 'none', label: `No PPE yet (${visibleHolders.filter(h => h.records.length === 0).length})` },
   ];
 
   return (
@@ -170,21 +222,20 @@ function PPEContent() {
           </>
         )}
       />
-      {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from it; the issue form still works by typing.</Notice>}
+      {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from saved records until the register loads.</Notice>}
 
       <MetricGrid compact>
         <MetricTile compact label="People" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
         <MetricTile compact label="Active items" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
         <MetricTile compact label="Expiring soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
         <MetricTile compact label="Overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
-        <MetricTile compact label="On the order list" value={order.entries.length} loading={order.loading && !order.loaded} unavailable={!order.loaded && !order.loading} selected={tab === 'order'} onClick={() => setTab('order')} />
       </MetricGrid>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="PPE sections">
           <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
-          <TabsTrigger value="order" icon="cart" count={order.loaded ? order.entries.length : undefined}>Order list</TabsTrigger>
+          <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
         </TabsList>
 
@@ -206,13 +257,13 @@ function PPEContent() {
               : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}</p>
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees with PPE">
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
               {shown.map(h => (
-                <li key={h.employee_id} className="relative">
+                <li key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">
                   <RecordCard
-                    eyebrow={h.employee_id} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
-                    facts={[{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }, ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
-                    action={h.archived === true ? undefined : <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}
+                    eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
+                    facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
+                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}</div>}
                   />
                 </li>
               ))}
@@ -222,7 +273,7 @@ function PPEContent() {
 
         <TabsContent value="due" className="mt-4 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...dueSections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
-          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
+          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
         </TabsContent>
 
         <TabsContent value="order" className="mt-4">
@@ -230,7 +281,7 @@ function PPEContent() {
             status={deriveDataStatus({ loaded: order.loaded, loading: order.loading, error: order.error, errorStatus: order.errorStatus, count: 1, transient: isTransientStatus(order.errorStatus) })}
             subject="the order list" error={order.error} onRetry={() => { void order.refetch(); }}
           >
-            <OrderListView entries={order.entries} onRemove={order.remove} onClear={order.clear} onIssue={issueFromOrder} />
+            <OrderListView basket={basketView} addables={addables} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} onIssue={issueFromOrder} onRemove={order.remove} onRemoveMany={order.removeMany} onExclude={line => { order.exclude(line); toast.success('Excluded from the automatic list. Restore it below to bring it back.'); }} onRestore={order.restore} onUpdate={order.update} onKeepManual={keepManual} onAddMany={addToOrder} onAddFree={draft => { order.addFree(draft); toast.success('Free line added to the order list.'); }} onClearManual={order.clearManual} />
           </DataRegion>
         </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
@@ -238,12 +289,12 @@ function PPEContent() {
 
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
       <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
-      <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} employees={people} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
+      <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>
   );
 }
 
 export default function PPEPage() {
-  return <AppShell migrated><PPEContent /></AppShell>;
+  return <AppShell migrated><Suspense fallback={null}><PPEContent /></Suspense></AppShell>;
 }

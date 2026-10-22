@@ -9,12 +9,12 @@
 // are auth-gated server-side — see app/routers/leaves.py, overtime.py).
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
 import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
-import { timeAgo, type ActivityItem } from './useDashboardData';
+import { timeAgo, type ActivityItem, type AlertGroup, type SourceResult } from './useDashboardData';
 
 // The fields each alert source provides (all optional beyond the id: a partial row must not break the bell).
 interface LeaveRow { id: number | string; employee_name?: string; leave_type?: string; total_days?: number; applied_date?: string | null }
@@ -24,15 +24,150 @@ interface WorkOrderRow { id: number | string; work_order_number?: string | null;
 interface TaskEventRow { id: number | string; task_type?: string | null; title?: string; due_date?: string | null; responsible_people?: string[] | null }
 interface PwRequestRow { id: number | string; identifier?: string; created_at?: string | null }
 
-function toItem(id: string, action: string, module: string, icon: LucideIcon, iso: string | null | undefined, status: ActivityItem['status'], user?: string): ActivityItem {
-  return { id, action, module, icon, time: timeAgo(iso), timestamp: new Date(iso || 0).getTime(), status, user };
+/** The six backlog sources this hook fetches (notices and the activity feed have their own producers). */
+export type OpGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks';
+export const OP_GROUPS: readonly OpGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks'];
+/** Bell-facing names, one per source: the failure warning reads these, so they match the group headers. */
+export const OP_LABELS: Record<OpGroup, string> = {
+  pw: 'Password resets', leave: 'Leave approvals', overtime: 'Overtime approvals',
+  sheq: 'SHEQ follow-ups', workorders: 'Overdue work orders', tasks: 'Overdue tasks',
+};
+/** What the bell shows per group: the backlog behind the slice, and what survived into the list. */
+export interface GroupTotal { total: number; shown: number }
+export type OpTotals = Record<OpGroup, GroupTotal>;
+const EMPTY_TOTALS: OpTotals = {
+  pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
+  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
+};
+
+function toItem(id: string, action: string, module: string, icon: LucideIcon, iso: string | null | undefined, status: ActivityItem['status'], href: string, group: AlertGroup, user?: string, actionLabel?: string): ActivityItem {
+  return { id, action, module, icon, time: timeAgo(iso), timestamp: new Date(iso || 0).getTime(), status, user, href, actionLabel, group };
+}
+
+const OP_URLS: Record<OpGroup, string> = {
+  pw: `${API_BASE}/api/admin/password-reset-requests?status=pending`,
+  leave: `${API_BASE}/api/leaves?status=pending`,
+  overtime: `${API_BASE}/api/overtime?status=pending`,
+  sheq: `${API_BASE}/api/sheq?status=open`,
+  workorders: `${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`,
+  tasks: `${API_BASE}/api/tasks-events?status=pending`,
+};
+
+/** One fetch per source, loosely typed at the boundary; buildOpAlerts re-asserts the row shape. */
+type OpRaw = Record<OpGroup, unknown[] | null>;
+const OP_FETCH: Record<OpGroup, () => Promise<unknown[] | null>> = {
+  pw: () => fetchOrNull<PwRequestRow[]>(OP_URLS.pw),
+  leave: () => fetchOrNull<LeaveRow[]>(OP_URLS.leave),
+  overtime: () => fetchOrNull<OvertimeRow[]>(OP_URLS.overtime),
+  sheq: () => fetchOrNull<SheqRow[]>(OP_URLS.sheq),
+  workorders: () => fetchOrNull<WorkOrderRow[]>(OP_URLS.workorders),
+  tasks: () => fetchOrNull<TaskEventRow[]>(OP_URLS.tasks),
+};
+
+/** Pure — the asked sources and whether each answered; unasked (role-gated) sources are absent, never errors. */
+export function opSources(raw: OpRaw, askPw: boolean): SourceResult[] {
+  return OP_GROUPS
+    .filter(g => g !== 'pw' || askPw)
+    .map(group => ({ source: group, label: OP_LABELS[group], ok: raw[group] !== null }));
+}
+
+/** Pure — alerts + totals from one answer per source. Shared by the initial load and per-source retries. */
+export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boolean; totals: OpTotals } {
+  const pwRequests = raw.pw as PwRequestRow[] | null;
+  const leaves = raw.leave as LeaveRow[] | null;
+  const overtime = raw.overtime as OvertimeRow[] | null;
+  const sheq = raw.sheq as SheqRow[] | null;
+  const workOrders = raw.workorders as WorkOrderRow[] | null;
+  const tasksEvents = raw.tasks as TaskEventRow[] | null;
+  // fetchOrNull returns null when a request fails; an empty list is a real answer.
+  const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests].some(r => r === null);
+
+  const now = Date.now();
+  // The backlog behind each bell slice: filtered (open/overdue only) but
+  // unsliced, so the bell can say "showing 5 of 12" honestly. A failed
+  // source reads as an empty backlog here; it is named in `sources`.
+  const backlog = {
+    pw: Array.isArray(pwRequests) ? pwRequests : [],
+    leave: Array.isArray(leaves) ? leaves : [],
+    overtime: Array.isArray(overtime) ? overtime : [],
+    sheq: Array.isArray(sheq) ? sheq.filter(s => s.status && s.status !== 'closed') : [],
+    workorders: Array.isArray(workOrders) ? workOrders.filter(w => w.due_date && new Date(w.due_date).getTime() < now) : [],
+    tasks: Array.isArray(tasksEvents) ? tasksEvents.filter(te => te.due_date && new Date(te.due_date).getTime() < now) : [],
+  };
+
+  const pwItems: ActivityItem[] = backlog.pw.slice(0, 5).map(p => toItem(
+    `pw-${p.id}`, `Password reset requested — ${p.identifier ?? 'an account'}`,
+    'Users', Key, p.created_at, 'pending', '/admin', 'pw', p.identifier,
+  ));
+
+  const leaveItems: ActivityItem[] = backlog.leave.slice(0, 5).map(l => toItem(
+    `leave-${l.id}`, `Leave pending approval — ${l.employee_name} (${l.leave_type}, ${l.total_days}d)`,
+    'Leaves', CalendarDays, l.applied_date, 'pending', `/leaves?open=${l.id}&sign=approve`, 'leave', l.employee_name, 'Review and sign',
+  ));
+
+  const otItems: ActivityItem[] = backlog.overtime.slice(0, 5).map(o => toItem(
+    `ot-${o.id}`, `Overtime pending approval — ${o.employee_name} (${o.date})`,
+    'Overtime', Clock, o.applied_date, 'pending', `/overtime?open=${o.id}&sign=approve`, 'overtime', o.employee_name, 'Review and sign',
+  ));
+
+  const sheqItems: ActivityItem[] = backlog.sheq.slice(0, 5).map(s => toItem(
+    `sheq-${s.id}`, `SHEQ inspection unresolved — ${s.title}`,
+    'SHEQ', ShieldAlert, s.date, 'critical', `/sheq_inspection?open=${s.id}`, 'sheq',
+  ));
+
+  const overdueItems: ActivityItem[] = backlog.workorders.slice(0, 5).map(w => toItem(
+    `wo-overdue-${w.id}`, `Work order overdue — ${w.work_order_number ? `#${w.work_order_number}` : `#${w.id}`}`,
+    'Maintenance', AlertTriangle, w.due_date, 'critical', `/maintenance?open=${w.id}`, 'workorders', w.requested_by,
+  ));
+
+  const overdueTaskItems: ActivityItem[] = backlog.tasks.slice(0, 5).map(te => toItem(
+    `te-overdue-${te.id}`, `${te.task_type || 'Task'} overdue — ${te.title}`,
+    'Events & Tasks', ListTodo, te.due_date, 'critical', `/tasks-events?open=${te.id}`, 'tasks', (te.responsible_people || [])[0],
+  ));
+
+  const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
+    .filter(i => i.timestamp > 0)
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  // Shown counts what actually reaches the bell: an item without a date is
+  // dropped by the merge filter above but still counted in its total.
+  const alive = (items: ActivityItem[]) => items.filter(i => i.timestamp > 0).length;
+  const totals: OpTotals = {
+    pw: { total: backlog.pw.length, shown: alive(pwItems) },
+    leave: { total: backlog.leave.length, shown: alive(leaveItems) },
+    overtime: { total: backlog.overtime.length, shown: alive(otItems) },
+    sheq: { total: backlog.sheq.length, shown: alive(sheqItems) },
+    workorders: { total: backlog.workorders.length, shown: alive(overdueItems) },
+    tasks: { total: backlog.tasks.length, shown: alive(overdueTaskItems) },
+  };
+
+  return { alerts: merged, failed, totals };
 }
 
 export function useOperationalAlerts() {
   const { isAtLeast } = useAuth();
   const canView = isAtLeast('manager');
   const isAdmin = isAtLeast('admin');
-  const [loaded, setLoaded] = useState<{ alerts: ActivityItem[]; failed: boolean } | null>(null);
+  const [loaded, setLoaded] = useState<{ alerts: ActivityItem[]; failed: boolean; totals: OpTotals } | null>(null);
+  const [sources, setSources] = useState<SourceResult[]>([]);
+  // Last-good answers per source: a retry re-fetches ONE endpoint and rebuilds against the rest.
+  const dataRef = useRef<OpRaw | null>(null);
+
+  const applyRaw = useCallback((raw: OpRaw, askPw: boolean) => {
+    dataRef.current = raw;
+    setLoaded(buildOpAlerts(raw));
+    setSources(opSources(raw, askPw));
+  }, []);
+
+  /** Re-fetch one source (a bell Retry); unasked stays unasked, other sources keep their answers. */
+  const reloadSource = useCallback(async (group: OpGroup) => {
+    const prev = dataRef.current;
+    if (!canView || !prev) return;
+    if (group === 'pw' && !isAdmin) return;
+    const fresh = await OP_FETCH[group]();
+    const next: OpRaw = { ...prev, [group]: fresh };
+    applyRaw(next, isAdmin);
+  }, [canView, isAdmin, applyRaw]);
 
   useEffect(() => {
     if (!canView) return; // nothing to fetch; the values below say "no alerts" without touching state
@@ -40,78 +175,19 @@ export function useOperationalAlerts() {
 
     async function load() {
       // Reset asks are admin-only server-side; a manager asks for nothing rather than a 403 that would read as failure.
-      const [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests] = await Promise.all([
-        fetchOrNull<LeaveRow[]>(`${API_BASE}/api/leaves?status=pending`),
-        fetchOrNull<OvertimeRow[]>(`${API_BASE}/api/overtime?status=pending`),
-        fetchOrNull<SheqRow[]>(`${API_BASE}/api/sheq?status=open`),
-        fetchOrNull<WorkOrderRow[]>(`${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`),
-        fetchOrNull<TaskEventRow[]>(`${API_BASE}/api/tasks-events?status=pending`),
-        isAdmin ? fetchOrNull<PwRequestRow[]>(`${API_BASE}/api/admin/password-reset-requests?status=pending`) : Promise.resolve([] as PwRequestRow[]),
+      const [leave, overtime, sheq, workorders, tasks, pw] = await Promise.all([
+        OP_FETCH.leave(), OP_FETCH.overtime(), OP_FETCH.sheq(), OP_FETCH.workorders(), OP_FETCH.tasks(),
+        isAdmin ? OP_FETCH.pw() : Promise.resolve<unknown[] | null>([]),
       ]);
       if (cancelled) return;
-      // fetchOrNull returns null when a request fails; an empty list is a real answer.
-      const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests].some(r => r === null);
-
-      const pwItems: ActivityItem[] = Array.isArray(pwRequests)
-        ? pwRequests.slice(0, 5).map(p => toItem(
-          `pw-${p.id}`, `Password reset requested — ${p.identifier ?? 'an account'}`,
-          'Users', Key, p.created_at, 'pending', p.identifier,
-        ))
-        : [];
-
-      const leaveItems: ActivityItem[] = Array.isArray(leaves)
-        ? leaves.slice(0, 5).map(l => toItem(
-          `leave-${l.id}`, `Leave pending approval — ${l.employee_name} (${l.leave_type}, ${l.total_days}d)`,
-          'Leaves', CalendarDays, l.applied_date, 'pending', l.employee_name,
-        ))
-        : [];
-
-      const otItems: ActivityItem[] = Array.isArray(overtime)
-        ? overtime.slice(0, 5).map(o => toItem(
-          `ot-${o.id}`, `Overtime pending approval — ${o.employee_name} (${o.date})`,
-          'Overtime', Clock, o.applied_date, 'pending', o.employee_name,
-        ))
-        : [];
-
-      const sheqItems: ActivityItem[] = Array.isArray(sheq)
-        ? sheq.filter(s => s.status && s.status !== 'closed').slice(0, 5).map(s => toItem(
-          `sheq-${s.id}`, `SHEQ inspection unresolved — ${s.title}`,
-          'SHEQ', ShieldAlert, s.date, 'critical',
-        ))
-        : [];
-
-      const now = Date.now();
-      const overdueItems: ActivityItem[] = Array.isArray(workOrders)
-        ? workOrders
-          .filter(w => w.due_date && new Date(w.due_date).getTime() < now)
-          .slice(0, 5)
-          .map(w => toItem(
-            `wo-overdue-${w.id}`, `Work order overdue — ${w.work_order_number ? `#${w.work_order_number}` : `#${w.id}`}`,
-            'Maintenance', AlertTriangle, w.due_date, 'critical', w.requested_by,
-          ))
-        : [];
-
-      const overdueTaskItems: ActivityItem[] = Array.isArray(tasksEvents)
-        ? tasksEvents
-          .filter(te => te.due_date && new Date(te.due_date).getTime() < now)
-          .slice(0, 5)
-          .map(te => toItem(
-            `te-overdue-${te.id}`, `${te.task_type || 'Task'} overdue — ${te.title}`,
-            'Events & Tasks', ListTodo, te.due_date, 'critical', (te.responsible_people || [])[0],
-          ))
-        : [];
-
-      const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
-        .filter(i => i.timestamp > 0)
-        .sort((a, b) => b.timestamp - a.timestamp);
-
-      setLoaded({ alerts: merged, failed });
+      applyRaw({ leave, overtime, sheq, workorders, tasks, pw }, isAdmin);
     }
 
     load();
     return () => { cancelled = true; };
-  }, [canView, isAdmin]);
+  }, [canView, isAdmin, applyRaw]);
 
-  if (!canView) return { alerts: [] as ActivityItem[], loading: false, failed: false };
-  return { alerts: loaded?.alerts ?? [], loading: loaded === null, failed: loaded?.failed ?? false };
+  if (!canView) return { alerts: [] as ActivityItem[], loading: false, failed: false, totals: EMPTY_TOTALS, sources: [] as SourceResult[], reloadSource };
+  const { alerts, failed, totals } = loaded ?? { alerts: [] as ActivityItem[], failed: false, totals: EMPTY_TOTALS };
+  return { alerts, loading: loaded === null, failed, totals, sources, reloadSource };
 }

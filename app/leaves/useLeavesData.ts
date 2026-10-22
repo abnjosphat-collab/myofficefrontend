@@ -4,7 +4,7 @@
 // so the dialog can show the reason and keep what was typed. The server returns every page.
 'use client';
 
-import { api } from '@/lib/apiClient';
+import { api, ApiError } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { calcLeaveDays } from '@/lib/calcLeaveDays';
 import type { Leave } from './types';
@@ -25,6 +25,16 @@ export const createLeave = (data: Partial<Leave>) => api.post<Leave>('/api/leave
 export const updateLeave = (id: string, data: Partial<Leave>) => api.patch<Leave>(`/api/leaves/${id}`, { ...data, ...days(data) });
 export const setLeaveStatus = (id: string, status: Leave['status']) => api.patch<Leave>(`/api/leaves/${id}`, { status });
 export const deleteLeave = async (id: string) => { await api.delete(`/api/leaves/${id}`); };
+
+/** One request for a `?open=` deep link; null when the server has no such record. */
+export async function fetchLeaveById(id: string): Promise<Leave | null> {
+  try {
+    return normalise(await api.get<Leave>(`/api/leaves/${id}`));
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
 
 export interface BulkResult { succeeded: number; failed: number; updated: Array<Record<string, unknown>> }
 /** Approve or reject many pending requests in one call (manager only, enforced by the server). */

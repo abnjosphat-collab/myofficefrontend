@@ -151,6 +151,11 @@ const spec = {
     await shot(page, 'new-error@1440');
     refuseMachine = null;
     await nw.getByRole('button', { name: 'Cancel' }).click();
+    const dc = page.getByRole('alertdialog');
+    await dc.waitFor({ timeout: 5000 });
+    check(await dc.getByText(/Discard the changes/).isVisible(), 'cancelling with typing asks before discarding');
+    await dc.getByRole('button', { name: 'Discard changes' }).click();
+    await nw.waitFor({ state: 'hidden', timeout: 5000 });
 
     // schedules: raise now makes one work order per machine; a refused pause reverts with the reason
     await page.getByRole('tab', { name: /^Schedules/ }).click();
@@ -174,6 +179,10 @@ const spec = {
     await sf.getByRole('button', { name: 'Create schedule' }).click();
     check(await sf.getByText('Give the schedule a name.').isVisible() && await sf.getByText('Add at least one date.').isVisible(), 'a schedule without a name or any dates is explained');
     await sf.getByRole('button', { name: 'Cancel' }).click();
+    const dc2 = page.getByRole('alertdialog');
+    await dc2.waitFor({ timeout: 5000 });
+    await dc2.getByRole('button', { name: 'Discard changes' }).click();
+    await sf.waitFor({ state: 'hidden', timeout: 5000 });
 
     // analytics
     await page.getByRole('tab', { name: 'Analytics' }).click();

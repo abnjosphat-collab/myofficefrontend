@@ -40,6 +40,7 @@ const spec = {
     await page.getByRole('button', { name: /^Salaried\s*\d/ }).click();
     check(await page.getByRole('button', { name: 'Open Bo Beta' }).isVisible() && !(await page.getByRole('button', { name: 'Open Ann Alpha' }).isVisible().catch(() => false)), 'the Salaried tile filters the roster');
     await page.getByRole('button', { name: 'Clear filters' }).click();
+    check(await page.getByText('Type not set').count() === 2, 'people with no employment type get a Type-not-set badge (Fay and the legacy record)');
     await page.getByRole('searchbox').fill('delta');
     await page.getByText('No one matches').waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('No one matches').isVisible(), 'an archived person is not in the active results');
@@ -61,6 +62,7 @@ const spec = {
     const det = dialog('Ann Alpha');
     await det.waitFor({ timeout: 5000 });
     check(await det.getByRole('link', { name: '+263 77 111 1111' }).isVisible() && await det.getByText('Class 1 Fitter').isVisible() && !(await det.getByText('Late 2025').isVisible().catch(() => false)), 'the detail shows contact details and qualifications but not offence records');
+    check(await det.getByRole('link', { name: 'PPE', exact: true }).getAttribute('href') === '/ppe?person=C1', 'the detail links to the person on the PPE page');
     await shot(page, 'detail@1440');
     await det.getByRole('button', { name: 'Edit', exact: true }).click();
 
@@ -76,6 +78,15 @@ const spec = {
     await ed.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     const put = calls.filter(c => c.method === 'PUT' && c.pathname === '/api/employees/1').pop();
     check(put?.body.first_name === 'Anna' && put.body.date_of_engagement === null && put.body.phone === '+263 77 111 1111', 'saving sends the change, a cleared date as null and the phone in one format', JSON.stringify(put?.body).slice(0, 140));
+
+    // a new employee must have an employment type; an edit need not add one
+    await page.getByRole('button', { name: 'Add employee' }).click();
+    const ad = dialog('Add an employee');
+    await ad.waitFor({ timeout: 5000 });
+    await ad.getByRole('button', { name: 'Add employee' }).click();
+    check(await ad.getByText('Choose the employment type.').isVisible(), 'a new employee without a type is told to choose one');
+    await page.keyboard.press('Escape');
+    await ad.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     // delete: confirm first; a refusal shows the reason
     await page.getByRole('button', { name: 'Delete Bo Beta' }).click();
@@ -136,9 +147,11 @@ const spec = {
       await dialog.getByLabel(/^Last name/).fill('Theta');
       await dialog.getByRole('combobox', { name: /^Designation/ }).click();
       await page.getByRole('option', { name: 'Fitter Class 1', exact: true }).click();
+      await dialog.getByRole('combobox', { name: /^Employment type/ }).click();
+      await page.getByRole('option', { name: 'NEC', exact: true }).click();
     },
     async kept(dialog) { return (await dialog.getByLabel(/^First name/).inputValue()) === 'Gus' && (await dialog.getByLabel(/^Mine number/).inputValue()) === 'C77'; },
-    body: b => b.employee_id === 'C77' && b.first_name === 'Gus' && b.designation === 'Fitter Class 1' && b.section === 'Mechanical' && b.date_of_engagement === null && b.archived === false,
+    body: b => b.employee_id === 'C77' && b.first_name === 'Gus' && b.designation === 'Fitter Class 1' && b.section === 'Mechanical' && b.employment_type === 'NEC' && b.date_of_engagement === null && b.archived === false,
   },
   empty: { data: { '/api/employees': [] }, text: 'No employees yet' },
   failing: { paths: ['/api/employees'], text: 'Personnel could not be loaded', notShown: ['No employees yet'], async recovered(page, { check }) { check(await page.getByRole('button', { name: /^Open / }).first().isVisible(), 'Try again loads the register'); } },

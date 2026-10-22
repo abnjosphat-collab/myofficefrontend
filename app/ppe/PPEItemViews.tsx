@@ -2,8 +2,9 @@
 // offers its actions in a menu: view, edit, mark not required (or active again), add to the order list, delete.
 'use client';
 
-import { Button, Dialog, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
+import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
 import { STANDING_LABEL, standing, type Standing } from './ppeLogic';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
@@ -40,13 +41,13 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
   const items = e ? [...e.records].sort((a, b) => (a.expiry_date ?? '9999').localeCompare(b.expiry_date ?? '9999')) : [];
   return (
     <Dialog
-      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e?.employee_name ?? 'Employee'} description={e ? [e.employee_id, e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
+      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e?.employee_name ?? 'Employee'} description={e ? [formatMineNumber(e.employee_id), e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
       footer={e && (readOnly ? (<DetailActions onClose={onClose} />) : (<DetailActions onClose={onClose}><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></DetailActions>))}
     >
       {e && (
         <>
         {readOnly && <p className="mb-2 font-sans text-caption text-ink-muted">Archived — kept for history. Un-archive this person on the Employees page to act on these records.</p>}
-        <ul className="flex flex-col gap-2" aria-label={`PPE held by ${e.employee_name}`}>
+        {items.length === 0 ? <EmptyState icon="ppe" title="No PPE issued yet" description={`${e.employee_name} has nothing on record. Issue PPE to get started.`} /> : <ul className="flex flex-col gap-2" aria-label={`PPE held by ${e.employee_name}`}>
           {items.map(r => (
             <li key={r.id} className="flex items-center gap-3 rounded-control border border-line bg-surface-subtle px-3 py-2.5">
               <div className="min-w-0 flex-1">
@@ -57,7 +58,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
               {readOnly ? <IconButton icon="eye" size="sm" variant="ghost" label={`View details for ${r.item_name || typeName(r.ppe_type)}, ${r.employee_name}`} onClick={() => actions.onView(r)} /> : <ItemMenu r={r} a={actions} />}
             </li>
           ))}
-        </ul>
+        </ul>}
         </>
       )}
     </Dialog>

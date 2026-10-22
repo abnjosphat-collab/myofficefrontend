@@ -13,7 +13,7 @@
 // same so call sites don't need to change.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { fetchOrNull } from './fetchOrNull';
 import {
@@ -27,6 +27,18 @@ export interface DashboardStats {
   openBreakdowns: number | null;
 }
 
+/** Which bell group an activity item belongs to. Producers tag it; the bell reads it; the dashboard page ignores it. */
+export type AlertGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks' | 'notices' | 'activity';
+
+/**
+ * One bell-feeding fetch and whether it answered. Unasked (role-gated)
+ * sources are absent from the list, never present with ok: false.
+ */
+export interface SourceResult { source: string; label: string; ok: boolean }
+
+/** The two dashboard endpoints that feed the bell (the stats endpoints don't — a failed stat is not a bell warning). */
+export type DashActivitySource = 'activity-workorders' | 'activity-breakdowns';
+
 export interface ActivityItem {
   id: string;
   action: string;
@@ -36,6 +48,12 @@ export interface ActivityItem {
   timestamp: number;
   status: 'critical' | 'pending' | 'normal';
   user?: string;
+  /** Bell grouping key — set by the producer, read only by the bell. */
+  group?: AlertGroup;
+  /** Where the bell row goes — every alert lands on its record (U3.1 link map). */
+  href: string;
+  /** What the destination offers (e.g. "Review and sign"); shown only where the row names an action. */
+  actionLabel?: string;
 }
 
 const EMPTY_STATS: DashboardStats = {
@@ -77,19 +95,63 @@ interface DashboardLoadResult { stats: DashboardStats; activity: ActivityItem[];
 // are time-sensitive, so `_inflight` clears the moment it settles and the next
 // separate page visit fetches fresh data again — this only kills duplicate
 // simultaneous requests, not staleness.
-let _inflight: Promise<DashboardLoadResult> | null = null;
+let _inflight: Promise<{ raw: DashRaw; result: DashboardLoadResult }> | null = null;
 
-async function loadDashboardData(): Promise<DashboardLoadResult> {
+const DASH_URLS = {
+  employees: `${API_BASE}/api/employees`,
+  woStats: `${API_BASE}/api/maintenance/work-orders/stats/summary`,
+  equipment: `${API_BASE}/api/equipment`,
+  breakdownOverview: `${API_BASE}/api/breakdowns/dashboard/overview`,
+  // Only the newest 6 are ever shown (sliced below) — no reason to pull
+  // the entire table over the wire on every page load.
+  workOrders: `${API_BASE}/api/maintenance/work-orders?limit=6`,
+  breakdowns: `${API_BASE}/api/breakdowns/get-breakdowns?limit=6`,
+};
+
+/** One answer per endpoint, loosely typed at the boundary; buildDash re-asserts each shape. */
+export interface DashRaw {
+  employees: unknown;
+  woStats: unknown;
+  equipment: unknown;
+  breakdownOverview: unknown;
+  workOrders: unknown;
+  breakdowns: unknown;
+}
+
+const DASH_FETCH = {
+  employees: () => fetchOrNull<unknown[]>(DASH_URLS.employees),
+  woStats: () => fetchOrNull<WorkOrderStats>(DASH_URLS.woStats),
+  equipment: () => fetchOrNull<EquipmentRow[]>(DASH_URLS.equipment),
+  breakdownOverview: () => fetchOrNull<BreakdownOverview>(DASH_URLS.breakdownOverview),
+  workOrders: () => fetchOrNull<WorkOrderRow[]>(DASH_URLS.workOrders),
+  breakdowns: () => fetchOrNull<BreakdownRow[] | { data?: BreakdownRow[] }>(DASH_URLS.breakdowns),
+};
+
+async function loadDashboardData(): Promise<{ raw: DashRaw; result: DashboardLoadResult }> {
   const [employees, woStats, equipment, breakdownOverview, workOrders, breakdowns] = await Promise.all([
-    fetchOrNull<unknown[]>(`${API_BASE}/api/employees`),
-    fetchOrNull<WorkOrderStats>(`${API_BASE}/api/maintenance/work-orders/stats/summary`),
-    fetchOrNull<EquipmentRow[]>(`${API_BASE}/api/equipment`),
-    fetchOrNull<BreakdownOverview>(`${API_BASE}/api/breakdowns/dashboard/overview`),
-    // Only the newest 6 are ever shown (sliced below) — no reason to pull
-    // the entire table over the wire on every page load.
-    fetchOrNull<WorkOrderRow[]>(`${API_BASE}/api/maintenance/work-orders?limit=6`),
-    fetchOrNull<BreakdownRow[] | { data?: BreakdownRow[] }>(`${API_BASE}/api/breakdowns/get-breakdowns?limit=6`),
+    DASH_FETCH.employees(), DASH_FETCH.woStats(), DASH_FETCH.equipment(),
+    DASH_FETCH.breakdownOverview(), DASH_FETCH.workOrders(), DASH_FETCH.breakdowns(),
   ]);
+  const raw: DashRaw = { employees, woStats, equipment, breakdownOverview, workOrders, breakdowns };
+  return { raw, result: buildDash(raw) };
+}
+
+/** Pure — whether each bell-feeding dashboard endpoint answered. */
+export function dashActivitySources(raw: DashRaw): SourceResult[] {
+  return [
+    { source: 'activity-workorders', label: 'Work order activity', ok: raw.workOrders !== null },
+    { source: 'activity-breakdowns', label: 'Breakdown activity', ok: raw.breakdowns !== null },
+  ];
+}
+
+/** Pure — stats + activity from one answer per endpoint. Shared by the initial load and per-source retries. */
+function buildDash(raw: DashRaw): DashboardLoadResult {
+  const employees = raw.employees as unknown[] | null;
+  const woStats = raw.woStats as WorkOrderStats | null;
+  const equipment = raw.equipment as EquipmentRow[] | null;
+  const breakdownOverview = raw.breakdownOverview as BreakdownOverview | null;
+  const workOrders = raw.workOrders as WorkOrderRow[] | null;
+  const breakdowns = raw.breakdowns as BreakdownRow[] | { data?: BreakdownRow[] } | null;
 
   const employeeCount = Array.isArray(employees) ? employees.length : null;
 
@@ -114,6 +176,8 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
   const woItems: ActivityItem[] = Array.isArray(workOrders)
     ? workOrders.slice(0, 6).map(w => ({
       id: `wo-${w.id}`,
+      href: `/maintenance?open=${w.id}`,
+      group: 'activity',
       action: `Work order ${w.work_order_number ? `#${w.work_order_number}` : ''} — ${w.job_request_details || 'raised'}`.slice(0, 80),
       module: 'Maintenance',
       icon: ClipboardPlus,
@@ -128,6 +192,8 @@ async function loadDashboardData(): Promise<DashboardLoadResult> {
   const bdItems: ActivityItem[] = Array.isArray(breakdownRecords)
     ? breakdownRecords.slice(0, 6).map(b => ({
       id: `bd-${b.id}`,
+      href: `/breakdowns?open=${b.id}`,
+      group: 'activity',
       action: `Breakdown reported — ${b.machine_name || b.machine_id || 'equipment'}`,
       module: 'Breakdowns',
       icon: AlertTriangle,
@@ -156,6 +222,30 @@ export function useDashboardData() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activityFailed, setActivityFailed] = useState(false);
+  const [sources, setSources] = useState<SourceResult[]>([]);
+  // Last-good answers per endpoint: a retry re-fetches ONE endpoint and rebuilds against the rest.
+  const dataRef = useRef<DashRaw | null>(null);
+
+  const applyRaw = useCallback((raw: DashRaw) => {
+    dataRef.current = raw;
+    const result = buildDash(raw);
+    setStats(result.stats);
+    setActivity(result.activity);
+    setActivityFailed(result.activityFailed);
+    setSources(dashActivitySources(raw));
+    setLoading(false);
+  }, []);
+
+  /** Re-fetch one bell-feeding endpoint (a bell Retry); other endpoints keep their answers. */
+  const reloadSource = useCallback(async (source: DashActivitySource) => {
+    const prev = dataRef.current;
+    if (!prev) return;
+    if (source === 'activity-workorders') {
+      applyRaw({ ...prev, workOrders: await DASH_FETCH.workOrders() });
+    } else {
+      applyRaw({ ...prev, breakdowns: await DASH_FETCH.breakdowns() });
+    }
+  }, [applyRaw]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,16 +258,13 @@ export function useDashboardData() {
       // data — this dedupes simultaneous mounts, it doesn't cache results.
       p.finally(() => { if (_inflight === p) _inflight = null; });
     }
-    p.then((result) => {
+    p.then(({ raw }) => {
       if (cancelled) return;
-      setStats(result.stats);
-      setActivity(result.activity);
-      setActivityFailed(result.activityFailed);
-      setLoading(false);
+      applyRaw(raw);
     });
 
     return () => { cancelled = true; };
-  }, []);
+  }, [applyRaw]);
 
-  return { stats, activity, loading, activityFailed };
+  return { stats, activity, loading, activityFailed, sources, reloadSource };
 }

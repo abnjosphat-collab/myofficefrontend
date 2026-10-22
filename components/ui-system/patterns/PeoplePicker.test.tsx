@@ -26,6 +26,7 @@ describe('lookupName', () => {
     expect(lookupName({ id: 1, full_name: 'Full Name' } as never)).toBe('Full Name');
     expect(lookupName({ id: 1, first_name: 'Ann', last_name: 'Alpha' } as never)).toBe('Ann Alpha');
     expect(lookupName({ id: 1, employee_id: 'C001' } as never)).toBe('C001');
+    expect(lookupName({ id: 1, employee_id: '...' } as never)).toBe('No mine number');
   });
 });
 
@@ -61,6 +62,7 @@ describe('PersonPicker', () => {
     await user.click(screen.getByRole('combobox', { name: 'Official' }));
     const row = screen.getByRole('option', { name: /Dot ty/ });
     expect(row).toHaveTextContent('Driver');
+    expect(row).toHaveTextContent('No mine number');
     expect(row.textContent).not.toContain('...');
   });
 

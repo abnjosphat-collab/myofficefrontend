@@ -53,13 +53,13 @@ export function TimesheetDayCell({
   };
 
   return (
-    <td className={cn('border-b border-line-subtle p-0.5 text-center', weekend && 'bg-surface-subtle', fillPreview && (fillBlocked ? '!bg-warning-soft' : '!bg-action-soft'))}>
+    <td className={cn('border-b border-r border-line-subtle p-0.5 text-center', weekend && 'bg-surface-subtle', fillPreview && (fillBlocked ? '!bg-warning-soft' : '!bg-action-soft'))}>
       <div className="group/cell relative" data-fill-cell data-emp-id={emp.id} data-day-index={dayIndex} data-fill-source={fillSource ? 'true' : undefined}>
         <button
           type="button" title={entry ? entryCellTitle(entry) : holiday ? `${holiday}: add an entry` : isToday ? 'Add an entry for today' : 'Add an entry'}
           aria-label={entry ? `${emp.name}, ${dateKey}: ${entryCellTitle(entry)}` : `${emp.name}, ${dateKey}: no entry. Add one`}
           onClick={() => { if (Date.now() < suppressCellClickUntil.current) return; onCellClick(emp, day, entry); }}
-          className={cn('focus-ring flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-control border px-1 py-1 font-sans text-caption tabular transition-colors',
+          className={cn('focus-ring flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-cell border px-1 py-1 font-sans text-caption tabular transition-colors',
             entry ? TONE[entry.status === 'work' ? 'neutral' : meta!.tone] : cn('border-dashed border-transparent text-ink-muted hover:bg-surface-muted', isToday && 'border-line-strong'),
             fillSource && 'ring-2 ring-focus', isToday && entry && 'ring-1 ring-ink-muted')}
         >

@@ -107,13 +107,15 @@ export function sectionImpliedNotice(designation?: string | null, section?: stri
   return `${(designation ?? '').trim()} belongs to ${implied} — saving will use ${implied}.`;
 }
 
-export function formProblems(f: Pick<EmployeeFormData, 'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email'>): Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email', string>> {
-  const out: Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email', string>> = {};
+export function formProblems(f: Pick<EmployeeFormData, 'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email'> & { employment_type?: string }, opts?: { requireEmploymentType?: boolean }): Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email' | 'employment_type', string>> {
+  const out: Partial<Record<'employee_id' | 'first_name' | 'last_name' | 'id_number' | 'designation' | 'email' | 'employment_type', string>> = {};
   if (!f.employee_id.trim()) out.employee_id = 'Enter the mine number.';
+  else if (!/[A-Za-z0-9]/.test(f.employee_id)) out.employee_id = 'A mine number needs at least one letter or digit.';
   if (!f.first_name.trim()) out.first_name = 'Enter the first name.';
   if (!f.last_name.trim()) out.last_name = 'Enter the last name.';
   if (!f.id_number.trim()) out.id_number = 'Enter the national ID or passport number.';
   if (!f.designation.trim()) out.designation = 'Choose the designation.';
   if (f.email.trim() && !isEmailLike(f.email)) out.email = 'Enter a valid email address.';
+  if (opts?.requireEmploymentType && !(f.employment_type ?? '').trim()) out.employment_type = 'Choose the employment type.';
   return out;
 }

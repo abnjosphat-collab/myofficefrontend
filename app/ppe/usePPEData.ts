@@ -42,9 +42,10 @@ export const useRosterRows = () => useApiList<EmployeeRow>('/api/employees/', un
 export const createPPERecord = async (data: Partial<FormState>) => {
   if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
   if (!data.employee_name?.trim()) throw new Error('Employee name is required');
-  return api.post('/api/ppe', { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
+  return api.post('/api/ppe', { ...data, expiry_date: data.expiry_date || null });
 };
-export const updatePPERecord = async (id: string, data: Partial<FormState>) => api.patch(`/api/ppe/${id}`, { ...data, department: 'MAINTENANCE', expiry_date: data.expiry_date || null });
+/** The server stamps the person's details from the register on create and on a move; the client sends no department. */
+export const updatePPERecord = async (id: string, data: Partial<FormState>) => api.patch(`/api/ppe/${id}`, { ...data, expiry_date: data.expiry_date || null });
 export const deletePPERecord = async (id: string) => api.delete(`/api/ppe/${id}`);
 /** Status only: the server changes just what it is sent, so nothing else on the record is touched. */
 export const setPPEStatus = async (id: string, status: string) => api.patch(`/api/ppe/${id}`, { status });
@@ -53,7 +54,8 @@ export async function setMatrixInterval(ppeType: string, months: number) { retur
 export async function applyMatrixType(ppeType: string) { return api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {}); }
 export async function applyMatrixAll() { return api.post<{ total_updated: number; failed?: string[] }>('/api/ppe/matrix/apply-all', {}); }
 
-/** The saved replacement matrix over the company defaults, with its own load and error state. */
+/** The saved replacement matrix over the company defaults, with its own load and error state. Contract (D8): the merge
+ * is key-exact (server vocabulary wins); anything counted against these keys stays exact, loose matching is browsing-only. */
 export function usePPEMatrix() {
   const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
   const [loading, setLoading] = useState(true);

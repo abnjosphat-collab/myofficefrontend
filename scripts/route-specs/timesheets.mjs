@@ -1,6 +1,6 @@
 // /timesheets: the NEC roster grid, leave and overtime laid over entered days, entering a day, quick add and remove, bulk entry,
-// fill across days from the keyboard, copying the previous period (asks before replacing), adding people, per-period notes, the person
-// tab (one period as day cards or a quick-view table), downloads, and honest failure.
+// fill across days from the keyboard, the register-only roster (no copy, no add-by-hand, the unclassified named), per-period notes,
+// the person tab (one period as day cards or a quick-view table), downloads, and honest failure.
 // Mock shapes mirror the real routers.
 const pad = n => String(n).padStart(2, '0');
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -68,17 +68,15 @@ const spec = {
     check(await grid.getByRole('row').count() === 1 + 2, 'search narrows the roster', String(await grid.getByRole('row').count()));
     await page.getByRole('searchbox').fill('');
 
-    // archived NEC people stay off the automatic roster but can be added by hand
-    await page.getByRole('button', { name: 'Add employees' }).click();
-    const addArch = page.getByRole('dialog', { name: 'Add employees' });
-    await addArch.waitFor({ timeout: 5000 });
-    check(await addArch.getByText('Gail Greer').isVisible(), 'an archived person is offered for adding by hand');
-    check(await addArch.getByText(/Archived/).first().isVisible(), 'and marked as archived');
-    await addArch.getByRole('checkbox', { name: /Gail Greer/ }).check();
-    await addArch.getByRole('button', { name: 'Add 1 employee' }).click();
-    await addArch.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    check(await grid.getByText('Gail Greer').isVisible(), 'adding by hand puts them on the roster');
-    await shot(page, 'archived-added@1440');
+    // the roster is the register: no add-by-hand, archived stays off, the unclassified are named
+    check(!(await page.getByRole('button', { name: 'Add employees' }).isVisible().catch(() => false)), 'there is no add-by-hand escape hatch');
+    check(!(await grid.getByText('Gail Greer').isVisible().catch(() => false)), 'an archived person never appears on the roster');
+    check(!(await grid.getByText('Eve Epsilon').isVisible().catch(() => false)), 'a person with no employment type is on no roster');
+    check(await page.getByText('1 person has no employment type').isVisible(), 'the unclassified are named in a notice');
+    check(await page.getByText(/Eve Epsilon/).first().isVisible(), 'the notice names Eve Epsilon');
+    await page.getByRole('button', { name: 'Dismiss the employment-type notice' }).click();
+    check(!(await page.getByText('1 person has no employment type').isVisible().catch(() => false)), 'the notice dismisses');
+    await shot(page, 'roster-register@1440');
 
     // enter a day
     await cellOf('Bob Beta', w0).click();
@@ -125,16 +123,38 @@ const spec = {
     const after = calls.filter(c => (c.method === 'POST' || c.method === 'PATCH') && c.pathname.startsWith('/api/timesheets')).length;
     check(after - before === 2, 'filling two days writes two entries', String(after - before));
 
+    // every road leads to bulk assign
+    check(await page.getByRole('button', { name: 'Bulk assign shifts' }).first().isVisible(), 'the header names bulk assign in full');
+    check(await page.getByRole('button', { name: 'Assign shifts to many people / days' }).isVisible(), 'a labelled button sits above the grid');
+    check(await grid.getByRole('button', { name: 'Assign shifts' }).first().isVisible(), 'each row names the action in words');
+    check(await page.getByText('Entering the same shift for many people?').isVisible(), 'a mostly-empty period suggests bulk entry');
+    await grid.getByRole('checkbox', { name: /Select Ann Alpha/ }).check();
+    check(await page.getByText('1 employee selected').isVisible(), 'ticking a row raises the selection bar');
+    await page.getByRole('button', { name: 'Assign or clear shifts' }).click();
+    const selBulk = page.getByRole('dialog', { name: 'Bulk assign or clear shifts' });
+    await selBulk.waitFor({ timeout: 5000 });
+    check(await selBulk.getByText('Ann Alpha').isVisible(), 'the bar opens the dialog with the ticked person');
+    await selBulk.getByRole('button', { name: 'Done' }).click();
+    await selBulk.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await page.getByRole('button', { name: 'Clear selection' }).click();
+
     // bulk entry
-    await page.getByRole('button', { name: 'Bulk entry' }).click();
+    await page.getByRole('button', { name: 'Bulk assign shifts' }).first().click();
     const bulk = page.getByRole('dialog', { name: 'Bulk assign or clear shifts' });
     await bulk.waitFor({ timeout: 5000 });
+    check(await bulk.getByText('1. People').isVisible(), 'the dialog reads as numbered steps');
+    check(await bulk.getByText('2. What to enter').isVisible(), 'step two names what is entered');
+    check(await bulk.getByText('3. Days').isVisible(), 'step three names the days');
+    await bulk.getByRole('radio', { name: /Standard shift for each person's role/ }).click();
+    check(await bulk.getByText('1 person × 10 h').isVisible(), 'the role choice shows the live shift summary');
+    await bulk.getByRole('radio', { name: /Same times for everyone/ }).click();
     await bulk.getByRole('button', { name: 'Weekdays' }).click();
     const applyBtn = bulk.getByRole('button', { name: /^Apply \d+ entries$/ });
     check(await applyBtn.isVisible(), 'choosing the weekdays prepares the entries');
     await shot(page, 'bulk@1440');
     const wd = weekdays.length;
     check((await applyBtn.textContent()).includes(String(wd)), `one entry for each weekday for the one person selected (${wd})`, await applyBtn.textContent());
+    check(await bulk.getByText(`${wd} entries = 1 person × ${wd} days`).isVisible(), 'the footer explains the count as people × days');
     const bulkBefore = calls.filter(c => c.method === 'POST' && c.pathname === '/api/timesheets').length;
     await applyBtn.click();
     await page.waitForTimeout(900);
@@ -143,14 +163,16 @@ const spec = {
     await bulk.getByRole('button', { name: 'Done' }).click();
     await bulk.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
-    // add a person the roster missed
-    await page.getByRole('button', { name: 'Add employees' }).click();
-    const add = page.getByRole('dialog', { name: 'Add employees' });
-    await add.waitFor({ timeout: 5000 });
-    await add.getByRole('checkbox', { name: /Eve Epsilon/ }).check();
-    await add.getByRole('button', { name: 'Add 1 employee' }).click();
-    await add.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    check(await grid.getByText('Eve Epsilon').isVisible(), 'a person added by hand appears on the roster');
+    // the single-day dialog points at bulk too
+    await cellOf('Cy Gamma', w3).click();
+    const entryDlg = page.getByRole('dialog', { name: 'Timesheet entry' });
+    await entryDlg.waitFor({ timeout: 5000 });
+    await entryDlg.getByRole('button', { name: 'Assign shifts in bulk instead' }).click();
+    const linkBulk = page.getByRole('dialog', { name: 'Bulk assign or clear shifts' });
+    await linkBulk.waitFor({ timeout: 5000 });
+    check(await linkBulk.getByText('Cy Gamma').isVisible(), 'the entry link opens bulk for that person');
+    await linkBulk.getByRole('button', { name: 'Done' }).click();
+    await linkBulk.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     // period notes belong to their period
     await page.getByRole('textbox', { name: /^Ann Alpha/ }).fill('Covering for Bob');
@@ -161,12 +183,8 @@ const spec = {
     await page.waitForTimeout(500);
     check((await page.getByRole('textbox', { name: /^Ann Alpha/ }).inputValue().catch(() => '')) === 'Covering for Bob', 'and the note is still there when you come back');
 
-    // copy previous asks before replacing
-    await page.getByRole('button', { name: 'Copy previous period' }).click();
-    await page.waitForTimeout(600);
-    const copyConfirm = page.getByRole('alertdialog');
-    if (await copyConfirm.isVisible().catch(() => false)) { check(/replacing/.test(await copyConfirm.textContent()), 'copying over existing entries says how many it replaces'); await copyConfirm.getByRole('button', { name: 'Cancel' }).click(); await copyConfirm.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}); }
-    else check(await page.getByText(/Saved \d+ entr/).first().isVisible().catch(() => false), 'copying into empty days saves the entries');
+    // copy previous is gone: periods differ, so each period is entered on its own
+    check(!(await page.getByRole('button', { name: 'Copy previous period' }).isVisible().catch(() => false)), 'there is no copy-previous escape hatch');
 
     // download
     await page.getByRole('button', { name: 'More' }).click();

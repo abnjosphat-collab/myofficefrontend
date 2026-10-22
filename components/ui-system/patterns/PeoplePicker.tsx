@@ -15,11 +15,14 @@ import { Field } from '../primitives/Field';
 import { Combobox } from '../overlays/Combobox';
 import { useEmployees, type EmployeeLookup } from '@/hooks/useLookups';
 import { readRecentPeople, recordRecentPerson } from '@/lib/peopleHistory';
+import { formatMineNumber } from '@/lib/registerMatch';
 
 /** How one employee reads in every picker: full name, then first + last, then the ID. */
 export function lookupName(e: EmployeeLookup): string {
-  return ((e.full_name || (e.name as string) || `${e.first_name || ''} ${e.last_name || ''}`).trim()
-    || String(e.employee_id || e.id || 'Employee'));
+  const named = (e.full_name || (e.name as string) || `${e.first_name || ''} ${e.last_name || ''}`).trim();
+  if (named) return named;
+  if (String(e.employee_id ?? '').trim()) return formatMineNumber(e.employee_id);
+  return String(e.id || 'Employee');
 }
 
 /** A register segment worth showing: blank and dot-only numbers (junk typed on the register) read as missing. */
@@ -30,7 +33,8 @@ function cleanSegment(raw: string | null | undefined): string {
 
 /** One description line under the name: ID and designation, skipping blanks. */
 function lookupDescription(e: EmployeeLookup): string {
-  return [cleanSegment(e.employee_id), cleanSegment(e.designation || e.position)].filter(s => s !== '').join(' · ');
+  const id = String(e.employee_id ?? '').trim();
+  return [id ? formatMineNumber(e.employee_id) : '', cleanSegment(e.designation || e.position)].filter(s => s !== '').join(' · ');
 }
 
 export interface EmployeeOption {

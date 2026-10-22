@@ -3,6 +3,7 @@
 // "extract + test business logic" standard (app/timesheets/calcTotals.ts precedent).
 // Previously inline in page.tsx with no test coverage at all.
 import { daysUntil } from '@/lib/dates';
+import { matchesTypeFilter, normalizePpeType, type TypeFilter } from './ppeTypes';
 import type { PPERecord } from './types';
 
 /** Trim + uppercase so PM453 / pm453n match the register. */
@@ -73,17 +74,18 @@ export function computeComplianceRate(records: PPERecord[]): number | null {
 }
 
 // Monday-Sunday week boundary — same convention as app/overtime/calcOvertime.ts's
-// mondayOf/toISODate (kept local rather than shared: this file only needs the one
-// "week containing this date" shape, not overtime's fuller weekly-rollup toolkit).
-// mondayOf takes a Date so it's directly testable without faking system time.
-function mondayOf(d: Date): Date {
+// mondayOf/toISODate (kept here: this file only needs the one "week containing
+// this date" shape, not overtime's fuller weekly-rollup toolkit; orderBasket.ts
+// reuses these for its week windows). mondayOf takes a Date so it's directly
+// testable without faking system time.
+export function mondayOf(d: Date): Date {
   const day = d.getDay(); // 0=Sun..6=Sat
   const diff = (day + 6) % 7; // days since the most recent Monday
   const m = new Date(d);
   m.setDate(d.getDate() - diff);
   return m;
 }
-const toISODate = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const toISODate = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Defaults to the week containing right now — the "This Week" quick-preset for the
 // Overdue/Expiring Soon date-range picker. Accepts an explicit `now` for testing.
@@ -117,10 +119,10 @@ export function computeSizeBreakdown(records: PPERecord[]): SizeBreakdown {
 }
 
 // ─── ORDER LIST ─────────────────────────────────────────────────────────────
-// A lightweight, browser-local "cart" of specific due/expiring items someone has
-// flagged to actually order — distinct from computeSizeBreakdown above, which is a
-// live read of all active stock. This is a manually curated subset (see useOrderList),
-// so record_id uniqueness is enforced there at add-time, not here.
+// The order "basket": overdue items join on their own (see orderBasket.ts); what
+// someone flags by hand — items due later, free lines, exclusions — is kept on
+// the server (`/api/ppe-order-list`, see useOrderList), so everyone who signs in
+// sees the same list. record_id uniqueness is enforced there at add-time, not here.
 
 export interface OrderListEntry {
   record_id: string;
@@ -130,13 +132,23 @@ export interface OrderListEntry {
   expiry_date?: string | null;
   /** When this entry was flagged for ordering (ISO timestamp). */
   added_at?: string;
+  /** What the stored line is: an order line, a free line, or an exclusion. Missing on rows stored before the basket (read as 'line'). */
+  kind?: 'line' | 'free' | 'excluded';
+  /** Stored lines are always manual; the automatic lines are computed, never stored. Missing on old rows. */
+  source?: 'manual';
+  /** How many to order (edited on the order list). Missing on old rows: read as 1. */
+  qty?: number;
+  /** A note for the purchaser. Missing on old rows: read as ''. */
+  note?: string;
+  /** Where a basket line comes from — display-only, never stored (the server drops it). Set by buildBasket, not by callers. */
+  origin?: 'auto' | 'manual' | 'free';
 }
 
 export type OrderListSortKey = 'expiry' | 'employee' | 'type' | 'item' | 'added';
 export type OrderListUrgency = 'all' | 'overdue' | 'soon';
 
 export interface OrderListFilters {
-  type?: string;
+  type?: TypeFilter;
   size?: string;
   search?: string;
   urgency?: OrderListUrgency;
@@ -144,11 +156,11 @@ export interface OrderListFilters {
 
 const normSize = (size?: string) => (size || '').trim() || 'Unspecified';
 
-export function filterOrderList(entries: OrderListEntry[], filters: OrderListFilters): OrderListEntry[] {
-  const { type = 'all', size = 'all', search = '', urgency = 'all' } = filters;
+export function filterOrderList<T extends OrderListEntry>(entries: readonly T[], filters: OrderListFilters): T[] {
+  const { type, size = 'all', search = '', urgency = 'all' } = filters;
   const q = search.trim().toLowerCase();
   return entries.filter(e => {
-    if (type !== 'all' && e.ppe_type !== type) return false;
+    if (type && !matchesTypeFilter(e.ppe_type, type)) return false;
     if (size !== 'all' && normSize(e.size) !== size) return false;
     if (urgency === 'overdue' && !isExpired(e.expiry_date)) return false;
     if (urgency === 'soon' && !(isExpiringSoon(e.expiry_date) && !isExpired(e.expiry_date))) return false;
@@ -160,7 +172,7 @@ export function filterOrderList(entries: OrderListEntry[], filters: OrderListFil
   });
 }
 
-export function sortOrderList(entries: OrderListEntry[], sortBy: OrderListSortKey, dir: 'asc' | 'desc' = 'asc'): OrderListEntry[] {
+export function sortOrderList<T extends OrderListEntry>(entries: readonly T[], sortBy: OrderListSortKey, dir: 'asc' | 'desc' = 'asc'): T[] {
   const mul = dir === 'asc' ? 1 : -1;
   const dateKey = (d?: string | null) => (d ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER);
   return [...entries].sort((a, b) => {
@@ -176,10 +188,11 @@ export function sortOrderList(entries: OrderListEntry[], sortBy: OrderListSortKe
   });
 }
 
-/** True when a newly issued item fulfills an order-list line (same person + type + size). */
+/** True when a newly issued item fulfills an order-list line (same person + type + size). A free line (no person) is never fulfilled by an issue. */
 export function orderEntryFulfilled(entry: OrderListEntry, employeeId: string, ppeType: string, size: string): boolean {
+  if (!entry.employee_id) return false;
   return entry.employee_id === employeeId
-    && entry.ppe_type === ppeType
+    && normalizePpeType(entry.ppe_type) === normalizePpeType(ppeType)
     && normSize(entry.size) === normSize(size);
 }
 
@@ -189,16 +202,18 @@ export interface OrderGroupRow {
 }
 
 // Groups the order list the way a purchase order actually needs it: "Safety Shoes,
-// size 8, qty 3" with who each one is for — not a flat per-person list. Sorted by qty
-// descending (biggest reorder need first), then item name for a stable order among ties.
+// size 8, qty 3" with who each one is for — not a flat per-person list. Quantities
+// add up (a line edited to 4 counts 4); each person is named once no matter how
+// many lines they have. Sorted by qty descending (biggest reorder need first),
+// then item name for a stable order among ties.
 export function groupOrderList(entries: OrderListEntry[]): OrderGroupRow[] {
   const byKey = new Map<string, OrderGroupRow>();
   entries.forEach(e => {
     const size = (e.size || '').trim() || 'Unspecified';
     const key = `${e.ppe_type}::${size}`;
     const row = byKey.get(key) ?? { ppe_type: e.ppe_type, item_name: e.item_name, size, count: 0, people: [] };
-    row.count++;
-    row.people.push(e.employee_name);
+    row.count += e.qty ?? 1;
+    if (e.employee_name && !row.people.includes(e.employee_name)) row.people.push(e.employee_name);
     byKey.set(key, row);
   });
   return [...byKey.values()].sort((a, b) => b.count - a.count || a.item_name.localeCompare(b.item_name));

@@ -4,11 +4,11 @@
 // list is only requested once the caller is known to be a manager.
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,7 @@ import { PRIORITY_TONE, TYPE_TONE, isOverdue } from './meta';
 import { PRIORITIES, TASK_TYPES, type TaskEvent, type TaskEventFormData } from './types';
 import { completeTaskEvent, createTaskEvent, deleteTaskEvent, reopenTaskEvent, updateTaskEvent, useTasksEvents } from './useTasksEventsData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 
 const ALL = '__all__';
 const EXPORT_COLUMNS: DLColumn[] = [
@@ -39,6 +40,19 @@ function Board({ completedBy }: { completedBy: string }) {
   const [formOpen, setFormOpen] = useState(false);
   const [viewingId, setViewingId] = useState<number | null>(null);
   const viewing = useMemo(() => items.find(i => i.id === viewingId) ?? null, [items, viewingId]);
+  // Bell deep link (?open=<id>): land on the task or event (list-find only —
+  // the server has no single-task GET, D46).
+  const [deepNotice, setDeepNotice] = useState<string | null>(null);
+  useRecordDeepLink({
+    records: items,
+    ready: loaded || !!error,
+    listFailed: !loaded && !!error,
+    getId: i => i.id,
+    onOpen: record => setViewingId(record.id),
+    onMissing: (id, reason) => setDeepNotice(reason === 'gone'
+      ? `That task or event (#${id}) is no longer on the board — it may have been deleted or completed.`
+      : `That task or event (#${id}) could not be loaded — try again from the bell.`),
+  });
 
   const pendingItems = items.filter(i => i.status === 'pending');
   const completedItems = items.filter(i => i.status === 'completed');
@@ -102,6 +116,10 @@ function Board({ completedBy }: { completedBy: string }) {
           </>
         )}
       />
+
+      {deepNotice && (
+        <Notice tone="warning" title={deepNotice} action={<Button size="sm" variant="ghost" aria-label="Dismiss notification message" onClick={() => setDeepNotice(null)}>Dismiss</Button>} />
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="Total" value={items.length} loading={pending} unavailable={unavailable} selected={statusF === ALL && !overdueOnly} onClick={clearFilters} />
@@ -174,7 +192,7 @@ function TasksEventsContent() {
   if (loading) return <LoadingPulse label="Checking your access" />;
   if (!profile) return <EmptyState icon="lock" title="Sign in required" description="Sign in with a manager account (top right) to view events and tasks." />;
   if (!isAtLeast('manager')) return null;
-  return <Board completedBy={profile.email || profile.id} />;
+  return <Suspense fallback={null}><Board completedBy={profile.email || profile.id} /></Suspense>;
 }
 
 export default function TasksEventsPage() {

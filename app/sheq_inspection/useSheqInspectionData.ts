@@ -3,9 +3,19 @@
 // load is reported (never an empty list) through useApiList.
 'use client';
 
-import { api } from '@/lib/apiClient';
+import { api, ApiError } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import type { SHEQFormData } from './types';
+
+/** One inspection for a `?open=` deep link; null when the server has no such record. */
+export async function fetchInspectionById(id: string): Promise<SHEQFormData | null> {
+  try {
+    return await api.get<SHEQFormData>(`/api/sheq/${id}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
 
 export const createInspection = (data: Partial<SHEQFormData>) => api.post<SHEQFormData>('/api/sheq/', data);
 export const updateInspection = (id: string, data: Partial<SHEQFormData>) => api.patch<SHEQFormData>(`/api/sheq/${id}/`, data);

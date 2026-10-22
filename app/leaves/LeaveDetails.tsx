@@ -11,12 +11,22 @@ import { daysText, statusMeta } from './leaveMeta';
 import { RecordHistory } from '@/components/shared/RecordHistory';
 import type { Leave } from './types';
 
-export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus }: {
+export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus, initialAction }: {
   leave: Leave | null; onClose: () => void; onEdit: (l: Leave) => void; onDelete: (l: Leave) => void;
   /** Throws to say why a change was refused. */
   onStatus: (l: Leave, status: Leave['status']) => Promise<void>;
+  /** Deep-link entry: open the approve/reject gate once for the given leave. */
+  initialAction?: 'approved' | 'rejected' | null;
 }) {
   const [pending, setPending] = useState<'approved' | 'rejected' | null>(null);
+  // Deep-link entry, one shot per leave: adjusted during render (the
+  // documented pattern for state derived from props), so closing the gate
+  // never reopens it while the same leave is showing.
+  const [actedFor, setActedFor] = useState<string | null>(null);
+  if (leave && initialAction && actedFor !== leave.id) {
+    setActedFor(leave.id);
+    setPending(initialAction);
+  }
   const type = leave ? typeOf(leave.leave_type) : null;
   const meta = leave ? statusMeta(leave.status) : null;
 
