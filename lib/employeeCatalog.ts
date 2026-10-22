@@ -29,6 +29,7 @@ export const DESIGNATION_ORDER: string[] = [
   'Plumber Assistant',
   'Light Vehicle Driver',
   'Bus Driver',
+  'Draughtsman',
   'Foreman',
   'Supervisor',
   'Engineering Manager',
@@ -107,6 +108,8 @@ const DESIGNATION_ALIASES: Record<string, string> = {
   driver: 'Light Vehicle Driver',
   'bus driver': 'Bus Driver',
   'bus drivers': 'Bus Driver',
+  'draughtsman': 'Draughtsman',
+  'draftsman': 'Draughtsman',
   'engineering manager': 'Engineering Manager',
   'maintenance engineer': 'Maintenance Engineer',
   'planning superintendant': 'Planning Superintendent',
@@ -139,6 +142,8 @@ const DESIGNATION_SECTION: Record<string, string> = {
   'Maintenance Engineer': 'Management',
   // A Planning Superintendent sits in Management on this site (owner's call, 2026-10-18).
   'Planning Superintendent': 'Management',
+  // The drawing office supports mine planning on this site (matches the current roster).
+  'Draughtsman': 'Planning',
 };
 
 /** Known mis-labelled employees — applied by name during normalize/save (case-insensitive). */

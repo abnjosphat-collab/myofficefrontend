@@ -62,6 +62,11 @@ describe('normalizeDesignation', () => {
     expect(normalizeDesignation('Planning Superintendant')).toBe('Planning Superintendent');
     expect(normalizeDesignation('Superintendent Planning')).toBe('Planning Superintendent');
   });
+  it('canonicalizes Draughtsman and the draftsman variant', () => {
+    expect(normalizeDesignation('Draughtsman')).toBe('Draughtsman');
+    expect(normalizeDesignation('draughtsman')).toBe('Draughtsman');
+    expect(normalizeDesignation('draftsman')).toBe('Draughtsman');
+  });
 });
 
 describe('isStandardDesignation', () => {
@@ -70,6 +75,7 @@ describe('isStandardDesignation', () => {
     expect(isStandardDesignation('Boilermaker Semi Skilled')).toBe(true);
     expect(isStandardDesignation('Light Vehicle Driver')).toBe(true);
     expect(isStandardDesignation('Planning Superintendent')).toBe(true);
+    expect(isStandardDesignation('Draughtsman')).toBe(true);
     expect(isStandardDesignation('Graduate Trainee')).toBe(false);
   });
 });
@@ -82,6 +88,7 @@ describe('designationSelectOptions', () => {
     expect(opts.some(o => o.value === 'Light Vehicle Driver')).toBe(true);
     expect(opts.some(o => o.value === 'Bus Driver')).toBe(true);
     expect(opts.some(o => o.value === 'Planning Superintendent')).toBe(true);
+    expect(opts.some(o => o.value === 'Draughtsman')).toBe(true);
     expect(opts.length).toBe(DESIGNATION_ORDER.length + 1);
   });
   it('prepends legacy value when editing a non-standard role', () => {
@@ -148,6 +155,8 @@ describe('sectionForDesignation', () => {
     expect(sectionForDesignation('Engineering Manager')).toBe('Management');
     expect(sectionForDesignation('Planning Superintendent')).toBe('Management');
     expect(sectionForDesignation('Planning Superintendant')).toBe('Management');
+    expect(sectionForDesignation('Draughtsman')).toBe('Planning');
+    expect(sectionForDesignation('draftsman')).toBe('Planning');
     expect(sectionForDesignation('Foreman')).toBeNull();
     expect(sectionForDesignation('Light Vehicle Driver')).toBeNull();
   });
