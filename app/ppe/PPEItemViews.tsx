@@ -1,5 +1,5 @@
 // app/ppe/PPEItemViews.tsx — what one person holds, and one item in full. Each item says where it stands against its expiry in words and
-// offers its actions in a menu: view, edit, mark not required (or active again), add to the order list, delete.
+// offers its actions in a menu: view, edit, mark not required (or active again), archive (or restore), add to the order list, delete.
 'use client';
 
 import { Button, Dialog, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
@@ -10,7 +10,7 @@ import { STANDING_LABEL, standing, type Standing } from './ppeLogic';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import type { EmployeeWithPPE, PPERecord } from './types';
 
-export interface ItemActions { onView: (r: PPERecord) => void; onEdit: (r: PPERecord) => void; onDelete: (r: PPERecord) => void; onToggleNotRequired: (r: PPERecord) => void; onOrder?: (r: PPERecord) => void; ordered?: (r: PPERecord) => boolean }
+export interface ItemActions { onView: (r: PPERecord) => void; onEdit: (r: PPERecord) => void; onDelete: (r: PPERecord) => void; onToggleNotRequired: (r: PPERecord) => void; onToggleArchive: (r: PPERecord) => void; onOrder?: (r: PPERecord) => void; ordered?: (r: PPERecord) => boolean }
 const STANDING_TONE = { overdue: 'danger', soon: 'warning', ok: 'success', none: 'neutral' } as const;
 
 export function StandingBadge({ r }: { r: PPERecord }) {
@@ -28,6 +28,7 @@ export function ItemMenu({ r, a }: { r: PPERecord; a: ItemActions }) {
         <MenuItem icon="eye" onSelect={() => a.onView(r)}>View details</MenuItem>
         <MenuItem icon="edit" onSelect={() => a.onEdit(r)}>Edit</MenuItem>
         <MenuItem icon={r.status === 'not_required' ? 'undo' : 'close'} onSelect={() => a.onToggleNotRequired(r)}>{r.status === 'not_required' ? 'Mark active again' : 'Mark not required'}</MenuItem>
+        <MenuItem icon={r.status === 'archived' ? 'undo' : 'archive'} onSelect={() => a.onToggleArchive(r)}>{r.status === 'archived' ? 'Restore to active' : 'Archive'}</MenuItem>
         {due && a.onOrder && <MenuItem icon="cart" disabled={a.ordered?.(r)} onSelect={() => a.onOrder?.(r)}>{a.ordered?.(r) ? 'Already on the order list' : 'Add to the order list'}</MenuItem>}
         <MenuSeparator />
         <MenuItem icon="delete" onSelect={() => a.onDelete(r)}>Delete</MenuItem>

@@ -33,5 +33,6 @@ export const conditionMeta = (c: string) => CONDITIONS.find(x => x.value === c) 
 export const STATUSES: { value: string; label: string; tone: Tone }[] = [
   { value: 'active', label: 'Active', tone: statusTone('active') }, { value: 'expired', label: 'Due', tone: statusTone('expired') }, { value: 'returned', label: 'Returned', tone: statusTone('returned') },
   { value: 'lost', label: 'Lost', tone: statusTone('lost') }, { value: 'damaged', label: 'Damaged', tone: statusTone('damaged') }, { value: 'not_required', label: 'Not required', tone: statusTone('not_required') },
+  { value: 'archived', label: 'Archived', tone: statusTone('archived') },
 ];
 export const statusMeta = (s: string) => STATUSES.find(x => x.value === s) ?? { value: s, label: s || 'Unknown', tone: 'neutral' as Tone };

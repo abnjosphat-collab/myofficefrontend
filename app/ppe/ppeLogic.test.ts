@@ -17,6 +17,7 @@ describe('standing', () => {
     expect(standing(rec({ expiry_date: day(31) }))).toBe('ok');
     expect(standing(rec({ expiry_date: null }))).toBe('ok');
     expect(standing(rec({ status: 'returned', expiry_date: day(-5) }))).toBe('none');
+    expect(standing(rec({ status: 'archived', expiry_date: day(-5) }))).toBe('none');
   });
 });
 
@@ -169,7 +170,7 @@ describe('renewalTarget (issuing from the order list renews the item in place; n
   });
   it('is a plain new issue when the record is gone or already closed', () => {
     expect(renewalTarget([], '7', issue)).toBeUndefined();
-    for (const status of ['returned', 'lost', 'damaged', 'not_required', 'expired'] as const) expect(renewalTarget([rec({ id: '7', status })], '7', issue)).toBeUndefined();
+    for (const status of ['returned', 'lost', 'damaged', 'not_required', 'expired', 'archived'] as const) expect(renewalTarget([rec({ id: '7', status })], '7', issue)).toBeUndefined();
   });
   it('never touches the record when the issue is for another person or another kind of PPE', () => {
     const old = rec({ id: '7' });

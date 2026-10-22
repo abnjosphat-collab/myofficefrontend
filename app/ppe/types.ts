@@ -11,7 +11,7 @@ export interface PPERecord {
   ppe_type: string; item_name: string; size: string;
   issue_date: string; expiry_date: string | null;
   condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
-  status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged' | 'not_required';
+  status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged' | 'not_required' | 'archived';
   notes: string; issued_by: string; location: string; mine_section: string;
   /** Moves on every save; sent back as `expected_updated_at` when editing so a save from a stale copy is refused. */
   updated_at?: string;

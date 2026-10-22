@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
   Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  deriveDataStatus, isTransientStatus, useConfirm, MoreMenu,
+  deriveDataStatus, isTransientStatus, useConfirm, MoreMenu, type MoreMenuItem,
   LoadingPulse,
 } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
@@ -168,10 +168,35 @@ function PPEContent() {
     if (first) toast.error(`${ids.length - ok} could not be updated: ${(first.reason as Error).message}`);
     await recs.refetch();
   };
+  const toggleArchive = async (r: PPERecord) => {
+    const next = r.status === 'archived' ? 'active' : 'archived';
+    try { await setPPEStatus(r.id, next); toast.success(next === 'archived' ? 'Archived.' : 'Restored to active.'); await recs.refetch(); }
+    catch (e) { toast.error(`The status was not changed: ${(e as Error).message}`); }
+  };
+  const archiveAll = async (h: EmployeeWithPPE) => {
+    const ids = h.records.filter(r => r.status !== 'archived').map(r => String(r.id));
+    if (!ids.length) return;
+    const results = await Promise.allSettled(ids.map(id => setPPEStatus(id, 'archived')));
+    const ok = results.filter(r => r.status === 'fulfilled').length;
+    const first = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (ok) toast.success(`${ok} ${ok === 1 ? 'item' : 'items'} archived.`);
+    if (first) toast.error(`${ids.length - ok} could not be archived: ${(first.reason as Error).message}`);
+    await recs.refetch();
+  };
+  const deleteAll = (h: EmployeeWithPPE) => {
+    const ids = h.records.map(r => String(r.id));
+    if (!ids.length) return;
+    void confirmBulkDelete({
+      title: `Delete all ${ids.length} PPE ${ids.length === 1 ? 'record' : 'records'} for ${h.employee_name}?`,
+      message: `${summariseNames(h.records.map(r => typeName(r.ppe_type)))}. This cannot be undone.`,
+      ids, run: id => deletePPERecord(String(id)), singular: 'PPE record', plural: 'PPE records',
+      after: () => { setHolderId(null); recs.refetch(); },
+    });
+  };
   const addToOrder = (entries: OrderListEntry[]) => { const addable = entries.filter(e => !covered.has(e.record_id)); const fresh = addable.filter(e => !order.has(e.record_id)).length; order.addMany(addable); toast.success(fresh ? `${fresh} ${fresh === 1 ? 'item' : 'items'} added to the order list.` : 'Already on the order list.'); };
   const keepManual = (ids: string[]) => { ids.forEach(id => order.update(id, { kind: 'line', source: 'manual' })); };
   const actions: ItemActions = {
-    onView: r => setItemId(String(r.id)), onEdit: openEdit, onDelete: remove, onToggleNotRequired: toggleNotRequired,
+    onView: r => setItemId(String(r.id)), onEdit: openEdit, onDelete: remove, onToggleNotRequired: toggleNotRequired, onToggleArchive: toggleArchive,
     onOrder: r => { addToOrder([{ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date }]); }, ordered: r => covered.has(String(r.id)),
   };
 
@@ -197,6 +222,13 @@ function PPEContent() {
     reload();
   };
 
+  const cardMenuItems = (h: EmployeeWithPPE): MoreMenuItem[] => {
+    const archivable = h.records.filter(r => r.status !== 'archived').length;
+    return [
+      { label: `Archive all ${archivable} ${archivable === 1 ? 'item' : 'items'}`, icon: 'archive', disabled: archivable === 0, onSelect: () => archiveAll(h) },
+      { label: `Delete all ${h.records.length} ${h.records.length === 1 ? 'item' : 'items'}`, icon: 'delete', onSelect: () => deleteAll(h) },
+    ];
+  };
   const badges = (h: EmployeeWithPPE) => {
     if (h.records.length === 0) return <StatusBadge tone="neutral">No PPE issued yet</StatusBadge>;
     const o = h.records.filter(r => standing(r) === 'overdue').length; const s = h.records.filter(r => standing(r) === 'soon').length;
@@ -263,7 +295,7 @@ function PPEContent() {
                   <RecordCard
                     eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
                     facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
-                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}</div>}
+                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}</div>}
                   />
                 </li>
               ))}
