@@ -136,6 +136,24 @@ const spec = {
     const posted = [...calls].reverse().find(c => c.method === 'POST' && c.pathname === '/api/ppe');
     check(!!posted && posted.body?.employee_id === 'C400' && !('department' in (posted.body ?? {})), 'the issue posts the picked number and no department (the server stamps it)');
 
+    // bulk issue: one shared item for several people, one POST each, no department posted
+    await page.getByRole('button', { name: 'Bulk issue' }).click();
+    const bulk = dialog('Bulk issue');
+    await bulk.waitFor({ timeout: 5000 });
+    await bulk.getByRole('button', { name: 'Issue PPE' }).click();
+    check(await bulk.getByText('Add at least one employee.').isVisible(), 'an empty bulk submit names the people list');
+    await bulk.getByRole('combobox', { name: 'Employees' }).click();
+    await page.getByRole('option', { name: /Dee Delta/ }).click();
+    await bulk.getByRole('combobox', { name: 'Employees' }).click();
+    await page.getByRole('option', { name: /Ann Alpha/ }).waitFor({ timeout: 5000 });
+    check(!(await page.getByRole('option', { name: /Eve Epsilon/ }).isVisible().catch(() => false)), 'the bulk picker offers no archived people');
+    await page.getByRole('option', { name: /Ann Alpha/ }).click();
+    await bulk.getByLabel(/^Item or brand/).fill('Fixture bulk visors');
+    await bulk.getByRole('button', { name: 'Issue to 2 people' }).click();
+    await bulk.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const bulks = [...calls].reverse().filter(c => c.method === 'POST' && c.pathname === '/api/ppe').slice(0, 2);
+    check(bulks.length === 2 && bulks.every(c => !('department' in (c.body ?? {}))) && bulks.map(c => c.body?.employee_id).sort().join(',') === 'C100,C400', 'the bulk issue posts one record per person, each with its own number and no department', JSON.stringify(bulks.map(c => c.body?.employee_id)));
+
     // due items: the overdue on-register item is already on the basket (automatic); flagging it again says so and sends nothing
     await page.getByRole('tab', { name: 'Due items' }).click();
     const due = page.getByRole('table', { name: 'Overdue PPE' });

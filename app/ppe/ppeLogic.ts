@@ -137,3 +137,22 @@ export function formProblems(f: Pick<FormState, 'employee_id' | 'item_name' | 'p
   if (f.expiry_date && f.issue_date && f.expiry_date < f.issue_date) out.expiry_date = 'The expiry cannot be before the issue date.';
   return out;
 }
+
+/** How many of these people already hold this kind of PPE issued on this day and still open: the client-side echo of
+ * backend/app/ppe_conflicts.py (same person + kind + day, closed ones excluded). A warning only — the server's 409
+ * is the refusal, so this never blocks a save. */
+const CLOSED_ISSUE = new Set(['returned', 'replaced', 'lost', 'disposed', 'cancelled']);
+export function countBulkIssueDupes(records: PPERecord[], ids: string[], ppeType: string, issueDay: string): number {
+  const type = (ppeType || '').trim().toLowerCase();
+  const day = (issueDay || '').slice(0, 10);
+  if (!type || !day) return 0;
+  const want = new Set(ids.map(id => normalizeEmployeeId(id)));
+  const hit = new Set<string>();
+  for (const r of records) {
+    const key = normalizeEmployeeId(r.employee_id);
+    if (!want.has(key) || hit.has(key)) continue;
+    if (CLOSED_ISSUE.has(String(r.status || 'active').toLowerCase())) continue;
+    if ((r.ppe_type || '').trim().toLowerCase() === type && (r.issue_date || '').slice(0, 10) === day) hit.add(key);
+  }
+  return hit.size;
+}

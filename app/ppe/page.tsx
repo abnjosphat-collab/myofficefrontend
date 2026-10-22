@@ -19,6 +19,7 @@ import { enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './ca
 import { DueItems } from './DueItems';
 import { MatrixDialog } from './MatrixDialog';
 import { OrderListView, type BasketAddables } from './OrderListView';
+import { PPEBulkIssueForm } from './PPEBulkIssueForm';
 import { PPEIssueForm } from './PPEIssueForm';
 import { EmployeePPEDetail, PPEItemDetail, type ItemActions } from './PPEItemViews';
 import { NO_EMPLOYEE_FILTERS, filterEmployees, groupByEmployee, renewalTarget, sectionCounts, standing, summarise, type EmployeeFilters, type EmployeeView } from './ppeLogic';
@@ -49,6 +50,7 @@ function PPEContent() {
   const [holderId, setHolderId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const register = useRegisterCheck();
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const [typeFilter, setTypeFilterState] = useState<TypeFilter>(() => (typeof window === 'undefined' ? NO_TYPE_FILTER : loadTypeFilter(k => window.localStorage.getItem(k))));
@@ -250,6 +252,7 @@ function PPEContent() {
           <>
             <IconButton icon="refresh" label="Refresh PPE" variant="shell" pending={recs.loading && recs.loaded} onClick={reload} />
             <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
+            <Button icon="plus" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Bulk issue</Button>
             <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
           </>
         )}
@@ -322,6 +325,7 @@ function PPEContent() {
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
       <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
       <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
+      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} />
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>
   );

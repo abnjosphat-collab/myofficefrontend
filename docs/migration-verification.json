@@ -286,8 +286,8 @@
     "/ppe": {
       "status": "verified",
       "date": "2026-10-22",
-      "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px (820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states. Oct 2026 re-verification (U4/U5/U6): register-driven people (blank cards, unmatched pseudos, PersonPicker, server stamp, Personnel links, ?person= ring), the shared order basket (automatic/manual/free lines, exclusions, LineEdit/Choose/Free dialogs, PO lines, tidy banner), the persisted type lens (include/exclude, counts, week/choose helpers); two spec entries green. Screenshots inspected; no live data; downloads not opened in their apps.",
-      "note": "Register pattern with tabs. The order list is shared (server): automatic overdue lines plus manual and free lines, per-record exclusions, tidy banner for legacy rows."
+      "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px (820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states. Oct 2026 re-verification (U4/U5/U6): register-driven people (blank cards, unmatched pseudos, PersonPicker, server stamp, Personnel links, ?person= ring), the shared order basket (automatic/manual/free lines, exclusions, LineEdit/Choose/Free dialogs, PO lines, tidy banner), the persisted type lens (include/exclude, counts, week/choose helpers); two spec entries green. Screenshots inspected; no live data; downloads not opened in their apps. 22 Oct bulk issue: Bulk-issue dialog (people chips, shared item form, dupe warning, per-person POSTs, counted submit), spec + probe green at 1440/390.",
+      "note": "Register pattern with tabs. The order list is shared (server): automatic overdue lines plus manual and free lines, per-record exclusions, tidy banner for legacy rows. Bulk-issue dialog (one item, many people)."
     },
     "/breakdowns": {
       "status": "verified",

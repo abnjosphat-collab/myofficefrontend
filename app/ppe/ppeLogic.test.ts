@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { indexRegister, matchToRegister } from '@/lib/registerMatch';
-import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, renewalTarget, sectionCounts, sizeCounts, standing, summarise } from './ppeLogic';
+import { NO_DUE_FILTERS, NO_EMPLOYEE_FILTERS, countBulkIssueDupes, dueItems, expiryFor, filterEmployees, formProblems, groupByEmployee, renewalTarget, sectionCounts, sizeCounts, standing, summarise } from './ppeLogic';
 import { enrichPPERecords } from './calcPPE';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import { todayLocal, addMonths } from '@/lib/dates';
@@ -176,5 +176,22 @@ describe('renewalTarget (issuing from the order list renews the item in place; n
     const old = rec({ id: '7' });
     expect(renewalTarget([old], '7', { employee_id: 'C2', ppe_type: 'helmet' })).toBeUndefined();
     expect(renewalTarget([old], '7', { employee_id: 'C1', ppe_type: 'gloves' })).toBeUndefined();
+  });
+});
+
+describe('countBulkIssueDupes (bulk-issue warning only; the server 409 is the refusal)', () => {
+  const rows = [
+    rec({ id: '1', employee_id: 'C1', ppe_type: 'helmet', issue_date: day(0) }),
+    rec({ id: '2', employee_id: 'C2', ppe_type: 'Helmet ', issue_date: day(0) }),
+    rec({ id: '3', employee_id: 'C3', ppe_type: 'helmet', issue_date: day(-1) }),
+    rec({ id: '4', employee_id: 'C4', ppe_type: 'helmet', issue_date: day(0), status: 'returned' }),
+    rec({ id: '5', employee_id: 'C5', ppe_type: 'gloves', issue_date: day(0) }),
+  ];
+  it('counts each person once when they hold the kind issued that day, ignoring case, spacing, other days, closed records and other kinds', () => {
+    expect(countBulkIssueDupes(rows, ['C1', 'C2', 'C3', 'C4', 'C5', 'C9'], 'helmet', day(0))).toBe(2);
+  });
+  it('counts nobody when the kind or day is missing', () => {
+    expect(countBulkIssueDupes(rows, ['C1'], '', day(0))).toBe(0);
+    expect(countBulkIssueDupes(rows, ['C1'], 'helmet', '')).toBe(0);
   });
 });
