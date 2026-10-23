@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
@@ -40,6 +41,7 @@ const PatternTag = ({ type }: { type: string }) => { const p = patternOf(type); 
 
 function ShiftsContent() {
   const confirm = useConfirm();
+  const { scope } = useAuth();
   const { assignments: list, leaves, refresh } = useShiftsData();
   const items = list.items;
   const [view, setView] = useViewPreference('shifts', VIEW_CARDS_TABLE);
@@ -123,7 +125,7 @@ function ShiftsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Time and attendance' }, { label: 'Shifts' }]}
         title="Shifts"
-        description="Who is on duty, off duty or on standby, by shift cycle."
+        description={scope ? `Who is on duty, off duty or on standby, by shift cycle — showing ${scope} only.` : 'Who is on duty, off duty or on standby, by shift cycle.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded) || (duty.loading && duty.loaded)} onClick={() => { refresh(); duty.refetch(); }} />
@@ -168,7 +170,7 @@ function ShiftsContent() {
         status={status} subject="shift assignments" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No assignments match" description="Try a different search or filter." action={<Button onClick={clear}>Clear filters</Button>} />
-          : <EmptyState icon="clock" title="No shifts assigned yet" description="Assign the first shift cycle." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button>} />}
+          : scope ? <EmptyState icon="clock" title={`No ${scope} shifts assigned yet`} description="Assign the first shift cycle." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button>} /> : <EmptyState icon="clock" title="No shifts assigned yet" description="Assign the first shift cycle." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Shift views">

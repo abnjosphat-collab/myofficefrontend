@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, Combobox, DataRegion, DataTable, EmptyState, Field, IconButton, Notice, PageHeader, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm, type Column, FilterField
 } from '@/components/ui-system';
@@ -27,6 +28,7 @@ interface Open { draft: ArtisanTimesheetDraft; baseline: string; recordId: numbe
 
 function ArtisanContent() {
   const confirm = useConfirm();
+  const { scope } = useAuth();
   const staff = useStaff();
   const reference = useReference();
   const artisans = useMemo(() => artisansOf(staff.items), [staff.items]);
@@ -156,13 +158,13 @@ function ArtisanContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Artisan timesheets' }]}
         title="Artisan timesheets"
-        description="Formal monthly daily timesheets for salaried artisans."
+        description={scope ? `Formal monthly daily timesheets for salaried artisans — showing ${scope} only.` : 'Formal monthly daily timesheets for salaried artisans.'}
         actions={<IconButton icon="refresh" label="Refresh artisan timesheets" variant="ghost" pending={(staff.loading && staff.loaded) || (saved.loading && saved.loaded)} onClick={() => { void staff.refetch(); void saved.refetch(); reference.refetch(); }} />}
       />
 
       <DataRegion
         status={staffStatus} subject="artisans" error={staff.error} onRetry={() => staff.refetch()} loadingContent={<TimesheetLoading label="Loading artisans" detail={['Reading the employee register…', 'Finding the artisans…']} />}
-        empty={<EmptyState icon="artisans" title="No artisan employees found" description="Only active salaried employees appear here. Set the employment type on the Personnel page first." />}
+        empty={<EmptyState icon="artisans" title={scope ? `No ${scope} artisan employees found` : 'No artisan employees found'} description="Only active salaried employees appear here. Set the employment type on the Personnel page first." />}
       >
         <div className="flex flex-wrap items-end gap-3">
           <Field label="Artisan" className="w-full sm:w-72"><Combobox aria-label="Artisan" value={pick} onValueChange={setPick} options={artisanOptions} placeholder="Search artisans" /></Field>

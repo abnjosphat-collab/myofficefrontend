@@ -12,6 +12,7 @@ import {
   deriveDataStatus, isTransientStatus, useConfirm, MoreMenu, type MoreMenuItem,
   LoadingPulse,
 } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
 import { todayLocal } from '@/lib/dates';
 import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
@@ -46,6 +47,7 @@ function PPEContent() {
   const order = useOrderList();
   const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
+  const { scope } = useAuth();
   const [form, setForm] = useState<{ record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; fulfils: string | null } | null>(null);
   const [holderId, setHolderId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -108,11 +110,14 @@ function PPEContent() {
   const activeHolders = useMemo(() => holders.filter(h => h.archived !== true), [holders]);
   const sections = useMemo(() => sectionCounts(visibleHolders), [visibleHolders]);
   const dueSections = useMemo(() => sectionCounts(activeHolders), [activeHolders]);
-  const inSection = useMemo(() => (f.section === ALL ? activeHolders : activeHolders.filter(h => normalizeSection(h.section) === f.section)), [activeHolders, f.section]);
+  // A scoped account's section is pinned, not chosen: the Section filters are
+  // hidden and every other filter applies within their section.
+  const effF = useMemo(() => (scope ? { ...f, section: scope } : f), [f, scope]);
+  const inSection = useMemo(() => (effF.section === ALL ? activeHolders : activeHolders.filter(h => normalizeSection(h.section) === effF.section)), [activeHolders, effF.section]);
   const sectionRecords = useMemo(() => inSection.flatMap(h => h.records), [inSection]);
   const unmatched = useMemo(() => holders.filter(h => register.matchOf(h) !== 'linked'), [holders, register]);
   const unmatchedRecordIds = useMemo(() => unmatched.flatMap(h => h.records.map(r => r.id)), [unmatched]);
-  const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, f), [visibleHolders, unmatched, unmatchedOnly, f]);
+  const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, effF), [visibleHolders, unmatched, unmatchedOnly, effF]);
   const stats = useMemo(() => summarise(visibleRecords, visibleHolders), [visibleRecords, visibleHolders]);
   const scoped = useMemo(() => summarise(sectionRecords.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), inSection), [sectionRecords, inSection, typeFilter]);
   const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(h => normalizeEmployeeId(h.employee_id))); return records.filter(r => r.status === 'active' && !arch.has(normalizeEmployeeId(r.employee_id))); }, [records, holders]);
@@ -247,7 +252,7 @@ function PPEContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
         title="PPE"
-        description="Who holds what, what is due, and what to order."
+        description={scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh PPE" variant="shell" pending={recs.loading && recs.loaded} onClick={reload} />
@@ -277,7 +282,7 @@ function PPEContent() {
         <TabsContent value="employees" className="mt-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search name, ID or position" wrapperClassName="min-w-48 max-w-sm flex-1" />
-            <Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
+            {!scope && (<Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />)}
             {filtered && <Button variant="ghost" icon="close" onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>}
             {archivedCount > 0 && <Button size="sm" variant="ghost" icon="archive" aria-pressed={showArchived} onClick={() => setShowArchived(v => !v)}>{showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}</Button>}
           </div>
@@ -289,7 +294,7 @@ function PPEContent() {
               ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>} />
               : hiddenAllArchived
               ? <EmptyState icon="archive" title="Everyone with PPE is archived" description="Show them to look through their records." action={<Button onClick={() => setShowArchived(true)}>Show archived</Button>} />
-              : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
+              : scope ? <EmptyState icon="ppe" title={`No ${scope} PPE issued yet`} description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} /> : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}</p>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
@@ -307,8 +312,8 @@ function PPEContent() {
         </TabsContent>
 
         <TabsContent value="due" className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...dueSections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>
-          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={f.section !== ALL} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
+          {!scope && (<div className="flex flex-wrap items-center gap-3"><Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...dueSections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} /></div>)}
+          {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={scope ? true : f.section !== ALL} scopeName={scope ?? null} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
         </TabsContent>
 
         <TabsContent value="order" className="mt-4">

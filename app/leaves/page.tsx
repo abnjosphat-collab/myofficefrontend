@@ -66,7 +66,7 @@ function LeavesContent() {
     if (s) setF(prev => ({ ...prev, status: s }));
   }, []);
   // Bell deep link (?open=<id>&sign=approve): land on the record, gate up for a manager.
-  const { isAtLeast, loading: authLoading } = useAuth();
+  const { isAtLeast, loading: authLoading, scope } = useAuth();
   const [deepNotice, setDeepNotice] = useState<string | null>(null);
   const [deepSign, setDeepSign] = useState<'approved' | null>(null);
   useRecordDeepLink({
@@ -159,7 +159,7 @@ function LeavesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Time and attendance' }, { label: 'Leaves' }]}
         title="Leaves"
-        description="Apply for leave, review requests and record decisions."
+        description={scope ? `Apply for leave, review requests and record decisions — showing ${scope} only.` : 'Apply for leave, review requests and record decisions.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh leave requests" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
@@ -223,7 +223,7 @@ function LeavesContent() {
             status={status} subject="leave requests" error={list.error} onRetry={() => list.refetch()}
             empty={hasFilters
               ? <EmptyState icon="search" title="No leave requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
-              : <EmptyState icon="calendar" title="No leave requests yet" description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} />}
+              : scope ? <EmptyState icon="calendar" title={`No ${scope} leave requests yet`} description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} /> : <EmptyState icon="calendar" title="No leave requests yet" description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {leaves.length} requests</p>
             {view === 'cards' ? (
@@ -263,7 +263,7 @@ function LeavesContent() {
           {!list.loaded ? (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Requests tab.</p> : <LoadingPulse compact label="Loading requests" />) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Panel title="By leave type" description="Select a type to see its requests.">
-                <Distribution rows={byType.map(t => ({ name: typeOf(t.key).shortName, value: t.count }))} empty="No requests yet." />
+                <Distribution rows={byType.map(t => ({ name: typeOf(t.key).shortName, value: t.count }))} empty={scope ? `No ${scope} requests yet.` : 'No requests yet.'} />
                 <div className="mt-3 flex flex-wrap gap-2">
                   {byType.map(t => <Button key={t.key} size="sm" onClick={() => { set({ type: t.key }); setTab('requests'); }}>{typeOf(t.key).shortName}: {t.totalDays} days</Button>)}
                 </div>

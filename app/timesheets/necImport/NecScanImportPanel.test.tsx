@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmProvider } from '@/components/ui-system';
@@ -14,6 +14,11 @@ vi.mock('./api', () => ({
   uploadReviewJson: vi.fn(),
   fetchPreview: vi.fn(),
   applyImport: vi.fn(),
+}));
+
+const authState = vi.hoisted(() => ({ scope: null as string | null }));
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ scope: authState.scope }),
 }));
 
 import * as necApi from './api';
@@ -136,5 +141,31 @@ describe('NecScanImportPanel apply confirm', () => {
     await user.click(screen.getByRole('button', { name: 'Dry-run apply' }));
     expect(mocked(necApi.applyImport)).toHaveBeenCalledWith('job-1', true);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('NecScanImportPanel scoped account', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authState.scope = 'Projects';
+    vi.mocked(necApi.fetchImportConfig).mockResolvedValue({ extraction_provider: 'none', requires_review_json_upload: true, env: 'test' });
+    mocked(necApi.createImportJob).mockResolvedValue(job);
+    mocked(necApi.fetchPreview).mockResolvedValue({ job, preview });
+  });
+  afterEach(() => { authState.scope = null; });
+
+  it('shows the whole-mine notice instead of the apply buttons', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfirmProvider>
+        <NecScanImportPanel period={period} open onClose={() => {}} />
+      </ConfirmProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Start import for this period' }));
+    await user.click(await screen.findByRole('button', { name: 'Preview changes' }));
+    expect(await screen.findByText('Only whole-mine accounts can apply imports')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Apply validated rows' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dry-run apply' })).not.toBeInTheDocument();
+    expect(mocked(necApi.applyImport)).not.toHaveBeenCalled();
   });
 });

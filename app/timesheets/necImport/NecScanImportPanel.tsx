@@ -13,6 +13,7 @@ import * as necApi from './api';
 const NEC_PDF_RULES = { maxBytes: 80 * 1024 * 1024, extensions: ['pdf'] };
 const NEC_REVIEW_RULES = { maxBytes: 40 * 1024 * 1024, extensions: ['json'] };
 import type { NecImportJob, NecImportPreview } from './types';
+import { useAuth } from '@/lib/auth-context';
 import { formatDate } from '@/lib/format';
 
 type Step = 'setup' | 'upload' | 'review' | 'done';
@@ -20,6 +21,7 @@ const payrollMonthFromPeriod = (period: Period) => ({ year: period.end.getFullYe
 const say = (e: unknown) => (e instanceof Error ? e.message : 'It did not work.');
 
 export function NecScanImportPanel({ period, open, onClose, onApplied }: { period: Period; open: boolean; onClose: () => void; onApplied?: () => void }) {
+  const { scope } = useAuth();
   const [step, setStep] = useState<Step>('setup');
   const [job, setJob] = useState<NecImportJob | null>(null);
   const [preview, setPreview] = useState<NecImportPreview | null>(null);
@@ -121,7 +123,7 @@ export function NecScanImportPanel({ period, open, onClose, onApplied }: { perio
               </table>
             </div>
             {exceptions.length > 80 && <p className="font-sans text-caption text-ink-muted">Showing 80 of {exceptions.length} exceptions.</p>}
-            <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => apply(true)}>Dry-run apply</Button><Button variant="primary" icon="check" pending={busy} disabled={busy} onClick={applyReal}>Apply validated rows</Button></div>
+            {scope ? <Notice tone="info" title="Only whole-mine accounts can apply imports">The preview above still shows this section&rsquo;s rows; ask a manager to apply the import.</Notice> : <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => apply(true)}>Dry-run apply</Button><Button variant="primary" icon="check" pending={busy} disabled={busy} onClick={applyReal}>Apply validated rows</Button></div>}
           </section>
         )}
 

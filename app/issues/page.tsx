@@ -18,7 +18,7 @@ import type { StockIssue } from './types';
 
 function IssuesContent() {
   const confirm = useConfirm();
-  const { profile } = useAuth();
+  const { profile, scope } = useAuth();
   const { issues: list, stats, spares, refresh } = useIssuesData();
   const issues = list.items;
   const [tab, setTab] = useState('log');
@@ -77,7 +77,7 @@ function IssuesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Inventory' }, { label: 'Stock issues' }]}
         title="Stock issues"
-        description="Record the items issued to people, and look back over the cost."
+        description={scope ? `Record the items issued to people, and look back over the cost — showing ${scope} only.` : 'Record the items issued to people, and look back over the cost.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh stock issues" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
@@ -150,7 +150,7 @@ function IssuesContent() {
             status={status} subject="stock issues" error={list.error} onRetry={() => refresh()}
             empty={hasFilters
               ? <EmptyState icon="search" title="No issue records match" description="Try a different search or dates." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-              : <EmptyState icon="issues" title="No issues recorded yet" description="Use the form above to record the first one." />}
+              : scope ? <EmptyState icon="issues" title={`No ${scope} issues recorded yet`} description="Use the form above to record the first one." /> : <EmptyState icon="issues" title="No issues recorded yet" description="Use the form above to record the first one." />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'}{filtered.length !== issues.length ? ` of ${issues.length}` : ''}</p>
             <DataTable

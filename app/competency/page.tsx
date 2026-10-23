@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, Card, DataRegion, DataTable, EmptyState, MetricGrid, MetricTile, PageHeader, Popover, PopoverContent, PopoverTrigger, Select,
   Toolbar, cn, deriveDataStatus, isTransientStatus, type Column,
@@ -91,6 +92,7 @@ const exportColumns: DLColumn[] = [
 ];
 
 function CompetencyContent() {
+  const { scope } = useAuth();
   const { employees, setEmployees, rawRows, loading, loaded, error, errorStatus, fetchEmployees } = useCompetencyData();
   const [tradeFilter, setTradeFilter] = useState('all');
 
@@ -136,7 +138,7 @@ function CompetencyContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Competency matrix' }]}
         title="Competency"
-        description="Employee skills and equipment qualification tracking."
+        description={scope ? `Employee skills and equipment qualification tracking — showing ${scope} only.` : 'Employee skills and equipment qualification tracking.'}
         actions={displayed.length > 0 && (
           <DownloadButton data={displayed as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Competency_Matrix')} title="Competency Matrix" />
         )}
@@ -159,7 +161,7 @@ function CompetencyContent() {
         onRetry={fetchEmployees}
         empty={filtered
           ? <EmptyState icon="search" title="No employees match these filters" description="Try a different trade." action={<Button onClick={() => setTradeFilter('all')}>Clear filter</Button>} />
-          : <EmptyState icon="training" title="No skill assessments yet" description="Assessments appear here once competency records exist." />}
+          : scope ? <EmptyState icon="training" title={`No ${scope} skill assessments yet`} description="Assessments appear here once competency records exist." /> : <EmptyState icon="training" title="No skill assessments yet" description="Assessments appear here once competency records exist." />}
       >
         <DataTable caption="Competency matrix: skill level by employee" rows={displayed} columns={columns} getRowId={e => String(e.id)} density="compact" />
       </DataRegion>

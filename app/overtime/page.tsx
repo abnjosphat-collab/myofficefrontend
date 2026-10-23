@@ -204,7 +204,7 @@ function OvertimeContent() {
   };
   const openGate = (kind: 'approve' | 'reject', rs: OTRecord[]) => { setViewingId(null); setGate({ kind, ids: rs.map(r => String(r.id)) }); };
   // Bell deep link (?open=<id>&sign=approve): land on the record, gate up for a manager.
-  const { isAtLeast, loading: authLoading } = useAuth();
+  const { isAtLeast, loading: authLoading, scope } = useAuth();
   const [deepNotice, setDeepNotice] = useState<string | null>(null);
   useRecordDeepLink({
     records,
@@ -256,7 +256,7 @@ function OvertimeContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Overtime' }]}
         title="Overtime"
-        description="Submit overtime, approve it with a signature, and see where the hours go."
+        description={scope ? `Submit overtime, approve it with a signature, and see where the hours go — showing ${scope} only.` : 'Submit overtime, approve it with a signature, and see where the hours go.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
@@ -337,7 +337,7 @@ function OvertimeContent() {
             status={status} subject="overtime requests" error={list.error} onRetry={() => list.refetch()}
             empty={filtered
               ? <EmptyState icon="search" title="No overtime requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
-              : <EmptyState icon="clock" title="No overtime requests yet" description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} />}
+              : scope ? <EmptyState icon="clock" title={`No ${scope} overtime requests yet`} description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} /> : <EmptyState icon="clock" title="No overtime requests yet" description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'request' : 'requests'}{matches.length !== records.length ? ` of ${records.length}` : ''}</p>
             {view === 'cards' ? (

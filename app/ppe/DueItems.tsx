@@ -17,8 +17,8 @@ import type { PPERecord } from './types';
 const ALL = 'all';
 export const toOrderEntry = (r: PPERecord): OrderListEntry => ({ record_id: String(r.id), employee_id: r.employee_id, employee_name: r.employee_name, ppe_type: r.ppe_type, item_name: r.item_name, size: r.size, expiry_date: r.expiry_date, added_at: new Date().toISOString() });
 
-export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToOrder, sectionActive, typeFilter, typeOptions, onTypeFilterChange }: {
-  records: PPERecord[]; counts: { overdue: number; soon: number }; actions: ItemActions; onBulkNotRequired: (ids: string[]) => Promise<void>; onAddToOrder: (entries: OrderListEntry[]) => void; sectionActive: boolean;
+export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToOrder, sectionActive, scopeName, typeFilter, typeOptions, onTypeFilterChange }: {
+  records: PPERecord[]; counts: { overdue: number; soon: number }; actions: ItemActions; onBulkNotRequired: (ids: string[]) => Promise<void>; onAddToOrder: (entries: OrderListEntry[]) => void; sectionActive: boolean; scopeName?: string | null;
   typeFilter: TypeFilter; typeOptions: FilterOption[]; onTypeFilterChange: (patch: Partial<TypeFilter>) => void;
 }) {
   const [mode, setMode] = useState<DueMode>('overdue');
@@ -72,7 +72,7 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
       {rows.length === 0 ? (
         filtered
           ? <EmptyState icon="search" title="Nothing matches" description="Try fewer filters." action={localActive ? <Button onClick={reset}>Clear filters</Button> : undefined} />
-          : <EmptyState icon="success" title={`No ${mode === 'overdue' ? 'overdue' : 'expiring soon'} items${sectionActive ? ' in this section' : ''}`} description={sectionActive ? 'Choose All sections to see everything.' : 'All PPE is up to date.'} />
+          : <EmptyState icon="success" title={`No ${mode === 'overdue' ? 'overdue' : 'expiring soon'} items${sectionActive ? ' in this section' : ''}`} description={scopeName ? `All ${scopeName} PPE is up to date.` : sectionActive ? 'Choose All sections to see everything.' : 'All PPE is up to date.'} />
       ) : (
         <>
           <p className="font-sans text-caption text-ink-muted" role="status">{rows.length} {rows.length === 1 ? 'item' : 'items'}</p>
