@@ -59,6 +59,9 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@iconify-json/energy-icons": "^1.2.4",
+    "@iconify-json/healthicons": "^1.2.13",
+    "@iconify-json/iconoven": "^1.2.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",

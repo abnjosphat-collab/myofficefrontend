@@ -15,6 +15,7 @@ agents.
 | Product quality and boundaries | [`PRODUCT.md`](./PRODUCT.md) |
 | Application wiring and failure handling | [`ENGINEERING_STANDARDS.md`](./ENGINEERING_STANDARDS.md) |
 | UI stack and theme architecture | [`UI_ARCHITECTURE.md`](./UI_ARCHITECTURE.md) |
+| Icon sets installed for later (not used yet) | [`ICON_SETS.md`](./ICON_SETS.md) |
 | Documentation conventions | [`DOCUMENTATION_STANDARD.md`](./DOCUMENTATION_STANDARD.md) |
 | Shared component contracts | [`../components/ui-system/README.md`](../components/ui-system/README.md) |
 | Retired Classic principles and migration checklist | [`CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md`](./CLASSIC_DESIGN_SYSTEM_ARCHIVE_2026-09-29.md) |
