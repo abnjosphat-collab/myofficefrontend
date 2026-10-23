@@ -3,7 +3,7 @@
  * distinguishes the same cases and never renders a failed request as "no records".
  *
  *   loading       first fetch, nothing to show yet            → skeleton
- *   retrying      a transient failure is being retried        → skeleton + "still trying" copy
+ *   retrying      a transient failure is being retried        → skeleton, plus a "still trying" line with Try again once the retry has run 20 s
  *   refreshing    background reload, records already visible  → keep records, subtle indicator
  *   stale-error   refresh failed but records remain           → keep records + "may be out of date" banner
  *   unauthorized  401/403                                     → access message (never an empty list)

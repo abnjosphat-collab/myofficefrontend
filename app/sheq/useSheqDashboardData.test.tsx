@@ -15,47 +15,66 @@ const queueLoad = (marker: string) => {
 describe('SHEQ dashboard loading', () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it('exposes a failed source and recovers with all modules on retry', async () => {
+  it('renders the loaded modules, names the failed source, and recovers on retry', async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error('Supabase is waking up'));
     for (let index = 0; index < 5; index += 1) vi.mocked(api.get).mockResolvedValueOnce([]);
     queueLoad('recovered');
 
     const { result } = renderHook(() => useSheqDashboardData());
-    await waitFor(() => expect(result.current.loadError).toBe('Supabase is waking up'));
-    expect(result.current.lastUpdated).toBeNull();
-    expect(toast.error).toHaveBeenCalledWith('Failed to load dashboard data');
+    await waitFor(() => expect(result.current.failedSources).toEqual(['Near Miss']));
+    expect(result.current.loadError).toBe('');
+    expect(result.current.lastUpdated).not.toBeNull();
+    expect(result.current.raw.ws).toEqual([]);
+    expect(toast.error).not.toHaveBeenCalled();
 
     await act(async () => result.current.refresh());
-    expect(result.current.loadError).toBe('');
+    expect(result.current.failedSources).toEqual([]);
     expect(result.current.raw.nm[0]?.id).toBe('nm-recovered');
     expect(result.current.raw.pach[0]?.id).toBe('pach-recovered');
-    expect(result.current.lastUpdated).not.toBeNull();
   });
 
-  it('preserves the complete dashboard when a refresh fails', async () => {
+  it('keeps the failed module stale on refresh while updating the rest', async () => {
     queueLoad('existing');
     vi.mocked(api.get).mockRejectedValueOnce(new Error('Service unavailable'));
-    for (let index = 0; index < 5; index += 1) vi.mocked(api.get).mockResolvedValueOnce([]);
+    for (const rows of [[{ id: 'ws-new' }], [{ id: 'vfl-new' }], [{ id: 'pto-new' }], [{ id: 'insp-new' }], [{ id: 'pach-new' }]]) {
+      vi.mocked(api.get).mockResolvedValueOnce(rows);
+    }
 
     const { result } = renderHook(() => useSheqDashboardData());
     await waitFor(() => expect(result.current.raw.nm[0]?.id).toBe('nm-existing'));
     await act(async () => result.current.refresh());
 
     expect(result.current.raw.nm[0]?.id).toBe('nm-existing');
-    expect(result.current.raw.pach[0]?.id).toBe('pach-existing');
-    expect(result.current.loadError).toBe('Service unavailable');
+    expect(result.current.raw.ws[0]?.id).toBe('ws-new');
+    expect(result.current.raw.pach[0]?.id).toBe('pach-new');
+    expect(result.current.failedSources).toEqual(['Near Miss']);
+    expect(result.current.loadError).toBe('');
     expect(result.current.refreshing).toBe(false);
   });
 
-  it('rejects a malformed source instead of presenting it as an empty module', async () => {
+  it('reports one error when every source fails', async () => {
+    for (const label of ['nm', 'ws', 'vfl', 'pto', 'insp', 'pach']) {
+      vi.mocked(api.get).mockRejectedValueOnce(new Error(`${label} is down`));
+    }
+
+    const { result } = renderHook(() => useSheqDashboardData());
+    await waitFor(() => expect(result.current.loadError).toBe('nm is down'));
+    expect(result.current.lastUpdated).toBeNull();
+    expect(result.current.failedSources).toEqual([]);
+    expect(toast.error).toHaveBeenCalledWith('Failed to load dashboard data');
+  });
+
+  it('names a malformed source instead of failing the dashboard', async () => {
     vi.mocked(api.get).mockResolvedValueOnce({ records: [] });
     for (let index = 0; index < 5; index += 1) vi.mocked(api.get).mockResolvedValueOnce([]);
 
     const { result } = renderHook(() => useSheqDashboardData());
-    await waitFor(() => expect(result.current.loadError).toBe('Near Miss returned an invalid response.'));
+    await waitFor(() => expect(result.current.failedSources).toEqual(['Near Miss']));
 
-    expect(result.current.lastUpdated).toBeNull();
+    expect(result.current.loadError).toBe('');
+    expect(result.current.lastUpdated).not.toBeNull();
     expect(result.current.raw.nm).toEqual([]);
+    expect(result.current.raw.ws).toEqual([]);
   });
 
   it('ignores an older six-source response after a newer load succeeds', async () => {

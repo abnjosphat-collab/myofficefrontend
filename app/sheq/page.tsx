@@ -103,7 +103,7 @@ function ModuleCard({ label, href, total, rows, facts }: { label: string; href: 
 function SheqContent() {
   const confirm = useConfirm();
   const narrow = useMediaQuery('(max-width: 480px)');
-  const { raw, loading, refreshing, loadError, lastUpdated, refresh } = useSheqDashboardData();
+  const { raw, loading, refreshing, loadError, failedSources, lastUpdated, refresh } = useSheqDashboardData();
   const loaded = lastUpdated !== null;
   const [tab, setTab] = useState('overview');
   const [range, setRange] = useState<QuickRange | 'custom'>('all');
@@ -211,6 +211,8 @@ function SheqContent() {
         )}
       </Toolbar>
 
+      {failedSources.length > 0 && <Notice tone="warning" title="Some figures are incomplete" action={<Button size="sm" icon="refresh" onClick={() => refresh()}>Try again</Button>}>{failedSources.join(', ')} did not answer. The dashboard shows everything else.</Notice>}
+
       <DataRegion
         status={status}
         subject="the SHEQ dashboard"
@@ -220,7 +222,7 @@ function SheqContent() {
         empty={<EmptyState icon="compliance" title="No safety records yet" description="The dashboard fills in as near miss, work stoppage, VFL, PTO, inspection and Pachedu records are logged." />}
       >
         <MetricGrid compact>
-          <MetricTile compact label="Total reports" detail="All six modules" value={totals.totalReports} loading={pending} />
+          <MetricTile compact label="Total reports" detail={failedSources.length === 0 ? 'All six modules' : `${6 - failedSources.length} of 6 modules`} value={totals.totalReports} loading={pending} />
           <MetricTile compact label="Near miss" href="/near_miss" detail={`${stats.nm.mechanical} mech, ${stats.nm.electrical} elec, ${stats.nm.general} general`} value={stats.nm.total} loading={pending} />
           <MetricTile compact label="Work stoppages" href="/work_stoppage" detail={`${stats.ws.actPend} ${stats.ws.actPend === 1 ? 'action' : 'actions'} pending`} value={stats.ws.total} loading={pending} />
           <MetricTile compact label="VFL observations" href="/vfl" detail={`${stats.vfl.safe} safe, ${stats.vfl.unsafe} unsafe`} value={stats.vfl.total} loading={pending} />

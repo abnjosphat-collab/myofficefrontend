@@ -96,6 +96,6 @@ const spec = {
     check(await page.getByText('No notes yet').isVisible(), 'confirming deletes the note');
   },
   empty: { data: { '/api/nearmiss/': [], '/api/work-stoppage/': [], '/api/vfl/': [], '/api/pto/': [], '/api/sheq/': [], '/api/pachedu/': [] }, text: 'No safety records yet' },
-  failing: { paths: ['/api/vfl/'], text: 'The SHEQ dashboard could not be loaded', notShown: ['No safety records yet', 'Good standing'], async recovered(page, { check }) { check(await page.getByText('1 safe, 1 unsafe').isVisible(), 'Try again loads the dashboard'); } },
+  failing: { paths: ['/api/vfl/'], text: 'Some figures are incomplete', notShown: ['No safety records yet', 'Good standing', 'The SHEQ dashboard could not be loaded'], async recovered(page, { check }) { check(await page.getByText('1 safe, 1 unsafe').isVisible(), 'Try again loads the missing module'); check(!(await page.getByText('Some figures are incomplete').isVisible().catch(() => false)), 'the banner clears once every module answers'); } },
 };
 export default spec;
