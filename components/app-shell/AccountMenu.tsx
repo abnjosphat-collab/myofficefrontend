@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Dialog, Icon, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge } from '@/components/ui-system';
+import { Button, Dialog, Icon, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Tag } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { ROLE_LABELS } from '@/lib/roles';
 import { AuthForm } from './auth/AuthForm';
@@ -23,7 +23,7 @@ function Avatar({ url, size = 'md' }: { url: string | null; size?: 'md' | 'lg' }
 
 export function AccountMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
   const router = useRouter();
-  const { user, profile, loading, signOut, isAtLeast } = useAuth();
+  const { user, profile, loading, signOut, isAtLeast, scope } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'signup' | null>(null);
   const [securityOpen, setSecurityOpen] = useState(false);
 
@@ -48,6 +48,11 @@ export function AccountMenu({ onOpenSettings }: { onOpenSettings: () => void }) 
 
   return (
     <>
+      {scope && (
+        <span title={`This account only sees ${scope} records`}>
+          <Tag>{scope}</Tag>
+        </span>
+      )}
       <Menu>
         <MenuTrigger asChild>
           <IconButton icon="user" label={`Account menu for ${displayName}`} variant="shell" size="shell" />

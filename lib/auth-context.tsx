@@ -1,12 +1,14 @@
 // lib/auth-context.tsx — Supabase auth context + role/permission helpers
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
+import { profileScope } from './scope';
 import { needsChallenge, MFA_REQUIRED_EVENT } from './mfa';
 import { clearInputHistoryForUser, setInputHistoryUser } from './inputHistory';
+import { invalidateAllLookupCaches } from '@/hooks/useLookups';
 
 // ─── Context type ─────────────────────────────────────────────────────────────
 
@@ -26,6 +28,8 @@ interface AuthContextType {
   signOut:           () => Promise<void>;
   refreshProfile:    () => Promise<void>;
   isAtLeast:         (role: UserRole) => boolean;
+  // The account's section limit (lib/scope.ts), or null when not limited.
+  scope:             string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,7 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Typing history is keyed by account (F-13): point the store at the
   // signed-in user, or back at the shared fallback when signed out.
-  useEffect(() => { setInputHistoryUser(user?.id ?? null); }, [user]);
+  // The shared lookup caches are dropped on an account change for the same
+  // reason: cached rows may be the previous account's section slice.
+  const lastUserId = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const id = user?.id ?? null;
+    setInputHistoryUser(id);
+    if (lastUserId.current !== undefined && lastUserId.current !== id) invalidateAllLookupCaches();
+    lastUserId.current = id;
+  }, [user]);
 
   const loadProfile = async (u: User) => {
     const p = await upsertProfile(u);
@@ -199,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, profile, session, loading, mfaPending, completeMfaChallenge,
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
-      refreshProfile, isAtLeast,
+      refreshProfile, isAtLeast, scope: profileScope(profile),
     }}>
       {children}
     </AuthContext.Provider>
