@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, Card, Chart, ChartPanel, DataRegion, DataTable, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress,
   Segmented, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, useConfirm, useMediaQuery, usePersistentState,
@@ -102,6 +103,7 @@ function ModuleCard({ label, href, total, rows, facts }: { label: string; href: 
 
 function SheqContent() {
   const confirm = useConfirm();
+  const { scope } = useAuth();
   const narrow = useMediaQuery('(max-width: 480px)');
   const { raw, loading, refreshing, loadError, failedSources, lastUpdated, refresh } = useSheqDashboardData();
   const loaded = lastUpdated !== null;
@@ -191,7 +193,7 @@ function SheqContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ dashboard' }]}
         title="SHEQ"
-        description="Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu."
+        description={scope ? `Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu. \u2014 showing ${scope} only.` : 'Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu.'}
         actions={(
           <>
             <Button variant={autoRefresh ? "secondary" : "ghost"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
@@ -219,7 +221,7 @@ function SheqContent() {
         error={loadError || null}
         onRetry={() => refresh()}
         skeletonRows={4}
-        empty={<EmptyState icon="compliance" title="No safety records yet" description="The dashboard fills in as near miss, work stoppage, VFL, PTO, inspection and Pachedu records are logged." />}
+        empty={<EmptyState icon="compliance" title={scope ? `No ${scope} safety records yet` : 'No safety records yet'} description="The dashboard fills in as near miss, work stoppage, VFL, PTO, inspection and Pachedu records are logged." />}
       >
         <MetricGrid compact>
           <MetricTile compact label="Total reports" detail={failedSources.length === 0 ? 'All six modules' : `${6 - failedSources.length} of 6 modules`} value={totals.totalReports} loading={pending} />

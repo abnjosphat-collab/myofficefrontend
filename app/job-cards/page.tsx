@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
 import {
@@ -148,6 +149,7 @@ export function JobCardDetail({ jc, onClose, onSave }: { jc: JobCard; onClose: (
 type Filter = JCStatus | 'all';
 
 function JobCardsContent() {
+  const { scope } = useAuth();
   const { data: records, loading, error, refetch, update } = useModuleData<JobCard>('job-cards');
   const [selected, setSelected] = useState<JobCard | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -178,7 +180,7 @@ function JobCardsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Job cards' }]}
         title="Job cards"
-        description="Work order and job card management."
+        description={scope ? `Work order and job card management. \u2014 showing ${scope} only.` : 'Work order and job card management.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh job cards" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -208,7 +210,7 @@ function JobCardsContent() {
         onRetry={() => refetch()}
         empty={filter !== 'all' || search
           ? <EmptyState icon="search" title="No job cards match" description="Try a different search or status." action={<Button onClick={() => { setFilter('all'); setSearch(''); }}>Clear filters</Button>} />
-          : <EmptyState icon="task" title="No job cards yet" description="Job cards will appear here once they are created." />}
+          : scope ? <EmptyState icon="task" title={`No ${scope} job cards yet`} description="Job cards will appear here once they are created." /> : <EmptyState icon="task" title="No job cards yet" description="Job cards will appear here once they are created." />}
       >
         <DataTable caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
       </DataRegion>

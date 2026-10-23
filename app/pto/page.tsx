@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -18,7 +19,7 @@ import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
-const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
+const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'Projects'];
 const STATUSES: ReportStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
 const ALL = '__all__';
@@ -87,9 +88,10 @@ function ActionFields({ item, index, touched, onChange, onRemove }: { item: Acti
 }
 
 function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTOReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
-  useResetOnOpen(dialogKey(open, report?.id), () => { setTouched(false); setForm(report ? normalise(report) : emptyForm()); });
+  useResetOnOpen(dialogKey(open, report?.id), () => { setTouched(false); setForm(report ? normalise(report) : { ...emptyForm(), ...(scope ? { section: scope as SectionType } : {}) }); });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const updateAction = (id: string, patch: Partial<ActionPlanItem>) => set({ actionPlan: form.actionPlan.map(a => (a.id === id ? { ...a, ...patch } : a)) });
   const progress = summarizeActions(form.actionPlan);
@@ -113,7 +115,9 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTORep
           <h3 id="pto-basic" className="font-display text-section font-semibold text-ink sm:col-span-2">Observation</h3>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
           <Field label="Observer name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}><Input value={form.observerName} onChange={e => set({ observerName: e.target.value })} placeholder="Observer's full name" /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          {scope
+            ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account files observations in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <Field label="Department or contractor" optional><Input value={form.deptSectionContractor} onChange={e => set({ deptSectionContractor: e.target.value })} placeholder="Department or contractor" /></Field>
           <Field label="Worker name" required error={touched && !form.workerName.trim() ? 'Enter the worker’s name.' : undefined}><Input value={form.workerName} onChange={e => set({ workerName: e.target.value })} placeholder="Worker's full name" /></Field>
           <Field label="Occupation" optional><Input value={form.occupation} onChange={e => set({ occupation: e.target.value })} placeholder="Job title or occupation" /></Field>
@@ -275,10 +279,12 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function PTOContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePTOData();
   const [view, setView] = useViewPreference('pto', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [statusF, setStatusF] = useState(ALL);
   const [typeF, setTypeF] = useState(ALL);
   const [riskOnly, setRiskOnly] = useState(false);
@@ -294,10 +300,10 @@ function PTOContent() {
     const q = search.trim().toLowerCase();
     return reports.filter(r => {
       if (q && ![r.observerName, r.workerName, r.jobTaskObserved, r.occupation].some(s => s?.toLowerCase().includes(q)) && !r.actionPlan?.some(a => a.action?.toLowerCase().includes(q))) return false;
-      return (sectionF === ALL || r.section === sectionF) && (statusF === ALL || r.status === statusF) && (typeF === ALL || r.observationType === typeF)
+      return (effSection === ALL || r.section === effSection) && (statusF === ALL || r.status === statusF) && (typeF === ALL || r.observationType === typeF)
         && (!riskOnly || hasRiskFlag(r.riskAssessment)) && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo);
     });
-  }, [reports, search, sectionF, statusF, typeF, riskOnly, dateFrom, dateTo]);
+  }, [reports, search, effSection, statusF, typeF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'risk' ? (hasRiskFlag(r.riskAssessment) ? '1' : '0') : String(r[id as keyof PTOReport] ?? '').toLowerCase())), [filtered, sort]);
   const count = (s: ReportStatus) => reports.filter(r => r.status === s).length;
   const allActions = reports.flatMap(r => r.actionPlan || []);
@@ -337,7 +343,7 @@ function PTOContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Planned task observation' }]}
         title="Planned task observation"
-        description="Complete PTO forms with risk assessment and action tracking."
+        description={scope ? `Complete PTO forms with risk assessment and action tracking. \u2014 showing ${scope} only.` : 'Complete PTO forms with risk assessment and action tracking.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh PTO reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -380,7 +386,7 @@ function PTOContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, worker or task" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        {!scope && (<Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />)}
         <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
       </Toolbar>
 
@@ -391,7 +397,7 @@ function PTOContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No PTO reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} />}
+          : scope ? <EmptyState icon="task" title={`No ${scope} PTO reports yet`} description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} /> : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {allActions.filter(a => a.status === 'Completed').length} of {allActions.length} actions completed across all reports</p>
         {view === 'cards' ? (

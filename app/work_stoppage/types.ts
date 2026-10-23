@@ -5,7 +5,7 @@
 // also stay in page.tsx (business vocabulary, same as every
 // other page's config constants).
 
-export type SectionType = 'Mechanical' | 'Electrical' | 'General';
+export type SectionType = 'Mechanical' | 'Electrical' | 'General' | 'Projects';
 export type ActionStatus = 'Pending' | 'In Progress' | 'Completed';
 
 export interface CorrectiveAction {

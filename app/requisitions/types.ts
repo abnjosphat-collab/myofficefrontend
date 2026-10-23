@@ -16,7 +16,7 @@ export interface Requisition {
   id: string;
   date: string;
   requester: string;
-  section: 'Electrical' | 'Mechanical';
+  section: 'Electrical' | 'Mechanical' | 'Projects';
   required_for: string;
   priority: 'Critical' | 'High' | 'Medium' | 'Low';
   status: 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Processing' | 'Completed';

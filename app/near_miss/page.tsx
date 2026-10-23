@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -22,6 +23,7 @@ const SECTIONS: { value: Section; label: string; tone: Tone; icon: IconMeaning }
   { value: 'Mechanical', label: 'Mechanical', tone: 'info', icon: 'mechanical' },
   { value: 'Electrical', label: 'Electrical', tone: 'warning', icon: 'electrical' },
   { value: 'General', label: 'General / other', tone: 'neutral', icon: 'general' },
+  { value: 'Projects', label: 'Projects', tone: 'info', icon: 'building' },
 ];
 const SECTION_META = Object.fromEntries(SECTIONS.map(s => [s.value, s])) as Record<Section, (typeof SECTIONS)[number]>;
 const ALL = '__all__';
@@ -41,6 +43,7 @@ export const emptyForm = (): Form => ({
 });
 
 function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMissReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
@@ -50,7 +53,7 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
     setForm(report ? {
       department: report.department, section: report.section, date: report.date, time: report.time, location: report.location,
       description: report.description, witnessDetails: report.witnessDetails || '', reporterName: report.reporterName || '',
-    } : emptyForm());
+    } : { ...emptyForm(), ...(scope ? { section: scope as Section } : {}) });
   });
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(p => ({ ...p, [k]: v }));
   const names = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
@@ -78,7 +81,9 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
         <Field label="Department" required error={errors.department}>
           <SuggestField historyKey="nm_department" placeholder="For example, Engineering" value={form.department} onChange={v => set('department', v)} />
         </Field>
-        <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set('section', v as Section)} options={SECTIONS.map(s => ({ value: s.value, label: s.label }))} /></Field>
+        {scope
+          ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account files reports in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+          : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set('section', v as Section)} options={SECTIONS.map(s => ({ value: s.value, label: s.label }))} /></Field>}
         <Field label="Date"><Input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></Field>
         <Field label="Time"><Input type="time" value={form.time} onChange={e => set('time', e.target.value)} /></Field>
         <div className="sm:col-span-2">
@@ -145,9 +150,11 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function NearMissContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { reports, loading, loaded, error, errorStatus, refetch } = useNearMissData();
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL);
+  const effSection = scope ?? section;
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState<SortState>(null);
@@ -159,10 +166,10 @@ function NearMissContent() {
     const s = search.trim().toLowerCase();
     return reports.filter(r =>
       (!s || r.department?.toLowerCase().includes(s) || (r.reporterName || '').toLowerCase().includes(s) || r.location?.toLowerCase().includes(s))
-      && (section === ALL || r.section === section)
+      && (effSection === ALL || r.section === effSection)
       && (!dateFrom || r.date >= dateFrom)
       && (!dateTo || r.date <= dateTo));
-  }, [reports, search, section, dateFrom, dateTo]);
+  }, [reports, search, effSection, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof NearMissReport] ?? '').toLowerCase()), [filtered, sort]);
   const stats = useMemo(() => {
     const by = (s: Section) => reports.filter(r => r.section === s).length;
@@ -198,7 +205,7 @@ function NearMissContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Near miss' }]}
         title="Near miss"
-        description="Report dangerous occurrences. Every report helps prevent a future incident."
+        description={scope ? `Report dangerous occurrences. Every report helps prevent a future incident. \u2014 showing ${scope} only.` : 'Report dangerous occurrences. Every report helps prevent a future incident.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -217,9 +224,11 @@ function NearMissContent() {
 
       <MetricGrid compact>
         <MetricTile compact label="Total reports" value={stats.total} loading={pending} unavailable={unavailable} />
+        {!scope && (<>
         <MetricTile compact label="Mechanical" value={stats.mechanical} loading={pending} unavailable={unavailable} selected={section === 'Mechanical'} onClick={() => setSection(section === 'Mechanical' ? ALL : 'Mechanical')} />
         <MetricTile compact label="Electrical" value={stats.electrical} loading={pending} unavailable={unavailable} selected={section === 'Electrical'} onClick={() => setSection(section === 'Electrical' ? ALL : 'Electrical')} />
         <MetricTile compact label="General" value={stats.general} loading={pending} unavailable={unavailable} selected={section === 'General'} onClick={() => setSection(section === 'General' ? ALL : 'General')} />
+        </>)}
         <MetricTile compact label="Unique reporters" value={stats.reporters} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
@@ -235,7 +244,7 @@ function NearMissContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search department, reporter or location" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-44" aria-label="Filter by section" value={section} onValueChange={setSection} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s.value, label: s.label }))]} />
+        {!scope && (<Select className="w-44" aria-label="Filter by section" value={section} onValueChange={setSection} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s.value, label: s.label }))]} />)}
       </Toolbar>
 
       {byReporter.length > 0 && (
@@ -252,7 +261,7 @@ function NearMissContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No reports match" description="Try a different search, section or date range." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} />}
+          : scope ? <EmptyState icon="warning" title={`No ${scope} near miss reports yet`} description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} /> : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}</p>
         <DataTable

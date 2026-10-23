@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -23,7 +24,7 @@ import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const STATUSES: Requisition['status'][] = ['Draft', 'Pending', 'Approved', 'Rejected', 'Processing', 'Completed'];
 const PRIORITIES: Requisition['priority'][] = ['Critical', 'High', 'Medium', 'Low'];
-const SECTIONS: Requisition['section'][] = ['Electrical', 'Mechanical'];
+const SECTIONS: Requisition['section'][] = ['Electrical', 'Mechanical', 'Projects'];
 const ALL = '__all__';
 
 const STATUS_META: Record<Requisition['status'], { tone: Tone; icon: IconMeaning }> = {
@@ -67,19 +68,20 @@ function ItemFields({ item, index, count, touched, onChange, onRemove }: { item:
 }
 
 export function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisition; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const equipment = useApiList<{ id?: number | string; name?: string; location?: string; department?: string; category?: string }>('/api/equipment');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, req?.id), () => {
     setTouched(false);
-    setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items.map(toFormItem) : [newItem()], notes: req.notes ?? '' } : emptyForm());
+    setForm(req ? { date: req.date, requester: req.requester, section: req.section, required_for: req.required_for, priority: req.priority, status: req.status, requisitionNumber: req.requisitionNumber, items: req.items.length ? req.items.map(toFormItem) : [newItem()], notes: req.notes ?? '' } : { ...emptyForm(), ...(scope ? { section: scope as Requisition['section'] } : {}) });
   });
   const set = (p: Partial<Form>) => setForm(f => ({ ...f, ...p }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), section: e.department })), [employees]);
   const assets = useMemo(() => equipment.items.filter(e => e.name).map(e => ({ name: String(e.name), section: String(e.location ?? e.department ?? e.category ?? '') })), [equipment.items]);
-  const setRequester = (name: string) => { const m = people.find(p => p.name === name); set({ requester: name, ...(m && SECTIONS.includes(m.section as Requisition['section']) ? { section: m.section as Requisition['section'] } : {}) }); };
-  const setRequiredFor = (value: string) => { const a = assets.find(x => x.name === value); set({ required_for: value, ...(a && SECTIONS.includes(a.section as Requisition['section']) ? { section: a.section as Requisition['section'] } : {}) }); };
+  const setRequester = (name: string) => { const m = people.find(p => p.name === name); set({ requester: name, ...(!scope && m && SECTIONS.includes(m.section as Requisition['section']) ? { section: m.section as Requisition['section'] } : {}) }); };
+  const setRequiredFor = (value: string) => { const a = assets.find(x => x.name === value); set({ required_for: value, ...(!scope && a && SECTIONS.includes(a.section as Requisition['section']) ? { section: a.section as Requisition['section'] } : {}) }); };
   const setItem = (i: number, p: Partial<RequisitionFormItem>) => set({ items: form.items.map((it, idx) => (idx === i ? { ...it, ...p } : it)) });
   const total = formItemTotal(form.items);
 
@@ -108,7 +110,9 @@ export function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisit
             </Field>
           </div>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as Requisition['section'] })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          {scope
+            ? <Field label="Section" description={req ? 'The section stays as it is.' : `Your account raises requisitions in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as Requisition['section'] })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <Field label="Priority"><Select aria-label="Priority" value={form.priority} onValueChange={v => set({ priority: v as Requisition['priority'] })} options={PRIORITIES.map(p => ({ value: p, label: p }))} /></Field>
           <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v as Requisition['status'] })} options={STATUSES.map(s => ({ value: s, label: s }))} /></Field>
           <div className="sm:col-span-2">
@@ -187,12 +191,14 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function RequisitionsContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { reqs, loading, loaded, error, errorStatus, refetch } = useRequisitionsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState(ALL);
   const [priorityF, setPriorityF] = useState(ALL);
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sort, setSort] = useState<SortState>(null);
@@ -203,10 +209,10 @@ function RequisitionsContent() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return reqs.filter(r =>
-      (statusF === ALL || r.status === statusF) && (priorityF === ALL || r.priority === priorityF) && (sectionF === ALL || r.section === sectionF)
+      (statusF === ALL || r.status === statusF) && (priorityF === ALL || r.priority === priorityF) && (effSection === ALL || r.section === effSection)
       && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo)
       && (!q || r.requester.toLowerCase().includes(q) || r.requisitionNumber.toLowerCase().includes(q) || r.required_for.toLowerCase().includes(q) || r.items.some(i => i.description.toLowerCase().includes(q))));
-  }, [reqs, statusF, priorityF, sectionF, dateFrom, dateTo, search]);
+  }, [reqs, statusF, priorityF, effSection, dateFrom, dateTo, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'cost' ? String(Math.round(itemTotal(r.items) * 100)).padStart(14, '0') : String(r[id as keyof Requisition] ?? '').toLowerCase())), [filtered, sort]);
   const sum = (list: Requisition[]) => list.reduce((s, r) => s + itemTotal(r.items), 0);
   const stats = useMemo(() => ({ total: filtered.length, value: sum(filtered), pending: filtered.filter(r => r.status === 'Pending').length, approved: filtered.filter(r => r.status === 'Approved').length, critical: filtered.filter(r => r.priority === 'Critical').length }), [filtered]);
@@ -240,7 +246,7 @@ function RequisitionsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Requisitions' }]}
         title="Requisitions"
-        description="Raise, track and approve purchase requests."
+        description={scope ? `Raise, track and approve purchase requests. \u2014 showing ${scope} only.` : 'Raise, track and approve purchase requests.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh requisitions" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -272,7 +278,7 @@ function RequisitionsContent() {
         activeCount={[sectionF !== ALL, dateFrom !== '', dateTo !== ''].filter(Boolean).length}
         moreFilters={(
           <>
-            <FilterField label="Section"><Select aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} /></FilterField>
+            {!scope && (<FilterField label="Section"><Select aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} /></FilterField>)}
             <FilterField label="From date"><Input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></FilterField>
             <FilterField label="To date"><Input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></FilterField>
           </>
@@ -290,7 +296,7 @@ function RequisitionsContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No requisitions match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="requisition" title="No requisitions yet" description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} />}
+          : scope ? <EmptyState icon="requisition" title={`No ${scope} requisitions yet`} description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} /> : <EmptyState icon="requisition" title="No requisitions yet" description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Requisition views">

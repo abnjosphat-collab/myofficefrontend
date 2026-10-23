@@ -4,6 +4,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
@@ -20,8 +21,8 @@ import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 
-const SECTIONS: SectionType[] = ['mechanical', 'electrical'];
-const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical' };
+const SECTIONS: SectionType[] = ['mechanical', 'electrical', 'Projects'];
+const SECTION_LABELS: Record<SectionType, string> = { mechanical: 'Mechanical', electrical: 'Electrical', Projects: 'Projects' };
 const PRIORITIES: PriorityType[] = ['low', 'medium', 'high', 'critical'];
 const FINDING_STATUSES: FindingStatus[] = ['open', 'in-progress', 'closed', 'overdue'];
 const INSPECTION_STATUSES: InspectionStatus[] = ['draft', 'submitted', 'approved', 'rejected'];
@@ -55,6 +56,7 @@ export const emptyForm = (): Form => ({
 });
 
 function FindingFields({ finding, index, touched, onChange, onRemove }: { finding: InspectionFinding; index: number; touched: boolean; onChange: (id: string, patch: Partial<InspectionFinding>) => void; onRemove: (id: string) => void }) {
+  const { scope } = useAuth();
   const n = index + 1;
   const err = (bad: boolean, text: string) => (touched && bad ? text : undefined);
   return (
@@ -68,7 +70,9 @@ function FindingFields({ finding, index, touched, onChange, onRemove }: { findin
         <Field label={`Due date (finding ${n})`} required error={err(!finding.byWhen, 'Enter the due date.')}><Input type="date" value={finding.byWhen} onChange={e => onChange(finding.id, { byWhen: e.target.value })} /></Field>
         <Field label="Priority"><Select aria-label={`Finding ${n} priority`} value={finding.priority} options={PRIORITIES.map(p => ({ value: p, label: cap(p) }))} onValueChange={v => onChange(finding.id, { priority: v as PriorityType })} /></Field>
         <Field label="Status"><Select aria-label={`Finding ${n} status`} value={finding.status} options={FINDING_STATUSES.map(s => ({ value: s, label: FINDING_META[s].label }))} onValueChange={v => onChange(finding.id, { status: v as FindingStatus })} /></Field>
-        <Field label="Section"><Select aria-label={`Finding ${n} section`} value={finding.section} options={SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))} onValueChange={v => onChange(finding.id, { section: v as SectionType })} /></Field>
+        {scope
+          ? <Field label="Section" description="Findings follow the inspection\u2019s section."><Input aria-label={`Finding ${n} section`} value={scope} disabled /></Field>
+          : <Field label="Section"><Select aria-label={`Finding ${n} section`} value={finding.section} options={SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))} onValueChange={v => onChange(finding.id, { section: v as SectionType })} /></Field>}
         <Field label={`Completed date (finding ${n})`} optional description={finding.status === 'closed' ? undefined : 'Available once the finding is closed.'}><Input type="date" disabled={finding.status !== 'closed'} value={finding.completedDate || ''} onChange={e => onChange(finding.id, { completedDate: e.target.value })} /></Field>
       </div>
       <Field label={`Remarks (finding ${n})`} optional><Textarea rows={2} value={finding.remarks || ''} onChange={e => onChange(finding.id, { remarks: e.target.value })} placeholder="Additional remarks" /></Field>
@@ -77,13 +81,14 @@ function FindingFields({ finding, index, touched, onChange, onRemove }: { findin
 }
 
 function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspection?: SHEQFormData; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, inspection?.id), () => {
     setTouched(false);
-    setForm(inspection ? { ...emptyForm(), ...inspection, findings: inspection.findings || [], before_photos: inspection.before_photos || [], after_photos: inspection.after_photos || [] } : emptyForm());
+    setForm(inspection ? { ...emptyForm(), ...inspection, findings: inspection.findings || [], before_photos: inspection.before_photos || [], after_photos: inspection.after_photos || [] } : { ...emptyForm(), ...(scope ? { section: scope as SectionType } : {}) });
   });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
@@ -118,7 +123,9 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
             <datalist id="si-locations">{locations.map(l => <option key={l} value={l} />)}</datalist>
           </Field>
           <Field label="Department" optional><SuggestField historyKey="sheq_department" placeholder="For example, Engineering" value={form.department} onChange={v => set({ department: v })} /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))} /></Field>
+          {scope
+            ? <Field label="Section" description={inspection ? 'The section stays as it is.' : `Your account files inspections in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))} /></Field>}
           <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v as InspectionStatus })} options={INSPECTION_STATUSES.map(s => ({ value: s, label: INSPECTION_META[s].label }))} /></Field>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
           <Field label="Time" required error={touched && !form.time ? 'Enter the time.' : undefined}><Input type="time" value={form.time} onChange={e => set({ time: e.target.value })} /></Field>
@@ -232,10 +239,12 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function InspectionContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { inspections, loading, loaded, error, errorStatus, refetch } = useSheqInspectionData();
   const [view, setView] = useViewPreference('sheq-inspection', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [statusF, setStatusF] = useState(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -267,9 +276,9 @@ function InspectionContent() {
     const s = search.trim().toLowerCase();
     return inspections.filter(i =>
       (!s || i.title?.toLowerCase().includes(s) || i.inspectors?.toLowerCase().includes(s) || i.place?.toLowerCase().includes(s))
-      && (sectionF === ALL || i.section === sectionF) && (statusF === ALL || i.status === statusF)
+      && (effSection === ALL || i.section === effSection) && (statusF === ALL || i.status === statusF)
       && (!dateFrom || i.date >= dateFrom) && (!dateTo || i.date <= dateTo));
-  }, [inspections, search, sectionF, statusF, dateFrom, dateTo]);
+  }, [inspections, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (i, id) => (id === 'findings' ? String(i.findings?.length || 0).padStart(4, '0') : String(i[id as keyof SHEQFormData] ?? '').toLowerCase())), [filtered, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -298,7 +307,7 @@ function InspectionContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ inspections' }]}
         title="SHEQ inspections"
-        description="Safety, health, environment and quality compliance tracking."
+        description={scope ? `Safety, health, environment and quality compliance tracking. \u2014 showing ${scope} only.` : 'Safety, health, environment and quality compliance tracking.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh inspections" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -344,7 +353,7 @@ function InspectionContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search title, inspector or location" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))]} />
+        {!scope && (<Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: SECTION_LABELS[s] }))]} />)}
         <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...INSPECTION_STATUSES.map(s => ({ value: s, label: INSPECTION_META[s].label }))]} />
       </Toolbar>
 
@@ -355,7 +364,7 @@ function InspectionContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No inspections match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="compliance" title="No inspections yet" description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} />}
+          : scope ? <EmptyState icon="compliance" title={`No ${scope} inspections yet`} description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} /> : <EmptyState icon="compliance" title="No inspections yet" description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'inspection' : 'inspections'}{filtered.length !== inspections.length ? ` of ${inspections.length}` : ''} · {stats.critical} critical {stats.critical === 1 ? 'finding' : 'findings'} across all inspections</p>
         {view === 'cards' ? (

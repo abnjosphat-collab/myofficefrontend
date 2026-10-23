@@ -5,7 +5,7 @@
 // constants also stay in page.tsx (business vocabulary, same as every other page's
 // STATUS_META-shaped config, even though these particular ones don't carry JSX icons).
 
-export type SectionType = 'mechanical' | 'electrical';
+export type SectionType = 'mechanical' | 'electrical' | 'Projects';
 export type PriorityType = 'low' | 'medium' | 'high' | 'critical';
 export type FindingStatus = 'open' | 'in-progress' | 'closed' | 'overdue';
 export type InspectionStatus = 'draft' | 'submitted' | 'approved' | 'rejected';

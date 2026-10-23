@@ -7,7 +7,7 @@ import type { EmployeeLookup } from '@/hooks/useLookups';
 export interface NearMissReport {
   id: string;
   department: string;
-  section: 'Mechanical' | 'Electrical' | 'General';
+  section: 'Mechanical' | 'Electrical' | 'General' | 'Projects';
   date: string;
   time: string;
   location: string;
