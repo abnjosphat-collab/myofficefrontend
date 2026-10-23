@@ -17,7 +17,7 @@ export default defineConfig({
     // 1–2 s alone can pass 5 s under coverage instrumentation on a two-core CI runner, so the default made the
     // result depend on machine load. 15 s still fails a test that genuinely hangs.
     testTimeout: 15_000,
-    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'app/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.ts', 'components/**/*.test.tsx'],
+    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'app/**/*.test.ts', 'app/**/*.test.tsx', 'components/**/*.test.ts', 'components/**/*.test.tsx', 'hooks/**/*.test.ts', 'hooks/**/*.test.tsx'],
     coverage: {
       provider: 'v8',
       // Explicit extensions, not a blanket `app/**` — this tree also holds a couple
