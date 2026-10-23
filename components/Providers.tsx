@@ -1,6 +1,7 @@
 // components/Providers.tsx — client boundary that wraps the server layout
 'use client';
 
+import { MotionConfig } from 'framer-motion';
 import { AuthProvider } from '@/lib/auth-context';
 import { GlobalMfaGate } from '@/components/app-shell/mfa-ui';
 import { ServiceWorkerRegistrar } from '@/components/app-shell/ServiceWorkerRegistrar';
@@ -14,11 +15,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {/* Full-screen 2FA prompt, rendered whenever a session exists but hasn't
           cleared its challenge yet — see lib/auth-context.tsx applySession(). */}
       <GlobalMfaGate />
-      <AppearanceProvider>
-        <TooltipProvider>
-          <ConfirmProvider><FloorProvider>{children}</FloorProvider></ConfirmProvider>
-        </TooltipProvider>
-      </AppearanceProvider>
+      {/* One MotionConfig for the app (F-15): framer-motion's default is
+          reducedMotion="never", which animated past the OS setting. */}
+      <MotionConfig reducedMotion="user">
+        <AppearanceProvider>
+          <TooltipProvider>
+            <ConfirmProvider><FloorProvider>{children}</FloorProvider></ConfirmProvider>
+          </TooltipProvider>
+        </AppearanceProvider>
+      </MotionConfig>
     </AuthProvider>
   );
 }

@@ -52,10 +52,16 @@ export interface SpareLookup {
 }
 
 // Module-level caches shared across all component instances (a picker opened on many
-// pages fetches once per session, not once per mount).
+// pages fetches once, not once per mount) — but they expire: a record added
+// elsewhere appears without a reload (F-17). The window matches the server's
+// 60 s response cache, so a refetch actually sees new rows.
+const LOOKUP_TTL_MS = 60_000;
 let _emp: EmployeeLookup[] | null = null;
 let _eq: EquipmentLookup[] | null = null;
 let _sp: SpareLookup[] | null = null;
+let _empAt = 0;
+let _eqAt = 0;
+let _spAt = 0;
 
 // In-flight promises, keyed by label. Caching only the *result* meant every
 // picker that mounted before the first fetch resolved fired its own duplicate
@@ -69,7 +75,7 @@ const _inflight = new Map<string, Promise<unknown[]>>();
 const _listeners = new Map<string, Set<() => void>>();
 const refreshLookup = (label: string) => _listeners.get(label)?.forEach(fn => fn());
 
-function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, load: () => Promise<T[]>, label: string): T[] {
+function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, load: () => Promise<T[]>, label: string, stampGet: () => number, stampSet: (v: number) => void): T[] {
   const [list, setList] = useState<T[]>(cacheGet() ?? []);
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -78,8 +84,10 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
     set.add(bump); _listeners.set(label, set);
     return () => { set.delete(bump); };
   }, [label]);
+  // A stale cache keeps showing while the refetch lands (never a flash to empty).
   useEffect(() => {
-    if (cacheGet()) return; // already loaded this session
+    const cached = cacheGet();
+    if (cached !== null && Date.now() - stampGet() < LOOKUP_TTL_MS) return; // fresh cache
     let p = _inflight.get(label) as Promise<T[]> | undefined;
     if (!p) {
       p = load();
@@ -89,10 +97,18 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
       p.finally(() => _inflight.delete(label)).catch(() => {});
     }
     let cancelled = false;
-    p.then((items) => { cacheSet(items); if (!cancelled) setList(items); })
+    p.then((items) => { cacheSet(items); stampSet(Date.now()); if (!cancelled) setList(items); })
       .catch((e) => console.warn(`Failed to load ${label}:`, e)); // retries next mount
     return () => { cancelled = true; };
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A colleague may have added records while this tab sat in the background.
+  useEffect(() => {
+    const onFocus = () => {
+      if (cacheGet() === null || Date.now() - stampGet() >= LOOKUP_TTL_MS) setVersion(v => v + 1);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [label]); // eslint-disable-line react-hooks/exhaustive-deps
   return list;
 }
 
@@ -104,6 +120,7 @@ export function useEmployees(): EmployeeLookup[] {
       return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
     },
     'employees',
+    () => _empAt, (v) => { _empAt = v; },
   );
   return all.filter(e => e.archived !== true);
 }
@@ -121,15 +138,15 @@ export function useEmployeeRegister(): { employees: EmployeeLookup[]; loaded: bo
       return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
     },
     'employees',
+    () => _empAt, (v) => { _empAt = v; },
   );
   return { employees: all, loaded: _emp !== null };
 }
 
-// This cache has no TTL — it's fetched once per browser session and never expires on
-// its own. An edit on the Employees page (new hire, changed phone/section/etc.) would
-// otherwise stay invisible to every other page's employee picker (leaves, overtime,
-// maintenance, ...) until a full page reload. Called from useEmployeesData.ts's
-// saveEmployee/removeEmployee right after a successful write.
+// An edit on the Employees page (new hire, changed phone/section/etc.) clears the
+// cache at once instead of waiting out the TTL. Called from
+// useEmployeesData.ts's saveEmployee/removeEmployee right after a successful
+// write. (A null cache refetches on next read regardless of its stamp.)
 export function invalidateEmployeesCache(): void {
   _emp = null;
 }
@@ -148,6 +165,7 @@ export function useEquipment(): EquipmentLookup[] {
       return Array.isArray(d) ? (d as EquipmentLookup[]) : [];
     },
     'equipment',
+    () => _eqAt, (v) => { _eqAt = v; },
   );
 }
 
@@ -161,6 +179,7 @@ export function useSpares(): SpareLookup[] {
       return Array.isArray(results) ? results : [];
     },
     'spares',
+    () => _spAt, (v) => { _spAt = v; },
   );
 }
 
@@ -169,6 +188,7 @@ export function useSpares(): SpareLookup[] {
 // number of distinct lists (breakdown_location, breakdown_nature, and whatever
 // comes next) share this one mechanism instead of each getting bespoke plumbing.
 const _lookupLists = new Map<string, string[]>();
+const _lookupListAt = new Map<string, number>();
 
 export function useLookupList(listName: string): string[] {
   return useLookup<string>(
@@ -178,5 +198,6 @@ export function useLookupList(listName: string): string[] {
       return Array.isArray(d) ? (d as { value: string }[]).map(x => x.value) : [];
     },
     `lookup:${listName}`,
+    () => _lookupListAt.get(listName) ?? 0, (v) => { _lookupListAt.set(listName, v); },
   );
 }

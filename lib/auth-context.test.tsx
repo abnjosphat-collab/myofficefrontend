@@ -2,7 +2,7 @@
 // throwing once is retried; throwing twice leaves the user signed OUT with a
 // retryable notice (never silently signed in past 2FA). Also covers the
 // MFA_REQUIRED_EVENT listener that re-runs the gate on a backend MFA 401.
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getSession = vi.fn();
@@ -34,6 +34,7 @@ vi.mock('sonner', () => ({
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { MFA_REQUIRED_EVENT } from '@/lib/mfa';
+import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 
 const SESSION = { user: { id: 'u-1', email: 'a@b.com' }, access_token: 'tok' };
 
@@ -57,6 +58,7 @@ beforeEach(() => {
   vi.resetAllMocks(); // implementations too: a rejection set in one test must not leak
   getSession.mockResolvedValue({ data: { session: SESSION } });
   upsertProfile.mockResolvedValue({ id: 'u-1', role: 'user' });
+  window.localStorage.clear();
 });
 
 describe('session-gate challenge-check failure', () => {
@@ -84,6 +86,27 @@ describe('session-gate challenge-check failure', () => {
     getAAL.mockResolvedValue({ data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null });
     opts.action.onClick();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('user:u-1'));
+  });
+
+  it('signing out removes the departing user typing-history key (F-13)', async () => {
+    getAAL.mockResolvedValue({ data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null });
+    function SignOutProbe() {
+      const { user, loading, signOut } = useAuth();
+      if (loading) return <div data-testid="probe">loading</div>;
+      return <button data-testid="signout" onClick={() => { void signOut(); }}>out:{user?.id ?? 'none'}</button>;
+    }
+    render(
+      <AuthProvider>
+        <SignOutProbe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('signout')).toHaveTextContent('out:u-1'));
+    recordInput('department', 'Engineering');
+    expect(getInputSuggestions('department')).toEqual(['Engineering']);
+    // Recorded under the signed-in user's key (not the legacy shared one).
+    expect(window.localStorage.getItem('oz_inputHistory:u-1')).not.toBeNull();
+    fireEvent.click(screen.getByTestId('signout'));
+    await waitFor(() => expect(window.localStorage.getItem('oz_inputHistory:u-1')).toBeNull());
   });
 
   it('re-runs the gate when the backend reports MFA required', async () => {

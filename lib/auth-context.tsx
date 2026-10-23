@@ -6,6 +6,7 @@ import type { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
 import { needsChallenge, MFA_REQUIRED_EVENT } from './mfa';
+import { clearInputHistoryForUser, setInputHistoryUser } from './inputHistory';
 
 // ─── Context type ─────────────────────────────────────────────────────────────
 
@@ -37,6 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session,    setSession]    = useState<Session | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [mfaPending, setMfaPending] = useState(false);
+
+  // Typing history is keyed by account (F-13): point the store at the
+  // signed-in user, or back at the shared fallback when signed out.
+  useEffect(() => { setInputHistoryUser(user?.id ?? null); }, [user]);
 
   const loadProfile = async (u: User) => {
     const p = await upsertProfile(u);
@@ -178,6 +183,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Typing history leaves the device with the user (F-13): clear their
+    // key before the session (and the id) is gone.
+    clearInputHistoryForUser(user?.id ?? '');
     await supabase.auth.signOut();
     setProfile(null);
   };
