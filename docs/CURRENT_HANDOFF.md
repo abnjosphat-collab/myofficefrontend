@@ -85,7 +85,7 @@ labels by design; the notification and feedback popovers are MyOffice-only. Not 
 ```
 npx tsc --noEmit                     # typecheck
 npx eslint .                         # lint
-npx vitest run                       # unit tests (214 files / 1671 tests, 18 Oct 2026)
+npx vitest run                       # unit tests (254 files / 1927 tests on main, 23 Oct 2026)
 npm run build                        # production build
 npm run docs:check                   # typedoc + ledger current + link check + css-consistency ratchet
 npm run docs:ledger                  # regenerate the ledger
@@ -208,9 +208,9 @@ The owner asked whether the app defines things once and reuses them, whether it 
 - **Left for the other session:** refresh buttons in Artisan timesheets, Shifts and Standby still use `ghost`.
 - **Verification (latest):** frontend 1,218 tests pass under coverage; backend 1,773 pass at 93.8 % coverage. Run pytest with a short `--basetemp`, because a long temp path breaks the NEC import tests on Windows.
 
-## 8c. Scan 2026-10-18 and fixes (uncommitted)
+## 8c. Scan 2026-10-18 and fixes (merged: frontend 4f86e24, backend ec9158f)
 
-An independent quality scan (open endpoints, fabricated metrics, safety-status masks, date/token/drift issues) was remediated in five phases, all verified, none committed or pushed. Backend files live in `backend/` (separate repo); the Phase 1 SQL files are written but NOT applied — see Gate 1.
+An independent quality scan (open endpoints, fabricated metrics, safety-status masks, date/token/drift issues) was remediated in five phases, all verified, and merged since (see heading). Backend files live in `backend/` (separate repo); the Phase 1 SQL files are written but NOT applied — see Gate 1.
 - **Phase 1, database exposure:** `supabase_migration_enable_rls_public_tables.sql` (RLS on for the 24 public tables, no new policies; drops the two open sheq policies), `supabase_migration_lock_down_functions.sql` (revokes + security-invoker views), `supabase_migration_function_search_path.sql` (optional, flagged untested), guard test `tests/test_migrations_rls.py`, doc `backend/docs/RLS_AND_API_EXPOSURE.md`.
 - **Phase 2, backend auth and honesty:** server-side MFA AAL2 gate (`REQUIRE_MFA_AAL2`, default on) with frontend mfa_required re-gate; 30 s in-process auth cache (`AUTH_CACHE_TTL_SECONDS`) with invalidation on role/deactivate/factor-reset; `app/errors.py` + codemod took 500 error-text leaks 215 → 0 with guard test `tests/test_no_internal_error_leak.py`; 8 open aggregate reads pinned in `OPEN_READS` and tabled in `ENGINEERING_STANDARDS.md`, 4 debug `/test` routes deleted, health probes status-only; rate limits (reset-requests 5/min, Tools login 10/min + failed-login counter, register 5/min) and `client_ip()` behind `TRUST_PROXY_HEADERS` (default off); breakdown metrics return None instead of zeros, Harare-day helper `app/clock.py`, compliance/lube helpers return "unknown" on bad dates, `.dict()` → `.model_dump()` (80 sites).
 - **Phase 3, frontend correctness:** `todayLocal()` in the 9 report forms + export stamps with an ESLint ban on `toISOString()` date-slicing; `app/error.tsx`, `global-error.tsx`, `not-found.tsx`, `loading.tsx`, `tools/error.tsx` + `/no-such-page` spec; per-page `<title>` from PageHeader; Segmented selected = filled action pill (was 1.04:1); `--mo-line-control` holds 3:1 on all four grounds, chart series retuned to ΔE > 30 + deuteranopia-safe (tests in `foundations/tokens.test.ts`); PWA colours aligned to the canvas token + `COLOR_HARMONY.md` rewritten; 4 grids reflow (verified at 320/390 px, BulkAssignDialog calendar too); 177 token-utility replacements in 37 files (pixel-diffed before/after) + `css-consistency.mjs` ratchet (new `no-var-utility`/`no-var-z`/`no-px-text` rules, 2 deferred emoji exceptions) wired into `docs:check`.
@@ -219,7 +219,7 @@ An independent quality scan (open endpoints, fabricated metrics, safety-status m
 - **Verification (18 Oct):** frontend tsc clean, eslint 0 errors, vitest 214 files / 1671 tests, docs:check green except the pre-existing `timesheets - Copy/` ledger gap (untracked dir, CI unaffected), route suite green, axe green, production build green, `npm audit --omit=dev --audit-level=high` clean; backend pytest green, pyright 196/196. Nothing committed, pushed, deployed, or migrated; no live writes.
 - **Owner gates:** (1) run the Phase 1 SQL in Supabase in file order + confirm `SUPABASE_KEY` is service_role on Render (exposure live until then); (2) `TRUST_PROXY_HEADERS` only if the proxy is trusted, one enrolled MFA test user, Supabase leaked-password protection on; (3) decide `timesheets_backup_20261014_holiday`, `timesheets - Copy/`, Tools self-registration, the 8 open reads, and `supabase_migration_housekeeping_indexes.sql` (4 redundant + 2 duplicate-definition indexes, not applied).
 
-## 8d. Data integrity: whole categories of bug closed (owner instruction, 19 Oct 2026, NOT COMMITTED)
+## 8d. Data integrity: whole categories of bug closed (owner instruction, 19 Oct 2026; merged: frontend 227b987, backend 3c93d98)
 
 Trigger: overtime for the same person, date and hours was recorded twice from two laptops and both were approved; the only check was a browser warning. The fix is one set of rules, each with one shared mechanism and a scanning test, documented in the backend's `docs/DATA_INTEGRITY_STANDARD.md`:
 
@@ -233,7 +233,7 @@ Trigger: overtime for the same person, date and hours was recorded twice from tw
 
 Owner steps, in order: run `supabase_migration_integrity_constraints.sql`; optionally `supabase_cleanup_names_and_spaces.sql`; review `scripts/data_integrity_report.py` output (a copy was saved to the Documents folder, outside the repo), resolve duplicates, then run the two `no_duplicates` files; set default passwords for the three manager accounts created with `scripts/create_management_accounts.py`. The application works before and after each SQL step.
 
-## 8e. Document library rebuilt (owner instruction, 19 Oct 2026, NOT COMMITTED)
+## 8e. Document library rebuilt (owner instruction, 19 Oct 2026; merged: frontend 3eb084c, backend a3d62b3)
 
 Trigger: files were "lost" across email, OneDrive, WhatsApp and Windows folders. `/documents` is now one library: a real folder tree (the Asset Management System structure from Engineering Planning plus any folder a person makes), one search, and in-page preview, open and print. Backend contract and rules: `backend/docs/DOCUMENT_LIBRARY.md`.
 
@@ -247,9 +247,9 @@ Trigger: files were "lost" across email, OneDrive, WhatsApp and Windows folders.
 
 Owner steps, in order: (1) run `backend/supabase_migration_documents_v2.sql` BEFORE deploying (until then the page shows a plain "needs the upgrade SQL" notice); (2) open Documents, press "Set up the AMS folders", then "Read them now"; (3) move files out of Unfiled over time. `next.config.ts` report-only CSP was widened for the storage host (frames, media) and `blob:` fonts so preview keeps working when the policy is enforced.
 
-## 8f. Owner UX items 1-10 (Muse, 21 Oct 2026, NOT COMMITTED)
+## 8f. Owner UX items 1-10 (Muse, 21 Oct 2026; merged to main as 815712b)
 
-All 10 owner UX items done on frontend branch `ux-fixes-2026-10`, uncommitted, in 10 independently reversible batches (patches in `audit/ux-fixes-2026-10-21/muse/patches/`). Every fix is at shared-component level; backend untouched. The full account is `audit/ux-fixes-2026-10-21/muse/COMPLETION-REPORT.md`; decisions in `DECISIONS.md` (D1-D18); owner follow-ups in `OWNER-ATTENTION.md`.
+All 10 owner UX items done on frontend branch `ux-fixes-2026-10`, merged to main as `815712b`, in 10 independently reversible batches (patches in `audit/ux-fixes-2026-10-21/muse/patches/`). Every fix is at shared-component level; backend untouched. The full account is `audit/ux-fixes-2026-10-21/muse/COMPLETION-REPORT.md`; decisions in `DECISIONS.md` (D1-D18); owner follow-ups in `OWNER-ATTENTION.md`.
 
 - Bulk delete of unmatched records from the register notice (PPE/leaves/overtime), skipping what single-delete refuses and naming it.
 - Signature action row mirrors the Dialog footer rhythm (was two full-width buttons in a 448px panel).
@@ -261,9 +261,9 @@ All 10 owner UX items done on frontend branch `ux-fixes-2026-10`, uncommitted, i
 - Pointer cursor for actionable elements.
 - Verified: tsc clean, eslint 0 errors, full vitest green, docs:check green, production build green (63/63), all 7 touched route specs green; full sweep failures on /admin, /employees, /maintenance, /pachedu, /training exonerated against the base (2 pre-existing, 3 sweep-context flakes). Every item rendered and looked at at desktop + 390.
 
-## 8g. PPE/timesheets/notifications run (Muse, 21-22 Oct 2026, NOT COMMITTED)
+## 8g. PPE/timesheets/notifications run (Muse, 21-22 Oct 2026; merged to main as eab19ff)
 
-12 owner items (timesheets edges, stock-issues find-a-part, notification deep-links + backlog honesty, PPE register/basket/lens/cleanup, related issues, reusable components) on branches `ppe-timesheets-2026-10` (frontend + backend), uncommitted, in independently reversible batches (patches `01`, `02`, `03a-d`, `04`, `05a/b`, `06a/b`, `07`, `08a/b`, `09` in `audit/ppe-timesheets-notifications-2026-10-21/muse/patches/`). Full account: that folder's `COMPLETION-REPORT.md`; decisions `DECISIONS.md` (D1-D118); owner follow-ups `OWNER-ATTENTION.md`; PPE number/filter inventory `U6-INVENTORY.md`.
+12 owner items (timesheets edges, stock-issues find-a-part, notification deep-links + backlog honesty, PPE register/basket/lens/cleanup, related issues, reusable components) on branches `ppe-timesheets-2026-10` (frontend + backend), merged to main as `eab19ff`, in independently reversible batches (patches `01`, `02`, `03a-d`, `04`, `05a/b`, `06a/b`, `07`, `08a/b`, `09` in `audit/ppe-timesheets-notifications-2026-10-21/muse/patches/`). Full account: that folder's `COMPLETION-REPORT.md`; decisions `DECISIONS.md` (D1-D118); owner follow-ups `OWNER-ATTENTION.md`; PPE number/filter inventory `U6-INVENTORY.md`.
 
 - Shared first: ChoiceCards, OptionChecklist (+PeopleChecklist rewrap), MultiSelectFilter, useDeepLink/useRecordDeepLink, grid tokens; ui-system README updated.
 - Timesheets: register-only roster (copy/add/row-X gone), NEC ledger grid (contrast-tested), bulk cues + reworked bulk dialog (times/role/leave).
