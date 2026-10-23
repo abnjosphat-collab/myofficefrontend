@@ -47,7 +47,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
   const save = async () => {
     setPending(true); setError(null);
     try {
-      const updated = await updateWorkOrder(order.id, artisanBody(r, spares));
+      const updated = await updateWorkOrder(order.id, { ...artisanBody(r, spares), expected_updated_at: order.updated_at });
       try { if (r.artisan_name) localStorage.setItem(SAVED_NAME, r.artisan_name); } catch { /* a convenience */ }
       if (r.work_done_details.trim()) rememberChoice('maint_work_done', r.work_done_details);
       toast.success('Artisan report saved.');

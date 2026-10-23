@@ -76,7 +76,7 @@ export async function uploadStrandedLocalFields(server: WorkOrder[]): Promise<nu
     }
     if (Object.keys(patch).length === 0) continue;
     try {
-      await updateWorkOrder(String(wo.id), patch);
+      await updateWorkOrder(String(wo.id), { ...patch, expected_updated_at: wo.updated_at });
       uploaded++;
     } catch {
       // Leave the flag unset so the next load retries rather than dropping data.
