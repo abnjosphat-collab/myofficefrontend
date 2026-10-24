@@ -5,7 +5,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Checkbox, Field, Icon, Input, Notice, Segmented, Select, Textarea, useRefusedSubmit } from '@/components/ui-system';
 import { ApprovalsView, IncidentsView, InspectionsView, INCIDENT_NAMES } from './ToolsComplianceViews';
-import type { CompetencyRecord, IncidentRecord, InspectionRecord, InspectionType } from './complianceTypes';
+import type { CompetencyRecord, IncidentRecord, InspectionPlanRow, InspectionRecord, InspectionType } from './complianceTypes';
 import { employeeLabel, type Employee, type Tool } from './prototype';
 
 export const INSPECTION_LABELS: Record<InspectionType, string> = { pre_use: 'Pre-use check', weekly: 'Weekly check', monthly: 'Monthly inspection', quarterly: 'Quarterly colour inspection', calibration: 'Calibration', maintenance: 'Maintenance', storage_audit: 'Storage audit', repair: 'Repair verification' };
@@ -32,12 +32,13 @@ const Row = ({ children }: { children: ReactNode }) => <div className="grid gap-
 const Submit = ({ children, disabled, pending }: { children: ReactNode; disabled?: boolean; pending?: boolean }) => <div className="flex justify-end"><Button variant="primary" type="submit" disabled={disabled} pending={pending}>{children}</Button></div>;
 const at = (day: string) => new Date(`${day}T23:59:59`).toISOString();
 
-export function ToolsCompliance({ tools, employees, competencies, inspections, incidents, canManage, onSaveCompetency, onRecordInspection, onReportIncident, onCloseIncident, onOpenEmployees }: {
+export function ToolsCompliance({ tools, employees, competencies, inspections, incidents, plan, canManage, onSaveCompetency, onRecordInspection, onReportIncident, onCloseIncident, onOpenEmployees }: {
   tools: Tool[];
   employees: Employee[];
   competencies: CompetencyRecord[];
   inspections: InspectionRecord[];
   incidents: IncidentRecord[];
+  plan: InspectionPlanRow[];
   canManage: boolean;
   onSaveCompetency: (value: { employee_id: string; tool_id: string; trained: boolean; qualified: boolean; authorized: boolean; training_certificate_ref?: string; training_expires_at?: string; qualification_ref?: string; qualification_expires_at?: string; authorization_expires_at?: string; notes?: string }) => Promise<void>;
   onRecordInspection: (toolId: string, value: InspectionInput) => Promise<void>;
@@ -174,7 +175,7 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
         ))}
       </dl>
       <Segmented label="Compliance sections" value={section} onValueChange={setSection} options={sections} />
-      {section === 'inspections' && <InspectionsView tools={activeTools} onRecord={canManage ? recordCheck : undefined} />}
+      {section === 'inspections' && <InspectionsView tools={activeTools} plan={plan} inspections={inspections} onRecord={canManage ? recordCheck : undefined} />}
       {section === 'incidents' && <IncidentsView incidents={openIncidents} toolById={toolById} employeeById={employeeById} onClose={canManage ? closeInvestigation : undefined} />}
       {section === 'approvals' && <ApprovalsView tools={activeTools} competencies={competencies} toolById={toolById} employeeById={employeeById} onOpenEmployees={onOpenEmployees} />}
       {section === 'record' && canManage && (

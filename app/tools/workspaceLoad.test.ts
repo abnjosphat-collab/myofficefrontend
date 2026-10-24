@@ -46,7 +46,7 @@ describe('loadToolsWorkspace',()=>{
     const get=vi.spyOn(toolsApi,'get').mockImplementation(async <T>(path:string)=>{
       if(path==='/tools'&&++toolAttempts<10) throw new TypeError('Failed to fetch');
       if(path==='/notifications') return {alerts:[],unread_count:0} as T;
-      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[]} as T;
+      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]} as T;
       return [] as T;
     });
     try {
@@ -68,7 +68,7 @@ describe('loadToolsWorkspace',()=>{
     const get=async<T>(path:string,_token:string,signal?:AbortSignal)=>{
       if(path==='/history') return new Promise<T>((_resolve,reject)=>signal?.addEventListener('abort',()=>reject(new DOMException('The request was cancelled.','AbortError')),{once:true}));
       if(path==='/notifications') return {alerts:[],unread_count:0} as T;
-      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[]} as T;
+      if(path==='/compliance') return {competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]} as T;
       return [] as T;
     };
     const loading=loadToolsWorkspace('token','viewer',get,controller.signal,result=>updates.push(result.source));

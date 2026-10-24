@@ -288,7 +288,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const [preUseCheckRequired, setPreUseCheckRequired] = useState(initialTool?.preUseCheckRequired !== false);
   const [competencyRequired, setCompetencyRequired] = useState(initialTool?.competencyRequired !== false);
   const [weeklyInspectionRequired, setWeeklyInspectionRequired] = useState(initialTool?.weeklyInspectionRequired || false);
-  const [monthlyInspectionRequired, setMonthlyInspectionRequired] = useState(initialTool?.monthlyInspectionRequired !== false);
+  const [monthlyInspectionRequired, setMonthlyInspectionRequired] = useState(initialTool?.monthlyInspectionRequired || false);
   const [quarterlyInspectionRequired, setQuarterlyInspectionRequired] = useState(initialTool?.quarterlyInspectionRequired !== false);
   const [calibrationRequired, setCalibrationRequired] = useState(initialTool?.calibrationRequired || false);
   const [calibrationFrequencyDays, setCalibrationFrequencyDays] = useState(String(initialTool?.calibrationFrequencyDays || 365));

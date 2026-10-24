@@ -63,4 +63,5 @@ export type GatePass = {
   tools: Array<{id:string;register_number:string;name:string;serial_number?:string;replacement_value?:number}>;
   approvals: GatePassApproval[];
 };
-export type ComplianceData = { competencies: CompetencyRecord[]; inspections: InspectionRecord[]; incidents:IncidentRecord[]; gate_passes: GatePass[] };
+export type InspectionPlanRow = { id: string; tool_id: string; quarter: string; planned_date: string; completed_inspection_id?: string | null };
+export type ComplianceData = { competencies: CompetencyRecord[]; inspections: InspectionRecord[]; incidents:IncidentRecord[]; gate_passes: GatePass[]; inspection_plan: InspectionPlanRow[] };

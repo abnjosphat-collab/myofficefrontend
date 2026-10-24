@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react';
 import { Button, DataTable, Icon, Notice, SearchField, Segmented, StatusBadge } from '@/components/ui-system';
 import { formatDate, formatDateTime } from '@/lib/format';
-import type { CompetencyRecord, IncidentRecord } from './complianceTypes';
+import type { CompetencyRecord, IncidentRecord, InspectionPlanRow, InspectionRecord } from './complianceTypes';
 import type { Employee, Tool } from './prototype';
 
 export const INCIDENT_NAMES: Record<IncidentRecord['incident_type'], string> = { lost: 'Lost equipment', damaged: 'Damage', stolen: 'Suspected theft', missing_components: 'Missing components', late_return: 'Late return' };
@@ -17,7 +17,7 @@ const Toolbar = ({ children }: { children: React.ReactNode }) => <div className=
 
 // ─── Inspections ─────────────────────────────────────────────────────────────────────
 
-export function InspectionsView({ tools, onRecord }: { tools: Tool[]; onRecord?: (tool: Tool) => void }) {
+export function InspectionsView({ tools, plan, inspections, onRecord }: { tools: Tool[]; plan: InspectionPlanRow[]; inspections: InspectionRecord[]; onRecord?: (tool: Tool) => void }) {
   const due = tools.filter(tool => (tool.inspectionDue || []).length);
   const [show, setShow] = useState<'due' | 'all'>(due.length ? 'due' : 'all');
   const [query, setQuery] = useState('');
@@ -51,7 +51,50 @@ export function InspectionsView({ tools, onRecord }: { tools: Tool[]; onRecord?:
           />
         )}
       {rows.length === 0 && !(due.length === 0 && show === 'due') && <p className="font-sans text-body-sm text-ink-muted">No equipment matches.</p>}
+      <QuarterPlanView tools={tools} plan={plan} inspections={inspections} onRecord={onRecord} />
     </div>
+  );
+}
+
+// --- This quarter's plan ---
+
+/** The quarter a timestamp falls in, as the plan's own key ('2026-Q4'). */
+const planQuarterOf = (iso: string) => { const at = new Date(iso); return `${at.getUTCFullYear()}-Q${Math.floor(at.getUTCMonth() / 3) + 1}`; };
+
+/** The quarter's colour-inspection plan by day: date, tools, done or pending, with the record action on pending rows. */
+export function QuarterPlanView({ tools, plan, inspections, onRecord }: { tools: Tool[]; plan: InspectionPlanRow[]; inspections: InspectionRecord[]; onRecord?: (tool: Tool) => void }) {
+  const byId = useMemo(() => new Map(tools.map(tool => [tool.backendId, tool])), [tools]);
+  const done = (row: InspectionPlanRow) => row.completed_inspection_id != null || inspections.some(item => item.tool_id === row.tool_id && item.inspection_type === 'quarterly' && item.outcome === 'passed' && item.inspected_at && planQuarterOf(item.inspected_at) === row.quarter);
+  const days = useMemo(() => {
+    const groups = new Map<string, InspectionPlanRow[]>();
+    for (const row of [...plan].sort((a, b) => a.planned_date.localeCompare(b.planned_date))) {
+      if (!byId.get(row.tool_id)) continue;
+      groups.set(row.planned_date, [...(groups.get(row.planned_date) || []), row]);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [plan, byId]);
+  if (!days.length) return null;
+  const quarter = plan[0]?.quarter || '';
+  const title = quarter ? `Q${quarter.slice(6)} ${quarter.slice(0, 4)}` : 'This quarter';
+  return (
+    <section aria-label="This quarter's plan" className="flex flex-col gap-4">
+      <h3 className="font-sans text-body-sm font-semibold text-ink">This quarter&apos;s plan <span className="font-normal text-ink-muted">{title} &middot; {plan.length} {plan.length === 1 ? 'tool' : 'tools'}</span></h3>
+      {days.map(([day, rows]) => (
+        <section key={day} aria-label={`Planned for ${formatDate(day)}`} className="flex flex-col gap-2">
+          <h4 className="font-sans text-caption font-medium text-ink-muted">{formatDate(day)} &middot; {rows.length} {rows.length === 1 ? 'tool' : 'tools'}</h4>
+          <DataTable
+            caption={`Quarterly plan for ${formatDate(day)}`}
+            rows={rows}
+            getRowId={row => row.id}
+            columns={[
+              { id: 'equipment', header: 'Equipment', sticky: true, cell: row => { const tool = byId.get(row.tool_id)!; return <><strong className="block font-medium text-ink">{tool.name}</strong><small className="text-ink-muted">{tool.id} &middot; {tool.location}</small></>; } },
+              { id: 'state', header: 'State', cell: row => done(row) ? <StatusBadge tone="success">Done</StatusBadge> : <StatusBadge tone="neutral">Pending</StatusBadge> },
+            ]}
+            rowActions={onRecord ? row => { const tool = byId.get(row.tool_id)!; return done(row) ? null : <Button variant="secondary" aria-label={`Record a check for ${tool.name}`} onClick={() => onRecord(tool)}>Record check</Button>; } : undefined}
+          />
+        </section>
+      ))}
+    </section>
   );
 }
 

@@ -42,7 +42,7 @@ export function useToolsWorkspace() {
   const [clientErrors,setClientErrors]=useState<ClientError[]>([]);
   const [feedbackRecords,setFeedbackRecords]=useState<FeedbackRecord[]>([]);
   const [notificationAlerts,setNotificationAlerts]=useState<ToolNotification[]>([]);
-  const [complianceData,setComplianceData]=useState<ComplianceData>({competencies:[],inspections:[],incidents:[],gate_passes:[]});
+  const [complianceData,setComplianceData]=useState<ComplianceData>({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]});
   const [sourceState,setSourceState]=useState(emptySourceState);
   const [sessionChecking,setSessionChecking]=useState(true);
   const [tab, setTab] = useState<ToolsTab>('homepage');
@@ -294,7 +294,7 @@ export function useToolsWorkspace() {
     try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,account); setCurrentAccount(account); setModal(null); notify.success(`Signed in as ${account.name}`); return true; }
     catch(error) { return toolsLoginErrorMessage(error); }
   }
-  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)notify.success('Signed out'); }
+  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)notify.success('Signed out'); }
   function track(name:string,detail?:string) { const event={id:crypto.randomUUID(),name,detail,at:new Date().toISOString()}; setUsage(current=>[event,...current]); if(currentAccount?.token)void toolsApi.post('/analytics/usage',currentAccount.token,{event:name,detail}).catch(()=>{}); }
   async function updateAccountRole(accountId:string,role:WorkspaceAccount['role'],assignedDepartment?:string,approvalRoles:ApprovalRole[]=[] ) {
     try { await toolsApi.patch(`/accounts/${accountId}`,requireToken(),{role,department:assignedDepartment,approval_roles:approvalRoles}); await reloadWorkspace(); notify.success(role==='issuer'?`Issuer access granted for ${assignedDepartment}`:'Account access updated'); }

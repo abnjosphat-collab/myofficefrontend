@@ -59,7 +59,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
     case 'compliance':
       return (
         <>{failed}
-          <ToolsCompliance tools={w.tools} employees={w.employees} competencies={w.complianceData.competencies} inspections={w.complianceData.inspections} incidents={w.complianceData.incidents}
+          <ToolsCompliance tools={w.tools} employees={w.employees} competencies={w.complianceData.competencies} inspections={w.complianceData.inspections} incidents={w.complianceData.incidents} plan={w.complianceData.inspection_plan}
             canManage={manage} onSaveCompetency={w.saveCompetency} onRecordInspection={w.recordInspection} onReportIncident={w.reportIncident} onCloseIncident={w.closeIncident} onOpenEmployees={() => w.setTab('employees')} />
         </>
       );

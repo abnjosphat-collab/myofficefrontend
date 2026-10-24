@@ -87,7 +87,7 @@ function validateSource(source:WorkspaceSource,value:unknown):unknown {
     return value;
   }
   if(source==='compliance') {
-    if(!value||typeof value!=='object'||!Array.isArray((value as ComplianceData).competencies)||!Array.isArray((value as ComplianceData).inspections)||!Array.isArray((value as ComplianceData).incidents)||!Array.isArray((value as ComplianceData).gate_passes)) throw new Error('compliance returned an unexpected response.');
+    if(!value||typeof value!=='object'||!Array.isArray((value as ComplianceData).competencies)||!Array.isArray((value as ComplianceData).inspections)||!Array.isArray((value as ComplianceData).incidents)||!Array.isArray((value as ComplianceData).gate_passes)||!Array.isArray((value as ComplianceData).inspection_plan)) throw new Error('compliance returned an unexpected response.');
     return value;
   }
   if(!value||typeof value!=='object'||!Array.isArray((value as {usage?:unknown}).usage)||!Array.isArray((value as {errors?:unknown}).errors)||!Array.isArray((value as {feedback?:unknown}).feedback)) throw new Error('analytics returned an unexpected response.');

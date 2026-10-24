@@ -8,7 +8,7 @@ import type { Employee, Tool } from './prototype';
 
 const tool:Tool={id:'PP-UG-ENG-AG-01',backendId:'tool-1',name:'Angle grinder',make:'Bosch',serial:'AG-1',category:'Power tools',kind:'angle-grinder',status:'available',location:'Tool room',condition:'Good',maintenanceRequirements:'Inspect guard and cable',inspectionDue:[],latestInspections:{}};
 const employee:Employee={id:'E-1',backendId:'employee-1',employeeNumber:'E-1',name:'Tariro Moyo',department:'Engineering',active:true};
-const baseProps={tools:[tool],employees:[employee],competencies:[],inspections:[],incidents:[],canManage:true,onSaveCompetency:vi.fn(),onRecordInspection:vi.fn(),onReportIncident:vi.fn(),onCloseIncident:vi.fn()};
+const baseProps={tools:[tool],employees:[employee],competencies:[],inspections:[],incidents:[],plan:[],canManage:true,onSaveCompetency:vi.fn(),onRecordInspection:vi.fn(),onReportIncident:vi.fn(),onCloseIncident:vi.fn()};
 
 describe('ToolsCompliance',()=>{
   it('submits the repair-versus-replacement evidence and shows the 60% decision',async()=>{
@@ -179,5 +179,39 @@ describe('ToolsCompliance',()=>{
     render(<ToolsCompliance {...baseProps} canManage={false}/>);
     expect(screen.queryByRole('button',{name:'Record'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button',{name:/Record a check for/})).not.toBeInTheDocument();
+  });
+
+  it("shows this quarter's plan by day with done and pending tools",()=>{
+    const second:Tool={...tool,id:'PP-UG-ENG-CD-01',backendId:'tool-2',name:'Cordless drill'};
+    const plan=[
+      {id:'p1',tool_id:'tool-1',quarter:'2026-Q4',planned_date:'2026-10-06',completed_inspection_id:null},
+      {id:'p2',tool_id:'tool-2',quarter:'2026-Q4',planned_date:'2026-10-07',completed_inspection_id:'i9'},
+    ];
+    render(<ToolsCompliance {...baseProps} tools={[tool,second]} plan={plan}/>);
+    const section=screen.getByRole('region',{name:"This quarter's plan"});
+    expect(within(section).getByText('Q4 2026',{exact:false})).toBeInTheDocument();
+    expect(within(section).getAllByRole('table',{name:/Quarterly plan/})).toHaveLength(2);
+    expect(within(section).getByText('Angle grinder')).toBeInTheDocument();
+    expect(within(section).getByText('Pending',{exact:true})).toBeInTheDocument();
+    expect(within(section).getByText('Cordless drill')).toBeInTheDocument();
+    expect(within(section).getByText('Done',{exact:true})).toBeInTheDocument();
+  });
+
+  it('counts a passed quarterly check done even before its plan row links it, and offers recording on pending rows',async()=>{
+    const user=userEvent.setup();
+    const plan=[{id:'p1',tool_id:'tool-1',quarter:'2026-Q4',planned_date:'2026-10-06',completed_inspection_id:null}];
+    const inspections:InspectionRecord[]=[{id:'i-1',tool_id:'tool-1',inspection_type:'quarterly',outcome:'passed',inspected_at:'2026-10-05T08:00:00Z',inspector_name:'Audit Admin'}];
+    const {rerender}=render(<ToolsCompliance {...baseProps} plan={plan} inspections={inspections}/>);
+    expect(within(screen.getByRole('region',{name:"This quarter's plan"})).getByText('Done',{exact:true})).toBeInTheDocument();
+    rerender(<ToolsCompliance {...baseProps} plan={plan} inspections={[]}/>);
+    const section=screen.getByRole('region',{name:"This quarter's plan"});
+    expect(within(section).getByText('Pending',{exact:true})).toBeInTheDocument();
+    await user.click(within(section).getByRole('button',{name:'Record a check for Angle grinder'}));
+    expect(screen.getByText('Record inspection or maintenance')).toBeVisible();
+  });
+
+  it('shows no plan section while nothing is planned',()=>{
+    render(<ToolsCompliance {...baseProps} plan={[]}/>);
+    expect(screen.queryByRole('region',{name:"This quarter's plan"})).not.toBeInTheDocument();
   });
 });

@@ -28,7 +28,10 @@ const spec = {
     '/api/tools-workspace/history': [{ id: 'h1', tool_id: 'T-003', tool_name: 'Rotary hammer', action: 'Issued', detail: 'WO-2412', actor_name: 'Issuer', employee_name: 'B. Dube', event_at: iso(-5) }],
     '/api/tools-workspace/source-registers': [],
     '/api/tools-workspace/notifications': { alerts: [{ key: 'k1', kind: 'overdue', tool_id: 'id3', tool_name: 'Rotary hammer', department: 'Engineering', read: false }] },
-    '/api/tools-workspace/compliance': { competencies: [], inspections: [], incidents: [], gate_passes: [] },
+    '/api/tools-workspace/compliance': { competencies: [], inspections: [], incidents: [], gate_passes: [], inspection_plan: [
+      { id: 'p1', tool_id: 'id1', quarter: '2026-Q4', planned_date: '2026-10-06', completed_inspection_id: null },
+      { id: 'p4', tool_id: 'id4', quarter: '2026-Q4', planned_date: '2026-10-06', completed_inspection_id: 'i9' },
+    ] },
     'POST /api/tools-workspace/tools/id1/commands': { ok: true },
     'POST /api/tools-workspace/tools/id4/commands': { ok: true },
     'POST /api/tools-workspace/tools/id1/inspections': { ok: true },
@@ -169,6 +172,10 @@ const spec = {
     check(await page.getByRole('button', { name: /A\. Moyo/ }).isVisible(), 'employees are listed by department');
     await page.getByRole('button', { name: 'Compliance', exact: true }).first().click();
     check(await page.getByRole('table', { name: 'Inspections by equipment' }).isVisible(), 'compliance opens on the inspections that are overdue');
+    const plan = page.getByRole('region', { name: "This quarter's plan" });
+    check(await plan.isVisible(), "and this quarter's plan is shown below");
+    check(await plan.getByText('Done', { exact: true }).isVisible(), 'with completed tools marked done');
+    check(await plan.getByText('Pending', { exact: true }).isVisible(), 'and planned tools pending');
     await shot(page, 'compliance@1440');
 
     // Settings: the shared typeface, text size and hints, then the Tools-only choices. The sidebar icons are the
