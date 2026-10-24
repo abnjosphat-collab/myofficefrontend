@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -18,7 +19,7 @@ import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
-const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
+const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'Projects'];
 const BEHAVIOURS: BehaviourType[] = ['Intentional', 'Unintentional'];
 const STATUSES: PacheduStatus[] = ['draft', 'submitted', 'reviewed', 'closed'];
 const ALL = '__all__';
@@ -52,13 +53,14 @@ export const emptyForm = (): Form => ({
 });
 const toggle = (list: string[] | undefined, item: string) => (list?.includes(item) ? list.filter(i => i !== item) : [...(list || []), item]);
 
-function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PacheduReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PacheduReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, report?.id), () => {
     setTouched(false);
-    setForm(report ? { ...emptyForm(), location: report.location, date: report.date, activityObserved: report.activityObserved, whatDidYouSee: report.whatDidYouSee, reasons: report.reasons || '', behaviourType: report.behaviourType, impacts: report.impacts || [], whatDidYouDo: report.whatDidYouDo, observerName: report.observerName || '', dept: report.dept || '', sdwt: report.sdwt || '', sectionChoice: report.sectionChoice, checklist: report.checklist || [], status: report.status } : emptyForm());
+    setForm(report ? { ...emptyForm(), location: report.location, date: report.date, activityObserved: report.activityObserved, whatDidYouSee: report.whatDidYouSee, reasons: report.reasons || '', behaviourType: report.behaviourType, impacts: report.impacts || [], whatDidYouDo: report.whatDidYouDo, observerName: report.observerName || '', dept: report.dept || '', sdwt: report.sdwt || '', sectionChoice: report.sectionChoice, checklist: report.checklist || [], status: report.status } : { ...emptyForm(), ...(scope ? { sectionChoice: scope as SectionType } : {}) });
   });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
@@ -83,7 +85,9 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: Pached
           <h3 id="pa-basic" className="font-display text-section font-semibold text-ink sm:col-span-3">Basic information</h3>
           <Field label="Location" required error={err(missing.location, 'Enter where it happened.')}><Input value={form.location} onChange={e => set({ location: e.target.value })} placeholder="Where did this occur?" /></Field>
           <Field label="Date" required error={err(missing.date, 'Enter the date.')}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.sectionChoice} onValueChange={v => set({ sectionChoice: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          {scope
+            ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account files observations in ${scope}.`}><Input aria-label="Section" value={form.sectionChoice || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.sectionChoice} onValueChange={v => set({ sectionChoice: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <div className="sm:col-span-3"><Field label="Activity observed" required error={err(missing.activity, 'Describe the activity.')}><Input value={form.activityObserved} onChange={e => set({ activityObserved: e.target.value })} placeholder="What activity was being performed?" /></Field></div>
         </section>
 
@@ -184,11 +188,13 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function PacheduContent() {
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePacheduData();
   const [view, setView] = useViewPreference('pachedu', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [deptF, setDeptF] = useState(ALL);
   const [statusF, setStatusF] = useState(ALL);
   const [riskOnly, setRiskOnly] = useState(false);
@@ -205,9 +211,9 @@ function PacheduContent() {
     const q = search.trim().toLowerCase();
     return reports.filter(r =>
       (!q || [r.observerName, r.location, r.activityObserved, r.whatDidYouSee, r.dept].some(s => s?.toLowerCase().includes(q)))
-      && (sectionF === ALL || r.sectionChoice === sectionF) && (deptF === ALL || r.dept === deptF) && (statusF === ALL || r.status === statusF)
+      && (effSection === ALL || r.sectionChoice === effSection) && (deptF === ALL || r.dept === deptF) && (statusF === ALL || r.status === statusF)
       && (!riskOnly || hasSeriousImpact(r)) && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo));
-  }, [reports, search, sectionF, deptF, statusF, riskOnly, dateFrom, dateTo]);
+  }, [reports, search, effSection, deptF, statusF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof PacheduReport] ?? '').toLowerCase()), [filtered, sort]);
   const count = (s: PacheduStatus) => reports.filter(r => r.status === s).length;
   const intentional = reports.filter(r => r.behaviourType === 'Intentional').length;
@@ -249,7 +255,7 @@ function PacheduContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Pachedu' }]}
         title="Pachedu"
-        description="Be your brother's keeper: track care observations and supportive actions."
+        description={scope ? `Be your brother's keeper: track care observations and supportive actions. — showing ${scope} only.` : "Be your brother's keeper: track care observations and supportive actions."}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh Pachedu reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -289,7 +295,7 @@ function PacheduContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, location or activity" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        {!scope && (<Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />)}
         {departments.length > 0 && <Select className="w-44" aria-label="Filter by department" value={deptF} onValueChange={setDeptF} options={[{ value: ALL, label: 'All departments' }, ...departments.map(d => ({ value: d, label: d }))]} />}
         <Segmented label="Risk" value={riskOnly ? 'risk' : 'all'} onValueChange={v => setRiskOnly(v === 'risk')} options={[{ value: 'all', label: 'All' }, { value: 'risk', label: `High risk (${risky})` }]} />
       </Toolbar>
@@ -301,7 +307,7 @@ function PacheduContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No care observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="care" title="No care observations yet" description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} />}
+          : scope ? <EmptyState icon="care" title={`No ${scope} care observations yet`} description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} /> : <EmptyState icon="care" title="No care observations yet" description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {bySection} · {intentional} intentional</p>
         {view === 'cards' ? (

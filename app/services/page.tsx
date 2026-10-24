@@ -31,7 +31,7 @@ const Tick = ({ done }: { done: boolean }) => (done ? <span className="text-succ
 
 function ServicesContent() {
   const confirmDelete = useConfirmDelete();
-  const { profile } = useAuth();
+  const { profile, scope } = useAuth();
   const list = useServices();
   const records = list.items;
   const [view, setView] = useViewPreference('services', VIEWS);
@@ -99,7 +99,7 @@ function ServicesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Third party services' }]}
         title="Third party services"
-        description="Contractor jobs, and where each one is in the approval circuit from planning to payment."
+        description={scope ? `Contractor jobs, and where each one is in the approval circuit from planning to payment. — showing ${scope} only.` : 'Contractor jobs, and where each one is in the approval circuit from planning to payment.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh services" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
@@ -140,7 +140,7 @@ function ServicesContent() {
         status={status} subject="services" error={list.error} onRetry={() => list.refetch()}
         empty={filtered
           ? <EmptyState icon="search" title="No jobs match" description="Try a different search or clear the filters." action={<Button onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>} />
-          : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} />}
+          : scope ? <EmptyState icon="service" title={`No ${scope} services recorded yet`} description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} /> : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'job' : 'jobs'}{matches.length !== records.length ? ` of ${records.length}` : ''}</p>
         {view === 'cards' ? (

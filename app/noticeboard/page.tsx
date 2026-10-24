@@ -4,6 +4,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { todayLocal } from '@/lib/dates';
@@ -215,6 +216,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function NoticeboardContent() {
   const confirm = useConfirm();
+  const { scope: viewerScope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const [view, setView] = useViewPreference('noticeboard', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
@@ -319,7 +321,7 @@ function NoticeboardContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Communications' }, { label: 'Noticeboard' }]}
         title="Noticeboard"
-        description="Create, manage and monitor company notices and announcements."
+        description={viewerScope ? `Create, manage and monitor company notices and announcements. — showing ${viewerScope} only.` : 'Create, manage and monitor company notices and announcements.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh notices" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -378,7 +380,7 @@ function NoticeboardContent() {
         onRetry={() => refetch()}
         empty={hasFilters || hideExpired
           ? <EmptyState icon="search" title="No notices match" description="Try a different search or filter." action={<Button onClick={() => { clearFilters(); setHideExpired(false); }}>Clear filters</Button>} />
-          : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} />}
+          : viewerScope ? <EmptyState icon="notice" title={`No ${viewerScope} notices yet`} description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} /> : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} />}
       >
         {view === 'cards' ? (
           <div className="flex flex-col gap-5">

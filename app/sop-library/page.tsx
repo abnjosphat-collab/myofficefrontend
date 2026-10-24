@@ -24,7 +24,7 @@ import { fetchSop } from '@/lib/sops/api';
 const ALL = '__all__';
 
 function SopLibraryContent() {
-  const { isAtLeast } = useAuth();
+  const { isAtLeast, scope: viewerScope } = useAuth();
   const confirm = useConfirm();
   const canEdit = isAtLeast('manager');
   const canApprove = isAtLeast('admin');
@@ -103,7 +103,7 @@ function SopLibraryContent() {
       <PageHeader
         breadcrumbs={[{ label: 'MyOffice' }, { label: 'SOP library' }]}
         title="SOP library"
-        description="Living, versioned standard operating procedures, replacing static Word documents as the source of truth."
+        description={viewerScope ? `Living, versioned standard operating procedures, replacing static Word documents as the source of truth. — showing ${viewerScope} only.` : 'Living, versioned standard operating procedures, replacing static Word documents as the source of truth.'}
         actions={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined}
       />
 
@@ -143,7 +143,7 @@ function SopLibraryContent() {
           ? <EmptyState icon="archive" title="Nothing archived" description="Archived SOPs show up here and can be restored at any time." />
           : hasFilters
             ? <EmptyState icon="search" title="No SOPs match these filters" description="Try clearing a filter or the search." action={<Button onClick={() => { setSearch(''); setDepartment(ALL); setStatus(ALL); setOwner(ALL); setReview(ALL); }}>Clear filters</Button>} />
-            : <EmptyState icon="documents" title="No SOPs yet" description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined} />}
+            : viewerScope ? <EmptyState icon="documents" title={`No ${viewerScope} SOPs yet`} description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined} /> : <EmptyState icon="documents" title="No SOPs yet" description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined} />}
       >
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {list.map(sop => (

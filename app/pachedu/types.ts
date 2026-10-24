@@ -5,7 +5,7 @@
 // SECTION_META/BEHAVIOUR_META/STATUS_META/IMPACT_OPTIONS/CHECKLIST_CATEGORIES also
 // stay in page.tsx (business vocabulary, same as every other page's config constants).
 
-export type SectionType = 'Mechanical' | 'Electrical';
+export type SectionType = 'Mechanical' | 'Electrical' | 'Projects';
 export type BehaviourType = 'Intentional' | 'Unintentional';
 export type PacheduStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';
 

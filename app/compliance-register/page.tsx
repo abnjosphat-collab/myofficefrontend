@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
   Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Segmented,
@@ -100,6 +101,7 @@ function AddItemDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
 }
 
 function ComplianceRegisterContent() {
+  const { scope } = useAuth();
   const { data: records, loading, error, create, refetch } = useModuleData<ComplianceItem>('compliance');
   const [filter, setFilter] = useState<Status | 'all'>('all');
   const [adding, setAdding] = useState(false);
@@ -127,7 +129,7 @@ function ComplianceRegisterContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Compliance register' }]}
         title="Compliance register"
-        description="Regulatory certificates and inspection tracking."
+        description={scope ? `Regulatory certificates and inspection tracking. — showing ${scope} only.` : 'Regulatory certificates and inspection tracking.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh register" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -163,7 +165,7 @@ function ComplianceRegisterContent() {
         onRetry={() => refetch()}
         empty={filter !== 'all'
           ? <EmptyState icon="search" title={`No ${STATUS_META[filter as Status].label.toLowerCase()} items`} description="Choose a different status to see other items." action={<Button onClick={() => setFilter('all')}>Show all</Button>} />
-          : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} />}
+          : scope ? <EmptyState icon="compliance" title={`No ${scope} items registered yet`} description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} /> : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} />}
       >
         <DataTable caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>

@@ -13,8 +13,10 @@ import { createWorkOrder, deleteSchedule, updateSchedule } from './api';
 import { blankWorkOrderBody, machinesOf, nextWONumber, recurrenceLabel } from './helpers';
 import type { MaintenanceSchedule, WorkOrder } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { useAuth } from '@/lib/auth-context';
 
 export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list: ApiListState<MaintenanceSchedule>; orders: WorkOrder[]; onEdit: (s: MaintenanceSchedule) => void; onNew: () => void; onRaised: () => void }) {
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const [search, setSearch] = useState('');
   const [raising, setRaising] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list:
         status={status} subject="schedules" error={list.error} onRetry={() => list.refetch()}
         empty={q
           ? <EmptyState icon="search" title="No schedules match" description="Try a different search." action={<Button onClick={() => setSearch('')}>Clear search</Button>} />
-          : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={<Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button>} />}
+          : scope ? <EmptyState icon="clock" title={`No ${scope} recurring schedules yet`} description="A schedule raises work orders for you every week, month, quarter or on set dates." action={<Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button>} /> : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={<Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button>} />}
       >
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Schedules">
           {rows.map(s => (

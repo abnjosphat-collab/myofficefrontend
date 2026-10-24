@@ -6,7 +6,7 @@
 // COACHING_DESC also stay in page.tsx (business
 // vocabulary, same as every other page's config constants).
 
-export type SectionType = 'Mechanical' | 'Electrical';
+export type SectionType = 'Mechanical' | 'Electrical' | 'Projects';
 export type BehaviourCategory = 'Safe Behaviour' | 'Unsafe Behaviour';
 export type ObservationType = 'Safe Behaviour' | 'Safe Condition' | 'At Risk Behaviour' | 'At Risk Condition';
 export type CoachingTechnique = 'SBR' | 'CC';

@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
@@ -38,6 +39,7 @@ const EXPORT_PDF: DLColumn[] = [
 ];
 
 function EquipmentContent() {
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const list = useApiList<EquipmentItem>('/api/equipment');
   const items = list.items;
@@ -94,7 +96,7 @@ function EquipmentContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Equipment' }]}
         title="Equipment"
-        description="Every asset with its status, location and details."
+        description={scope ? `Every asset with its status, location and details. — showing ${scope} only.` : 'Every asset with its status, location and details.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh equipment" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
@@ -130,7 +132,7 @@ function EquipmentContent() {
         status={status} subject="equipment" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No equipment matches" description="Try a different search or filter." action={<Button onClick={clear}>Clear filters</Button>} />
-          : <EmptyState icon="equipment" title="No equipment yet" description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} />}
+          : scope ? <EmptyState icon="equipment" title={`No ${scope} equipment yet`} description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} /> : <EmptyState icon="equipment" title="No equipment yet" description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} items{hasFilters ? ' (filtered)' : ''}</p>
         {view === 'cards' ? (
