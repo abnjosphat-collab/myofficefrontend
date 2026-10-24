@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
   Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select,
@@ -98,6 +99,7 @@ function AddReadingDialog({ open, onOpenChange, onCreated }: { open: boolean; on
 }
 
 function ConditionMonitoringContent() {
+  const { scope } = useAuth();
   const { readings, loading, loaded, error, errorStatus, fetchReadings } = useConditionMonitoringData();
   const [tab, setTab] = useState<'All' | CMType>('All');
   const [adding, setAdding] = useState(false);
@@ -115,7 +117,7 @@ function ConditionMonitoringContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Condition monitoring' }]}
         title="Condition monitoring"
-        description="Oil analysis, vibration and thermography records."
+        description={scope ? `Oil analysis, vibration and thermography records. — showing ${scope} only.` : 'Oil analysis, vibration and thermography records.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh readings" variant="shell" pending={loading && loaded} onClick={() => fetchReadings()} />
@@ -152,7 +154,7 @@ function ConditionMonitoringContent() {
         onRetry={() => fetchReadings()}
         empty={tab !== 'All'
           ? <EmptyState icon="search" title={`No ${TYPE_LABEL[tab].toLowerCase()} readings`} description="Choose a different type to see other readings." action={<Button onClick={() => setTab('All')}>Show all types</Button>} />
-          : <EmptyState icon="analytics" title="No readings yet" description="Add the first oil analysis, vibration or thermography reading." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>} />}
+          : scope ? <EmptyState icon="analytics" title={`No ${scope} readings yet`} description="Add the first oil analysis, vibration or thermography reading." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>} /> : <EmptyState icon="analytics" title="No readings yet" description="Add the first oil analysis, vibration or thermography reading." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>} />}
       >
         <DataTable caption="Condition monitoring records" rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>

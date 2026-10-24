@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
   Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
@@ -44,6 +45,7 @@ const PAGE_SIZE = 25;
 
 function MaintenanceContent() {
   const confirm = useConfirm();
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const orders = useWorkOrders();
   const schedules = useSchedules();
@@ -133,7 +135,7 @@ function MaintenanceContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Operations & Maintenance' }, { label: 'Work orders' }]}
         title="Maintenance"
-        description="Raise a job, follow it to completion, and plan the recurring ones."
+        description={scope ? `Raise a job, follow it to completion, and plan the recurring ones. — showing ${scope} only.` : 'Raise a job, follow it to completion, and plan the recurring ones.'}
         actions={(
           <>
             <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="shell" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
@@ -188,7 +190,7 @@ function MaintenanceContent() {
             status={status} subject="work orders" error={orders.error} onRetry={() => orders.refetch()}
             empty={filtered
               ? <EmptyState icon="search" title="No work orders match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
-              : <EmptyState icon="wrench" title="No work orders yet" description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} />}
+              : scope ? <EmptyState icon="wrench" title={`No ${scope} work orders yet`} description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} /> : <EmptyState icon="wrench" title="No work orders yet" description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{rows.length} {rows.length === 1 ? 'work order' : 'work orders'}{rows.length !== items.length ? ` of ${items.length}` : ''}</p>
             {view === 'cards' ? (

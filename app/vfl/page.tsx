@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -19,7 +20,7 @@ import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
-const SECTIONS: SectionType[] = ['Mechanical', 'Electrical'];
+const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'Projects'];
 const BEHAVIOURS: BehaviourCategory[] = ['Safe Behaviour', 'Unsafe Behaviour'];
 const OBSERVATIONS: ObservationType[] = ['Safe Behaviour', 'Safe Condition', 'At Risk Behaviour', 'At Risk Condition'];
 const TECHNIQUES: CoachingTechnique[] = ['SBR', 'CC'];
@@ -80,13 +81,14 @@ function ActionFields({ item, index, touched, onChange, onRemove }: { item: Acti
   );
 }
 
-function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: VFLReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: VFLReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, report?.id), () => {
     setTouched(false);
-    setForm(report ? { ...emptyForm(), ...report, actions: report.actions || [] } : emptyForm());
+    setForm(report ? { ...emptyForm(), ...report, actions: report.actions || [] } : { ...emptyForm(), ...(scope ? { sectionChoice: scope as SectionType } : {}) });
   });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), designation: e.designation, department: e.department })), [employees]);
@@ -119,7 +121,9 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: VFLRep
             </Field>
           </div>
           <Field label="Designation" optional><SuggestField historyKey="vfl_designation" placeholder="Job title" value={form.designation} onChange={v => set({ designation: v })} /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.sectionChoice} onValueChange={v => set({ sectionChoice: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          {scope
+            ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account files observations in ${scope}.`}><Input aria-label="Section" value={form.sectionChoice || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.sectionChoice} onValueChange={v => set({ sectionChoice: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <div className="sm:col-span-2"><Field label="Department or section" optional><SuggestField historyKey="vfl_department" placeholder="For example, Engineering" value={form.departmentSection} onChange={v => set({ departmentSection: v })} /></Field></div>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
           <Field label="Time" required error={touched && !form.time ? 'Enter the time.' : undefined}><Input type="time" value={form.time} onChange={e => set({ time: e.target.value })} /></Field>
@@ -219,11 +223,13 @@ const EXPORT_COLUMNS: DLColumn[] = [
 ];
 
 function VFLContent() {
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const { reports, setReports, loading, loaded, error, errorStatus, refetch } = useVFLData();
   const [view, setView] = useViewPreference('vfl', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [statusF, setStatusF] = useState(ALL);
   const [behaviourF, setBehaviourF] = useState<string>(ALL);
   const [dateFrom, setDateFrom] = useState('');
@@ -239,10 +245,10 @@ function VFLContent() {
     const q = search.trim().toLowerCase();
     return reports.filter(r => {
       if (q && ![r.observerName, r.designation, r.description, r.departmentSection].some(s => s?.toLowerCase().includes(q)) && !r.actions?.some(a => a.action?.toLowerCase().includes(q))) return false;
-      return (sectionF === ALL || r.sectionChoice === sectionF) && (statusF === ALL || r.status === statusF) && (behaviourF === ALL || r.behaviourCategory === behaviourF)
+      return (effSection === ALL || r.sectionChoice === effSection) && (statusF === ALL || r.status === statusF) && (behaviourF === ALL || r.behaviourCategory === behaviourF)
         && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo);
     });
-  }, [reports, search, sectionF, statusF, behaviourF, dateFrom, dateTo]);
+  }, [reports, search, effSection, statusF, behaviourF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof VFLReport] ?? '').toLowerCase()), [filtered, sort]);
   const count = (s: VFLStatus) => reports.filter(r => r.status === s).length;
   const totalActions = reports.reduce((n, r) => n + (r.actions?.length || 0), 0);
@@ -283,7 +289,7 @@ function VFLContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Visible felt leadership' }]}
         title="Visible felt leadership"
-        description="Safety observations and coaching tracking."
+        description={scope ? `Safety observations and coaching tracking. — showing ${scope} only.` : 'Safety observations and coaching tracking.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh observations" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -325,7 +331,7 @@ function VFLContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search observer, description or actions" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        {!scope && (<Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />)}
         <Segmented label="Behaviour" value={behaviourF} onValueChange={setBehaviourF} options={[{ value: ALL, label: 'All' }, { value: 'Safe Behaviour', label: `Safe (${safe})` }, { value: 'Unsafe Behaviour', label: `Unsafe (${unsafe})` }]} />
       </Toolbar>
 
@@ -336,7 +342,7 @@ function VFLContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} />}
+          : scope ? <EmptyState icon="eye" title={`No ${scope} VFL observations yet`} description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} /> : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {totalActions} {totalActions === 1 ? 'action' : 'actions'} across all observations</p>
         {view === 'cards' ? (

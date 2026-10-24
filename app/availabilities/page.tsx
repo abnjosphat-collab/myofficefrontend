@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -29,6 +30,7 @@ const AvailabilityCell = ({ value, label }: { value: number | null | undefined; 
 );
 
 function AvailabilitiesContent() {
+  const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const { manual, derived, equipment: eqList, records, refresh } = useAvailabilitiesData();
   const equipment = eqList.items;
@@ -144,7 +146,7 @@ function AvailabilitiesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Availability records' }]}
         title="Availability records"
-        description="Availability = (operational hours − downtime) ÷ operational hours × 100."
+        description={scope ? `Availability = (operational hours − downtime) ÷ operational hours × 100. — showing ${scope} only.` : 'Availability = (operational hours − downtime) ÷ operational hours × 100.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh availability records" variant="shell" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
@@ -198,7 +200,7 @@ function AvailabilitiesContent() {
           onRetry={() => refresh()}
           empty={hasFilters || records.length > 0
             ? <EmptyState icon="search" title="No records in this range" description="Widen the dates or clear the filters." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-            : <EmptyState icon="gauge" title="No availability records yet" description="Log the first record, or record breakdowns to have them derived." action={<Button variant="primary" icon="plus" onClick={openNew}>Log record</Button>} />}
+            : scope ? <EmptyState icon="gauge" title={`No ${scope} availability records yet`} description="Log the first record, or record breakdowns to have them derived." action={<Button variant="primary" icon="plus" onClick={openNew}>Log record</Button>} /> : <EmptyState icon="gauge" title="No availability records yet" description="Log the first record, or record breakdowns to have them derived." action={<Button variant="primary" icon="plus" onClick={openNew}>Log record</Button>} />}
         >
           <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'} from {fmtDate(dateFrom)} to {fmtDate(dateTo)}</p>
           <TabsContent value="overview">
