@@ -287,6 +287,10 @@ Three parts, one branch per part (frontend `tools-eligibility-2` stacks on `-1`,
 
 Section-scoped access for the Projects work: accounts with scope Projects see only Projects-section people modules; Tools stays whole-mine (owner decision). Backend batches 0-7 (scope registry, auth scope, enforcement per module, documents subtree, C0952 move + acceptance; `84939ef`...`b1515c7`), frontend batches 1-5 (scope-aware headers/empties, pins, documents adoption; `dccd028`...`1bccbab`). Full account: backend `docs/PROJECTS_SCOPE.md`. SQL run 24 Oct (section columns, C0952 move, account scopes); verified live read-only 25 Oct (C0952 in section Projects, 2 accounts scoped Projects). Release note: Projects accounts now see their own people modules; everyone else is unchanged.
 
+## 8j. Process adopted (P0, Muse, 25 Oct 2026; merged to main, pushed and live 25 Oct 2026, tagged `release-2026-10-25-1`)
+
+`frontend/docs/ENGINEERING_PROCESS.md` adopted from the 25 Oct audit draft (title only changed); linked from both `AGENTS.md` files and `docs/README.md`. Handoff record corrected: 8h (tools-eligibility live), new 8i (projects-scope release), two stale notes fixed (shared-lists tables exist live; `competency_required` column exists). Branch `process-adopt-2026-10` both repos (frontend `88b2617`, backend `c045362`). Verified: docs:check 0 errors / 22 pre-existing warnings; no code touched. Release note: how we build is now written down, and the release record is true.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
