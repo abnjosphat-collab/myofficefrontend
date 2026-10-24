@@ -13,6 +13,7 @@ const TOOLS = [
   tool(2, 'Angle grinder', 'issued', { custody: { employee_name: 'A. Moyo', expected_return_at: iso(2), job_reference: 'WO-2408', pre_use_pending: true } }),
   tool(3, 'Rotary hammer', 'overdue', { custody: { employee_name: 'B. Dube', expected_return_at: iso(-3), job_reference: 'WO-2412' } }),
   tool(4, 'Torque wrench', 'available', { category: 'Hand tools', notes: 'Needs calibration' }),
+  tool(5, 'Digital multimeter', 'available', { category: 'Test & measure', eligible_employees: [] }),
 ];
 const SESSION = { version: 1, browserId: 'b1', account: { id: 'u1', name: 'Test Issuer', username: 'issuer', password: '', role: 'issuer', department: 'Engineering', canIssue: true, token: 'tok' } };
 
@@ -34,7 +35,7 @@ const spec = {
   },
   async ready(page, calls, { check, shot }) {
     check(await page.getByRole('navigation', { name: 'Workspace shortcuts' }).isVisible(), 'the overview offers shortcuts to the sections');
-    check(await page.getByRole('button', { name: /Equipment\s*4/ }).isVisible(), 'the overview counts the active equipment');
+    check(await page.getByRole('button', { name: /Equipment\s*5/ }).isVisible(), 'the overview counts the active equipment');
     check(await page.getByRole('button', { name: '1 unread tool notifications' }).isVisible(), 'the bell shows the unread notification');
     await shot(page, 'overview@1440');
 
@@ -44,7 +45,7 @@ const spec = {
     // U1: the cards are native buttons now (they were divs with role="button"), so locate by role+name.
     const pods = page.getByRole('button', { name: /Open for details/ });
     await pods.first().waitFor();
-    check(await pods.count() === 4, 'one card per tool');
+    check(await pods.count() === 5, 'one card per tool');
     await page.getByRole('button', { name: /Return overdue\s*1/ }).click();
     check(await pods.count() === 1, 'the overdue figure filters the register to the overdue tool');
     await page.getByRole('button', { name: /Return overdue\s*1/ }).click();
@@ -58,6 +59,15 @@ const spec = {
     check(await loanPanel.getByRole('button', { name: 'Record pre-use check' }).isVisible(), 'and offers the post-issue recording form');
     await shot(page, 'tool-preuse@1440');
     await page.keyboard.press('Escape');
+
+    // A tool nobody can use cannot be issued: greyed button with the reason and the shortcut.
+    await pods.filter({ hasText: 'Digital multimeter' }).click();
+    const nobodyPanel = page.getByRole('dialog', { name: 'Digital multimeter' });
+    await nobodyPanel.waitFor();
+    check(await nobodyPanel.getByRole('button', { name: 'Issue tool' }).isDisabled(), 'Issue is greyed when nobody can use the tool');
+    check(await nobodyPanel.getByText('Nobody is eligible yet').isVisible(), 'and the panel says nobody is eligible yet');
+    check(await nobodyPanel.getByRole('button', { name: 'Set who can use it' }).isVisible(), 'with the shortcut to set who can use it');
+    await nobodyPanel.getByRole('button', { name: 'Close', exact: true }).click();
 
     // One tool's panel: what it can do next, then issue it against an overdue monthly check (reason required).
     await pods.filter({ hasText: 'Cordless drill' }).click();
@@ -127,6 +137,9 @@ const spec = {
     await bulk.waitFor();
     check(await bulk.getByRole('checkbox', { name: /T-002/ }).isDisabled(), 'a tool that is out is greyed out with its holder stated');
     check(await bulk.getByRole('button', { name: 'Receive' }).first().isVisible(), 'with a shortcut to receive it back');
+    check(await bulk.getByRole('checkbox', { name: /T-005/ }).isDisabled(), 'a tool nobody can use cannot be ticked for bulk issue');
+    check(await bulk.getByText('Nobody can use it yet').isVisible(), 'and its row says nobody can use it yet');
+    check(await bulk.getByRole('button', { name: 'Set who can use it' }).isVisible(), 'with the shortcut to set who can use it');
     await bulk.getByRole('checkbox', { name: /T-001/ }).check();
     await bulk.getByRole('checkbox', { name: /T-004/ }).check();
     await bulk.getByRole('button', { name: 'Next', exact: true }).click();

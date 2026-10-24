@@ -2,6 +2,7 @@
 // FactList, and a missing value reads the shared quiet way.
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ToolDrawer } from './ToolDrawer';
 import { ConfirmProvider } from '@/components/ui-system';
 
@@ -32,5 +33,14 @@ describe('ToolDrawer full record', () => {
     render(<ConfirmProvider><ToolDrawer w={workspace([['Serial number', '']]) as never} /></ConfirmProvider>);
     const facts = screen.getByText('Serial number').closest('dl')!;
     expect(within(facts).getByText('Not recorded')).toBeInTheDocument();
+  });
+
+  it('greys Issue and offers the eligibility shortcut when nobody can use it', async () => {
+    const user = userEvent.setup();
+    const w = workspace([['Serial number', 'S1']]);
+    render(<ConfirmProvider><ToolDrawer w={w as never} /></ConfirmProvider>);
+    expect(screen.getByRole('button', { name: 'Issue tool' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Set who can use it' }));
+    expect(w.setTab).toHaveBeenCalledWith('employees');
   });
 });

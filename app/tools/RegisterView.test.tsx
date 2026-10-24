@@ -25,9 +25,13 @@ describe('RegisterView', () => {
   it('offers Issue on ready tools and Receive on tools that are out, and nothing on archived ones', async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    render(<RegisterView tools={tools} view="grid" onSelect={() => {}} onAction={onAction} />);
+    const stocked = tools.map(t => t.id === 'T-2' ? { ...t, eligibleEmployees: [{ id: 'b1', employeeNumber: 'E-1', name: 'Alex Moyo', department: 'Engineering' }] } : t);
+    render(<RegisterView tools={stocked} view="grid" onSelect={() => {}} onAction={onAction} />);
     expect(screen.getAllByRole('button', { name: 'Issue' })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Receive' })).toHaveLength(1);
+    // T-1 has no eligible people: its Issue button is greyed with the reason and does nothing.
+    expect(screen.getAllByRole('button', { name: 'Issue' })[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Issue' })[0]).toHaveAttribute('title', 'Nobody can use it yet.');
     await user.click(screen.getAllByRole('button', { name: 'Issue' })[1]);
     expect(onAction).toHaveBeenCalledWith('issue', expect.objectContaining({ id: 'T-2' }));
     await user.click(screen.getByRole('button', { name: 'Receive' }));

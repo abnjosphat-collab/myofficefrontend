@@ -58,6 +58,26 @@ describe('Tools interaction controls', () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Alex Morgan is not currently trained, qualified and authorized for Cordless drill');
   });
+  it('greys a tool nobody can use and refuses to issue it', async () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    const onSave = vi.fn(); const user = userEvent.setup();
+    const nobody = { ...SEED_TOOLS[0], eligibleEmployees: [] };
+    render(<MovementForm kind="issue" tools={[nobody]} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    await user.click(screen.getByRole('combobox', { name: 'Tool' }));
+    const option = await screen.findByRole('option', { name: /Cordless drill/ });
+    expect(option).toHaveAttribute('aria-disabled', 'true');
+    expect(option).toHaveTextContent('Nobody can use it yet');
+  });
+  it('refuses to submit a tool nobody can use, and still shows it on the employee-first path', () => {
+    window.localStorage.removeItem('myoffice.tools.last-location');
+    const onSave = vi.fn();
+    const nobody = { ...SEED_TOOLS[0], eligibleEmployees: [] };
+    render(<MovementForm kind="issue" initialTool={nobody} initialEmployee={placeholderPeople[0]} tools={[nobody]} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Issue tool' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('That tool is not ready to issue. Pick a ready tool, or resolve it with the actions below.')).toBeVisible();
+    expect(screen.getByText('Nobody can use it yet')).toBeVisible();
+  });
   it('shows the Issue button saving while the movement is stored', async () => {
     window.localStorage.removeItem('myoffice.tools.last-location');
     let release!: () => void;
@@ -97,16 +117,19 @@ describe('Tools interaction controls', () => {
     await user.click(screen.getByRole('combobox',{name:'Employee'}));
     expect(screen.getByRole('listbox',{name:'Employee suggestions'})).toHaveTextContent('No employee is currently trained, qualified and authorized');
   });
-  it('shows only approved equipment when issue starts from an employee', async () => {
+  it('shows approved equipment plus greyed-out tools nobody can use when issue starts from an employee', async () => {
     const user=userEvent.setup();
     const employee={id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true};
     const approved={...SEED_TOOLS[0],id:'APPROVED',backendId:'approved',eligibleEmployees:[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering'}]};
-    const restricted={...SEED_TOOLS[1],id:'RESTRICTED',backendId:'restricted',status:'available' as const,eligibleEmployees:[]};
+    const restricted={...SEED_TOOLS[1],id:'RESTRICTED',backendId:'restricted',status:'available' as const,holder:undefined,eligibleEmployees:[]};
     render(<MovementForm kind="issue" initialEmployee={employee} tools={[approved,restricted]} employees={[employee]} issuerDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     await user.click(screen.getByRole('combobox',{name:'Tool'}));
     const options=(await screen.findAllByRole('option')).map(option=>option.textContent).join(' | ');
     expect(options).toContain('APPROVED');
-    expect(options).not.toContain('RESTRICTED');
+    expect(options).toContain('RESTRICTED');
+    const greyed = await screen.findByRole('option', { name: /RESTRICTED/ });
+    expect(greyed).toHaveAttribute('aria-disabled', 'true');
+    expect(greyed).toHaveTextContent('Nobody can use it yet');
   });
   it('autofills saved employee details when an employee is selected', async () => {
     const user=userEvent.setup();

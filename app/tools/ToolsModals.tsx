@@ -69,6 +69,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (action === 'receive') w.openAction('return', tool);
     else if (action === 'transfer') w.openAction('transfer', tool);
     else if (action === 'record-check') setCheckToolId(tool.id);
+    else if (action === 'manage-eligibility') { close(); w.setTab('employees'); }
     else setRepairToolId(tool.id);
   };
   const saveCheck = async (tool: Tool, input: RecordCheckInput) => {

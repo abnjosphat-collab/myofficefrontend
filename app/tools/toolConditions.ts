@@ -4,8 +4,8 @@
 import type { Employee, Tool } from './prototype';
 
 export type ConditionState = 'met' | 'unmet' | 'info' | 'attention';
-/** What unblocks the row, offered inline: receive/transfer the open loan, or record the missing check/repair. */
-export type ConditionAction = 'receive' | 'transfer' | 'record-check' | 'record-repair';
+/** What unblocks the row, offered inline: receive/transfer the open loan, record the missing check/repair, or set who may use the tool. */
+export type ConditionAction = 'receive' | 'transfer' | 'record-check' | 'record-repair' | 'manage-eligibility';
 export interface ToolCondition {
   key: string;
   label: string;
@@ -16,7 +16,7 @@ export interface ToolCondition {
   actions?: ConditionAction[];
 }
 /** Button labels for the resolving actions, one source for every surface that offers them. */
-export const CONDITION_ACTION_LABELS: Record<ConditionAction, string> = { receive: 'Receive', transfer: 'Transfer', 'record-check': 'Record check', 'record-repair': 'Record repair' };
+export const CONDITION_ACTION_LABELS: Record<ConditionAction, string> = { receive: 'Receive', transfer: 'Transfer', 'record-check': 'Record check', 'record-repair': 'Record repair', 'manage-eligibility': 'Set who can use it' };
 
 /** Mirror of the backend register's `_needs_attention`: not working, or recorded as defective, missing or damaged, is not fit to issue. */
 const FAULT_CONDITIONS = new Set(['Defective', 'Missing', 'Damaged']);
@@ -30,6 +30,11 @@ const employeeIds = (employee: { backendId?: string; employeeNumber: string | nu
 export function overdueCheckLabel(due: readonly string[]): string {
   const names = due.map(item => item.replace('_', ' ')).join(', ');
   return `${names.charAt(0).toUpperCase()}${names.slice(1)} check overdue`;
+}
+
+/** One predicate for "nobody can take this tool", shared by every picker and issue button. The server builds the list from active people only, so an empty list means no active eligible person; no list at all (or no competency requirement) means anyone may take it — the same reading as isEligibleForTool. */
+export function nobodyCanUse(tool: Tool): boolean {
+  return tool.competencyRequired !== false && tool.eligibleEmployees !== undefined && tool.eligibleEmployees.length === 0;
 }
 
 /** One predicate for "may this person take this tool", shared by the conditions panel and both issue forms. Unknown numbers match nothing: two people without numbers are never the same person, and a numberless person only matches by id. */
@@ -55,7 +60,9 @@ export function toolConditions(tool: Tool, employee?: Employee | null): ToolCond
   }
 
   const eligible = tool.eligibleEmployees;
-  if (tool.competencyRequired === false) {
+  if (nobodyCanUse(tool)) {
+    rows.push({ key: 'competency', label: 'Nobody can use it yet', detail: 'Set who is trained, qualified and authorized before issuing.', state: 'unmet', blocker: true, actions: ['manage-eligibility'] });
+  } else if (tool.competencyRequired === false) {
     rows.push({ key: 'competency', label: 'No training needed for this item', detail: 'Any active employee may take it.', state: 'info', blocker: false });
   } else if (eligible === undefined) {
     rows.push({ key: 'competency', label: 'No competency list', detail: 'Any active employee may take it.', state: 'info', blocker: false });

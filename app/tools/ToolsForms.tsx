@@ -13,7 +13,7 @@ import { tomorrowAt } from '@/lib/dates';
 import { EmployeePicker } from './ToolsEmployeePicker';
 import { EvidencePicker, ToolsPreferences, type AddEvidence } from './ToolsUI';
 import { ToolConditions } from './ToolConditionsPanel';
-import { isEligibleForTool, needsAttention, overdueCheckLabel, type ConditionAction } from './toolConditions';
+import { isEligibleForTool, needsAttention, nobodyCanUse, overdueCheckLabel, type ConditionAction } from './toolConditions';
 
 /** Hint text under a field; the "Show helpful hints" setting hides it. */
 export function useHint() {
@@ -75,18 +75,19 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
 }) {
   const hintFor = useHint();
   const initialEmployeeIds = new Set(initialEmployee ? [initialEmployee.backendId, initialEmployee.employeeNumber].filter(Boolean) : []);
-  const availableForAction = (t: Tool) => (kind === 'issue' ? t.status === 'available' && !needsAttention(t) : ['issued', 'overdue'].includes(t.status));
+  const availableForAction = (t: Tool) => (kind === 'issue' ? t.status === 'available' && !needsAttention(t) && !nobodyCanUse(t) : ['issued', 'overdue'].includes(t.status));
   const candidates = tools.filter(t => {
     const approvedForEmployee = !initialEmployee || !['issue', 'transfer'].includes(kind) || t.eligibleEmployees === undefined || t.eligibleEmployees.some(employee => initialEmployeeIds.has(employee.id) || initialEmployeeIds.has(employee.employeeNumber));
-    return (!issuerDepartment || departmentOf(t) === issuerDepartment) && !t.archived && approvedForEmployee;
+    // A tool nobody can use stays visible (greyed, with its reason) even on the employee-first path, so the gap is seen, not silent.
+    return (!issuerDepartment || departmentOf(t) === issuerDepartment) && !t.archived && (approvedForEmployee || (kind === 'issue' && nobodyCanUse(t)));
   });
   // Greyed-out tools stay visible with the reason, so the picker explains itself; only ready tools can be picked.
   const optionState = (t: Tool): { disabled: boolean; description: string } => {
     if (availableForAction(t)) return { disabled: false, description: t.holder ? `With ${t.holder.split(' · ')[0]}` : t.location };
     if (kind === 'issue') {
-      return t.holder
-        ? { disabled: true, description: `With ${t.holder.split(' · ')[0]} — receive it back or transfer the open loan` }
-        : { disabled: true, description: 'Needs attention — record the repair first' };
+      if (t.holder) return { disabled: true, description: `With ${t.holder.split(' · ')[0]} — receive it back or transfer the open loan` };
+      if (nobodyCanUse(t)) return { disabled: true, description: 'Nobody can use it yet' };
+      return { disabled: true, description: 'Needs attention — record the repair first' };
     }
     return { disabled: true, description: 'Not out on loan' };
   };

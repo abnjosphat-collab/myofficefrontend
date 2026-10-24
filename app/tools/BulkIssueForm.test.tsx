@@ -40,6 +40,24 @@ describe('BulkIssueForm borrower step', () => {
     expect(options).not.toHaveTextContent('Jordan Ellis');
   });
 
+  it('skips tools nobody can use in select-all and offers the shortcut', async () => {
+    const user = userEvent.setup();
+    const onResolveAction = vi.fn();
+    const tools: Tool[] = [
+      { ...SEED_TOOLS[0], eligibleEmployees: forEmployees(0) },
+      { ...SEED_TOOLS[2], eligibleEmployees: [] },
+    ];
+    render(<BulkIssueForm tools={tools} employees={employees} issuerDepartment="Engineering" locationSuggestions={[]} onSave={() => {}} onResolveAction={onResolveAction} />);
+    const nobodyBox = screen.getByRole('checkbox', { name: /ENG-RH-03/ });
+    expect(nobodyBox).toBeDisabled();
+    expect(screen.getByText('Nobody can use it yet')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Select all available' }));
+    expect(screen.getByRole('checkbox', { name: /ENG-CD-01/ })).toBeChecked();
+    expect(nobodyBox).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Set who can use it' }));
+    expect(onResolveAction).toHaveBeenCalledWith('manage-eligibility', expect.objectContaining({ id: 'ENG-RH-03' }));
+  });
+
   it('refused Next focuses the step message', async () => {
     const user = userEvent.setup();
     const tools: Tool[] = [{ ...SEED_TOOLS[0], eligibleEmployees: forEmployees(0) }];

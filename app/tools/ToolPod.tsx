@@ -6,6 +6,7 @@
 
 import { Button, RecordCard, StatusBadge } from '@/components/ui-system';
 import type { Tool } from './prototype';
+import { nobodyCanUse } from './toolConditions';
 import { statusLabel, statusTone, whereIs } from './toolLook';
 
 export type ToolQuickAction = 'issue' | 'return';
@@ -21,7 +22,7 @@ export function ToolPod({ tool, onOpen, onAction }: { tool: Tool; onOpen: () => 
       subtitle={tool.make || undefined}
       status={<StatusBadge tone={tool.archived ? 'neutral' : statusTone(tool.status)}>{tool.archived ? 'Archived' : label}</StatusBadge>}
       meta={<>{whereIs(tool)}{' · '}{out && tool.due ? <span className={tool.status === 'overdue' ? 'font-medium text-danger' : undefined}>Due {tool.due}</span> : tool.category}</>}
-      action={quick && onAction ? <Button size="sm" onClick={() => onAction(quick, tool)}>{quick === 'issue' ? 'Issue' : 'Receive'}</Button> : undefined}
+      action={quick && onAction ? <Button size="sm" disabled={quick === 'issue' && nobodyCanUse(tool)} title={quick === 'issue' && nobodyCanUse(tool) ? 'Nobody can use it yet.' : undefined} onClick={() => onAction(quick, tool)}>{quick === 'issue' ? 'Issue' : 'Receive'}</Button> : undefined}
       onOpen={onOpen}
       openLabel={`${tool.name}, ${tool.id}, ${label}. ${whereIs(tool)}. Open for details.`}
     />

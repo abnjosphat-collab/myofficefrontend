@@ -162,7 +162,7 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
 type EligiblePerson = { id: string; employeeNumber: string | null; name: string; department?: string; jobTitle?: string };
 
 /** Everyone who may be issued this equipment, as a readable list in the tool's details. With `onIssue`, each row can start the issue straight away. */
-export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void }) {
+export function EligibleEmployeesList({ people, onIssue, onOpenEmployees }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void; onOpenEmployees?: () => void }) {
   const [filter, setFilter] = useState('');
   if (people === undefined) return null;
   const sorted = [...people].sort((a, b) => a.name.localeCompare(b.name));
@@ -174,7 +174,7 @@ export function EligibleEmployeesList({ people, onIssue }: { people: EligiblePer
         <span className="font-sans text-caption text-ink-muted">{sorted.length} {sorted.length === 1 ? 'person' : 'people'}</span>
       </div>
       {sorted.length === 0
-        ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible yet, so this equipment cannot be issued. Add people under Employees.</p>
+        ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible yet, so this equipment cannot be issued.{onOpenEmployees ? <> <Button size="sm" variant="secondary" onClick={onOpenEmployees}>Set who can use it</Button></> : ' Add people under Employees.'}</p>
         : (
           <>
             {sorted.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter eligible employees" />}

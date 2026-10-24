@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockingConditions, isEligibleForTool, needsAttention, toolConditions } from './toolConditions';
+import { blockingConditions, isEligibleForTool, needsAttention, nobodyCanUse, toolConditions } from './toolConditions';
 import type { Employee, Tool } from './prototype';
 
 const tool = (over: Partial<Tool> = {}): Tool => ({
@@ -68,6 +68,19 @@ describe('toolConditions', () => {
     const rows = toolConditions(tool({ workingStatus: 'not_working' }));
     expect(rows.find(r => r.key === 'availability')).toMatchObject({ state: 'unmet', blocker: true });
     expect(blockingConditions(rows).map(r => r.key)).toContain('availability');
+  });
+  it('blocks a tool nobody can use, with the shortcut to set who can', () => {
+    const rows = toolConditions(tool({ eligibleEmployees: [] }));
+    expect(rows.find(r => r.key === 'competency')).toMatchObject({ state: 'unmet', blocker: true, label: 'Nobody can use it yet', actions: ['manage-eligibility'] });
+    expect(blockingConditions(rows).map(r => r.key)).toContain('competency');
+    // Still blocked with an employee picked: nobody means nobody.
+    expect(blockingConditions(toolConditions(tool({ eligibleEmployees: [] }), employee())).map(r => r.key)).toContain('competency');
+  });
+  it('nobodyCanUse reads the list the same way the issue forms do', () => {
+    expect(nobodyCanUse(tool({ eligibleEmployees: [] }))).toBe(true);
+    expect(nobodyCanUse(tool())).toBe(false);
+    expect(nobodyCanUse(tool({ competencyRequired: false, eligibleEmployees: [] }))).toBe(false);
+    expect(nobodyCanUse(tool({ eligibleEmployees: [{ id: 'b1', employeeNumber: 'E-001', name: 'A. Moyo', department: 'Engineering' }] }))).toBe(false);
   });
   it('offers the resolving action on every actionable blocker row', () => {
     expect(toolConditions(tool({ status: 'issued', holder: 'B. Moyo · E-002' })).find(r => r.key === 'availability')?.actions).toEqual(['receive', 'transfer']);

@@ -10,7 +10,7 @@ import { daysFromNowAt, tomorrowAt } from '@/lib/dates';
 import { departmentOf, employeeLabel, type Employee, type Tool } from './prototype';
 import { EmployeePicker } from './ToolsEmployeePicker';
 import { SuggestField, useHint } from './ToolsForms';
-import { blockingConditions, CONDITION_ACTION_LABELS, isEligibleForTool, needsAttention, toolConditions, type ConditionAction } from './toolConditions';
+import { blockingConditions, CONDITION_ACTION_LABELS, isEligibleForTool, needsAttention, nobodyCanUse, toolConditions, type ConditionAction } from './toolConditions';
 
 export interface BulkIssueInput {
   toolIds: string[];
@@ -94,7 +94,7 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
   const anyDue = perTool.some(({ rows }) => rows.some(row => row.key === 'inspections' && row.state === 'unmet'));
 
   const toggle = (id: string) => { setPicked(current => (current.includes(id) ? current.filter(x => x !== id) : [...current, id])); setError(''); };
-  const readyToIssue = (t: Tool) => t.status === 'available' && !needsAttention(t);
+  const readyToIssue = (t: Tool) => t.status === 'available' && !needsAttention(t) && !nobodyCanUse(t);
   const resolveActions = (t: Tool): ConditionAction[] => [...new Set(toolConditions(t).flatMap(row => row.actions ?? []))];
   const selectAll = () => { setPicked(scoped.filter(readyToIssue).map(t => t.id)); setError(''); };
   const go = (next: Step) => { setError(''); setStep(next); };
@@ -170,13 +170,13 @@ export function BulkIssueForm({ tools, employees, issuerDepartment, locationSugg
             <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-card border border-line-subtle p-2">
               {visible.map(tool => {
                 const ready = readyToIssue(tool);
-                const status = ready ? tool.location : tool.holder ? `With ${holderName(tool)}` : 'Needs attention';
+                const status = ready ? tool.location : tool.holder ? `With ${holderName(tool)}` : nobodyCanUse(tool) ? 'Nobody can use it yet' : 'Needs attention';
                 return (
                   <li key={tool.id} className="flex items-center gap-1">
                     <div className="min-w-0 flex-1">
                       <Checkbox
                         label={`${tool.id} · ${tool.name}`}
-                        description={ready ? status : `${status} — cannot be issued`}
+                        description={ready || nobodyCanUse(tool) ? status : `${status} — cannot be issued`}
                         checked={picked.includes(tool.id)}
                         disabled={!ready}
                         onChange={() => toggle(tool.id)}

@@ -8,6 +8,7 @@ import { EligibleEmployeesList } from './ToolsEligibility';
 import { RecordCheckDialog } from './ToolsResolve';
 import { EvidenceGallery } from './ToolsUI';
 import { departmentOf } from './prototype';
+import { nobodyCanUse } from './toolConditions';
 import { statusAccent, statusLabel, statusTone, whereIs } from './toolLook';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
@@ -76,8 +77,8 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
               <h3 className="font-sans text-caption font-medium text-ink-muted">Record a movement</h3>
               <div className="flex flex-wrap gap-2">
                 {tool.status === 'available' && (
-                  <Button variant="primary" disabled={!tool.eligibleEmployees?.length}
-                    title={tool.inspectionDue?.length ? 'A check is overdue: you can still issue it by recording a reason.' : !tool.eligibleEmployees?.length ? 'Authorize at least one employee first.' : undefined}
+                  <Button variant="primary" disabled={nobodyCanUse(tool)}
+                    title={tool.inspectionDue?.length ? 'A check is overdue: you can still issue it by recording a reason.' : nobodyCanUse(tool) ? 'Nobody can use it yet.' : undefined}
                     onClick={() => w.openAction('issue', tool)}>Issue tool</Button>
                 )}
                 {tool.status === 'attention' && <Button variant="primary" icon="success" onClick={() => w.openManageModal({ kind: 'ready', tool })}>Mark ready for use</Button>}
@@ -99,7 +100,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
             </section>
           )}
 
-          <EligibleEmployeesList people={tool.eligibleEmployees}
+          <EligibleEmployeesList people={tool.eligibleEmployees} onOpenEmployees={manage ? () => { close(); w.setTab('employees'); } : undefined}
             onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || (item.employeeNumber != null && item.employeeNumber === person.employeeNumber))) : undefined} />
 
           <section aria-label="Full record" className="border-t border-line-subtle pt-5">
