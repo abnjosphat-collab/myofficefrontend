@@ -4,6 +4,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { todayLocal } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
@@ -101,6 +102,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 function TrainingContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { certs, refreshers, compliance, loading, refreshing, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, fetchAll } = useTrainingData();
   const [tab, setTab] = useState('register');
   const [search, setSearch] = useState('');
@@ -150,7 +152,7 @@ function TrainingContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Training' }]}
         title="Training"
-        description="Employee qualifications, expiry dates and compliance."
+        description={scope ? `Employee qualifications, expiry dates and compliance — showing ${scope} only.` : 'Employee qualifications, expiry dates and compliance.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh training records" variant="shell" pending={refreshing} onClick={() => fetchAll(true)} />
@@ -190,7 +192,7 @@ function TrainingContent() {
             onRetry={() => fetchAll()}
             empty={hasFilters
               ? <EmptyState icon="search" title="No certifications match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setStatusFilter(ALL); setDeptFilter(ALL); }}>Clear filters</Button>} />
-              : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} />}
+              : scope ? <EmptyState icon="training" title={`No ${scope} certifications yet`} description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} /> : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {certs.length} certifications</p>
             <DataTable
@@ -245,7 +247,7 @@ function TrainingContent() {
         <TabsContent value="analytics" className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel title="Compliance by department">
             {registerUnavailable ? <Notice tone="warning" title="Certification data is unavailable" action={<Button size="sm" onClick={() => fetchAll()}>Try again</Button>} />
-              : deptCompliance.length === 0 ? <EmptyState icon="analytics" title="No data yet" description="Add certifications first." />
+              : deptCompliance.length === 0 ? <EmptyState icon="analytics" title={scope ? `No ${scope} data yet` : 'No data yet'} description="Add certifications first." />
               : deptCompliance.map(({ dept, pct, total, expired }) => (
                 <div key={dept} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between gap-3 font-sans text-body-sm"><span className="text-ink">{dept}</span><span className="text-ink-muted">{expired > 0 ? `${expired} expired of ${total}` : `${total} total`} · <strong className={`font-semibold ${complianceTone(pct) === 'success' ? 'text-success' : complianceTone(pct) === 'warning' ? 'text-warning' : 'text-danger'}`}>{pct}%</strong></span></div>

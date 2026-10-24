@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, Notice, PageHeader, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, type Column,
@@ -34,6 +35,7 @@ import {
 
 function StandbyContent() {
   const confirm = useConfirm();
+  const { scope } = useAuth();
   const rotations = useRotations();
   const dutyRotations = useDutyRotations();
   const duty = useDutyRoster();
@@ -161,7 +163,7 @@ function StandbyContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Standby' }]}
         title="Standby"
-        description="Who stands standby each week, who holds in place of whom, and who answers as duty official."
+        description={scope ? `Who stands standby each week, who holds in place of whom, and who answers as duty official — showing ${scope} only.` : 'Who stands standby each week, who holds in place of whom, and who answers as duty official.'}
         actions={<IconButton icon="refresh" label="Refresh standby" variant="ghost" pending={(rotations.loading && rotations.loaded) || (duty.loading && duty.loaded)} onClick={refresh} />}
       />
 
@@ -185,7 +187,7 @@ function StandbyContent() {
           {duty.error && <Notice tone="warning" title="Duty officials could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => duty.refetch()}>Try again</Button>}>{duty.error} Explicitly named officials are missing below.</Notice>}
           {covers.error && <Notice tone="warning" title="Covers could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => covers.refetch()}>Try again</Button>}>{covers.error} Holders shown below may have cover named.</Notice>}
           {leaves.error && <Notice tone="warning" title="Leave records could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => leaves.refetch()}>Try again</Button>}>{leaves.error} Leave warnings are missing below.</Notice>}
-          <DataRegion status={weekStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="clock" title="No standby rotations yet" description="Create a rotation to see who stands standby each week." />}>
+          <DataRegion status={weekStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="clock" title={scope ? `No ${scope} standby rotations yet` : 'No standby rotations yet'} description="Create a rotation to see who stands standby each week." />}>
             <WeekBoard
               rotations={rotations.items} dutyRotations={dutyRotations.items} duty={duty.items}
               covers={covers.items} leaves={leaves.items} leavesLoaded={leaves.loaded && !leaves.error}
@@ -199,7 +201,7 @@ function StandbyContent() {
           {duty.error && <Notice tone="warning" title="Duty officials could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => duty.refetch()}>Try again</Button>}>{duty.error} Explicitly named officials are missing below.</Notice>}
           {covers.error && <Notice tone="warning" title="Covers could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => covers.refetch()}>Try again</Button>}>{covers.error} Holders shown below may have cover named.</Notice>}
           {leaves.error && <Notice tone="warning" title="Leave records could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => leaves.refetch()}>Try again</Button>}>{leaves.error} Leave warnings are missing below.</Notice>}
-          <DataRegion status={weekStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="calendar" title="No standby rotations yet" description="Create a rotation to see the month view." />}>
+          <DataRegion status={weekStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="calendar" title={scope ? `No ${scope} standby rotations yet` : 'No standby rotations yet'} description="Create a rotation to see the month view." />}>
             <MonthBoard
               rotations={rotations.items} dutyRotations={dutyRotations.items} duty={duty.items}
               covers={covers.items} leaves={leaves.items} leavesLoaded={leaves.loaded && !leaves.error}
@@ -212,7 +214,7 @@ function StandbyContent() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="primary" icon="plus" onClick={() => { setEditingRotation(null); setRotationOpen(true); }}>New rotation</Button>
           </div>
-          <DataRegion status={rotationsStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="sync" title="No standby rotations yet" description="Create one to set up who stands standby and in what order." />}>
+          <DataRegion status={rotationsStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="sync" title={scope ? `No ${scope} standby rotations yet` : 'No standby rotations yet'} description="Create one to set up who stands standby and in what order." />}>
             <DataTable caption="Standby rotations" rows={rotations.items} columns={ROTATION_COLUMNS} getRowId={r => String(r.id)}
               rowActions={r => <span className="inline-flex gap-1"><Button size="sm" onClick={() => { setEditingRotation(r); setRotationOpen(true); }}>Edit</Button><IconButton icon="delete" size="sm" variant="ghost" label={`Delete the ${r.name} rotation`} onClick={() => removeRotation(r)} /></span>} />
           </DataRegion>
@@ -224,7 +226,7 @@ function StandbyContent() {
               <h2 id="duty-rosters-h" className="font-display text-section font-semibold text-ink">Duty rosters</h2>
               <Button variant="primary" icon="plus" onClick={() => { setEditingDutyRotation(null); setDutyRotationOpen(true); }}>New duty roster</Button>
             </div>
-            <DataRegion status={dutyRotationsStatus} subject="duty rosters" error={dutyRotations.error} onRetry={() => dutyRotations.refetch()} empty={<EmptyState icon="shield" title="No duty rosters yet" description="Create one to set up who answers as duty official and in what order." />}>
+            <DataRegion status={dutyRotationsStatus} subject="duty rosters" error={dutyRotations.error} onRetry={() => dutyRotations.refetch()} empty={<EmptyState icon="shield" title={scope ? `No ${scope} duty rosters yet` : 'No duty rosters yet'} description="Create one to set up who answers as duty official and in what order." />}>
               <DataTable caption="Duty rosters" rows={dutyRotations.items} columns={DUTY_ROTATION_COLUMNS} getRowId={r => String(r.id)}
                 rowActions={r => <span className="inline-flex gap-1"><Button size="sm" onClick={() => { setEditingDutyRotation(r); setDutyRotationOpen(true); }}>Edit</Button><IconButton icon="delete" size="sm" variant="ghost" label={`Delete the ${r.name} duty roster`} onClick={() => removeDutyRotation(r)} /></span>} />
             </DataRegion>
@@ -237,7 +239,7 @@ function StandbyContent() {
               </div>
               <Button variant="primary" icon="plus" onClick={() => { setEditingDuty(null); setDutyOpen(true); }}>Name official</Button>
             </div>
-            <DataRegion status={dutyStatus} subject="duty officials" error={duty.error} onRetry={() => duty.refetch()} empty={<EmptyState icon="shield" title="No duty officials named" description="Name who answers for the mine, and for which dates." />}>
+            <DataRegion status={dutyStatus} subject="duty officials" error={duty.error} onRetry={() => duty.refetch()} empty={<EmptyState icon="shield" title={scope ? `No ${scope} duty officials named` : 'No duty officials named'} description="Name who answers for the mine, and for which dates." />}>
               <DataTable caption="Duty officials" rows={duty.items} columns={DUTY_COLUMNS} getRowId={r => String(r.id)}
                 rowActions={r => <span className="inline-flex gap-1"><Button size="sm" onClick={() => { setEditingDuty(r); setDutyOpen(true); }}>Edit</Button><IconButton icon="delete" size="sm" variant="ghost" label={`Remove ${r.employee_name} as duty official`} onClick={() => removeDuty(r)} /></span>} />
             </DataRegion>
@@ -248,7 +250,7 @@ function StandbyContent() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="primary" icon="plus" onClick={() => { setEditingCover(null); setCoverPreset(null); setCoverOpen(true); }}>Name cover</Button>
           </div>
-          <DataRegion status={coversStatus} subject="covers" error={covers.error} onRetry={() => covers.refetch()} empty={<EmptyState icon="swap" title="No covers named" description="Name who holds in place of whom when someone is away." />}>
+          <DataRegion status={coversStatus} subject="covers" error={covers.error} onRetry={() => covers.refetch()} empty={<EmptyState icon="swap" title={scope ? `No ${scope} covers named` : 'No covers named'} description="Name who holds in place of whom when someone is away." />}>
             <DataTable caption="Covers" rows={covers.items} columns={COVER_COLUMNS} getRowId={r => String(r.id)}
               rowActions={r => <span className="inline-flex gap-1"><Button size="sm" onClick={() => { setEditingCover(r); setCoverPreset(null); setCoverOpen(true); }}>Edit</Button><IconButton icon="delete" size="sm" variant="ghost" label={`Remove ${r.cover_employee_name}'s cover`} onClick={() => removeCover(r)} /></span>} />
           </DataRegion>
