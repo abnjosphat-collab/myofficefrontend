@@ -3,6 +3,7 @@
 'use client';
 
 import { Button, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
 import { folderTrail } from './documentLogic';
 import type { DocFolder, Place } from './types';
 
@@ -18,13 +19,17 @@ export function LocationHeader({ place, folders, isManager, onGo, onNewSub, onRe
   place: Place; folders: readonly DocFolder[]; isManager: boolean; onGo: (p: Place) => void;
   onNewSub: (f: DocFolder) => void; onRename: (f: DocFolder) => void; onMove: (f: DocFolder) => void; onDelete: (f: DocFolder) => void;
 }) {
+  const { scope } = useAuth();
   if (place.kind !== 'folder') {
     const v = VIEW_TEXT[place.kind];
-    return <div><h2 className="font-display text-section font-semibold text-ink">{v.title}</h2><p className="font-sans text-body-sm text-ink-muted">{v.text}</p></div>;
+    const text = scope && place.kind === 'home' ? `Every document in ${scope}, newest first.` : v.text;
+    return <div><h2 className="font-display text-section font-semibold text-ink">{v.title}</h2><p className="font-sans text-body-sm text-ink-muted">{text}</p></div>;
   }
   const trail = folderTrail(folders, place.id);
   const here = trail[trail.length - 1];
   if (!here) return <div><h2 className="font-display text-section font-semibold text-ink">Folder not found</h2><p className="font-sans text-body-sm text-ink-muted">It may have been deleted or moved. Pick another from the list.</p></div>;
+  // The scope's root folder cannot be renamed away or moved (the server refuses): don't offer it.
+  const isScopeRoot = !!scope && here.parentId == null;
   return (
     <div className="flex flex-col gap-2">
       <nav aria-label="Location" className="flex flex-wrap items-center gap-1.5 font-sans text-body-sm">
@@ -45,14 +50,16 @@ export function LocationHeader({ place, folders, isManager, onGo, onNewSub, onRe
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" icon="folder-add" onClick={() => onNewSub(here)}>New subfolder</Button>
+          {(isManager || !isScopeRoot) && (
           <Menu>
             <MenuTrigger asChild><Button size="sm" icon="more" aria-label={`More for folder ${here.name}`}>Folder</Button></MenuTrigger>
             <MenuContent>
-              <MenuItem icon="edit" onSelect={() => onRename(here)}>Rename</MenuItem>
-              <MenuItem icon="move" onSelect={() => onMove(here)}>Move to…</MenuItem>
-              {isManager && <><MenuSeparator /><MenuItem icon="delete" tone="danger" onSelect={() => onDelete(here)}>Delete folder</MenuItem></>}
+              {!isScopeRoot && <><MenuItem icon="edit" onSelect={() => onRename(here)}>Rename</MenuItem>
+              <MenuItem icon="move" onSelect={() => onMove(here)}>Move to…</MenuItem></>}
+              {isManager && <>{!isScopeRoot && <MenuSeparator />}<MenuItem icon="delete" tone="danger" onSelect={() => onDelete(here)}>Delete folder</MenuItem></>}
             </MenuContent>
           </Menu>
+          )}
         </div>
       </div>
     </div>

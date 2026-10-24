@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Field, FormDialog, Input, Textarea } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import { FolderPicker } from './FolderPicker';
 import { descendantIds, pathLabel } from './documentLogic';
@@ -18,6 +19,7 @@ export function FolderFormDialog({ target, flat, onOpenChange, onSave }: {
   target: FolderTarget | null; flat: FolderNode[]; onOpenChange: (open: boolean) => void;
   onSave: (t: FolderTarget, name: string, parentId: string | null, description: string) => Promise<void>;
 }) {
+  const { scope } = useAuth();
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
@@ -30,12 +32,18 @@ export function FolderFormDialog({ target, flat, onOpenChange, onSave }: {
     setParentId(target?.mode === 'create' ? target.parentId : null);
   });
   const creating = target?.mode === 'create';
+  // A scoped account only ever sees its own subtree, so "top level" is only
+  // offered to start the library: the first folder must be named for the scope.
+  const rootExists = flat.some(f => f.parentId == null);
+  const topLabel = !scope ? 'Top level (no parent folder)'
+    : rootExists ? undefined
+    : `Top level (name it ${scope} to start your library)`;
 
   return (
     <FormDialog
       open={!!target} onOpenChange={onOpenChange} size="md"
       title={creating ? 'New folder' : 'Rename folder'}
-      description={creating ? (parentId ? `Inside ${pathLabel(flat, parentId)}` : 'At the top level of the library') : target?.mode === 'rename' ? pathLabel(flat, target.folder.id) : undefined}
+      description={creating ? (parentId ? `Inside ${pathLabel(flat, parentId)}` : scope && rootExists ? `Inside ${scope} — pick a folder below` : 'At the top level of the library') : target?.mode === 'rename' ? pathLabel(flat, target.folder.id) : undefined}
       submitLabel={creating ? 'Create folder' : 'Save'}
       onSubmit={async () => {
         setTouched(true);
@@ -49,7 +57,7 @@ export function FolderFormDialog({ target, flat, onOpenChange, onSave }: {
         </Field>
         {creating && (
           <Field label="Where" description="Pick the folder it goes inside, or none for the top level.">
-            <FolderPicker flat={flat} value={parentId} onChange={setParentId} noneLabel="Top level (no parent folder)" label="Parent folder" />
+            <FolderPicker flat={flat} value={parentId} onChange={setParentId} noneLabel={topLabel} label="Parent folder" />
           </Field>
         )}
         <Field label="Description" optional><Textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} placeholder="What belongs in this folder" /></Field>
@@ -66,6 +74,7 @@ export type MoveSubject =
 export function MoveDialog({ subject, flat, onOpenChange, onMove }: {
   subject: MoveSubject | null; flat: FolderNode[]; onOpenChange: (open: boolean) => void; onMove: (s: MoveSubject, folderId: string | null) => Promise<void>;
 }) {
+  const { scope } = useAuth();
   const [target, setTarget] = useState<string | null>(null);
   const key = subject ? (subject.kind === 'folder' ? `folder-${subject.folder.id}` : `files-${subject.ids.join(',')}`) : null;
   useResetOnOpen(dialogKey(!!subject, key), () => {
@@ -81,7 +90,7 @@ export function MoveDialog({ subject, flat, onOpenChange, onMove }: {
       onSubmit={async () => { if (subject) await onMove(subject, target); }}
     >
       <Field label="Destination">
-        <FolderPicker flat={flat} value={target} onChange={setTarget} noneLabel={topLabel} disabledIds={blocked} label="Destination folder" />
+        <FolderPicker flat={flat} value={target} onChange={setTarget} noneLabel={scope ? undefined : topLabel} disabledIds={blocked} label="Destination folder" />
       </Field>
     </FormDialog>
   );

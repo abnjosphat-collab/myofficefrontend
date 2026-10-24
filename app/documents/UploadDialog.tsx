@@ -5,6 +5,7 @@
 
 import { useRef, useState } from 'react';
 import { Field, FormDialog, Icon, IconButton, Input, StatusBadge, cn } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import { FolderPicker } from './FolderPicker';
 import { TagField } from './TagField';
@@ -21,6 +22,7 @@ export function UploadDialog({ open, flat, defaultFolderId, initialFiles, tagSug
   onUpload: (file: File, name: string, folderId: string | null, tags: string[]) => Promise<{ alsoIn: { name: string; folder_path: string }[] }>;
   onUploaded: () => void;
 }) {
+  const { scope } = useAuth();
   const [files, setFiles] = useState<Pending[]>([]);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -67,7 +69,7 @@ export function UploadDialog({ open, flat, defaultFolderId, initialFiles, tagSug
 
   return (
     <FormDialog
-      open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="lg" title="Upload files" description={`Into ${pathLabel(flat, folderId)}`}
+      open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="lg" title="Upload files" description={scope && !folderId ? `Into ${scope} — pick a folder below` : `Into ${pathLabel(flat, folderId)}`}
       submitLabel={files.length > 1 ? `Upload ${files.length} files` : 'Upload'} onSubmit={submit}
       dirty={files.some(f => !f.uploaded) || folderId !== defaultFolderId || tags.length > 0 || files.some(f => f.name !== f.file.name)}
     >
@@ -105,7 +107,7 @@ export function UploadDialog({ open, flat, defaultFolderId, initialFiles, tagSug
         )}
 
         <Field label="Folder" description="Pick where they go. You can move them later.">
-          <FolderPicker flat={flat} value={folderId} onChange={setFolderId} noneLabel="Unfiled (decide later)" label="Upload folder" />
+          <FolderPicker flat={flat} value={folderId} onChange={setFolderId} noneLabel={scope ? undefined : 'Unfiled (decide later)'} label="Upload folder" />
         </Field>
         <Field label="Tags" optional description="Added to every file in this upload."><TagField value={tags} onChange={setTags} suggestions={tagSuggestions} /></Field>
         {busy && <p role="status" className="font-sans text-body-sm text-ink-muted">Uploading, {done} of {files.length + done} done</p>}
