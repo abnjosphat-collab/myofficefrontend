@@ -32,7 +32,7 @@
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
 | `/deep-space-preview` | Own chrome | Yes | No | Not checked | standalone prototype (glass card over 3D particles; own layout, no shell) |
-| `/documents` | Migrated | Yes | 2 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
+| `/documents` | Migrated | Yes | 3 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
 | `/drivers` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by department, table, add/edit/delete. |
 | `/employees` | Migrated | Yes | 5 | Yes, 2026-10-22 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
 | `/employees-preview` | Redirect | No | No | Yes, 2026-10-04 | Retired sandbox (owner decision 4 Oct 2026); its components and grouping module were deleted, the register's own grouping is now the single one. |

@@ -38,7 +38,7 @@ function fromLink(): { place: Place; q: string } {
 function DocumentsContent() {
   // The folder tree is the navigation here; the shell sidebar would be a second one.
   useRouteSidebarCollapsed();
-  const { isAtLeast } = useAuth();
+  const { isAtLeast, scope } = useAuth();
   const isManager = isAtLeast('manager');
   const overview = useOverview();
   const [initial] = useState(fromLink);
@@ -108,7 +108,7 @@ function DocumentsContent() {
     : trashView ? <EmptyState icon="delete" title="The trash is empty" description="Deleted files wait here until a manager deletes them for good." />
     : place.kind === 'starred' ? <EmptyState icon="starred" title="Nothing starred" description="Star a file to keep it close." />
     : place.kind === 'unfiled' ? <EmptyState icon="documents" title="Nothing is unfiled" description="Every file is in a folder." />
-    : <EmptyState icon="documents" title={place.kind === 'folder' ? 'No files in this folder' : 'No files yet'} description="Upload files, drop them on this page, or paste a picture." action={<Button variant="primary" icon="upload" onClick={() => { setDropped([]); setUploading(true); }}>Upload files</Button>} />;
+    : <EmptyState icon="documents" title={place.kind === 'folder' ? 'No files in this folder' : scope ? `No ${scope} files yet` : 'No files yet'} description="Upload files, drop them on this page, or paste a picture." action={<Button variant="primary" icon="upload" onClick={() => { setDropped([]); setUploading(true); }}>Upload files</Button>} />;
 
   const treeNav = <FolderTree tree={tree} flat={flat} place={place} counts={counts} onSelect={go} />;
 
@@ -116,7 +116,7 @@ function DocumentsContent() {
     <div className="flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Documents' }]} title="Documents"
-        description="Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading."
+        description={scope ? `Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading. — showing ${scope} only.` : 'Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh documents" variant="shell" pending={(search.loading && search.loaded) || (overview.loading && overview.loaded)} onClick={() => { void refresh(); }} />
@@ -135,7 +135,7 @@ function DocumentsContent() {
           <aside className="hidden lg:block"><div className="sticky top-4 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">{treeNav}</div></aside>
           <div className="flex min-w-0 flex-col gap-4">
             <div className="lg:hidden"><Button icon="folder" onClick={() => setTreeOpen(true)}>Browse folders</Button></div>
-            {place.kind === 'home' && !narrowed && <SetupBanner isManager={isManager} amsMissing={overview.overview?.amsMissing ?? 0} unindexed={counts.unindexed} onChanged={() => { void refresh(); }} />}
+            {place.kind === 'home' && !narrowed && !scope && <SetupBanner isManager={isManager} amsMissing={overview.overview?.amsMissing ?? 0} unindexed={counts.unindexed} onChanged={() => { void refresh(); }} />}
             <LocationHeader
               place={place} folders={folders} isManager={isManager} onGo={go}
               onNewSub={f => setFolderTarget({ mode: 'create', parentId: f.id })} onRename={f => setFolderTarget({ mode: 'rename', folder: f })}
