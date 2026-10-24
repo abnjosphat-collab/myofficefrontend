@@ -41,14 +41,17 @@ export async function loadEmployees(timeoutMs = 20_000) {
     if (timeout) clearTimeout(timeout);
   }
 }
-export async function saveEmployee(data: EmployeeFormData, id?: number, expectedUpdatedAt?: string) {
+export async function saveEmployee(data: EmployeeFormData, id?: number, expectedUpdatedAt?: string, scope?: string | null) {
+  // A scoped account creates people into their own section only (the server
+  // stamps it too — this keeps the payload honest). Edits keep the row's
+  // section: the server refuses a move the account may not make.
   const role = normalizeEmployeeRoleFields(data.designation, data.section, data.first_name, data.last_name);
   const payload = {
     ...data,
     // On an edit, send back the updated_at this form opened with: the server refuses the save if someone changed the record since.
     ...(expectedUpdatedAt ? { expected_updated_at: expectedUpdatedAt } : {}),
     designation: role.designation,
-    section: role.section,
+    section: id ? role.section : (scope ?? role.section),
     phone: normalizePhoneField(data.phone),
     drivers_license_class: resolveDriverLicense(data.drivers_license_class),
     date_of_engagement: data.date_of_engagement?.trim() ? data.date_of_engagement : null,

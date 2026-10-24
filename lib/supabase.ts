@@ -64,6 +64,9 @@ export interface UserProfile {
   role:        UserRole;
   is_active:   boolean;
   created_at:  string;
+  // Optional: older rows predate it. permissions.scope (lib/scope.ts) is the
+  // account's section limit — null/absent means not limited.
+  permissions?: Record<string, unknown> | null;
 }
 
 // ─── Profile helpers ──────────────────────────────────────────────────────────

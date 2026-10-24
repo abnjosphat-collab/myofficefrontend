@@ -40,7 +40,7 @@ const PAGE_SIZE = 50;
 
 function EmployeesContent() {
   const confirmDelete = useConfirmDelete();
-  const { isAtLeast } = useAuth();
+  const { isAtLeast, scope } = useAuth();
   const canNormalise = isAtLeast('manager');
   const list = useRoster();
   const employees = list.items;
@@ -63,7 +63,10 @@ function EmployeesContent() {
 
   const active = useMemo(() => employees.filter(e => e.archived !== true), [employees]);
   const viewing = useMemo(() => employees.find(e => e.id === viewingId) ?? null, [employees, viewingId]);
-  const matches = useMemo(() => sortEmployees(filterEmployees(employees, f), sortBy, sortDir), [employees, f, sortBy, sortDir]);
+  // A scoped account's section is pinned, not chosen: the Section filter is
+  // hidden and every other filter applies within their section.
+  const effF = useMemo(() => (scope ? { ...f, section: scope } : f), [f, scope]);
+  const matches = useMemo(() => sortEmployees(filterEmployees(employees, effF), sortBy, sortDir), [employees, effF, sortBy, sortDir]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
   const stats = useMemo(() => summarise(employees), [employees]);
   const roleOptions = useMemo(() => designationFilterOptions([...new Set(active.map(e => (e.designation || '').trim()).filter(Boolean))]), [active]);
@@ -77,7 +80,7 @@ function EmployeesContent() {
   const allOpen = groups.every(g => !closed.has(g.section));
   const toggleGroup = (key: string) => setClosed(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
-  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at); await list.refetch(); };
+  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at, scope); await list.refetch(); };
   const remove = async (e: Employee) => {
     await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${formatMineNumber(e.employee_id)}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
@@ -132,7 +135,7 @@ function EmployeesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Personnel' }]}
         title="Personnel"
-        description="Employee profiles, roles and the organisation's structure."
+        description={scope ? `Employee profiles, roles and the organisation's structure — showing ${scope} only.` : "Employee profiles, roles and the organisation's structure."}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh personnel" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
@@ -173,7 +176,7 @@ function EmployeesContent() {
         )}
       >
         <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search personnel" wrapperClassName="min-w-48 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select aria-label="Section" className="w-36" value={f.section} onValueChange={v => set({ section: v })} options={SECTIONS} />
+        {!scope && (<Select aria-label="Section" className="w-36" value={f.section} onValueChange={v => set({ section: v })} options={SECTIONS} />)}
         <Select aria-label="Designation" className="w-44" value={f.role} onValueChange={v => set({ role: v })} options={roleOptions} />
       </Toolbar>
 
@@ -181,7 +184,9 @@ function EmployeesContent() {
         status={status} subject="personnel" skeletonRows={4} error={list.error} onRetry={() => list.refetch()}
         empty={filtered
           ? <EmptyState icon="search" title="No one matches" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
-          : <EmptyState icon="employees" title="No employees yet" description="Add the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button>} />}
+          : scope
+            ? <EmptyState icon="employees" title={`No ${scope} people yet`} description={`Add the first one — they will join ${scope}.`} action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button>} />
+            : <EmptyState icon="employees" title="No employees yet" description="Add the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button>} />}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-sans text-caption text-ink-muted" role="status">

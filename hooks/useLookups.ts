@@ -62,6 +62,9 @@ let _sp: SpareLookup[] | null = null;
 let _empAt = 0;
 let _eqAt = 0;
 let _spAt = 0;
+// Bumped whenever the signed-in account changes: an in-flight fetch from the
+// previous account must not land in the new account's cache (or pickers).
+let _accountGen = 0;
 
 // In-flight promises, keyed by label. Caching only the *result* meant every
 // picker that mounted before the first fetch resolved fired its own duplicate
@@ -97,7 +100,8 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
       p.finally(() => _inflight.delete(label)).catch(() => {});
     }
     let cancelled = false;
-    p.then((items) => { cacheSet(items); stampSet(Date.now()); if (!cancelled) setList(items); })
+    const gen = _accountGen;
+    p.then((items) => { if (gen !== _accountGen) return; cacheSet(items); stampSet(Date.now()); if (!cancelled) setList(items); })
       .catch((e) => console.warn(`Failed to load ${label}:`, e)); // retries next mount
     return () => { cancelled = true; };
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -149,6 +153,19 @@ export function useEmployeeRegister(): { employees: EmployeeLookup[]; loaded: bo
 // write. (A null cache refetches on next read regardless of its stamp.)
 export function invalidateEmployeesCache(): void {
   _emp = null;
+}
+
+// The signed-in account changed: cached rows belong to the previous account
+// and may be a different section's slice — drop them so the next read
+// refetches as the new account. Called from AuthProvider when the user id
+// changes. (The shared lookup-lists catalogue is identical for every
+// account, so it is deliberately left alone.)
+export function invalidateAllLookupCaches(): void {
+  _accountGen += 1;
+  _inflight.clear();
+  _emp = null; _eq = null; _sp = null;
+  _empAt = 0; _eqAt = 0; _spAt = 0;
+  refreshLookup('employees'); refreshLookup('equipment'); refreshLookup('spares');
 }
 
 /** Stock quantities changed (an issue was recorded or deleted): the next read of the spares lists gets the new quantities. */

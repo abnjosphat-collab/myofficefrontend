@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -14,6 +14,8 @@ import type { UserProfile, UserRole } from '@/lib/supabase';
 // Role labels, order and descriptions come from the single source (lib/roles.ts).
 import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
 import { useResetOnOpen } from '@/lib/useResetOnOpen';
+import { profileScope } from '@/lib/scope';
+import { SECTION_ORDER } from '@/lib/sections';
 
 const ALL = '__all__';
 const ROLE_UI: Record<UserRole, { tone: Tone; icon: IconMeaning }> = {
@@ -32,11 +34,12 @@ const canManage = (caller: UserProfile, target: UserProfile) => caller.role === 
 function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile | null; caller: UserProfile; onClose: () => void; onChanged: () => Promise<void> }) {
   const confirm = useConfirm();
   const [role, setRole] = useState<UserRole>('user');
-  const [busy, setBusy] = useState<'save' | 'active' | 'reset' | 'mfa' | null>(null);
+  const [scope, setScope] = useState('');
+  const [busy, setBusy] = useState<'save' | 'scope' | 'active' | 'reset' | 'mfa' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useResetOnOpen(user?.id ?? null, () => { if (user) { setRole(user.role); setError(null); } });
+  useResetOnOpen(user?.id ?? null, () => { if (user) { setRole(user.role); setScope(profileScope(user) ?? ''); setError(null); } });
 
-  const run = async (kind: 'save' | 'active' | 'reset' | 'mfa', action: () => Promise<void>, done: string) => {
+  const run = async (kind: 'save' | 'scope' | 'active' | 'reset' | 'mfa', action: () => Promise<void>, done: string) => {
     setBusy(kind); setError(null);
     try { await action(); toast.success(done); await onChanged(); }
     catch (e) { setError((e as Error).message); }
@@ -58,6 +61,13 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
     if (!await confirm({ title: 'Turn off two-factor sign-in?', message: `${nameOf(user)} will be able to sign in with just their password until they enable 2FA again. Use this when they have lost their authenticator.`, confirmLabel: 'Turn off 2FA', destructive: true })) return;
     await run('mfa', () => api.delete(`/api/admin/users/${user.id}/factors`).then(() => undefined), 'Two-factor sign-in turned off.');
   };
+  const saveScope = async (next: string | null) => {
+    if (!user) return;
+    await run('scope', () => api.patch(`/api/admin/users/${user.id}/scope`, { scope: next }).then(() => undefined), next ? `Account limited to ${next}.` : 'Section limit lifted.');
+    setScope(next ?? '');
+  };
+
+  const currentScope = user ? profileScope(user) : null;
 
   return (
     <Dialog
@@ -80,6 +90,16 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
             <p className="mb-1.5 font-sans text-label font-medium text-ink">Role</p>
             <Segmented label="Role" value={role} onValueChange={setRole} options={ROLES.filter(r => r !== 'super_admin' || caller.role === 'super_admin').map(r => ({ value: r, label: ROLE_LABELS[r] }))} />
             <p className="mt-2 font-sans text-caption text-ink-muted">{ROLE_META[role].desc}</p>
+          </div>
+          <div>
+            <p className="mb-1.5 font-sans text-label font-medium text-ink">Section limit</p>
+            <div className="flex gap-2">
+              <Input aria-label="Section limit" list="manage-scope-sections" value={scope} onChange={e => setScope(e.target.value)} placeholder="No limit" autoComplete="off" />
+              <datalist id="manage-scope-sections" aria-label="Sections in use">{SECTION_ORDER.map(s => <option key={s} value={s}>{s}</option>)}</datalist>
+              <Button pending={busy === 'scope'} disabled={!!busy || scope.trim() === (currentScope ?? '')} onClick={() => saveScope(scope.trim() || null)}>Save limit</Button>
+              {currentScope && <Button disabled={!!busy} onClick={() => saveScope(null)}>Lift limit</Button>}
+            </div>
+            <p className="mt-2 font-sans text-caption text-ink-muted">Limit this account to one section&apos;s records — Projects, for example. It keeps full module access with filtered data. Empty means no limit.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button icon="inactive" pending={busy === 'active'} disabled={!!busy} onClick={toggleActive}>{user.is_active ? 'Deactivate' : 'Reactivate'}</Button>
@@ -131,7 +151,7 @@ function Directory({ caller }: { caller: UserProfile }) {
     const q = search.trim().toLowerCase();
     return users.filter(u => (!q || (u.full_name ?? '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) && (roleF === ALL || u.role === roleF));
   }, [users, search, roleF]);
-  const rows = useMemo(() => sortRows(filtered, sort, (u, id) => (id === 'role' ? String(ROLES.indexOf(u.role)) : id === 'name' ? nameOf(u).toLowerCase() : String(u[id as keyof UserProfile] ?? '').toLowerCase())), [filtered, sort]);
+  const rows = useMemo(() => sortRows(filtered, sort, (u, id) => (id === 'role' ? String(ROLES.indexOf(u.role)) : id === 'section' ? (profileScope(u) ?? '') : id === 'name' ? nameOf(u).toLowerCase() : String(u[id as keyof UserProfile] ?? '').toLowerCase())), [filtered, sort]);
   const counts = (r: UserRole) => users.filter(u => u.role === r).length;
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -150,6 +170,7 @@ function Directory({ caller }: { caller: UserProfile }) {
       ),
     },
     { id: 'role', header: 'Role', sortable: true, cell: u => <RoleBadge role={u.role} /> },
+    { id: 'section', header: 'Section', sortable: true, hideBelow: 'lg', cell: u => { const s = profileScope(u); return s ? <Tag>{s}</Tag> : <span className="font-sans text-caption text-ink-muted">All</span>; } },
     { id: 'is_active', header: 'Status', sortable: true, hideBelow: 'md', cell: u => (u.is_active ? <StatusBadge tone="success" icon="active">Active</StatusBadge> : <StatusBadge tone="danger" icon="inactive">Deactivated</StatusBadge>) },
   ];
 
@@ -158,7 +179,7 @@ function Directory({ caller }: { caller: UserProfile }) {
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Admin panel' }]}
         title="Admin panel"
-        description="User roles. Permissions are determined entirely by role."
+        description="User roles and section limits."
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh users" variant="shell" pending={loading && loaded} onClick={() => refetch()} />

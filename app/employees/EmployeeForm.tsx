@@ -15,6 +15,7 @@ import { sectionSelectOptions } from '@/lib/sections';
 import { CLASS_OPTIONS, formProblems, fullName, sectionImpliedNotice } from './roster';
 import type { Employee, EmployeeFormData } from './types';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+import { useAuth } from '@/lib/auth-context';
 
 const EMPTY: EmployeeFormData = {
   employee_id: '', first_name: '', last_name: '', id_number: '', email: '', phone: '', address: '', date_of_engagement: '', designation: '', employee_class: '', employment_type: '', supervisor: '', section: '',
@@ -37,9 +38,10 @@ const distinct = (values: (string | undefined)[]) => [...new Set(values.map(v =>
 export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
   open: boolean; employee: Employee | null; all: Employee[]; onOpenChange: (open: boolean) => void; onSave: (data: EmployeeFormData, id?: number) => Promise<void>;
 }) {
+  const { scope } = useAuth();
   const [form, setForm] = useState<EmployeeFormData>(EMPTY);
   const [touched, setTouched] = useState(false);
-  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY }); });
+  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}) }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
   const problems = formProblems(form, { requireEmploymentType: !employee });
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
@@ -51,7 +53,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
   const licences = useMemo(() => driverLicenseSelectOptions(form.drivers_license_class), [form.drivers_license_class]);
   const grades = useMemo(() => distinct(all.map(e => e.grade)), [all]);
   const employers = useMemo(() => distinct(all.map(e => e.previous_employer)), [all]);
-  const pickDesignation = (v: string) => { const implied = sectionForDesignation(v); set({ designation: v, ...(implied ? { section: implied } : {}) }); };
+  const pickDesignation = (v: string) => { const implied = sectionForDesignation(v); set({ designation: v, ...(implied && !scope ? { section: implied } : {}) }); };
 
   const submit = async () => {
     setTouched(true);
@@ -79,8 +81,10 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
         <section aria-labelledby="ef-emp" className="flex flex-col gap-3">
           <h3 id="ef-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employment</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Designation" required error={err('designation')} description="Choosing one fills in the section."><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." /></Field>
-            <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>
+            <Field label="Designation" required error={err('designation')} description={scope ? 'Choose the trade; the section stays fixed.' : 'Choosing one fills in the section.'}><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." /></Field>
+            {scope
+              ? <Field label="Section" description={editing ? 'The section stays as it is.' : `Your account adds people to ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+              : <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>}
             <Field label="Date of engagement" optional><Input type="date" value={form.date_of_engagement} onChange={e => set({ date_of_engagement: e.target.value })} /></Field>
             <Field label="Foreman or supervisor" optional><Select aria-label="Foreman or supervisor" value={form.supervisor} onValueChange={v => set({ supervisor: v })} options={supervisors} /></Field>
             <Field label="Employee class" optional><Select aria-label="Employee class" value={form.employee_class} onValueChange={v => set({ employee_class: v })} options={CLASSES} /></Field>
