@@ -4,6 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -19,7 +20,7 @@ import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { SectionBadge } from '@/components/shared/SectionBadge';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
-const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General'];
+const SECTIONS: SectionType[] = ['Mechanical', 'Electrical', 'General', 'Projects'];
 const ACTION_STATUSES: ActionStatus[] = ['Pending', 'In Progress', 'Completed'];
 const ACTION_META: Record<ActionStatus, { tone: Tone; icon: IconMeaning }> = {
   Pending: { tone: statusTone('Pending'), icon: 'pending' }, 'In Progress': { tone: statusTone('In Progress'), icon: 'clock' }, Completed: { tone: statusTone('Completed'), icon: 'closed' },
@@ -70,12 +71,13 @@ function ActionFields({ action, index, touched, onChange, onRemove }: { action: 
 }
 
 function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkStoppageReport; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const employees = useEmployees();
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   useResetOnOpen(dialogKey(open, report?.id), () => {
     setTouched(false);
-    setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : emptyForm());
+    setForm(report ? { ...report, correctiveActions: report.correctiveActions || [] } : { ...emptyForm(), ...(scope ? { section: scope as SectionType } : {}) });
   });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), designation: e.designation, department: e.department })), [employees]);
@@ -101,7 +103,9 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkSt
         <section aria-labelledby="ws-incident" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="ws-incident" className="font-display text-section font-semibold text-ink sm:col-span-2">Incident</h3>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
-          <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+          {scope
+            ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account issues stoppages in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+            : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <div className="sm:col-span-2"><Field label="Department" required error={touched && !form.department.trim() ? 'Enter the department.' : undefined}><SuggestField historyKey="ws_department" placeholder="For example, Engineering" value={form.department} onChange={v => set({ department: v })} /></Field></div>
           <div className="sm:col-span-2"><Field label="Description of unsafe act or potential impact" required error={touched && !form.description.trim() ? 'Describe the unsafe act.' : undefined}><Textarea rows={4} value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Describe the unsafe condition, what happened and what could have happened" /></Field></div>
           <div className="sm:col-span-2"><Field label="Investigation findings" optional><Textarea rows={3} value={form.investigationFindings} onChange={e => set({ investigationFindings: e.target.value })} placeholder="Initial findings from the investigation" /></Field></div>
@@ -221,10 +225,12 @@ const STATUS_FILTERS = [
 
 function WorkStoppageContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { reports, loading, loaded, error, errorStatus, refetch } = useWorkStoppageData();
   const [view, setView] = useViewPreference('work-stoppage', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [statusF, setStatusF] = useState(ALL);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -248,7 +254,7 @@ function WorkStoppageContent() {
     const s = search.trim().toLowerCase();
     return reports.filter(r => {
       if (s && !r.department?.toLowerCase().includes(s) && !r.description?.toLowerCase().includes(s) && !r.stoppageBy?.toLowerCase().includes(s)) return false;
-      if (sectionF !== ALL && r.section !== sectionF) return false;
+      if (effSection !== ALL && r.section !== effSection) return false;
       const actions = r.correctiveActions || [];
       if (statusF === 'pending' && !actions.some(a => a.status === 'Pending')) return false;
       if (statusF === 'in-progress' && !actions.some(a => a.status === 'In Progress')) return false;
@@ -258,7 +264,7 @@ function WorkStoppageContent() {
       if (dateTo && r.date > dateTo) return false;
       return true;
     });
-  }, [reports, search, sectionF, statusF, dateFrom, dateTo]);
+  }, [reports, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'actions' ? String((r.correctiveActions || []).length).padStart(4, '0') : String(r[id as keyof WorkStoppageReport] ?? '').toLowerCase())), [filtered, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -289,7 +295,7 @@ function WorkStoppageContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Work stoppage' }]}
         title="Work stoppages"
-        description="Document and track unsafe acts, unsafe practices and SHEQ compliance issues."
+        description={scope ? `Document and track unsafe acts, unsafe practices and SHEQ compliance issues. \u2014 showing ${scope} only.` : 'Document and track unsafe acts, unsafe practices and SHEQ compliance issues.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh work stoppages" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -329,7 +335,7 @@ function WorkStoppageContent() {
         )}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search department, description or issuer" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
-        <Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />
+        {!scope && (<Select className="w-40" aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} />)}
         <Select className="w-52" aria-label="Filter by action status" value={statusF} onValueChange={setStatusF} options={STATUS_FILTERS} />
       </Toolbar>
 
@@ -340,7 +346,7 @@ function WorkStoppageContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="flag" title="No work stoppages issued" description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} />}
+          : scope ? <EmptyState icon="flag" title={`No ${scope} work stoppages issued`} description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} /> : <EmptyState icon="flag" title="No work stoppages issued" description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}</p>
         {view === 'cards' ? (

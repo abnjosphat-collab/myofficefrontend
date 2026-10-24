@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmProvider } from '@/components/ui-system';
@@ -8,6 +8,10 @@ import type { Requisition } from './types';
 vi.mock('@/hooks/useLookups', () => ({ useEmployees: () => [] }));
 vi.mock('@/lib/useApiList', () => ({ useApiList: () => ({ items: [] }) }));
 vi.mock('./useRequisitionsData', () => ({ apiCreate: vi.fn(), apiUpdate: vi.fn(), apiDelete: vi.fn(), useRequisitionsData: () => ({}) }));
+const authState = vi.hoisted(() => ({ scope: null as string | null }));
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ scope: authState.scope }),
+}));
 
 import { apiCreate } from './useRequisitionsData';
 
@@ -56,5 +60,17 @@ describe('ReqDialog numbers', () => {
     setup(req);
     expect(screen.getByLabelText(/Qty \(item 1\)/)).toHaveValue(2);
     expect(screen.getByLabelText(/Unit cost \(item 1\)/)).toHaveValue(5);
+  });
+});
+
+describe('ReqDialog scoped account', () => {
+  afterEach(() => { authState.scope = null; });
+
+  it('pins the section field to the scope on a new requisition', () => {
+    authState.scope = 'Projects';
+    setup();
+    const section = screen.getByLabelText('Section');
+    expect(section).toHaveValue('Projects');
+    expect(section).toBeDisabled();
   });
 });

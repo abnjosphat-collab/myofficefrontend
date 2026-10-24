@@ -5,7 +5,7 @@
 // OBS_COLORS/STATUS_COLORS/ACTION_COLORS/REASON_LABELS/REMEDY_LABELS also stay in
 // page.tsx (business vocabulary, same as every other page's config constants).
 
-export type SectionType = 'Mechanical' | 'Electrical';
+export type SectionType = 'Mechanical' | 'Electrical' | 'Projects';
 export type ObservationType = 'Initial' | 'Follow up';
 export type YesNoType = 'Yes' | 'No';
 export type ReportStatus = 'draft' | 'submitted' | 'reviewed' | 'closed';

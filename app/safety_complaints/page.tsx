@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { useAuth } from '@/lib/auth-context';
 import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -19,7 +20,7 @@ import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const CATEGORIES = ['Safety', 'Health', 'Environment', 'Quality', 'General', 'Other'];
-const SECTIONS = ['Mechanical', 'Electrical', 'General'];
+const SECTIONS = ['Mechanical', 'Electrical', 'General', 'Projects'];
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 const STATUSES = ['open', 'in-progress', 'closed', 'overdue'];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -43,6 +44,7 @@ export const emptyForm = (): Form => ({
 });
 
 function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint?: Complaint; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
+  const { scope } = useAuth();
   const locations = useLookupList('location');
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
@@ -52,7 +54,7 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
       date: complaint.date, raisedBy: complaint.raisedBy || '', issueRaised: complaint.issueRaised, category: complaint.category || 'General', priority: complaint.priority || 'medium',
       section: complaint.section || 'General', location: complaint.location || '', actionPlan: complaint.actionPlan || '', byWho: complaint.byWho || '', byWhen: complaint.byWhen || '',
       supervisorName: complaint.supervisorName || '', supervisorSignature: complaint.supervisorSignature || '', status: complaint.status || 'open', dateClosed: complaint.dateClosed || '',
-    } : emptyForm());
+    } : { ...emptyForm(), ...(scope ? { section: scope } : {}) });
   });
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm(p => ({ ...p, [k]: v }));
   const submit = async () => {
@@ -70,7 +72,9 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
         <div className="sm:col-span-2"><Field label="Raised by" optional description="Leave blank if raised anonymously."><Input value={form.raisedBy} onChange={e => set('raisedBy', e.target.value)} placeholder="Name of the person raising it" /></Field></div>
         <div className="sm:col-span-3"><Field label="Issue raised" required error={touched && !form.issueRaised.trim() ? 'Describe the issue raised.' : undefined}><Textarea rows={3} value={form.issueRaised} onChange={e => set('issueRaised', e.target.value)} placeholder="Describe the safety complaint in detail" /></Field></div>
         <Field label="Category"><Select aria-label="Category" value={form.category} onValueChange={v => set('category', v)} options={CATEGORIES.map(c => ({ value: c, label: c }))} /></Field>
-        <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set('section', v)} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>
+        {scope
+          ? <Field label="Section" description={complaint ? 'The section stays as it is.' : `Your account logs complaints in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
+          : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set('section', v)} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
         <Field label="Priority"><Select aria-label="Priority" value={form.priority} onValueChange={v => set('priority', v)} options={[...PRIORITIES].reverse().map(p => ({ value: p, label: cap(p) }))} /></Field>
         <div className="sm:col-span-3">
           <Field label="Location" optional description="Choose a known place or type a new one.">
@@ -199,11 +203,13 @@ const EXPORT_COLUMNS: DLColumn[] = [
 
 function SafetyComplaintsContent() {
   const confirmDelete = useConfirmDelete();
+  const { scope } = useAuth();
   const { complaints, loading, loaded, error, errorStatus, refetch } = useSafetyComplaintsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState(ALL);
   const [sectionF, setSectionF] = useState(ALL);
+  const effSection = scope ?? sectionF;
   const [priorityF, setPriorityF] = useState(ALL);
   const [categoryF, setCategoryF] = useState(ALL);
   const [byWhoF, setByWhoF] = useState(ALL);
@@ -221,11 +227,11 @@ function SafetyComplaintsContent() {
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return complaints.filter(c =>
-      (statusF === ALL || c.status === statusF) && (sectionF === ALL || c.section === sectionF) && (priorityF === ALL || c.priority === priorityF)
+      (statusF === ALL || c.status === statusF) && (effSection === ALL || c.section === effSection) && (priorityF === ALL || c.priority === priorityF)
       && (categoryF === ALL || c.category === categoryF) && (byWhoF === ALL || c.byWho === byWhoF) && (locationF === ALL || c.location === locationF)
       && (!dateFrom || c.date >= dateFrom) && (!dateTo || c.date <= dateTo)
       && (!s || [c.issueRaised, c.raisedBy, c.supervisorName, c.byWho, c.location, c.category].some(v => (v || '').toLowerCase().includes(s))));
-  }, [complaints, search, statusF, sectionF, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
+  }, [complaints, search, statusF, effSection, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'priority' ? String(PRIORITIES.indexOf(c.priority)) : String(c[id as keyof Complaint] ?? '').toLowerCase())), [filtered, sort]);
   // Analytics and the tiles read the filtered list, so a filter picked on Records is visible everywhere.
   const stats = useMemo(() => {
@@ -265,7 +271,7 @@ function SafetyComplaintsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'Safety complaints' }]}
         title="Safety complaints"
-        description="Register, track and resolve safety complaints with full accountability."
+        description={scope ? `Register, track and resolve safety complaints with full accountability. \u2014 showing ${scope} only.` : 'Register, track and resolve safety complaints with full accountability.'}
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh complaints" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
@@ -297,7 +303,7 @@ function SafetyComplaintsContent() {
         activeCount={[sectionF, categoryF, byWhoF, locationF].filter(v => v !== ALL).length + [dateFrom, dateTo].filter(v => v !== '').length}
         moreFilters={(
           <>
-            <FilterField label="Section"><Select aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} /></FilterField>
+            {!scope && (<FilterField label="Section"><Select aria-label="Filter by section" value={sectionF} onValueChange={setSectionF} options={[{ value: ALL, label: 'All sections' }, ...SECTIONS.map(s => ({ value: s, label: s }))]} /></FilterField>)}
             <FilterField label="Category"><Select aria-label="Filter by category" value={categoryF} onValueChange={setCategoryF} options={[{ value: ALL, label: 'All categories' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} /></FilterField>
             {filterSelect('responsible', 'Filter by responsible person', byWhoOptions, byWhoF, setByWhoF)}
             {filterSelect('locations', 'Filter by location', locationOptions, locationF, setLocationF)}
@@ -318,7 +324,7 @@ function SafetyComplaintsContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No complaints match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="flag" title="No safety complaints yet" description="Log the first complaint to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>} />}
+          : scope ? <EmptyState icon="flag" title={`No ${scope} safety complaints yet`} description="Log the first complaint to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>} /> : <EmptyState icon="flag" title="No safety complaints yet" description="Log the first complaint to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Safety complaint views">
