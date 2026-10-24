@@ -14,6 +14,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Frontend wiring rules:** [docs/ENGINEERING_STANDARDS.md](./docs/ENGINEERING_STANDARDS.md).
 - **UI system:** [components/ui-system/README.md](./components/ui-system/README.md).
 - **Documentation map:** [docs/README.md](./docs/README.md). Public contracts use JSDoc and are validated with `npm run docs:check`.
+- **Engineering process:** [docs/ENGINEERING_PROCESS.md](./docs/ENGINEERING_PROCESS.md) — the five steps every change goes through.
 - **Cursor:** `.cursor/rules/myoffice-core.mdc` at workspace root; skill `.claude/skills/myoffice-conventions/`.
 
 ## Working rules (the owner's standing instructions)

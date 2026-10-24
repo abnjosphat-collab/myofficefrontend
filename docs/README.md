@@ -7,6 +7,7 @@ agents.
 | Need | Source of truth |
 |---|---|
 | **Current handoff: start here** | [`CURRENT_HANDOFF.md`](./CURRENT_HANDOFF.md) |
+| How every change is built and released | [`ENGINEERING_PROCESS.md`](./ENGINEERING_PROCESS.md) |
 | Redesign route ledger (generated) | [`MIGRATION_LEDGER.md`](./MIGRATION_LEDGER.md) |
 | Page and overlay patterns | [`PAGE_PATTERNS.md`](./PAGE_PATTERNS.md) |
 | Wireframe review per route (generated) | [`WIREFRAME_LEDGER.md`](./WIREFRAME_LEDGER.md) |
