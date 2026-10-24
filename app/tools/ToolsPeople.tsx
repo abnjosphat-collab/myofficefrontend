@@ -8,7 +8,7 @@ import type { CompetencyRecord } from './complianceTypes';
 import { ToolsDialog } from './ToolsUI';
 import { EligibilityByEquipment, EligibilityByPerson } from './ToolsEligibility';
 import type { Employee, Tool } from './prototype';
-import { buildEligibility, competencyForEmployeeTool, isCurrentCompetency, latestAuthoriser } from './toolEligibility';
+import { buildEligibility, competencyForEmployeeTool, eligibilityKey, isCurrentCompetency, latestAuthoriser, type EligibilityBasis } from './toolEligibility';
 
 type SaveCompetency = (value: {
   employee_id: string;
@@ -19,10 +19,11 @@ type SaveCompetency = (value: {
   authorized_by?: string;
 }) => Promise<void>;
 
-function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave }: {
+function EmployeeToolEligibilityRow({ employee, tool, record, basis, canManage, onSave }: {
   employee: Employee;
   tool: Tool;
   record?: CompetencyRecord;
+  basis?: EligibilityBasis;
   canManage: boolean;
   onSave: SaveCompetency;
 }) {
@@ -30,7 +31,8 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
   const [qualified, setQualified] = useState(record?.qualified || false);
   const [authorized, setAuthorized] = useState(record?.authorized || false);
   const [saving, setSaving] = useState(false);
-  const eligible = isCurrentCompetency(record);
+  const eligible = isCurrentCompetency(record) || basis !== undefined;
+  const basisNote = basis?.kind === 'section' ? ` · by section (${basis.section})` : basis?.kind === 'open' ? ' · anyone may use it' : '';
   const changed = trained !== !!record?.trained || qualified !== !!record?.qualified || authorized !== !!record?.authorized;
   const inherited = !!record?.category && !record.tool_id;
 
@@ -56,14 +58,14 @@ function EmployeeToolEligibilityRow({ employee, tool, record, canManage, onSave 
         <Checkbox aria-label="Authorized" label="Authorized" checked={authorized} disabled={!canManage} onChange={event => setAuthorized(event.target.checked)} />
       </div>
       <div className="flex items-center gap-3">
-        <span className={`font-sans text-caption font-medium ${eligible ? 'text-success' : 'text-ink-muted'}`}>{eligible ? 'Eligible to receive' : 'Not eligible'}</span>
+        <span className={`font-sans text-caption font-medium ${eligible ? 'text-success' : 'text-ink-muted'}`}>{eligible ? `Eligible to receive${basisNote}` : 'Not eligible'}</span>
         {canManage && <Button type="button" disabled={!changed || saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</Button>}
       </div>
     </article>
   );
 }
 
-export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onEditNumber, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
+export function ToolsPeople({ employees, tools, competencies, approvals, search, canManage, onAdd, onIssue, onEditNumber, onEditSection, onSaveCompetency, onSetActive, onDeactivateMany, allowDeactivate = true }: {
   employees: Employee[];
   tools: Tool[];
   competencies: CompetencyRecord[];
@@ -74,6 +76,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   onAdd: () => void;
   onIssue: (employee: Employee) => void;
   onEditNumber?: (employee: Employee) => void;
+  onEditSection?: (employee: Employee) => void;
   onSaveCompetency: SaveCompetency;
   /** Deactivate or reactivate a person: nothing is deleted, they simply stop being offered. */
   onSetActive: (employee: Employee, active: boolean) => Promise<void>;
@@ -93,10 +96,10 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const [authoriserEdit, setAuthoriserEdit] = useState<string | null>(() => { try { return typeof window === 'undefined' ? null : window.localStorage.getItem('tools-authoriser'); } catch { return null; } });
   const authoriser = authoriserEdit ?? latestAuthoriser(competencies);
   const setAuthoriser = (value: string) => { setAuthoriserEdit(value); try { window.localStorage.setItem('tools-authoriser', value); } catch { /* storage unavailable */ } };
-  const eligibility = useMemo(() => buildEligibility(employees, tools, competencies), [employees, tools, competencies]);
+  const eligibility = useMemo(() => buildEligibility(employees, tools), [employees, tools]);
   const query = search.trim().toLowerCase();
   const inactiveCount = employees.filter(employee => !employee.active).length;
-  const visible = employees.filter(employee => (showInactive || employee.active) && `${employee.name} ${employee.employeeNumber ?? ''} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''}`.toLowerCase().includes(query));
+  const visible = employees.filter(employee => (showInactive || employee.active) && `${employee.name} ${employee.employeeNumber ?? ''} ${employee.department} ${employee.jobTitle || ''} ${employee.supervisorName || ''} ${employee.section || ''}`.toLowerCase().includes(query));
   const blockedReason = (employee: Employee) => !employee.active ? 'Already inactive.' : tools.some(tool => tool.holder === employee.name || tool.holder?.startsWith(`${employee.name} ·`)) ? 'Receive their equipment before deactivating them.' : undefined;
   const pickable = visible.filter(employee => !blockedReason(employee));
   const chosen = pickable.filter(employee => picked.includes(employee.id));
@@ -124,7 +127,8 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const employeeTools = useMemo(() => selected ? tools
     .filter(tool => !tool.archived && tool.backendId && (!tool.department || tool.department === selected.department))
     .filter(tool => `${tool.id} ${tool.name} ${tool.category}`.toLowerCase().includes(toolSearch.trim().toLowerCase())) : [], [selected, toolSearch, tools]);
-  const eligibleTools = selected ? tools.filter(tool => isCurrentCompetency(competencyForEmployeeTool(selected, tool, competencies))) : [];
+  const selectedBackendId = selected?.backendId;
+  const eligibleTools = selectedBackendId ? tools.filter(tool => tool.backendId !== undefined && eligibility.basis.has(eligibilityKey(tool.backendId, selectedBackendId))) : [];
   // The open card re-reads the person from the fresh register, so a number saved while it is open shows at once.
   const shown = selected?.backendId ? employees.find(employee => employee.backendId === selected.backendId) ?? selected : selected;
 
@@ -164,8 +168,11 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
                 <p className="flex items-center gap-2 font-sans text-caption text-ink-muted">Mine number: {shown.employeeNumber ?? 'Not recorded'}
                   {canManage && onEditNumber && <Button type="button" variant="ghost" size="sm" onClick={() => onEditNumber(shown)}>{shown.employeeNumber ? 'Edit number' : 'Add number'}</Button>}
                 </p>
+                <p className="flex items-center gap-2 font-sans text-caption text-ink-muted">Trade section: {shown.section ?? 'Not recorded'}
+                  {canManage && onEditSection && <Button type="button" variant="ghost" size="sm" onClick={() => onEditSection(shown)}>{shown.section ? 'Edit section' : 'Add section'}</Button>}
+                </p>
               </div>
-              <span className="text-right"><strong className="block font-display text-title text-ink">{eligibleTools.length}</strong><small className="font-sans text-caption text-ink-muted">approved {eligibleTools.length === 1 ? 'item' : 'items'}</small></span>
+              <span className="text-right"><strong className="block font-display text-title text-ink">{eligibleTools.length}</strong><small className="font-sans text-caption text-ink-muted">eligible {eligibleTools.length === 1 ? 'item' : 'items'}</small></span>
             </div>
             <section className="flex flex-col gap-2 border-t border-line-subtle pt-4">
               <div className="flex items-baseline justify-between gap-2"><h3 className="font-sans text-caption font-medium text-ink-muted">Currently assigned</h3><span className="font-sans text-caption text-ink-muted">{held.length} {held.length === 1 ? 'item' : 'items'}</span></div>
@@ -175,12 +182,12 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
             </section>
             <section className="flex flex-col gap-3 border-t border-line-subtle pt-4">
               <div className="flex items-baseline justify-between gap-2">
-                <div><h3 className="font-sans text-body-sm font-semibold text-ink">Tool eligibility</h3><p className="font-sans text-caption text-ink-muted">All three requirements must be current before this employee appears in the Issue tool list.</p></div>
+                <div><h3 className="font-sans text-body-sm font-semibold text-ink">Tool eligibility</h3><p className="font-sans text-caption text-ink-muted">Individual approval needs all three requirements current; people in a matching trade section are eligible without it.</p></div>
                 <span className="shrink-0 font-sans text-caption text-ink-muted">{eligibleTools.length} eligible</span>
               </div>
               <SearchField label="Find equipment" placeholder="Find equipment by name, ID or category…" value={toolSearch} onValueChange={setToolSearch} />
               <div className="flex flex-col gap-2">
-                {employeeTools.map(tool => { const record = competencyForEmployeeTool(shown, tool, competencies); return <EmployeeToolEligibilityRow key={`${shown.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={shown} tool={tool} record={record} canManage={canManage} onSave={onSaveCompetency} />; })}
+                {employeeTools.map(tool => { const record = competencyForEmployeeTool(shown, tool, competencies); return <EmployeeToolEligibilityRow key={`${shown.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={shown} tool={tool} record={record} basis={tool.backendId && shown.backendId ? eligibility.basis.get(eligibilityKey(tool.backendId, shown.backendId)) : undefined} canManage={canManage} onSave={onSaveCompetency} />; })}
                 {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No equipment in {shown.department} matches this search.</p>}
               </div>
               {!canManage && <p className="font-sans text-caption text-ink-muted">Only an administrator or issuer can update competency approvals.</p>}

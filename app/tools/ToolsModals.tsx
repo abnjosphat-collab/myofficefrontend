@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui-system';
-import { EmployeeForm, EmployeeNumberForm, MarkReadyForm, MovementForm, ToolForm, TITLES, type RecordCheckInput } from './ToolsForms';
+import { EmployeeForm, EmployeeNumberForm, EmployeeSectionForm, MarkReadyForm, MovementForm, ToolForm, TITLES, type RecordCheckInput } from './ToolsForms';
 import { BulkIssueForm } from './BulkIssueForm';
 import { RecordCheckDialog, RecordRepairDialog } from './ToolsResolve';
 import type { ConditionAction } from './toolConditions';
@@ -38,7 +38,7 @@ function titleOf(w: ToolsWorkspace): string {
   if (!kind) return '';
   const names: Record<string, string> = {
     customize: 'Settings', new: 'Add equipment', employee: 'Add an employee', feedback: 'Feedback & suggestions', import: 'Import a register',
-    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit equipment details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number',
+    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit equipment details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number', 'edit-employee-section': 'Trade section',
   };
   if (kind === 'auth') return w.currentAccount ? 'Your profile' : 'Sign in or sign up';
   return names[kind] ?? TITLES[kind as keyof typeof TITLES] ?? '';
@@ -49,7 +49,7 @@ function descriptionOf(w: ToolsWorkspace): string {
     customize: 'Display and workspace preferences.', attachments: 'Keep photos and supporting documents with the item.',
     employee: 'Add a person to this workspace’s independent register.', feedback: 'Tell us what would make the product clearer, faster or more useful.',
     import: 'Preview and validate Excel, CSV or Word records before adding them.', 'source-register': 'Permanently preserve the original file before updating the live database.',
-    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.', 'edit-employee-number': 'Add the mine number that was unknown when this person was recorded.',
+    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.', 'edit-employee-number': 'Add the mine number that was unknown when this person was recorded.', 'edit-employee-section': 'Set the trade section that grants this person eligibility by section.',
   };
   const kind = w.modal?.kind;
   if (kind === 'auth') return w.currentAccount ? 'Your identity and access for this workspace.' : 'Use your workspace account or create one to continue.';
@@ -91,8 +91,9 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (modal.kind === 'export') return <ToolsExport data={w.exportData} onDone={() => { close(); w.track('downloaded report', w.tab); }} />;
     if (modal.kind === 'employee') return <EmployeeForm onSave={w.saveEmployee} onCancel={close} />;
     if (modal.kind === 'edit-employee-number') return <EmployeeNumberForm employee={modal.employee} onSave={number => w.saveEmployeeNumber(modal.employee, number)} onCancel={close} />;
+    if (modal.kind === 'edit-employee-section') return <EmployeeSectionForm employee={modal.employee} onSave={section => w.saveEmployeeSection(modal.employee, section)} onCancel={close} />;
     if (modal.kind === 'new' || modal.kind === 'edit') {
-      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} />;
+      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} suggestTradeSections={w.suggestTradeSections} />;
     }
     if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => w.saveAttachments(modal.tool, files)} />;
     if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => w.markToolReady(modal.tool, note)} onCancel={close} />;

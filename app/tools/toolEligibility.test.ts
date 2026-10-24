@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CompetencyRecord } from './complianceTypes';
 import type { Employee, Tool } from './prototype';
-import { buildEligibility, competencyForEmployeeTool, groupEmployeesByDepartment, isCurrentCompetency, latestAuthoriser } from './toolEligibility';
+import { buildEligibility, competencyForEmployeeTool, eligibilityKey, groupEmployeesByDepartment, isCurrentCompetency, latestAuthoriser } from './toolEligibility';
 
 const employees: Employee[] = [
   { id: '3', employeeNumber: 'E-3', name: 'Zulu', department: 'Mining', active: true },
@@ -41,29 +41,45 @@ describe('buildEligibility', () => {
   const people = [
     { id: 'a', backendId: 'ea', employeeNumber: 'E-A', name: 'Ann', department: 'Engineering', active: true },
     { id: 'b', backendId: 'eb', employeeNumber: 'E-B', name: 'Bob', department: 'Engineering', active: true },
+    { id: 'c', backendId: 'ec', employeeNumber: 'E-C', name: 'Cal', department: 'Engineering', active: false },
   ] as Employee[];
-  const make = (id: string, category: string, archived = false) => ({ id: `T-${id}`, backendId: id, name: `Tool ${id}`, make: '', serial: '', category, kind: 'power-tool', status: 'available', location: 'Store', condition: 'Good', archived }) as Tool;
-  const tools = [make('t1', 'Welding'), make('t2', 'Power tools'), make('t3', 'Welding', true)];
-  const rec = (over: Partial<CompetencyRecord>) => ({ id: 'r', employee_id: 'ea', trained: true, qualified: true, authorized: true, updated_at: '', ...over }) as CompetencyRecord;
+  const entry = (person: Employee, viaSection?: string | null) => ({ id: person.backendId as string, employeeNumber: person.employeeNumber, name: person.name, department: person.department, viaSection: viaSection ?? null });
+  const make = (id: string, category: string, eligible: ReturnType<typeof entry>[], extra: Partial<Tool> = {}) => ({ id: `T-${id}`, backendId: id, name: `Tool ${id}`, make: '', serial: '', category, kind: 'power-tool', status: 'available', location: 'Store', condition: 'Good', eligibleEmployees: eligible, ...extra }) as Tool;
 
-  it('lists both directions from tool records and category approvals, skipping archived tools and lapsed approvals', () => {
-    const result = buildEligibility(people, tools, [
-      rec({ tool_id: 't1' }),
-      rec({ id: 'c', employee_id: 'eb', tool_id: undefined, category: 'power tools' }),
-      rec({ id: 'x', employee_id: 'eb', tool_id: 't1', authorized: false }),
-      rec({ id: 'old', tool_id: 't3' }),
-      rec({ id: 'lapsed', employee_id: 'ea', tool_id: 't2', authorization_expires_at: '2001-01-01T00:00:00Z' }),
-    ], Date.parse('2026-10-07'));
+  it('lists both directions from the server list, with why each pair is eligible, skipping archived tools and strangers', () => {
+    const tools = [
+      make('t1', 'Welding', [entry(people[0])]),
+      make('t2', 'Power tools', [entry(people[1], 'Electrical')]),
+      make('t3', 'Welding', [entry(people[0])], { archived: true }),
+      make('t4', 'Hand tools', [{ id: 'ghost', employeeNumber: null, name: 'Ghost', department: 'Engineering', viaSection: null }]),
+    ];
+    const result = buildEligibility(people, tools);
     expect(result.forEmployee.get('ea')?.map(tool => tool.backendId)).toEqual(['t1']);
     expect(result.forEmployee.get('eb')?.map(tool => tool.backendId)).toEqual(['t2']);
     expect(result.forTool.get('t1')?.map(person => person.name)).toEqual(['Ann']);
     expect(result.forTool.get('t2')?.map(person => person.name)).toEqual(['Bob']);
+    expect(result.basis.get(eligibilityKey('t1', 'ea'))).toEqual({ kind: 'individual' });
+    expect(result.basis.get(eligibilityKey('t2', 'eb'))).toEqual({ kind: 'section', section: 'Electrical' });
+    expect(result.forTool.get('t3')).toEqual([]);
+    expect(result.forTool.get('t4')).toEqual([]);
+  });
+
+  it('marks everyone on a tool anyone may use as open', () => {
+    const result = buildEligibility(people, [make('t1', 'Other equipment', [entry(people[0]), entry(people[1])], { competencyRequired: false })]);
+    expect(result.forTool.get('t1')?.map(person => person.name)).toEqual(['Ann', 'Bob']);
+    expect(result.basis.get(eligibilityKey('t1', 'ea'))).toEqual({ kind: 'open' });
+  });
+
+  it('never offers someone who has been deactivated, but keeps their own list', () => {
+    const result = buildEligibility(people, [make('t1', 'Welding', [entry(people[2])])]);
+    expect(result.forTool.get('t1')).toEqual([]);
+    expect(result.forEmployee.get('ec')?.map(tool => tool.backendId)).toEqual(['t1']);
   });
 
   it('gives a person and a tool with nothing recorded an empty list, not a missing one', () => {
-    const result = buildEligibility(people, tools, []);
+    const result = buildEligibility(people, [make('t1', 'Welding', [])]);
     expect(result.forEmployee.get('ea')).toEqual([]);
-    expect(result.forTool.get('t2')).toEqual([]);
+    expect(result.forTool.get('t1')).toEqual([]);
   });
 });
 

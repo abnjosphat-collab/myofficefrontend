@@ -17,6 +17,8 @@ const employees: Employee[] = [
 ];
 const tool = (id: string, backendId: string, name: string, category = 'Power tools'): Tool => ({ id, backendId, name, make: '', serial: '', category, kind: 'angle-grinder', status: 'available', location: 'Store', condition: 'Good', department: 'Engineering', eligibleEmployees: [] }) as Tool;
 const tools: Tool[] = [tool('ENG-01', 'tool-1', 'Angle grinder'), tool('ENG-02', 'tool-2', 'Welding machine', 'Welding')];
+const alexEntry = { id: 'employee-1', employeeNumber: 'E-1', name: 'Alex Moyo', department: 'Engineering', jobTitle: 'Fitter' };
+const toolsWithAlex: Tool[] = [{ ...tools[0], eligibleEmployees: [alexEntry] }, tools[1]];
 const approved = (over: Partial<CompetencyRecord>): CompetencyRecord => ({ id: 'r1', employee_id: 'employee-1', tool_id: 'tool-1', trained: true, qualified: true, authorized: true, authorized_by: 'Edson Mavhondo', updated_at: '2026-10-06T00:00:00Z', ...over }) as CompetencyRecord;
 const ready = { state: 'ready' as const, onRetry: () => {} };
 const props = { search: '', canManage: true, onAdd: () => {}, onIssue: () => {}, onSetActive: async () => {} };
@@ -31,20 +33,21 @@ describe('ToolsPeople', () => {
 
   it('lists the equipment a person is eligible for and who authorised it, once opened', async () => {
     const user = userEvent.setup();
-    render(<ToolsPeople {...props} employees={[employees[1]]} tools={tools} competencies={[approved({})]} approvals={ready} onSaveCompetency={async () => {}} />);
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={toolsWithAlex} competencies={[approved({})]} approvals={ready} onSaveCompetency={async () => {}} />);
     const summary = screen.getByRole('button', { name: /Alex Moyo/ });
     expect(within(summary).getByText('1 equipment')).toBeVisible();
     await user.click(summary);
     const list = screen.getByRole('list', { name: 'Equipment Alex Moyo is eligible for' });
     expect(within(list).getByText('Angle grinder')).toBeVisible();
     expect(within(list).getByText(/authorised by Edson Mavhondo/)).toBeVisible();
+    expect(within(list).getByText(/approved individually/)).toBeVisible();
     expect(within(list).queryByText('Welding machine')).not.toBeInTheDocument();
   });
 
   it('adds equipment picked from the searchable list, recorded under the named authoriser', async () => {
     const user = userEvent.setup();
     const onSaveCompetency = vi.fn(async () => {});
-    render(<ToolsPeople {...props} employees={[employees[1]]} tools={tools} competencies={[approved({})]} approvals={ready} onSaveCompetency={onSaveCompetency} />);
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={toolsWithAlex} competencies={[approved({})]} approvals={ready} onSaveCompetency={onSaveCompetency} />);
     await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
     const authoriser = screen.getByRole('textbox', { name: 'Authorised by' });
     expect(authoriser).toHaveValue('Edson Mavhondo');
@@ -60,7 +63,7 @@ describe('ToolsPeople', () => {
   it('removes eligibility only after a second confirmation', async () => {
     const user = userEvent.setup();
     const onSaveCompetency = vi.fn(async () => {});
-    render(<ToolsPeople {...props} employees={[employees[1]]} tools={tools} competencies={[approved({})]} approvals={ready} onSaveCompetency={onSaveCompetency} />);
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={toolsWithAlex} competencies={[approved({})]} approvals={ready} onSaveCompetency={onSaveCompetency} />);
     await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
     await user.click(screen.getByRole('button', { name: 'Remove Angle grinder from Alex Moyo' }));
     expect(onSaveCompetency).not.toHaveBeenCalled();
@@ -70,7 +73,7 @@ describe('ToolsPeople', () => {
 
   it('shows each piece of equipment with the people eligible for it', async () => {
     const user = userEvent.setup();
-    render(<ToolsPeople {...props} employees={employees} tools={tools} competencies={[approved({})]} approvals={ready} onSaveCompetency={async () => {}} />);
+    render(<ToolsPeople {...props} employees={employees} tools={toolsWithAlex} competencies={[approved({})]} approvals={ready} onSaveCompetency={async () => {}} />);
     await user.click(screen.getByRole('button', { name: 'By equipment' }));
     expect(screen.getByRole('heading', { name: 'Power tools' })).toBeVisible();
     const row = screen.getByRole('button', { name: /Angle grinder/ });
@@ -124,7 +127,7 @@ describe('ToolsPeople', () => {
     const user = userEvent.setup();
     const onSetActive = vi.fn(async () => {});
     const people = [employees[1], { ...employees[0], department: 'Engineering', active: false }];
-    render(<ToolsPeople {...props} employees={people} tools={tools} competencies={[approved({}), approved({ id: 'r2', employee_id: 'employee-2' })]} approvals={ready} onSaveCompetency={async () => {}} onSetActive={onSetActive} />);
+    render(<ToolsPeople {...props} employees={people} tools={toolsWithAlex} competencies={[approved({}), approved({ id: 'r2', employee_id: 'employee-2' })]} approvals={ready} onSaveCompetency={async () => {}} onSetActive={onSetActive} />);
     expect(screen.queryByRole('button', { name: /Mina Dube/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Show 1 inactive person' }));
     const inactive = screen.getByRole('button', { name: /Mina Dube/ });
@@ -190,7 +193,7 @@ describe('ToolsPeople', () => {
     expect(screen.getByText('12 people')).toBeVisible();
     const list = screen.getByRole('list', { name: 'Eligible employees list' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(12);
-    expect(within(list).getByText('Electrician Class 2 · C100')).toBeVisible();
+    expect(within(list).getByText('Electrician Class 2 · C100 · approved individually')).toBeVisible();
     await user.type(screen.getByRole('searchbox', { name: 'Filter eligible employees' }), 'person c');
     expect(within(list).getAllByRole('listitem')).toHaveLength(1);
   });
@@ -212,5 +215,57 @@ describe('ToolsPeople', () => {
     expect(onIssue).toHaveBeenCalledWith(two[1]);
     rerender(<EligibleEmployeesList people={two} />);
     expect(screen.queryByRole('button', { name: /Issue this tool to/ })).not.toBeInTheDocument();
+  });
+
+  it('marks who is eligible by section on the person view', async () => {
+    const user = userEvent.setup();
+    const sectionTools: Tool[] = [{ ...tools[0], eligibleEmployees: [{ ...alexEntry, viaSection: 'Electrical' }] }, tools[1]];
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={sectionTools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
+    const list = screen.getByRole('list', { name: 'Equipment Alex Moyo is eligible for' });
+    expect(within(list).getByText(/by section \(Electrical\)/)).toBeVisible();
+  });
+
+  it('marks by-section people on the equipment view, and removing one records the removal', async () => {
+    const user = userEvent.setup();
+    const onSaveCompetency = vi.fn(async () => {});
+    const sectionTools: Tool[] = [{ ...tools[0], eligibleEmployees: [{ ...alexEntry, viaSection: 'Electrical' }] }, tools[1]];
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={sectionTools} competencies={[]} approvals={ready} onSaveCompetency={onSaveCompetency} />);
+    await user.click(screen.getByRole('button', { name: 'By equipment' }));
+    await user.click(screen.getByRole('button', { name: /Angle grinder/ }));
+    const list = screen.getByRole('list', { name: 'People eligible for Angle grinder' });
+    expect(within(list).getByText(/by section \(Electrical\)/)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Remove Alex Moyo from Angle grinder' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, remove' }));
+    expect(onSaveCompetency).toHaveBeenCalledWith({ employee_id: 'employee-1', tool_id: 'tool-1', trained: false, qualified: false, authorized: false });
+  });
+
+  it('says anyone may use equipment that needs no approval, instead of marking each person', async () => {
+    const user = userEvent.setup();
+    const openTools: Tool[] = [{ ...tools[0], competencyRequired: false, eligibleEmployees: [alexEntry] }, tools[1]];
+    render(<ToolsPeople {...props} employees={[employees[1]]} tools={openTools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: 'By equipment' }));
+    await user.click(screen.getByRole('button', { name: /Angle grinder/ }));
+    expect(screen.getByText(/Anyone may use this equipment/)).toBeVisible();
+    expect(screen.queryByText(/approved individually/)).not.toBeInTheDocument();
+  });
+
+  it('offers to set the trade section from the employee card', async () => {
+    const user = userEvent.setup();
+    const onEditSection = vi.fn();
+    render(<ToolsPeople {...props} onEditSection={onEditSection} employees={[{ ...employees[1], section: 'Electrical' }]} tools={tools} competencies={[]} approvals={ready} onSaveCompetency={async () => {}} />);
+    await user.click(screen.getByRole('button', { name: /Alex Moyo/ }));
+    await user.click(screen.getByRole('button', { name: 'Detailed approvals' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Trade section:/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Edit section' }));
+    expect(onEditSection).toHaveBeenCalledWith(expect.objectContaining({ name: 'Alex Moyo' }));
+  });
+
+  it('marks the drawer list by section and individually', () => {
+    render(<EligibleEmployeesList people={[{ ...alexEntry, viaSection: 'Electrical' }, { id: 'e2', employeeNumber: 'E-2', name: 'Beth Dube', department: 'Engineering' }]} />);
+    const list = screen.getByRole('list', { name: 'Eligible employees list' });
+    expect(within(list).getByText(/by section \(Electrical\)/)).toBeVisible();
+    expect(within(list).getByText(/approved individually/)).toBeVisible();
   });
 });

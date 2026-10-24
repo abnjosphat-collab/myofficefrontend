@@ -100,7 +100,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
             </section>
           )}
 
-          <EligibleEmployeesList people={tool.eligibleEmployees} onOpenEmployees={manage ? () => { close(); w.setTab('employees'); } : undefined}
+          <EligibleEmployeesList people={tool.eligibleEmployees} open={tool.competencyRequired === false} onOpenEmployees={manage ? () => { close(); w.setTab('employees'); } : undefined}
             onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || (item.employeeNumber != null && item.employeeNumber === person.employeeNumber))) : undefined} />
 
           <section aria-label="Full record" className="border-t border-line-subtle pt-5">

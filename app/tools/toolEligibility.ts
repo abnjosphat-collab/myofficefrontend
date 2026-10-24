@@ -33,35 +33,41 @@ export function isCurrentCompetency(record?: CompetencyRecord, now = Date.now())
     .every(value => !value || Date.parse(value) >= now);
 }
 
+export type EligibilityBasis = { kind: 'individual' } | { kind: 'section'; section: string } | { kind: 'open' };
+
 export type Eligibility = {
-  /** Equipment each employee is currently trained, qualified and authorised for, keyed by the employee's backend id. */
+  /** Equipment each employee may receive, keyed by the employee's backend id. */
   forEmployee: Map<string, Tool[]>;
-  /** Active employees currently eligible for each tool, keyed by the tool's backend id (someone who has been deactivated is not offered). */
+  /** Active employees who may receive each tool, keyed by the tool's backend id (someone who has been deactivated is not offered). */
   forTool: Map<string, Employee[]>;
+  /** Why each pair is eligible, keyed by tool and employee backend id. */
+  basis: Map<string, EligibilityBasis>;
 };
 
-/** Both directions of the eligibility register at once, so the page can show it by person and by equipment from one pass. */
-export function buildEligibility(employees: Employee[], tools: Tool[], competencies: CompetencyRecord[], now = Date.now()): Eligibility {
-  const byEmployee = new Map<string, CompetencyRecord[]>();
-  for (const record of competencies) byEmployee.set(record.employee_id, [...(byEmployee.get(record.employee_id) || []), record]);
+export const eligibilityKey = (toolBackendId: string, employeeBackendId: string) => `${toolBackendId}::${employeeBackendId}`;
+
+/** Both directions of the eligibility register at once, so the page can show it by person and by equipment from one pass.
+Follows the server's eligible list per tool (the one rule in _is_eligible) rather than a second client-side copy of it. */
+export function buildEligibility(employees: Employee[], tools: Tool[]): Eligibility {
+  const byId = new Map(employees.filter(employee => employee.backendId).map(employee => [employee.backendId as string, employee]));
   const forEmployee = new Map<string, Tool[]>();
   const forTool = new Map<string, Employee[]>();
+  const basis = new Map<string, EligibilityBasis>();
   for (const tool of tools) if (tool.backendId) forTool.set(tool.backendId, []);
-  for (const employee of employees) {
-    if (!employee.backendId) continue;
-    const records = byEmployee.get(employee.backendId) || [];
-    const eligible: Tool[] = [];
-    for (const tool of tools) {
-      if (!tool.backendId || tool.archived) continue;
-      const record = records.find(item => item.tool_id === tool.backendId)
-        || records.find(item => !item.tool_id && item.category?.toLowerCase() === tool.category.toLowerCase());
-      if (!isCurrentCompetency(record, now)) continue;
-      eligible.push(tool);
+  for (const tool of tools) {
+    if (!tool.backendId || tool.archived) continue;
+    for (const entry of tool.eligibleEmployees || []) {
+      const employee = byId.get(entry.id);
+      if (!employee?.backendId) continue;
+      const why: EligibilityBasis = tool.competencyRequired === false ? { kind: 'open' } : entry.viaSection ? { kind: 'section', section: entry.viaSection } : { kind: 'individual' };
+      basis.set(eligibilityKey(tool.backendId, employee.backendId), why);
+      if (!forEmployee.has(employee.backendId)) forEmployee.set(employee.backendId, []);
+      forEmployee.get(employee.backendId)?.push(tool);
       if (employee.active) forTool.get(tool.backendId)?.push(employee);
     }
-    forEmployee.set(employee.backendId, eligible);
   }
-  return { forEmployee, forTool };
+  for (const employee of employees) if (employee.backendId && !forEmployee.has(employee.backendId)) forEmployee.set(employee.backendId, []);
+  return { forEmployee, forTool, basis };
 }
 
 /** The name on the most recently saved approval, so the next one defaults to the same authorising officer. */

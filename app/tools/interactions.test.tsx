@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MovementForm, ToolForm, MarkReadyForm, RecordCheckForm, EmployeeForm, EmployeeNumberForm } from './ToolsForms';
+import { MovementForm, ToolForm, MarkReadyForm, RecordCheckForm, EmployeeForm, EmployeeNumberForm, EmployeeSectionForm } from './ToolsForms';
 import { SourceRegisterForm } from './ToolsSourceRegisters';
 import { ToolsCompliance } from './ToolsCompliance';
 import { EvidenceGallery, EvidencePicker, ToolsDialog } from './ToolsUI';
@@ -284,6 +284,26 @@ describe('Tools interaction controls', () => {
     await act(async () => { release(); });
     expect(screen.getByRole('button', { name: 'Add tool' })).toBeEnabled();
   });
+  it('prefills trade sections from the suggestion until the issuer changes them', async () => {
+    const user = userEvent.setup();
+    const suggestTradeSections = vi.fn(async () => ['Electrical']);
+    const onSave = vi.fn();
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} suggestTradeSections={suggestTradeSections} />);
+    fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Digital multimeter' } });
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Electrical' })).toBeChecked());
+    expect(screen.getByRole('checkbox', { name: 'Mechanical' })).not.toBeChecked();
+    expect(suggestTradeSections).toHaveBeenCalledWith({ name: 'Digital multimeter', equipmentKind: 'cordless-drill', category: 'Power tools' });
+    await user.click(screen.getByRole('checkbox', { name: 'Electrical' }));
+    fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Digital multimeter pro' } });
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(suggestTradeSections).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Fluke' } });
+    fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
+    fireEvent.change(screen.getByLabelText(/Designated storage place/), { target: { value: 'Tool crib' } });
+    await user.click(screen.getByRole('button', { name: 'Add tool' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ tradeSections: [] });
+  });
   it('shows required cues on the enforced ToolForm fields', () => {
     render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
     for (const name of [/Tool name/, /Make and model/, /Storage location/, /Designated storage place/, /Required storage conditions/, /Maintenance requirements/]) {
@@ -330,6 +350,18 @@ describe('Tools form validation messages', () => {
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({ name: 'N. One', employeeNumber: null });
   });
+  it('saves the trade section picked for a new employee', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<EmployeeForm onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'N. One' } });
+    fireEvent.change(screen.getByLabelText('Employee ID or number'), { target: { value: 'E-900' } });
+    await user.click(screen.getByRole('combobox', { name: /Trade section/ }));
+    await user.click(await screen.findByRole('option', { name: 'Electrical' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add employee' }));
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0]).toMatchObject({ section: 'Electrical' });
+  });
   it('issues to a numberless employee picked by name, shown as not recorded', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
@@ -354,6 +386,23 @@ describe('Tools form validation messages', () => {
     fireEvent.change(screen.getByLabelText('Employee ID or number'), { target: { value: 'E-900' } });
     await user.click(screen.getByRole('button', { name: 'Save number' }));
     expect(onSave).toHaveBeenCalledWith('E-900');
+  });
+  it('saves the trade section later', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const person = { id: 'e9', backendId: 'b9', employeeNumber: 'E-9', name: 'N. One', department: 'Engineering', section: 'Electrical', active: true };
+    render(<EmployeeSectionForm employee={person} onSave={onSave} onCancel={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    expect(onSave).toHaveBeenCalledWith('Electrical');
+  });
+  it('clears the trade section when none applies', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const person = { id: 'e9', backendId: 'b9', employeeNumber: 'E-9', name: 'N. One', department: 'Engineering', active: true };
+    render(<EmployeeSectionForm employee={person} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: /No trade section/ })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Save section' }));
+    expect(onSave).toHaveBeenCalledWith(null);
   });
   it('blocks an empty tool with messages under the missing fields', () => {
     const onSave = vi.fn();

@@ -8,12 +8,15 @@ import { useMemo, useState } from 'react';
 import { Button, Checkbox, EmptyState, Icon, SearchField } from '@/components/ui-system';
 import { SuggestField } from './ToolsForms';
 import { employeeLabel as personLabel, type Employee, type Tool } from './prototype';
-import { groupEmployeesByDepartment, type Eligibility } from './toolEligibility';
+import { eligibilityKey, groupEmployeesByDepartment, type Eligibility, type EligibilityBasis } from './toolEligibility';
 import type { CompetencyRecord } from './complianceTypes';
 
 export type GrantCompetency = (value: { employee_id: string; tool_id: string; trained: boolean; qualified: boolean; authorized: boolean; authorized_by?: string }) => Promise<void>;
 
 const toolLabel = (tool: Tool) => `${tool.id} · ${tool.name}`;
+
+/** Why this pair is eligible, in the register's own words. */
+const basisMark = (basis?: EligibilityBasis) => basis?.kind === 'section' ? `by section (${basis.section})` : basis?.kind === 'open' ? 'anyone may use it' : 'approved individually';
 
 
 /** A remove button that asks once more before it takes eligibility away. */
@@ -62,15 +65,15 @@ export function EligibilityByPerson({ employees, tools, eligibility, competencie
         const reason = selection?.blocked(employee);
         const pick = selection && <span className="pl-4"><Checkbox aria-label={`Select ${employee.name}`} title={reason} disabled={!!reason} checked={selection.picked.includes(employee.id)} onChange={event => selection.onToggle(employee, event.target.checked)} /></span>;
         return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber ?? 'Not recorded'}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
-          <PersonBody ready={ready} allowDeactivate={allowDeactivate} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
+          <PersonBody ready={ready} allowDeactivate={allowDeactivate} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} eligibility={eligibility} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
         </Accordion>;
       })}
     </section>)}
   </div>;
 }
 
-function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, eligible, competencies, canManage, authoriser, onGrant, onOpenApprovals, onIssue }: {
-  ready: boolean; allowDeactivate: boolean; onSetActive: (employee: Employee, active: boolean) => Promise<void>; employee: Employee; tools: Tool[]; eligible: Tool[]; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string;
+function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, eligible, eligibility, competencies, canManage, authoriser, onGrant, onOpenApprovals, onIssue }: {
+  ready: boolean; allowDeactivate: boolean; onSetActive: (employee: Employee, active: boolean) => Promise<void>; employee: Employee; tools: Tool[]; eligible: Tool[]; eligibility: Eligibility; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string;
   onGrant: GrantCompetency; onOpenApprovals: (employee: Employee) => void; onIssue: (employee: Employee) => void;
 }) {
   const [filter, setFilter] = useState('');
@@ -80,6 +83,7 @@ function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, elig
   const addable = tools.filter(tool => !tool.archived && tool.backendId && !eligibleIds.has(tool.id) && (!tool.department || tool.department === employee.department));
   const shown = eligible.filter(tool => `${tool.id} ${tool.name} ${tool.category}`.toLowerCase().includes(filter.trim().toLowerCase()));
   const authorisedBy = (tool: Tool) => competencies.find(record => record.employee_id === employee.backendId && record.tool_id === tool.backendId && record.authorized)?.authorized_by;
+  const basisFor = (tool: Tool) => tool.backendId && employee.backendId ? eligibility.basis.get(eligibilityKey(tool.backendId, employee.backendId)) : undefined;
   const change = async (tool: Tool, on: boolean) => {
     if (!employee.backendId || !tool.backendId) return;
     setBusy(true);
@@ -90,7 +94,7 @@ function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, elig
     {eligible.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Not eligible for any equipment yet.</p> : <>
       {eligible.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter this person's equipment" />}
       <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`Equipment ${employee.name} is eligible for`}>
-        {shown.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{tool.id} · {tool.category}{authorisedBy(tool) ? ` · authorised by ${authorisedBy(tool)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${tool.name} from ${employee.name}`} disabled={busy} onConfirm={() => void change(tool, false)} />}</li>)}
+        {shown.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{tool.id} · {tool.category} · {basisMark(basisFor(tool))}{basisFor(tool)?.kind === 'individual' && authorisedBy(tool) ? ` · authorised by ${authorisedBy(tool)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${tool.name} from ${employee.name}`} disabled={busy} onConfirm={() => void change(tool, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
     </>}
@@ -124,15 +128,15 @@ export function EligibilityByEquipment({ employees, tools, eligibility, competen
       {group.tools.map(tool => {
         const people = (tool.backendId && eligibility.forTool.get(tool.backendId)) || [];
         return <Accordion key={tool.id} open={openId === tool.id} onToggle={() => setOpenId(id => (id === tool.id ? null : tool.id))} icon="box" title={tool.name} subtitle={`${tool.id}${tool.department ? ` · ${tool.department}` : ''}`} count={ready ? people.length : null} noun={people.length === 1 ? 'person' : 'people'}>
-          <EquipmentBody ready={ready} tool={tool} employees={employees} people={people} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} />
+          <EquipmentBody ready={ready} tool={tool} employees={employees} people={people} eligibility={eligibility} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} />
         </Accordion>;
       })}
     </section>)}
   </div>;
 }
 
-function EquipmentBody({ ready, tool, employees, people, competencies, canManage, authoriser, onGrant }: {
-  ready: boolean; tool: Tool; employees: Employee[]; people: Employee[]; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string; onGrant: GrantCompetency;
+function EquipmentBody({ ready, tool, employees, people, eligibility, competencies, canManage, authoriser, onGrant }: {
+  ready: boolean; tool: Tool; employees: Employee[]; people: Employee[]; eligibility: Eligibility; competencies: CompetencyRecord[]; canManage: boolean; authoriser: string; onGrant: GrantCompetency;
 }) {
   const [filter, setFilter] = useState('');
   const [adding, setAdding] = useState('');
@@ -141,6 +145,7 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   const addable = employees.filter(employee => employee.active && employee.backendId && !eligibleIds.has(employee.id) && (!tool.department || employee.department === tool.department));
   const shown = people.filter(person => `${person.name} ${person.employeeNumber ?? ''} ${person.jobTitle || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
   const authorisedBy = (person: Employee) => competencies.find(record => record.employee_id === person.backendId && record.tool_id === tool.backendId && record.authorized)?.authorized_by;
+  const basisFor = (person: Employee) => tool.backendId && person.backendId ? eligibility.basis.get(eligibilityKey(tool.backendId, person.backendId)) : undefined;
   const change = async (person: Employee, on: boolean) => {
     if (!person.backendId || !tool.backendId) return;
     setBusy(true);
@@ -148,10 +153,11 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   };
   if (!ready) return <p className="font-sans text-body-sm text-ink-muted">The approvals are not loaded, so who is eligible for this equipment cannot be shown yet.</p>;
   return <>
+    {tool.competencyRequired === false && people.length > 0 && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this equipment — no approval needed.</p>}
     {people.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible for this equipment yet, so it cannot be issued.</p> : <>
       {people.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter the people for this equipment" />}
       <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`People eligible for ${tool.name}`}>
-        {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber ?? 'Not recorded'}{authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
+        {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber ?? 'Not recorded'}{tool.competencyRequired === false ? '' : ` · ${basisMark(basisFor(person))}`}{basisFor(person)?.kind === 'individual' && authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
     </>}
@@ -159,10 +165,11 @@ function EquipmentBody({ ready, tool, employees, people, competencies, canManage
   </>;
 }
 
-type EligiblePerson = { id: string; employeeNumber: string | null; name: string; department?: string; jobTitle?: string };
+type EligiblePerson = { id: string; employeeNumber: string | null; name: string; department?: string; jobTitle?: string; viaSection?: string | null };
+const eligibleMark = (person: EligiblePerson, open?: boolean) => open ? undefined : person.viaSection ? `by section (${person.viaSection})` : 'approved individually';
 
 /** Everyone who may be issued this equipment, as a readable list in the tool's details. With `onIssue`, each row can start the issue straight away. */
-export function EligibleEmployeesList({ people, onIssue, onOpenEmployees }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void; onOpenEmployees?: () => void }) {
+export function EligibleEmployeesList({ people, onIssue, onOpenEmployees, open }: { people: EligiblePerson[] | undefined; onIssue?: (person: EligiblePerson) => void; onOpenEmployees?: () => void; open?: boolean }) {
   const [filter, setFilter] = useState('');
   if (people === undefined) return null;
   const sorted = [...people].sort((a, b) => a.name.localeCompare(b.name));
@@ -178,11 +185,12 @@ export function EligibleEmployeesList({ people, onIssue, onOpenEmployees }: { pe
         : (
           <>
             {sorted.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter eligible employees" />}
+            {open && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this equipment — no approval needed.</p>}
             <ul className="flex flex-col divide-y divide-line-subtle" aria-label="Eligible employees list">
               {shown.map(person => (
                 <li key={person.id} className="flex items-center gap-3 py-2">
                   <span aria-hidden="true" className="text-ink-muted"><Icon name="user" size="sm" /></span>
-                  <span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{[person.jobTitle, person.employeeNumber].filter(Boolean).join(' · ')}</small></span>
+                  <span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{[person.jobTitle, person.employeeNumber, eligibleMark(person, open)].filter(Boolean).join(' · ')}</small></span>
                   {onIssue && <Button size="sm" aria-label={`Issue this tool to ${person.name}`} onClick={() => onIssue(person)}>Issue</Button>}
                 </li>
               ))}

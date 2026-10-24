@@ -3,9 +3,9 @@
 // are unchanged; only how the fields are drawn.
 'use client';
 
-import { useContext, useState, type FormEvent, type ReactNode } from 'react';
+import { useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { asString, Button, Checkbox, Combobox, Field, FieldGroup, Icon, Input, Notice, readStored, Segmented, Select, storeValue, Tag, Textarea, useRefusedSubmit } from '@/components/ui-system';
-import { CATEGORIES, DEPARTMENTS, defaultEquipmentKind, departmentOf, employeeLabel, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
+import { CATEGORIES, DEPARTMENTS, TRADE_SECTIONS, defaultEquipmentKind, departmentOf, employeeLabel, equipmentTypesForCategory, type ActionKind, type Employee, type EquipmentKind, type Movement, type Tool, type Evidence } from './prototype';
 import type { InspectionType } from './complianceTypes';
 import { INSPECTION_LABELS } from './ToolsCompliance';
 import { formatDateTime } from '@/lib/format';
@@ -269,7 +269,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   );
 }
 
-export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel }: { initialTool?: Tool; defaultDepartment: string; addFiles: AddEvidence; onSave: (tool: Tool) => void | Promise<void>; onCancel: () => void }) {
+export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel, suggestTradeSections }: { initialTool?: Tool; defaultDepartment: string; addFiles: AddEvidence; onSave: (tool: Tool) => void | Promise<void>; onCancel: () => void; suggestTradeSections?: (input: { name: string; equipmentKind: EquipmentKind; category: string }) => Promise<string[]> }) {
   const hintFor = useHint();
   const [name, setName] = useState(initialTool?.name || '');
   const [make, setMake] = useState(initialTool?.make || '');
@@ -277,6 +277,8 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const [serial, setSerial] = useState(initialTool?.serial || '');
   const [department, setDepartment] = useState(initialTool ? departmentOf(initialTool) : defaultDepartment);
   const [section, setSection] = useState(initialTool?.section || '');
+  const [tradeSections, setTradeSections] = useState<string[]>(initialTool?.tradeSections || []);
+  const [tradeTouched, setTradeTouched] = useState(false);
   const [category, setCategory] = useState(initialTool?.category || CATEGORIES[0]);
   const [equipmentKind, setEquipmentKind] = useState<EquipmentKind>(initialTool?.kind || defaultEquipmentKind(CATEGORIES[0]));
   const [location, setLocation] = useState(initialTool?.location || '');
@@ -313,6 +315,14 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const { formRef, refused } = useRefusedSubmit();
   const [saving, setSaving] = useState(false);
   const equipmentTypes = equipmentTypesForCategory(category);
+  useEffect(() => {
+    if (initialTool || tradeTouched || !suggestTradeSections || !name.trim()) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      suggestTradeSections({ name: name.trim(), equipmentKind, category }).then(sections => { if (live) setTradeSections(sections.filter(item => TRADE_SECTIONS.includes(item))); }).catch(() => {});
+    }, 400);
+    return () => { live = false; clearTimeout(timer); };
+  }, [initialTool, tradeTouched, suggestTradeSections, name, equipmentKind, category]);
   function changeCategory(nextCategory: string) {
     setCategory(nextCategory);
     if (!equipmentTypesForCategory(nextCategory).some(type => type.value === equipmentKind)) setEquipmentKind(defaultEquipmentKind(nextCategory));
@@ -341,7 +351,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
     setSaving(true);
     try {
       await onSave({
-        ...initialTool, id: id.trim(), name: name.trim(), make: make.trim(), serial: serial.trim() || 'Not recorded', department: department.trim(), section: section.trim(), category, kind: equipmentKind, location,
+        ...initialTool, id: id.trim(), name: name.trim(), make: make.trim(), serial: serial.trim() || 'Not recorded', department: department.trim(), section: section.trim(), tradeSections, category, kind: equipmentKind, location,
         homeStorageLocation: homeStorageLocation.trim() || location.trim(), storageConditions: storageConditions.trim(), maintenanceRequirements: maintenanceRequirements.trim(), preUseCheckRequired, competencyRequired,
         weeklyInspectionRequired, monthlyInspectionRequired, quarterlyInspectionRequired, calibrationRequired, calibrationFrequencyDays: calibrationRequired ? Number(calibrationFrequencyDays) : undefined,
         replacementValue: replacementValue ? Number(replacementValue) : undefined, criticality: criticality as Tool['criticality'], cctvRequired: cctvRequired || Number(replacementValue) > 5000, gpsRequired,
@@ -372,6 +382,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Input aria-label="Storage location" disabled={!!initialTool?.holder} value={location} onChange={event => { setLocation(event.target.value); clearError('location'); }} placeholder="Main workshop, electrical cage…" />
         </Field>
         <Field label="Section" optional><Input aria-label="Section" value={section} onChange={e => setSection(e.target.value)} placeholder="Mechanical, electrical…" /></Field>
+        <Field label="Trade sections" description={hintFor('Which trades gain eligibility by section. Suggested from the name; change it freely.')}><div className="flex flex-wrap gap-x-6 gap-y-2">{TRADE_SECTIONS.map(trade => <Checkbox key={trade} label={trade} checked={tradeSections.includes(trade)} onChange={event => { setTradeTouched(true); setTradeSections(current => event.target.checked ? [...current, trade] : current.filter(item => item !== trade)); } } />)}</div></Field>
       </Row>
 
       <Section title="Ownership, storage and safeguarding" note="SOP controls">
@@ -516,6 +527,7 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
   const [numberUnknown, setNumberUnknown] = useState(false);
   const [department, setDepartment] = useState('Engineering');
   const [jobTitle, setJobTitle] = useState('');
+  const [section, setSection] = useState('');
   const [supervisorName, setSupervisorName] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; employeeNumber?: string }>({});
   async function submit(event: FormEvent) {
@@ -528,7 +540,7 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
     if (Object.keys(problems).length > 0) { refused(); return; }
     setSaving(true);
     try {
-      await onSave({ id: crypto.randomUUID(), name: name.trim(), employeeNumber: numberUnknown ? null : employeeNumber.trim(), department: department.trim(), jobTitle: jobTitle.trim(), supervisorName: supervisorName.trim(), active: true });
+      await onSave({ id: crypto.randomUUID(), name: name.trim(), employeeNumber: numberUnknown ? null : employeeNumber.trim(), department: department.trim(), jobTitle: jobTitle.trim(), supervisorName: supervisorName.trim(), section: section.trim() || undefined, active: true });
     } finally {
       setSaving(false);
     }
@@ -540,6 +552,7 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
         <Field label="Employee ID / number" required={!numberUnknown} error={fieldErrors.employeeNumber}><Input aria-label="Employee ID or number" value={employeeNumber} disabled={numberUnknown} onChange={event => { setEmployeeNumber(event.target.value); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} placeholder="EMP-001" /></Field>
         <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={setDepartment} historyKey="tools.department" />
         <Field label="Job title" optional><Input aria-label="Job title" value={jobTitle} onChange={event => setJobTitle(event.target.value)} placeholder="Artisan, supervisor…" /></Field>
+        <SuggestField label="Trade section" required={false} options={TRADE_SECTIONS} value={section} onChange={setSection} historyKey="tools.section" hint="The trade that grants eligibility by section." />
         <Field label="Supervisor name" optional><Input aria-label="Supervisor name" value={supervisorName} onChange={event => setSupervisorName(event.target.value)} placeholder="Immediate supervisor" /></Field>
       </Row>
       <Checkbox label="No mine number yet" description="Tick this instead of inventing a number — it can be added later from the employee record." checked={numberUnknown} onChange={event => { setNumberUnknown(event.target.checked); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} />
@@ -575,6 +588,33 @@ export function EmployeeNumberForm({ employee, onSave, onCancel }: { employee: E
       </Field>
       <Checkbox label="No mine number yet" checked={unknown} onChange={event => { setUnknown(event.target.checked); setError(undefined); }} />
       <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Saving…' : 'Save number'}</Button></Footer>
+    </form>
+  );
+}
+
+/** Set (or clear) the trade section that grants this person eligibility by section. */
+export function EmployeeSectionForm({ employee, onSave, onCancel }: { employee: Employee; onSave: (section: string | null) => void | Promise<void>; onCancel: () => void }) {
+  const [section, setSection] = useState(employee.section ?? '');
+  const [unknown, setUnknown] = useState(employee.section == null);
+  const [error, setError] = useState<string | undefined>(undefined);
+  const { formRef, refused } = useRefusedSubmit();
+  const [saving, setSaving] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!unknown && !section.trim()) { setError('Enter the trade section.'); refused(); return; }
+    setSaving(true);
+    try {
+      await onSave(unknown ? null : section.trim());
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <form ref={formRef} className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="user" size="sm" /><span><strong className="text-ink">{employee.name}</strong> · {employee.department}</span></p>
+      <SuggestField label="Trade section" required={!unknown} error={error} options={TRADE_SECTIONS} value={section} disabled={unknown} onChange={value => { setSection(value); setError(undefined); }} historyKey="tools.section" />
+      <Checkbox label="No trade section" checked={unknown} onChange={event => { setUnknown(event.target.checked); setError(undefined); }} />
+      <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Saving…' : 'Save section'}</Button></Footer>
     </form>
   );
 }
