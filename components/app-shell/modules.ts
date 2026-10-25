@@ -14,7 +14,7 @@ import {
   ClipboardList, ClipboardPlus, Plus, User, Gauge,
   Sun, Receipt, Settings, Award, Truck, Radar,
   FileCheck, LayoutDashboard,
-  ListTodo, BookOpen,
+  ListTodo, BookOpen, History,
 } from '@/components/ui-system';
 import type { UserRole } from '@/lib/supabase';
 import { trackModuleOpen } from '@/lib/usage';
@@ -76,6 +76,7 @@ export const CATEGORIES: Category[] = [
     icon: ListTodo, minRole: 'manager',
     modules: [
       { icon: ListTodo, title: 'Events & Tasks', description: 'Post events and to-dos, track completion by type', href: '/tasks-events', tags: ['Planning'], featured: true },
+      { icon: History, title: 'Recently deleted', description: 'Put back records deleted anywhere in MyOffice', href: '/recently-deleted', tags: ['Recovery'] },
     ],
   },
   {
