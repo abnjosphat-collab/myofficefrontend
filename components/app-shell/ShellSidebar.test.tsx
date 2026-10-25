@@ -36,6 +36,21 @@ const base = {
   favoriteModules: [], recentModules: [], onToggleFavorite: () => {}, visibleCategories: categories,
 };
 
+describe('ShellSidebar Tools hand-over (C8)', () => {
+  it('states under the Tools row that sign-in is separate', () => {
+    pathname = '/tools';
+    render(<ShellSidebar {...base} visibleCategories={CATEGORIES} />);
+    const link = screen.getByRole('link', { name: /Tools & Equipment/ });
+    expect(link).toHaveAttribute('href', '/tools');
+    expect(link).toHaveTextContent('Separate sign-in');
+  });
+
+  it('the Tools module description states its own sign-in (home cards, search, quick view)', () => {
+    const tools = CATEGORIES.flatMap(c => c.modules).find(m => m.href === '/tools');
+    expect(tools?.description).toContain('own sign-in');
+  });
+});
+
 describe('ShellSidebar', () => {
   it('stands Standby next to Shifts under Time & Attendance', () => {
     pathname = '/standby';

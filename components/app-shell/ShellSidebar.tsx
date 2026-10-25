@@ -89,6 +89,7 @@ export function ShellSidebar({
           label={module.title}
           icon={module.icon}
           href={module.href}
+          hint={module.hint}
           active={isActive(pathname, module.href)}
           onNavigate={go(module.href)}
           trailing={editing && <IconButton icon="close" label={`Remove ${module.title} from favourites`} size="sm" variant="danger" onClick={() => onToggleFavorite(module.href)} />}
@@ -104,6 +105,7 @@ export function ShellSidebar({
               label={module.title}
               icon={module.icon}
               href={module.href}
+              hint={module.hint}
               active={isActive(pathname, module.href)}
               onNavigate={go(module.href)}
             />
@@ -121,7 +123,7 @@ export function ShellSidebar({
           onOpenChange={next => setExpanded({ ...expanded, [category.id]: next })}
         >
           {category.modules.map(module => (
-            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} onNavigate={go(module.href)} />
+            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} hint={module.hint} active={isActive(pathname, module.href)} onNavigate={go(module.href)} />
           ))}
         </NavGroup>
       ))}
@@ -145,7 +147,7 @@ export function ShellSidebar({
           <IconButton icon="search" label="Search" variant="shell" size="shell" onClick={() => onOpenChange(true)} className="shrink-0" />
           <NavItem label="Home" icon="home" href="/" active={home} collapsed onNavigate={close} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
           {favoriteModules.map(({ module }) => (
-            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
+            <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} hint={module.hint} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} className="w-auto min-w-9 shrink-0 px-2 pointer-coarse:min-w-11" />
           ))}
         </>
       )}

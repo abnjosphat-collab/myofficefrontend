@@ -30,6 +30,8 @@ export interface NavItemProps {
   /** Icon-only rail: the label moves to a tooltip and stays the accessible name. */
   collapsed?: boolean;
   badge?: number;
+  /** Small muted caption under the label (for example the Tools row's sign-in note). Hidden on the icon-only rail. */
+  hint?: string;
   /** Extra control at the end of the row (for example a remove button while editing favourites). */
   trailing?: ReactNode;
   onNavigate?: () => void;
@@ -41,7 +43,7 @@ export interface NavItemProps {
  * weight 500, a muted outline glyph that goes brand-green on hover and when active. Renders a link when `href`
  * is given, otherwise a button.
  */
-export function NavItem({ label, icon, href, onClick, active, collapsed, badge, trailing, onNavigate, className }: NavItemProps) {
+export function NavItem({ label, icon, href, onClick, active, collapsed, badge, hint, trailing, onNavigate, className }: NavItemProps) {
   const row = cn(
     'group/nav focus-ring touch-target relative flex min-h-10 pointer-coarse:min-h-11 w-full items-center gap-2.5 rounded-nav px-[11px] py-1.5 font-sans text-nav text-ink',
     'transition-colors duration-[var(--mo-duration-base)] hover:bg-soft hover:text-action',
@@ -52,7 +54,10 @@ export function NavItem({ label, icon, href, onClick, active, collapsed, badge, 
   const inner = (
     <>
       <span className={cn('grid size-6.5 shrink-0 place-items-center', active ? 'text-action' : 'text-ink-muted group-hover/nav:text-action')}><NavGlyph icon={icon} /></span>
-      <span className={cn('min-w-0 flex-1 text-left leading-[1.25] [overflow-wrap:anywhere] line-clamp-2', collapsed && 'sr-only')} title={label}>{label}</span>
+      <span className={cn('min-w-0 flex-1 text-left leading-[1.25]', collapsed && 'sr-only')}>
+        <span className="block [overflow-wrap:anywhere] line-clamp-2" title={label}>{label}</span>
+        {hint && !collapsed && <small className="mt-0.5 block font-sans text-caption text-ink-muted line-clamp-2">{hint}</small>}
+      </span>
       {!collapsed && badge !== undefined && badge > 0 && <CountBadge value={badge} />}
     </>
   );

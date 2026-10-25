@@ -27,7 +27,8 @@ export function AuthCard({ title, description, children, headingId = 'auth-title
   );
 }
 
-/** A full-page, centred auth surface over the deep-space field. `back` shows the way back to Tools & Equipment, the standalone workspace.
+/** A full-page, centred auth surface over the deep-space field. `back` shows the way back to Tools & Equipment, the standalone workspace,
+ * stating that it uses its own sign-in (C8).
  */
 export function AuthPage({ children, back = false }: { children: ReactNode; back?: boolean }) {
   return (
@@ -36,7 +37,7 @@ export function AuthPage({ children, back = false }: { children: ReactNode; back
         {children}
         {back && (
           <Link href="/tools" className="focus-ring touch-target inline-flex items-center gap-1.5 rounded-control px-3 font-sans text-body-sm text-ink-muted hover:text-ink">
-            <Icon name="chevron-left" size="sm" />Return to Tools &amp; Equipment
+            <Icon name="chevron-left" size="sm" />Return to Tools &amp; Equipment (uses its own sign-in)
           </Link>
         )}
       </main>
