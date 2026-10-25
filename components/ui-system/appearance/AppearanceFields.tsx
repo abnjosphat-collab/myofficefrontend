@@ -1,14 +1,26 @@
-// components/ui-system/appearance/AppearanceFields.tsx — the three appearance controls (typeface, text size, helpful hints),
-// shared by the app Settings dialog and the Tools Settings dialog so both change the same saved choice.
+// components/ui-system/appearance/AppearanceFields.tsx — the appearance controls (typeface, text size, helpful hints,
+// plus colour theme and darkness for the trial), shared by the app Settings dialog and the Tools Settings dialog so
+// both change the same saved choice. The theme switches render only when showThemes is set: the trial flag gates
+// them, and Tools never shows them (it keeps its sage floor).
 'use client';
 
 import { Checkbox } from '../primitives/Checkbox';
 import { Field } from '../primitives/Field';
 import { Select } from '../overlays/Select';
-import { APPEARANCE_FONTS, FONT_SIZE_MAX, FONT_SIZE_MIN, FONT_SIZE_STEP, type AppearanceFont } from './appearance';
+import {
+  APPEARANCE_DARKNESS,
+  APPEARANCE_FONTS,
+  APPEARANCE_THEMES,
+  FONT_SIZE_MAX,
+  FONT_SIZE_MIN,
+  FONT_SIZE_STEP,
+  type AppearanceDarkness,
+  type AppearanceFont,
+  type AppearanceTheme,
+} from './appearance';
 import { useAppearance } from './AppearanceProvider';
 
-export function AppearanceFields() {
+export function AppearanceFields({ showThemes = false }: { showThemes?: boolean }) {
   const { appearance, update } = useAppearance();
   return (
     <>
@@ -42,6 +54,26 @@ export function AppearanceFields() {
         checked={appearance.guidance}
         onChange={event => update({ guidance: event.target.checked })}
       />
+      {showThemes && (
+        <>
+          <Field label="Colour theme" description={APPEARANCE_THEMES.find(theme => theme.id === appearance.theme)?.description}>
+            <Select
+              aria-label="Colour theme"
+              value={appearance.theme}
+              onValueChange={value => update({ theme: value as AppearanceTheme })}
+              options={APPEARANCE_THEMES.map(theme => ({ value: theme.id, label: theme.label, description: theme.description }))}
+            />
+          </Field>
+          <Field label="Darkness" description={APPEARANCE_DARKNESS.find(step => step.id === appearance.darkness)?.description}>
+            <Select
+              aria-label="Darkness"
+              value={appearance.darkness}
+              onValueChange={value => update({ darkness: value as AppearanceDarkness })}
+              options={APPEARANCE_DARKNESS.map(step => ({ value: step.id, label: step.label, description: step.description }))}
+            />
+          </Field>
+        </>
+      )}
     </>
   );
 }

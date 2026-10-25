@@ -1,13 +1,16 @@
 // components/app-shell/ShellSettings.tsx — the one settings surface (replaces the old Preferences
 // panel, the bottom-bar settings menu and the scattered theme / icon-style / font buttons).
-// There is a single appearance, so there is no theme or icon-style switch here.
+// There is a single appearance and no icon-style switch. The colour-theme and darkness
+// switches appear only for the trial flag (permissions.features has 'high-contrast').
 'use client';
 
 import { useSyncExternalStore, type ReactNode } from 'react';
 import {
   AppearanceFields, Button, Checkbox, Dialog, Field, Select, useAppearance, useConfirm,
 } from '@/components/ui-system';
+import { useAuth } from '@/lib/auth-context';
 import { clearInputHistory } from '@/lib/inputHistory';
+import { profileFeatures } from '@/lib/scope';
 import { getDefaultExpanded, getDefaultView, onPrefsChange, setDefaultExpanded, setDefaultView, type ModuleView } from '@/lib/prefs';
 import { toast } from 'sonner';
 import { playSound, setMuted, setVoice, useSoundPrefs, VOICES, VOICE_KEYS, type SoundVoice } from '@/lib/notificationSound';
@@ -36,6 +39,8 @@ export function ShellSettings({
   onResetCustomizations: () => void;
 }) {
   const { reset } = useAppearance();
+  const { profile } = useAuth();
+  const showThemes = profileFeatures(profile).includes('high-contrast');
   const sound = useSoundPrefs();
   const confirm = useConfirm();
   const defaultView = useSyncExternalStore(onPrefsChange, getDefaultView, () => 'grid' as ModuleView);
@@ -57,7 +62,7 @@ export function ShellSettings({
     <Dialog open={open} onOpenChange={onOpenChange} title="Settings" description="Appearance and layout. Changes apply straight away and are saved on this device." size="md">
       <div className="flex flex-col gap-5">
         <Section title="Appearance">
-          <AppearanceFields />
+          <AppearanceFields showThemes={showThemes} />
         </Section>
 
         <Section title="Layout">

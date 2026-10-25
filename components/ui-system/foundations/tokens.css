@@ -2,8 +2,9 @@
  *
  * The ONE source of visual values for the whole ERP (Tools included). Values
  * derive from the Tools workspace: near-white canvas, pale-sage surfaces,
- * charcoal-green action. One light appearance; there is no dark or alternate
- * design branch. See components/ui-system/README.md for the rules.
+ * charcoal-green action. This file is the sage/light floor; six colour themes
+ * by four darkness steps override it in ./themes.css. See
+ * components/ui-system/README.md for the rules.
  *
  * Everything lives on :root so body-portalled content (Radix dialogs, menus,
  * selects, tooltips, toasts) inherits the same tokens, fonts and text scale
@@ -68,7 +69,7 @@
      re-checks this on every run), every pair is dE > 30 apart, and every pair stays
      distinct under deuteranopia simulation. Never reuse status colours as series. */
   --mo-chart-1: #2a78d6;
-  --mo-chart-2: #e8641b; /* retuned 2026-10: true orange, dE 33.9 from red (was #d95726, dE 20.3) */
+  --mo-chart-2: #e5621a; /* retuned 2026-10-25: one step deeper holds 3:1 on shaded grounds too (was #e8641b) */
   --mo-chart-3: #0b7a55; /* retuned 2026-10: deeper teal, deuteranopia-distinct from violet (was #0e8f62) */
   --mo-chart-4: #b57e00; /* retuned 2026-10: lighter amber, deuteranopia-distinct from red (was #a86e00) */
   --mo-chart-5: #c44e7d; /* F3: darkened for 3:1 on all three grounds (was #e87ba4, 2.37 worst) */
