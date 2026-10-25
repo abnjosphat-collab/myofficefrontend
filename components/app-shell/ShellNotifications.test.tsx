@@ -15,7 +15,7 @@ const n = (id: string, group: Notification['group']): Notification => ({
 const emptyTotals = (): BellTotals => ({
   pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
   sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
-  notices: { total: 0, shown: 0 },
+  notices: { total: 0, shown: 0 }, feedback: { total: 0, shown: 0 },
 });
 
 describe('groupBellItems', () => {
@@ -90,8 +90,8 @@ describe('ShellNotifications badge tone', () => {
   });
 
   it('both bells render the same badge for the same counts', () => {
-    const toolsBase = { unread: 0, onRetry: () => {}, onViewed: () => {}, onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {} };
-    const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0 };
+    const toolsBase = { unread: 0, onRetry: () => {}, onViewed: () => {}, onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {}, onShowFeedback: () => {} };
+    const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0 };
     // Urgent pair: unread critical here, an overdue return there.
     show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
     const shellUrgent = screen.getByText('1').className;
