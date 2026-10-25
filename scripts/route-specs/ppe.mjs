@@ -137,17 +137,14 @@ const spec = {
     check(!!posted && posted.body?.employee_id === 'C400' && !('department' in (posted.body ?? {})), 'the issue posts the picked number and no department (the server stamps it)');
 
     // bulk issue: one shared item for several people, one POST each, no department posted
-    await page.getByRole('button', { name: 'Bulk issue' }).click();
-    const bulk = dialog('Bulk issue');
+    await page.getByRole('button', { name: 'Issue to several people' }).click();
+    const bulk = dialog('Issue to several people');
     await bulk.waitFor({ timeout: 5000 });
     await bulk.getByRole('button', { name: 'Issue PPE' }).click();
     check(await bulk.getByText('Add at least one employee.').isVisible(), 'an empty bulk submit names the people list');
-    await bulk.getByRole('combobox', { name: 'Employees' }).click();
-    await page.getByRole('option', { name: /Dee Delta/ }).click();
-    await bulk.getByRole('combobox', { name: 'Employees' }).click();
-    await page.getByRole('option', { name: /Ann Alpha/ }).waitFor({ timeout: 5000 });
-    check(!(await page.getByRole('option', { name: /Eve Epsilon/ }).isVisible().catch(() => false)), 'the bulk picker offers no archived people');
-    await page.getByRole('option', { name: /Ann Alpha/ }).click();
+    await bulk.getByRole('checkbox', { name: /Dee Delta/ }).click();
+    await bulk.getByRole('checkbox', { name: /Ann Alpha/ }).click();
+    check(!(await bulk.getByRole('checkbox', { name: /Eve Epsilon/ }).isVisible().catch(() => false)), 'the bulk picker offers no archived people');
     await bulk.getByLabel(/^Item or brand/).fill('Fixture bulk visors');
     await bulk.getByRole('button', { name: 'Issue to 2 people' }).click();
     await bulk.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});

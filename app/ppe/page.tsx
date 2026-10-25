@@ -257,7 +257,7 @@ function PPEContent() {
           <>
             <IconButton icon="refresh" label="Refresh PPE" variant="shell" pending={recs.loading && recs.loaded} onClick={reload} />
             <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
-            <Button icon="plus" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Bulk issue</Button>
+            <Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button>
             <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
           </>
         )}

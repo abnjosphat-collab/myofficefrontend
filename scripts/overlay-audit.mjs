@@ -78,7 +78,7 @@ const EXTRA = {
   ],
   '/services': [{ name: 'import', open: p => click(p, 'button', 'Import or scan') }],
   '/spares': [{ name: 'requisition', open: p => click(p, 'button', /^Requisition/) }],
-  '/overtime': [{ name: 'bulk', open: p => click(p, 'button', 'Bulk entry') }],
+  '/overtime': [{ name: 'bulk', open: p => click(p, 'button', 'Overtime for several people') }],
   '/employees': [{ name: 'normalise', open: p => click(p, 'button', /^Normalise/) }],
   '/ppe': [
     { name: 'matrix', open: p => click(p, 'button', 'Replacement matrix') },
