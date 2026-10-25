@@ -96,8 +96,9 @@ export default function RootLayout({
     // attributes only — it does not suppress warnings for any child.
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${inter.variable} ${geistMono.variable} ${manrope.variable} ${plusJakarta.variable}`}>
       <head>
-        {/* Pre-paint: one light appearance (no theme switch), the saved typeface and the saved
-            text size, applied to <html> before first paint so there is no flash or layout jump. */}
+        {/* Pre-paint: the safe light default first, then APPEARANCE_BOOTSTRAP applies the saved
+            typeface, text size, theme and darkness to <html> before first paint so there is no
+            flash or layout jump. Tools routes always pre-paint the sage floor. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';h.style.colorScheme='light';}catch(e){}})();`,
