@@ -1,7 +1,7 @@
 // components/app-shell/ShellSettings.tsx — the one settings surface (replaces the old Preferences
 // panel, the bottom-bar settings menu and the scattered theme / icon-style / font buttons).
 // There is a single appearance and no icon-style switch. The colour-theme and darkness
-// switches appear only for the trial flag (permissions.features has 'high-contrast').
+// switches appear only for the trial flag (permissions.features has 'appearance_themes').
 'use client';
 
 import { useSyncExternalStore, type ReactNode } from 'react';
@@ -40,7 +40,7 @@ export function ShellSettings({
 }) {
   const { reset } = useAppearance();
   const { profile } = useAuth();
-  const showThemes = profileFeatures(profile).includes('high-contrast');
+  const showThemes = profileFeatures(profile).includes('appearance_themes');
   const sound = useSoundPrefs();
   const confirm = useConfirm();
   const defaultView = useSyncExternalStore(onPrefsChange, getDefaultView, () => 'grid' as ModuleView);

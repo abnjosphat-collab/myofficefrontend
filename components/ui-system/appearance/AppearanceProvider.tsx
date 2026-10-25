@@ -38,7 +38,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
   const effective = useMemo(
     () => effectiveAppearance(appearance, {
-      flagged: profileFeatures(profile).includes('high-contrast'),
+      flagged: profileFeatures(profile).includes('appearance_themes'),
       toolsRoute: pathname?.startsWith('/tools') ?? false,
     }),
     [appearance, pathname, profile],

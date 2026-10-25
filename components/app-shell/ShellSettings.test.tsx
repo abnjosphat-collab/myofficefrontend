@@ -1,6 +1,6 @@
 // components/app-shell/ShellSettings.test.tsx — C7: the colour-theme and darkness
 // switches render in app Settings only for trial-flagged profiles
-// (permissions.features has 'high-contrast'), and never in Tools settings,
+// (permissions.features has 'appearance_themes'), and never in Tools settings,
 // which keeps its sage floor.
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -42,7 +42,7 @@ describe('ShellSettings theme gating (C7)', () => {
   });
 
   it('shows the theme switches for trial-flagged profiles', () => {
-    authState.features = ['high-contrast'];
+    authState.features = ['appearance_themes'];
     renderSettings();
     expect(screen.getByText('Colour theme')).toBeInTheDocument();
     expect(screen.getByText('Darkness')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('ShellSettings theme gating (C7)', () => {
 
 describe('ToolsCustomize theme gating (C7)', () => {
   it('never shows the theme switches, even for flagged profiles', () => {
-    authState.features = ['high-contrast'];
+    authState.features = ['appearance_themes'];
     render(
       <AppearanceProvider>
         <ToolsCustomize options={{ ...DEFAULT_OPTIONS }} setOptions={() => {}} />
