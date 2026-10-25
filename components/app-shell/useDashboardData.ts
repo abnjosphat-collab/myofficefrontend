@@ -28,7 +28,7 @@ export interface DashboardStats {
 }
 
 /** Which bell group an activity item belongs to. Producers tag it; the bell reads it; the dashboard page ignores it. */
-export type AlertGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks' | 'notices' | 'activity';
+export type AlertGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks' | 'feedback' | 'notices' | 'activity';
 
 /**
  * One bell-feeding fetch and whether it answered. Unasked (role-gated)

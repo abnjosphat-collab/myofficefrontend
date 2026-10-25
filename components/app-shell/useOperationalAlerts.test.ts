@@ -1,19 +1,23 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/lib/auth-context';
+import { fetchRemoteEvents, type EnrichedUsageEvent } from '@/lib/usage';
 import { fetchOrNull } from './fetchOrNull';
 import { useOperationalAlerts } from './useOperationalAlerts';
 
 vi.mock('./fetchOrNull', () => ({ fetchOrNull: vi.fn() }));
 vi.mock('@/lib/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock('./useDashboardData', () => ({ timeAgo: (iso: string | null | undefined) => iso ?? '' }));
+vi.mock('@/lib/usage', () => ({ fetchRemoteEvents: vi.fn() }));
 
 const fetchMock = vi.mocked(fetchOrNull);
 const authMock = vi.mocked(useAuth);
+const remoteMock = vi.mocked(fetchRemoteEvents);
 
 beforeEach(() => {
   vi.clearAllMocks();
   authMock.mockReturnValue({ isAtLeast: (role: string) => role === 'manager' || role === 'admin' } as never);
+  remoteMock.mockResolvedValue([]);
   fetchMock.mockImplementation((async (url: string) => {
     if (url.includes('/password-reset-requests')) {
       return [{ id: 'r1', identifier: 'a@x.com', created_at: '2026-10-17T10:00:00Z' }];
@@ -145,7 +149,7 @@ describe('useOperationalAlerts totals and groups (U3.2)', () => {
 });
 
 describe('useOperationalAlerts sources and retry (U3.3)', () => {
-  it('lists all six sources as asked for an admin', async () => {
+  it('lists all seven sources as asked for an admin', async () => {
     const { result } = renderHook(() => useOperationalAlerts());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.sources).toEqual([
@@ -155,6 +159,7 @@ describe('useOperationalAlerts sources and retry (U3.3)', () => {
       { source: 'sheq', label: 'SHEQ follow-ups', ok: true },
       { source: 'workorders', label: 'Overdue work orders', ok: true },
       { source: 'tasks', label: 'Overdue tasks', ok: true },
+      { source: 'feedback', label: 'Feedback', ok: true },
     ]);
   });
 
@@ -218,5 +223,33 @@ describe('useOperationalAlerts sources and retry (U3.3)', () => {
     fetchMock.mockClear();
     await act(async () => { await result.current.reloadSource('pw'); });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('useOperationalAlerts feedback', () => {
+  const twoAccounts: EnrichedUsageEvent[] = [
+    { type: 'feedback', ts: new Date('2026-10-24T10:00:00Z').getTime(), page: '/ppe', rating: 5, text: 'Love it', sessionId: 's1', userEmail: 'a@x.com', anonymous: false },
+    { type: 'feedback', ts: new Date('2026-10-23T10:00:00Z').getTime(), page: '/overtime', rating: 0, text: 'Confusing', sessionId: 's2', userEmail: 'b@x.com', anonymous: false },
+    { type: 'page_view', ts: new Date('2026-10-24T10:00:00Z').getTime(), path: '/x', sessionId: 's1', userEmail: 'a@x.com', anonymous: false },
+  ];
+
+  it('surfaces recent feedback from every account to an admin', async () => {
+    remoteMock.mockResolvedValue(twoAccounts);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const items = result.current.alerts.filter(a => a.group === 'feedback');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ module: 'Feedback', status: 'pending', href: '/usage-analyzer#feedback', user: 'a@x.com' });
+    expect(result.current.totals.feedback).toEqual({ total: 2, shown: 2 });
+    expect(result.current.failed).toBe(false);
+  });
+
+  it('does not fetch feedback for a manager', async () => {
+    authMock.mockReturnValue({ isAtLeast: (role: string) => role === 'manager' } as never);
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(remoteMock).not.toHaveBeenCalled();
+    expect(result.current.alerts.some(a => a.group === 'feedback')).toBe(false);
+    expect(result.current.sources.map(s => s.source)).not.toContain('feedback');
   });
 });

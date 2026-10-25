@@ -517,7 +517,7 @@ export interface UsageSummary {
 export function summarize(events: UsageEvent[]): UsageSummary {
   let moduleOpens = 0, pageViews = 0, searches = 0;
   const days = new Set<string>();
-  let ratingSum = 0, feedbackCount = 0;
+  let ratingSum = 0, feedbackCount = 0, ratedCount = 0;
   let firstTs: number | null = null, lastTs: number | null = null;
   for (const e of events) {
     if (firstTs === null || e.ts < firstTs) firstTs = e.ts;
@@ -525,7 +525,7 @@ export function summarize(events: UsageEvent[]): UsageSummary {
     if (e.type === 'module_open') moduleOpens++;
     else if (e.type === 'page_view') pageViews++;
     else if (e.type === 'search') searches++;
-    else if (e.type === 'feedback') { feedbackCount++; ratingSum += e.rating; }
+    else if (e.type === 'feedback') { feedbackCount++; if (e.rating > 0) { ratingSum += e.rating; ratedCount++; } }
     if (e.type === 'module_open' || e.type === 'page_view') days.add(toLocalISODate(new Date(e.ts)));
   }
   const byHour = usageByHour(events);
@@ -533,7 +533,7 @@ export function summarize(events: UsageEvent[]): UsageSummary {
   return {
     totalEvents: events.length,
     moduleOpens, pageViews, searches, feedbackCount,
-    avgFeedbackRating: feedbackCount ? ratingSum / feedbackCount : null,
+    avgFeedbackRating: ratedCount ? ratingSum / ratedCount : null,
     activeDays: days.size,
     firstTs, lastTs,
     busiestHour: busiest && busiest.count > 0 ? { hour: busiest.hour, count: busiest.count } : null,
