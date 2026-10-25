@@ -97,6 +97,8 @@ one include/exclude tick-list-in-a-popover with counts, chips and Reset; its lis
 join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hosted inside Fields through
 `components/shared/SuggestField.tsx` until they are rebuilt here. `FieldGroup` labels a group of controls — a `Segmented` choice, a checkbox row, read-only values — with the same label, hint and error rhythm.
 
+**Bell badges.** Both bells (MyOffice shell, Tools) render `BellBadge`: dark green normally, red only when something is overdue or critical. Each bell decides its own `urgent` from its own data; the rule "urgent means red" lives in `BellBadge` alone. Never tone a bell badge directly with `CountBadge`.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).

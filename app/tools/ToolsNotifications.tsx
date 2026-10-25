@@ -2,7 +2,7 @@
 // checks due, investigations, password requests, new feedback). Opening it marks the notifications as viewed.
 'use client';
 
-import { Button, CountBadge, Icon, IconButton, Popover, PopoverContent, PopoverTrigger } from '@/components/ui-system';
+import { BellBadge, Button, Icon, IconButton, Popover, PopoverContent, PopoverTrigger } from '@/components/ui-system';
 import type { IconMeaning } from '@/components/ui-system/foundations/icon-meanings';
 
 export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue: number; investigationsOverdue: number; overdueEscalations: number; passwordRequests: number; feedback: number };
@@ -18,6 +18,12 @@ function Row({ icon, title, detail, onClick }: { icon: IconMeaning; title: strin
       <Icon name="chevron-right" size="xs" className="mt-1 text-ink-muted" />
     </button>
   );
+}
+
+
+/** Pure — the Tools bell is urgent when something is overdue: a return, an investigation, or an escalation. Holds, scheduled checks and password requests stay dark green. Exported for tests. */
+export function toolsBellIsUrgent(counts: ToolAttentionCounts): boolean {
+  return counts.overdue + counts.investigationsOverdue + counts.overdueEscalations > 0;
 }
 
 export function ToolsNotifications({ counts, unread, unavailable, loading, onRetry, onViewed, onShowOverdue, onShowInspection, onShowAccounts, onShowFeedback }: {
@@ -40,7 +46,7 @@ export function ToolsNotifications({ counts, unread, unavailable, loading, onRet
           <IconButton icon={unavailable ? 'warning' : 'bell'} variant="ghost"
             label={unavailable ? 'Tool notifications unavailable' : `${unread} unread tool notifications`} />
         </PopoverTrigger>
-        {unread > 0 && <span className="pointer-events-none absolute -right-1 -top-1"><CountBadge value={unread} /></span>}
+        {unread > 0 && <BellBadge value={unread} urgent={toolsBellIsUrgent(counts)} />}
       </div>
       <PopoverContent align="end" className="w-80 p-3">
         <div className="mb-2">

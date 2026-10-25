@@ -1,10 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { failedSourcesTitle, groupBellItems, groupCountText } from './ShellNotifications';
-import type { Notification } from './useNotifications';
+import { cleanup, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToolsNotifications } from '@/app/tools/ToolsNotifications';
+import { ShellNotifications, bellHasUrgentUnread, failedSourcesTitle, groupBellItems, groupCountText } from './ShellNotifications';
+import { useNotifications, type BellTotals, type Notification } from './useNotifications';
+
+vi.mock('./useNotifications', () => ({ useNotifications: vi.fn() }));
+const hook = vi.mocked(useNotifications);
 
 const n = (id: string, group: Notification['group']): Notification => ({
   id, group, action: id, module: 'M', icon: (() => null) as never,
   time: '', timestamp: 1, status: 'normal', href: '/x', unread: true,
+});
+
+const emptyTotals = (): BellTotals => ({
+  pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
+  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
+  notices: { total: 0, shown: 0 },
 });
 
 describe('groupBellItems', () => {
@@ -36,5 +47,63 @@ describe('failedSourcesTitle', () => {
     expect(failedSourcesTitle([src('Leave approvals'), src('Overtime approvals'), src('Notices')])).toBe(
       'Leave approvals, Overtime approvals and Notices could not be loaded',
     );
+  });
+});
+
+describe('bellHasUrgentUnread', () => {
+  const item = (unread: boolean, status: Notification['status']): Notification => ({ ...n('x', 'sheq'), unread, status });
+  it('is true only for an unread critical notification', () => {
+    expect(bellHasUrgentUnread([item(true, 'critical')])).toBe(true);
+    expect(bellHasUrgentUnread([item(false, 'critical')])).toBe(false);
+    expect(bellHasUrgentUnread([item(true, 'pending')])).toBe(false);
+    expect(bellHasUrgentUnread([item(true, 'normal')])).toBe(false);
+    expect(bellHasUrgentUnread([])).toBe(false);
+  });
+});
+
+describe('ShellNotifications badge tone', () => {
+  beforeEach(() => { hook.mockReset(); });
+  const show = (items: Notification[]) => {
+    const totals = emptyTotals();
+    for (const item of items) {
+      if (item.group && item.group in totals) {
+        const t = totals[item.group as keyof BellTotals];
+        t.total += 1; t.shown += 1;
+      }
+    }
+    hook.mockReturnValue({
+      notifications: items, unreadCount: items.filter(i => i.unread).length,
+      loading: false, failed: false, markAllRead: () => {}, markRead: () => {},
+      totals, failedSources: [], retry: () => {},
+    });
+    render(<ShellNotifications />);
+  };
+
+  it('is red when an unread critical notification is present', () => {
+    show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
+    expect(screen.getByText('1').className).toContain('bg-danger');
+  });
+
+  it('is dark green when only pending approvals are unread', () => {
+    show([{ ...n('leave-1', 'leave'), status: 'pending', unread: true }]);
+    expect(screen.getByText('1').className).toContain('bg-action');
+  });
+
+  it('both bells render the same badge for the same counts', () => {
+    const toolsBase = { unread: 0, onRetry: () => {}, onViewed: () => {}, onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {} };
+    const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0 };
+    // Urgent pair: unread critical here, an overdue return there.
+    show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
+    const shellUrgent = screen.getByText('1').className;
+    cleanup();
+    render(<ToolsNotifications {...toolsBase} counts={{ ...toolsZero, overdue: 1 }} unread={1} />);
+    expect(screen.getByText('1').className).toBe(shellUrgent);
+    // Normal pair: a pending approval here, a scheduled check there.
+    cleanup();
+    show([{ ...n('leave-1', 'leave'), status: 'pending', unread: true }]);
+    const shellNormal = screen.getByText('1').className;
+    cleanup();
+    render(<ToolsNotifications {...toolsBase} counts={{ ...toolsZero, inspectionDue: 1 }} unread={1} />);
+    expect(screen.getByText('1').className).toBe(shellNormal);
   });
 });
