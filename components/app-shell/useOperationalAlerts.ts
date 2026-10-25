@@ -1,7 +1,7 @@
 // components/app-shell/useOperationalAlerts.ts — real, actionable alerts pulled from
 // the same backend the leaves/overtime/SHEQ/maintenance pages themselves use: pending
-// leave and overtime applications, unresolved SHEQ inspections, and overdue work
-// orders. Merged into the bell dropdown alongside useDashboardData's work-order/
+// leave and overtime applications, unresolved SHEQ inspections, overdue work
+// orders, and recent feedback for admins. Merged into the bell dropdown alongside useDashboardData's work-order/
 // breakdown activity feed (useNotifications does the merging).
 //
 // Manager+ only: these are approval/response-owner items a viewer can't act on, and
@@ -12,7 +12,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
-import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, type LucideIcon } from '@/components/ui-system';
+import { fetchRemoteEvents, type EnrichedUsageEvent } from '@/lib/usage';
+import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, MessageSquare, type LucideIcon } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
 import { timeAgo, type ActivityItem, type AlertGroup, type SourceResult } from './useDashboardData';
 
@@ -23,14 +24,16 @@ interface SheqRow { id: number | string; status?: string | null; title?: string;
 interface WorkOrderRow { id: number | string; work_order_number?: string | null; due_date?: string | null; requested_by?: string }
 interface TaskEventRow { id: number | string; task_type?: string | null; title?: string; due_date?: string | null; responsible_people?: string[] | null }
 interface PwRequestRow { id: number | string; identifier?: string; created_at?: string | null }
+interface FeedbackBellRow { ts: number; page: string; text: string; userEmail: string | null }
 
-/** The six backlog sources this hook fetches (notices and the activity feed have their own producers). */
-export type OpGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks';
-export const OP_GROUPS: readonly OpGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks'];
+/** The seven backlog sources this hook fetches (notices and the activity feed have their own producers). */
+export type OpGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks' | 'feedback';
+export const OP_GROUPS: readonly OpGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks', 'feedback'];
 /** Bell-facing names, one per source: the failure warning reads these, so they match the group headers. */
 export const OP_LABELS: Record<OpGroup, string> = {
   pw: 'Password resets', leave: 'Leave approvals', overtime: 'Overtime approvals',
   sheq: 'SHEQ follow-ups', workorders: 'Overdue work orders', tasks: 'Overdue tasks',
+  feedback: 'Feedback',
 };
 /** What the bell shows per group: the backlog behind the slice, and what survived into the list. */
 export interface GroupTotal { total: number; shown: number }
@@ -38,6 +41,7 @@ export type OpTotals = Record<OpGroup, GroupTotal>;
 const EMPTY_TOTALS: OpTotals = {
   pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
   sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
+  feedback: { total: 0, shown: 0 },
 };
 
 function toItem(id: string, action: string, module: string, icon: LucideIcon, iso: string | null | undefined, status: ActivityItem['status'], href: string, group: AlertGroup, user?: string, actionLabel?: string): ActivityItem {
@@ -51,6 +55,7 @@ const OP_URLS: Record<OpGroup, string> = {
   sheq: `${API_BASE}/api/sheq?status=open`,
   workorders: `${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`,
   tasks: `${API_BASE}/api/tasks-events?status=pending`,
+  feedback: `${API_BASE}/api/usage/events`,
 };
 
 /** One fetch per source, loosely typed at the boundary; buildOpAlerts re-asserts the row shape. */
@@ -62,12 +67,23 @@ const OP_FETCH: Record<OpGroup, () => Promise<unknown[] | null>> = {
   sheq: () => fetchOrNull<SheqRow[]>(OP_URLS.sheq),
   workorders: () => fetchOrNull<WorkOrderRow[]>(OP_URLS.workorders),
   tasks: () => fetchOrNull<TaskEventRow[]>(OP_URLS.tasks),
+  feedback: async () => {
+    // Last-30-days feedback for the admin bell (the analyzer keeps the full view).
+    // New-vs-read comes from the bell's own seen-list, like every other source.
+    try {
+      const events = await fetchRemoteEvents(30);
+      return events
+        .filter((e): e is Extract<EnrichedUsageEvent, { type: 'feedback' }> => e.type === 'feedback')
+        .sort((a, b) => b.ts - a.ts)
+        .map((e): FeedbackBellRow => ({ ts: e.ts, page: e.page, text: e.text, userEmail: e.userEmail }));
+    } catch { return null; }
+  },
 };
 
 /** Pure — the asked sources and whether each answered; unasked (role-gated) sources are absent, never errors. */
-export function opSources(raw: OpRaw, askPw: boolean): SourceResult[] {
+export function opSources(raw: OpRaw, askAdmin: boolean): SourceResult[] {
   return OP_GROUPS
-    .filter(g => g !== 'pw' || askPw)
+    .filter(g => (g !== 'pw' && g !== 'feedback') || askAdmin)
     .map(group => ({ source: group, label: OP_LABELS[group], ok: raw[group] !== null }));
 }
 
@@ -79,8 +95,9 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
   const sheq = raw.sheq as SheqRow[] | null;
   const workOrders = raw.workorders as WorkOrderRow[] | null;
   const tasksEvents = raw.tasks as TaskEventRow[] | null;
+  const feedbackRows = raw.feedback as FeedbackBellRow[] | null;
   // fetchOrNull returns null when a request fails; an empty list is a real answer.
-  const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests].some(r => r === null);
+  const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests, feedbackRows].some(r => r === null);
 
   const now = Date.now();
   // The backlog behind each bell slice: filtered (open/overdue only) but
@@ -93,6 +110,7 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     sheq: Array.isArray(sheq) ? sheq.filter(s => s.status && s.status !== 'closed') : [],
     workorders: Array.isArray(workOrders) ? workOrders.filter(w => w.due_date && new Date(w.due_date).getTime() < now) : [],
     tasks: Array.isArray(tasksEvents) ? tasksEvents.filter(te => te.due_date && new Date(te.due_date).getTime() < now) : [],
+    feedback: Array.isArray(feedbackRows) ? feedbackRows : [],
   };
 
   const pwItems: ActivityItem[] = backlog.pw.slice(0, 5).map(p => toItem(
@@ -125,7 +143,15 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     'Events & Tasks', ListTodo, te.due_date, 'critical', `/tasks-events?open=${te.id}`, 'tasks', (te.responsible_people || [])[0],
   ));
 
-  const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems]
+  const feedbackItems: ActivityItem[] = backlog.feedback.slice(0, 5).map((f, i) => {
+    const snippet = f.text.length > 90 ? `${f.text.slice(0, 90).trimEnd()}…` : f.text;
+    return toItem(
+      `feedback-${f.ts}-${i}`, `Feedback on ${f.page || 'the app'}${snippet ? ` — ${snippet}` : ''}`,
+      'Feedback', MessageSquare, new Date(f.ts).toISOString(), 'pending', '/usage-analyzer#feedback', 'feedback', f.userEmail ?? undefined,
+    );
+  });
+
+  const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems, ...feedbackItems]
     .filter(i => i.timestamp > 0)
     .sort((a, b) => b.timestamp - a.timestamp);
 
@@ -139,6 +165,7 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     sheq: { total: backlog.sheq.length, shown: alive(sheqItems) },
     workorders: { total: backlog.workorders.length, shown: alive(overdueItems) },
     tasks: { total: backlog.tasks.length, shown: alive(overdueTaskItems) },
+    feedback: { total: backlog.feedback.length, shown: alive(feedbackItems) },
   };
 
   return { alerts: merged, failed, totals };
@@ -153,17 +180,17 @@ export function useOperationalAlerts() {
   // Last-good answers per source: a retry re-fetches ONE endpoint and rebuilds against the rest.
   const dataRef = useRef<OpRaw | null>(null);
 
-  const applyRaw = useCallback((raw: OpRaw, askPw: boolean) => {
+  const applyRaw = useCallback((raw: OpRaw, askAdmin: boolean) => {
     dataRef.current = raw;
     setLoaded(buildOpAlerts(raw));
-    setSources(opSources(raw, askPw));
+    setSources(opSources(raw, askAdmin));
   }, []);
 
   /** Re-fetch one source (a bell Retry); unasked stays unasked, other sources keep their answers. */
   const reloadSource = useCallback(async (group: OpGroup) => {
     const prev = dataRef.current;
     if (!canView || !prev) return;
-    if (group === 'pw' && !isAdmin) return;
+    if ((group === 'pw' || group === 'feedback') && !isAdmin) return;
     const fresh = await OP_FETCH[group]();
     const next: OpRaw = { ...prev, [group]: fresh };
     applyRaw(next, isAdmin);
@@ -174,13 +201,16 @@ export function useOperationalAlerts() {
     let cancelled = false;
 
     async function load() {
-      // Reset asks are admin-only server-side; a manager asks for nothing rather than a 403 that would read as failure.
-      const [leave, overtime, sheq, workorders, tasks, pw] = await Promise.all([
+      // Reset asks are admin-only server-side, and the feedback bell source is admin-only by decision
+      // (managers read the same feedback in the analyzer instead). A manager asks for
+      // nothing rather than a 403 that would read as failure.
+      const [leave, overtime, sheq, workorders, tasks, pw, feedback] = await Promise.all([
         OP_FETCH.leave(), OP_FETCH.overtime(), OP_FETCH.sheq(), OP_FETCH.workorders(), OP_FETCH.tasks(),
         isAdmin ? OP_FETCH.pw() : Promise.resolve<unknown[] | null>([]),
+        isAdmin ? OP_FETCH.feedback() : Promise.resolve<unknown[] | null>([]),
       ]);
       if (cancelled) return;
-      applyRaw({ leave, overtime, sheq, workorders, tasks, pw }, isAdmin);
+      applyRaw({ leave, overtime, sheq, workorders, tasks, pw, feedback }, isAdmin);
     }
 
     load();

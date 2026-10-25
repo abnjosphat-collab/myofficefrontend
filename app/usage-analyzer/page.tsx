@@ -4,7 +4,7 @@
 // durable cross-device copy including anonymous visitors.
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -74,6 +74,13 @@ function UsageAnalyzerContent() {
     if (next === 'all' && canViewAll && !remoteLoaded && !remoteLoading) loadRemote();
   };
 
+  // Managers and admins review every account's feedback whatever the toggle says, so the
+  // server copy loads on mount for them instead of only when they switch to All users.
+  const triedRemote = useRef(false);
+  useEffect(() => {
+    if (canViewAll && !triedRemote.current) { triedRemote.current = true; loadRemote(); }
+  });
+
   const events: UsageEvent[] = dataSource === 'all' ? remoteEvents : localEvents;
   const userSplit = useMemo(() => signedInVsAnonymous(remoteEvents), [remoteEvents]);
   const activeUsers = useMemo(() => topUsers(remoteEvents, 10), [remoteEvents]);
@@ -101,7 +108,10 @@ function UsageAnalyzerContent() {
   }, [days]);
   const maxDayCount = useMemo(() => Math.max(1, ...days.map(d => d.count)), [days]);
   const dwell = useMemo(() => dwellByPath(events, 10), [events]);
-  const feedback = useMemo(() => getFeedback(events), [events]);
+  const feedbackEvents = canViewAll ? remoteEvents : events;
+  const feedback = useMemo(() => getFeedback(feedbackEvents), [feedbackEvents]);
+  const feedbackLoading = canViewAll && remoteLoading && !remoteLoaded;
+  const feedbackError = canViewAll && remoteError !== null && !remoteLoaded;
 
   const hasData = events.length > 0;
   const busiestLabel = s.busiestHour ? `${String(s.busiestHour.hour).padStart(2, '0')}:00` : 'No data';
@@ -282,19 +292,23 @@ function UsageAnalyzerContent() {
               </Panel>
             </div>
 
-            <Panel title={`Feedback (${feedback.length})`}>
-              {feedback.length === 0 ? <NoData hint="Send feedback from the top bar. It collects here by page and rating." /> : (
-                <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
-                  {feedback.map((f, i) => (
-                    <li key={i} className="rounded-control border border-line-subtle bg-surface-subtle px-3 py-2">
-                      <div className="mb-0.5 flex items-center justify-between gap-2"><span className="truncate font-sans text-label font-medium text-ink">{f.page}</span>{f.rating > 0 ? <Rating value={f.rating} /> : <span className="font-sans text-caption text-ink-muted">No rating</span>}</div>
-                      {f.text && <p className="font-sans text-body text-ink">{f.text}</p>}
-                      <p className="mt-0.5 font-sans text-caption text-ink-muted">{formatShortDateTime(f.ts)}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
+            <div id="feedback" className="scroll-mt-24">
+              <Panel title={`Feedback (${feedback.length})`} action={<span className="font-sans text-caption text-ink-muted">{canViewAll ? 'Every account' : 'This device'}</span>}>
+                {feedbackLoading ? <LoadingPulse compact label="Loading feedback from every account" /> : null}
+                {feedbackError ? <Notice tone="warning" title="Feedback from every account could not be loaded." action={<Button size="sm" onClick={loadRemote}>Try again</Button>} /> : null}
+                {!feedbackLoading && !feedbackError && (feedback.length === 0 ? <NoData hint="Send feedback from the top bar. It collects here by page and rating." /> : (
+                  <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
+                    {feedback.map((f, i) => (
+                      <li key={i} className="rounded-control border border-line-subtle bg-surface-subtle px-3 py-2">
+                        <div className="mb-0.5 flex items-center justify-between gap-2"><span className="truncate font-sans text-label font-medium text-ink">{f.page}</span>{f.rating > 0 ? <Rating value={f.rating} /> : <span className="font-sans text-caption text-ink-muted">No rating</span>}</div>
+                        {f.text && <p className="font-sans text-body text-ink">{f.text}</p>}
+                        <p className="mt-0.5 font-sans text-caption text-ink-muted">{formatShortDateTime(f.ts)}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ))}
+              </Panel>
+            </div>
           </>
         )}
     </div>

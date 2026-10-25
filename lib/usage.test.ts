@@ -77,6 +77,15 @@ describe('usage derivations', () => {
     expect(s.feedbackCount).toBe(2);
     expect(s.avgFeedbackRating).toBe(3); // (4 + 2) / 2
   });
+
+  it('summarize averages only rated feedback', () => {
+    const unrated: UsageEvent = { type: 'feedback', ts: T - 2 * HOUR, page: '/ppe', rating: 0, text: 'no stars' };
+    const s = summarize([...sample, unrated]);
+    expect(s.feedbackCount).toBe(3);
+    expect(s.avgFeedbackRating).toBe(3); // the unrated row counts as feedback but not as a rating
+    const none: UsageEvent[] = [{ type: 'feedback', ts: T, page: '/x', rating: 0, text: 'none' }];
+    expect(summarize(none).avgFeedbackRating).toBeNull();
+  });
 });
 
 describe('usageOverTime', () => {

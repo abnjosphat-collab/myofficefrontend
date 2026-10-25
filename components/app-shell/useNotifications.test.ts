@@ -27,6 +27,7 @@ const item = (id: string, group: Notification['group']) => ({
 const OP_TOTALS = {
   pw: { total: 1, shown: 1 }, leave: { total: 7, shown: 5 }, overtime: { total: 0, shown: 0 },
   sheq: { total: 2, shown: 2 }, workorders: { total: 0, shown: 0 }, tasks: { total: 3, shown: 3 },
+  feedback: { total: 0, shown: 0 },
 };
 
 beforeEach(() => {

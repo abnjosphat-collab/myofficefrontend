@@ -89,7 +89,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
                 triggerLabel={option => abbreviateDepartment(option.label)} title="Department scope: filters every section, counts and notifications." />
               <ToolsNotifications counts={w.counts} unread={w.unreadNotifications} unavailable={w.sourceState.notifications.error} loading={w.sourceState.notifications.loading}
                 onRetry={w.retryWorkspace} onViewed={w.markNotificationsViewed}
-                onShowOverdue={() => w.filterTo('overdue', 'loans')} onShowInspection={() => w.setTab('compliance')} onShowAccounts={() => w.setTab('accounts')} />
+                onShowOverdue={() => w.filterTo('overdue', 'loans')} onShowInspection={() => w.setTab('compliance')} onShowAccounts={() => w.setTab('accounts')} onShowFeedback={() => w.setTab('feedback')} />
               <IconButton icon="settings" label="Settings" variant="ghost" onClick={() => w.setModal({ kind: 'customize' })} />
               <ToolsProfileMenu account={currentAccount} onSignIn={() => w.setModal({ kind: 'auth' })} onSignOut={() => w.signOut()} />
             </>

@@ -42,6 +42,7 @@ export function useToolsWorkspace() {
   const [clientErrors,setClientErrors]=useState<ClientError[]>([]);
   const [feedbackRecords,setFeedbackRecords]=useState<FeedbackRecord[]>([]);
   const [notificationAlerts,setNotificationAlerts]=useState<ToolNotification[]>([]);
+  const [feedbackSeenAt,setFeedbackSeenAt]=useState(()=>{ try { return typeof window!=='undefined'?Number(window.localStorage.getItem('myoffice.tools.feedbackSeenAt'))||0:0; } catch { return 0; } });
   const [complianceData,setComplianceData]=useState<ComplianceData>({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]});
   const [sourceState,setSourceState]=useState(emptySourceState);
   const [sessionChecking,setSessionChecking]=useState(true);
@@ -157,8 +158,12 @@ export function useToolsWorkspace() {
   const scope = tools.filter(t => department === 'all' || departmentOf(t) === department);
   const activeTools = scope.filter(t => !t.archived);
   const scopedNotifications=notificationAlerts.filter(alert=>department==='all'||alert.department===department||alert.kind==='password_request');
-  const counts={...countTools(scope),inspectionDue:scopedNotifications.filter(alert=>alert.kind==='inspection_due').length,investigationsOverdue:scopedNotifications.filter(alert=>alert.kind==='investigation_overdue').length,overdueEscalations:scopedNotifications.filter(alert=>alert.kind==='overdue_6h').length,passwordRequests:scopedNotifications.filter(alert=>alert.kind==='password_request').length};
-  const unreadNotifications=scopedNotifications.filter(alert=>!alert.read).length;
+  // New Tools feedback for the admin bell. Client-side, not a server alert kind: the server only
+  // accepts read receipts for keys it computed, so inbox feedback is tracked as seen-since here.
+  const newFeedbackCount=currentAccount?.role==='admin'?feedbackRecords.filter(record=>new Date(record.at).getTime()>feedbackSeenAt).length:0;
+  const counts={...countTools(scope),inspectionDue:scopedNotifications.filter(alert=>alert.kind==='inspection_due').length,investigationsOverdue:scopedNotifications.filter(alert=>alert.kind==='investigation_overdue').length,overdueEscalations:scopedNotifications.filter(alert=>alert.kind==='overdue_6h').length,passwordRequests:scopedNotifications.filter(alert=>alert.kind==='password_request').length,feedback:newFeedbackCount};
+  useEffect(()=>{ if(tab==='feedback'&&currentAccount?.role==='admin'&&feedbackRecords.length){ const at=Date.now(); try { window.localStorage.setItem('myoffice.tools.feedbackSeenAt',String(at)); } catch { /* storage unavailable — the count simply stays */ } setFeedbackSeenAt(at); } },[tab,currentAccount?.role,feedbackRecords.length]);
+  const unreadNotifications=scopedNotifications.filter(alert=>!alert.read).length+newFeedbackCount;
   const visibleTools = useMemo(() => selectVisibleTools(tools,{department,status,search,category,location,tab,sort}), [tools, department, status, search, category, location, tab, sort]);
   const visibleActivity = selectVisibleActivity(activity,scope,search);
   const activeSource:WorkspaceSource=tab==='employees'?'employees':tab==='activity'?'history':tab==='sources'?'sources':tab==='accounts'?'accounts':tab==='compliance'?'compliance':tab==='analytics'||tab==='feedback'?'analytics':'tools';
