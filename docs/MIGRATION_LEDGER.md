@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**59 routes.** Migrated: 49. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 51.
+**60 routes.** Migrated: 50. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 52.
 
 | Column | Meaning |
 |---|---|
@@ -55,6 +55,7 @@
 | `/ppe/allocate` | Redirect | No | No | Yes, 2026-10-03 | Retired fake form; PPE is issued on /ppe. |
 | `/pto` | Migrated | Yes | 1 | Yes, 2026-10-03 | Cards and table, status tiles as filters, high-risk filter with a count, detail dialog with reasons, remedies, risk assessment and actions, inline status change (optimistic, reverted with the reason on failure), add/edit/delete. A legacy record missing every nested group (and an unrecognised section) renders and opens in the editor instead of crashing. The form is one scrolling dialog (tabs dropped); Yes/No radios became segmented toggles and the check lists use the shared checkbox. The Report status field shows only when editing because a new report is always saved as submitted (it was shown on create and ignored). Inline row expansion dropped. |
 | `/quotations` | Migrated | Yes | 2 | Yes, 2026-10-04 | Browser-only generator by design. The invented templates, clients, history and the fake Send, Save Template and Copy Link buttons were removed (owner may still choose to retire the route). |
+| `/recently-deleted` | Migrated | Yes | 2 | Yes, 2026-10-25 | Manager-only trash list with a per-row Restore that re-inserts through the server. |
 | `/reliability` | Migrated | Yes | No | Yes, 2026-10-03 | Figures derived from breakdown records only; fake fallback data removed. |
 | `/requisitions` | Migrated | Yes | 3 | Yes, 2026-10-03 | Table with status/priority tiles as filters, detail dialog with the item table and total, Requisitions/Analytics tabs (status count and value, priority, section split, value summary, each with a text alternative), add/edit/delete with a repeatable item section and a live total. A failed load used to leave an empty list under a toast ('No requisitions'); it now shows 'could not be loaded'. A duplicate requisition number is rejected by the backend and shown inside the dialog with the input kept. Delete is manager-only on the backend and the confirmation says so. Employee and equipment lookups feed suggestion lists and say so if the equipment list fails. The list route takes no limit, so it cannot be paged and depends on the database cap of 1000. |
 | `/safety_complaints` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table, status tiles as filters, nine filters, detail dialog, add/edit/delete, Analytics tab (closure rate, monthly trend, distributions, each with a text alternative). Analytics still reads the filtered list. Inline row expansion dropped (detail dialog shows the same fields). |
