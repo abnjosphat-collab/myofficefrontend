@@ -173,8 +173,8 @@ const spec = {
     await page.keyboard.press('Escape');
 
     // bulk entry: one refused person stays with the reason, the saved one leaves the list
-    await page.getByRole('button', { name: 'Bulk entry' }).click();
-    const bk = dialog('Bulk overtime');
+    await page.getByRole('button', { name: 'Overtime for several people' }).click();
+    const bk = dialog('Overtime for several people');
     await bk.waitFor({ timeout: 5000 });
     await bk.getByRole('button', { name: 'Submit' }).click();
     check(await bk.getByText('Add at least one employee.').isVisible(), 'submitting with nobody chosen is explained');

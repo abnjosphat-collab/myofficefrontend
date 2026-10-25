@@ -28,8 +28,7 @@ const show = (records: PPERecord[] = []) => {
   return { onOpenChange, onCreated };
 };
 const pick = async (user: ReturnType<typeof userEvent.setup>, who: RegExp) => {
-  await user.click(screen.getByRole('combobox', { name: 'Employees' }));
-  await user.click(screen.getByRole('option', { name: who }));
+  await user.click(screen.getByRole('checkbox', { name: who }));
 };
 
 describe('PPEBulkIssueForm', () => {
@@ -70,9 +69,8 @@ describe('PPEBulkIssueForm', () => {
     expect(await screen.findByText(/1 issued, 1 not saved/)).toBeVisible();
     expect(await screen.findByText(/Ann Alpha already has helmet/)).toBeVisible();
     expect(onCreated).toHaveBeenCalledTimes(1);
-    const chips = screen.getByRole('list', { name: 'Employees' });
-    expect(chips).toHaveTextContent('Ann Alpha');
-    expect(chips).not.toHaveTextContent('Dee Delta');
+    expect(screen.getByRole('checkbox', { name: /Ann Alpha/ })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Dee Delta/ })).not.toBeChecked();
     expect(screen.getByRole('button', { name: 'Issue to 1 person' })).toBeVisible();
   });
 

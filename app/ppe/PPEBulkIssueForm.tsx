@@ -1,11 +1,11 @@
 // app/ppe/PPEBulkIssueForm.tsx — the same PPE for a crew: one item, size, dates, condition and status, and one fresh
 // record per person. People whose record is saved leave the list, so a retry after a partial failure never duplicates
-// them; the others stay with the reason each was refused. Bulk issues are always new records: renewing from the order
+// them; the others stay with the reason each was refused. Issues to several people are always new records: renewing from the order
 // list stays in the single-issue form. The server stamps each person's details and refuses same-day repeats (409).
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Field, FormDialog, Input, Notice, PeoplePicker, Select, Textarea, type PickedPerson } from '@/components/ui-system';
+import { Field, FormDialog, Input, Notice, PeopleChecklist, Select, Textarea, type PickedPerson } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { useEmployees } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
@@ -62,12 +62,10 @@ export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreate
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Bulk issue" description="One record per person, all with these details." submitLabel={people.length > 0 ? `Issue to ${people.length} ${people.length === 1 ? 'person' : 'people'}` : 'Issue PPE'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Issue to several people" description="One record per person, all with these details." submitLabel={people.length > 0 ? `Issue to ${people.length} ${people.length === 1 ? 'person' : 'people'}` : 'Issue PPE'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
-        <div>
-          <PeoplePicker label="Employees" value={people} onChange={setPeople} hint="Search and add everyone getting this item." />
-          {touched && people.length === 0 && <p role="alert" className="mt-2 font-sans text-caption text-danger">Add at least one employee.</p>}
-        </div>
+        <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone getting this item.'} />
+        {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}
         {dupes > 0 && <Notice tone="warning" title="Some of these people already hold this item">{dupes} of {people.length} already {dupes === 1 ? 'has' : 'have'} this kind of PPE recorded as issued on {form.issue_date}. {dupes === 1 ? 'That record is' : 'Those records are'} not saved again; the others are, and the ones left out stay in the list with the reason.</Notice>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="PPE type" required><Select aria-label="PPE type" value={form.ppe_type} onValueChange={v => set({ ppe_type: v })} options={TYPE_OPTIONS} /></Field>

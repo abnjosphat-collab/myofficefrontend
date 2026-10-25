@@ -261,7 +261,7 @@ function OvertimeContent() {
           <>
             <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
-            <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Bulk entry</Button>
+            <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Overtime for several people</Button>
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
           </>
         )}
