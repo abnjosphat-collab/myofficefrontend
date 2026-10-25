@@ -49,7 +49,7 @@ export interface DialogProps extends VariantProps<typeof panelVariants> {
    * edits prefer `onRequestClose` and ask for confirmation.
    */
   dismissible?: boolean;
-  /** Intercept every close attempt (Escape, outside, ✕). Call onOpenChange(false) yourself to proceed. */
+  /** Intercept every close attempt (Escape, outside click, the close button). Call onOpenChange(false) yourself to proceed. */
   onRequestClose?: () => void;
   className?: string;
   /** Focus on open: true = the title; false = the first control; omitted = the first field when the body has one, else the title. */

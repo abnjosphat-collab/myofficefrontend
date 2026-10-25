@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { ImportDialog } from './ImportDialog';
@@ -27,7 +27,9 @@ const SORTS: { value: SortKey; label: string }[] = [
 const ALL = '__all__';
 const PAGE_SIZE = 24;
 
-const Tick = ({ done }: { done: boolean }) => (done ? <span className="text-success" role="img" aria-label="Complete">✓</span> : <span className="text-ink-muted" role="img" aria-label="Not complete">–</span>);
+const Tick = ({ done }: { done: boolean }) => (done
+  ? <span className="text-success"><Icon name="check" label="Complete" /></span>
+  : <span className="text-ink-muted"><Icon name="minus" label="Not complete" /></span>);
 
 function ServicesContent() {
   const confirmDelete = useConfirmDelete();
