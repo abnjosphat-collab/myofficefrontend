@@ -15,7 +15,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onRecordInspection=vi.fn().mockResolvedValue(undefined);
     render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Record inspection or maintenance'));
     await user.click(screen.getByRole('combobox',{name:'Check type'}));
     await user.click(await screen.findByRole('option',{name:'Repair verification'}));
@@ -30,7 +30,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onReportIncident=vi.fn().mockResolvedValue(undefined);
     render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Report loss, damage or theft'));
     fireEvent.change(screen.getByLabelText(/Occurred at/),{target:{value:'2030-02-01T10:30'}});
     await user.click(screen.getByRole('combobox',{name:/Employee involved/}));
@@ -91,7 +91,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const incident={id:'n-9',tool_id:'tool-1',incident_type:'damaged',occurred_at:'2026-09-01T08:00:00Z',reported_at:'2026-09-01T09:00:00Z',reported_by:'Audit Admin',explanation:'Guard cracked',investigation_due_at:'2026-09-02T09:00:00Z',status:'open'} as IncidentRecord;
     render(<ToolsCompliance {...baseProps} incidents={[incident]}/>);
-    await user.click(screen.getByRole('button',{name:/Incidents/}));
+    await user.click(screen.getByRole('tab',{name:/Incidents/}));
     const table=screen.getByRole('table',{name:'Open incidents'});
     expect(within(table).getByText('Guard cracked')).toBeVisible();
     await user.click(within(table).getByRole('button',{name:/Close the investigation/}));
@@ -101,7 +101,7 @@ describe('ToolsCompliance',()=>{
   it('says plainly when there are no open incidents',async()=>{
     const user=userEvent.setup();
     render(<ToolsCompliance {...baseProps}/>);
-    await user.click(screen.getByRole('button',{name:'Incidents'}));
+    await user.click(screen.getByRole('tab',{name:'Incidents'}));
     expect(screen.getByText(/No open incidents/)).toBeVisible();
   });
 
@@ -113,7 +113,7 @@ describe('ToolsCompliance',()=>{
     const soon=new Date(Date.now()+5*24*3600*1000).toISOString();
     const competencies:CompetencyRecord[]=[{id:'c-1',employee_id:'employee-1',tool_id:'t-1',trained:true,qualified:true,authorized:true,authorization_expires_at:soon,updated_at:'2026-09-01T08:00:00Z'}];
     render(<ToolsCompliance {...baseProps} tools={[covered,bare]} competencies={competencies} onOpenEmployees={onOpenEmployees}/>);
-    await user.click(screen.getByRole('button',{name:'Approvals'}));
+    await user.click(screen.getByRole('tab',{name:'Approvals'}));
     const expiring=screen.getByRole('table',{name:'Approvals expiring soon'});
     expect(within(expiring).getByText('Tariro Moyo')).toBeVisible();
     const cover=screen.getByRole('table',{name:'Eligible people by equipment'});
@@ -128,7 +128,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onReportIncident=vi.fn();
     render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Report loss, damage or theft'));
     fireEvent.change(screen.getByLabelText(/Occurred at/),{target:{value:'2030-02-01T10:30'}});
     fireEvent.change(screen.getByLabelText(/Immediate report/),{target:{value:'abc'}});
@@ -142,7 +142,7 @@ describe('ToolsCompliance',()=>{
     const user=userEvent.setup();
     const onRecordInspection=vi.fn();
     render(<ToolsCompliance {...baseProps} onRecordInspection={onRecordInspection}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Record inspection or maintenance'));
     await user.click(screen.getByRole('combobox',{name:'Outcome'}));
     await user.click(await screen.findByRole('option',{name:/Failed/}));
@@ -157,7 +157,7 @@ describe('ToolsCompliance',()=>{
     const onCloseIncident=vi.fn();
     const incident={id:'n-9',tool_id:'tool-1',incident_type:'damaged',occurred_at:'2026-09-01T08:00:00Z',reported_at:'2026-09-01T09:00:00Z',reported_by:'Audit Admin',explanation:'Guard cracked',investigation_due_at:'2026-09-02T09:00:00Z',status:'open'} as IncidentRecord;
     render(<ToolsCompliance {...baseProps} incidents={[incident]} onCloseIncident={onCloseIncident}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Close investigation',{selector:'strong'}));
     fireEvent.change(screen.getByLabelText(/Investigation outcome/),{target:{value:'abc'}});
     await user.click(screen.getByRole('button',{name:'Close investigation'}));
@@ -169,7 +169,7 @@ describe('ToolsCompliance',()=>{
   it('certificate and qualification read as optional',async()=>{
     const user=userEvent.setup();
     render(<ToolsCompliance {...baseProps}/>);
-    await user.click(screen.getByRole('button',{name:'Record'}));
+    await user.click(screen.getByRole('tab',{name:'Record'}));
     await user.click(screen.getByText('Training and authorization'));
     expect(screen.getByLabelText(/Training certificate/)).not.toHaveAttribute('aria-required');
     expect(screen.getByLabelText(/Qualification reference/)).not.toHaveAttribute('aria-required');

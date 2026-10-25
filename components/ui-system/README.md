@@ -97,6 +97,8 @@ one include/exclude tick-list-in-a-popover with counts, chips and Reset; its lis
 join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hosted inside Fields through
 `components/shared/SuggestField.tsx` until they are rebuilt here. `FieldGroup` labels a group of controls — a `Segmented` choice, a checkbox row, read-only values — with the same label, hint and error rhythm.
 
+**Tabs and Segmented.** Tabs switch views (panels of different content); Segmented picks a value (a filter, a form choice, a scope). Never nest one tab strip inside another — a filter inside a tab panel stays a Segmented. TabsList draws a sliding indicator under the active tab (instant under reduced motion) and can show a first-visit guide line (`guideId` + `guideText`) that retires after the first tab change and is remembered per strip.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).

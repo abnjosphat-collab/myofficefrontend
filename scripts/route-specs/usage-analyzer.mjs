@@ -30,12 +30,12 @@ const spec = {
     await page.getByRole('button', { name: /Showing Maintenance only/ }).click();
 
     // manager-only second source: a failure is reported, never shown as "No usage recorded yet"
-    await page.getByRole('button', { name: 'All users' }).click();
+    await page.getByRole('tab', { name: 'All users' }).click();
     await page.getByText('Activity across all users could not be loaded').waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('Activity across all users could not be loaded').isVisible(), 'a failed cross-user load is reported');
     check(!(await page.getByText('No usage recorded yet').isVisible().catch(() => false)), 'a failed cross-user load is not shown as "no usage"');
     await shot(page, 'all-users-error@1440');
-    await page.getByRole('button', { name: 'This device' }).click();
+    await page.getByRole('tab', { name: 'This device' }).click();
 
     // clear needs confirmation
     await page.getByRole('button', { name: 'Clear', exact: true }).click();
