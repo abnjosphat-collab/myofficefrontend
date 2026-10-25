@@ -68,6 +68,7 @@ export type { Column, DataTableProps } from './patterns/DataTable';
 export { Pagination } from './patterns/Pagination';
 export { ViewToggle, useViewPreference, VIEW_GRID_LIST, VIEW_CARDS_TABLE } from './patterns/ViewToggle';
 export { DataRegion, EmptyState, Notice, StatusLine } from './patterns/DataRegion';
+export { BellBadge, bellBadgeTone } from './patterns/BellBadge';
 export { DestinationSearch } from './patterns/DestinationSearch';
 export { Chart } from './patterns/Chart';
 export { ChartPanel } from './patterns/ChartPanel';

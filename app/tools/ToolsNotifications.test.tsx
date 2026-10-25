@@ -23,3 +23,30 @@ describe('ToolsNotifications password requests', () => {
     expect(screen.getByText(/no overdue returns, scheduled checks, holds, investigations or password requests/i)).toBeInTheDocument();
   });
 });
+
+describe('ToolsNotifications badge tone', () => {
+  it('is red when a return is overdue', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, overdue: 1 }} unread={1} />);
+    expect(screen.getByText('1').className).toContain('bg-danger');
+  });
+
+  it('is red when an investigation is overdue', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, investigationsOverdue: 2 }} unread={2} />);
+    expect(screen.getByText('2').className).toContain('bg-danger');
+  });
+
+  it('is dark green for scheduled checks alone', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, inspectionDue: 2 }} unread={2} />);
+    expect(screen.getByText('2').className).toContain('bg-action');
+  });
+
+  it('is dark green for password requests alone', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, passwordRequests: 1 }} unread={1} />);
+    expect(screen.getByText('1').className).toContain('bg-action');
+  });
+
+  it('caps a large unread value at 9+', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, inspectionDue: 12 }} unread={12} />);
+    expect(screen.getByText('9+')).toBeInTheDocument();
+  });
+});

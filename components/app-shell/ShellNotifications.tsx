@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Button, CountBadge, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, cn, LoadingPulse } from '@/components/ui-system';
+import { BellBadge, Button, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, cn, LoadingPulse } from '@/components/ui-system';
 import { useNotifications, type BellGroup, type Notification } from './useNotifications';
 import type { SourceResult } from './useDashboardData';
 
@@ -36,6 +36,11 @@ export function groupBellItems(items: Notification[]): Array<{ group: BellGroup;
 /** Pure — "5" when everything is shown, "showing 5 of 12" when the slice hides backlog. */
 export function groupCountText(total: number, shown: number): string {
   return total > shown ? `showing ${shown} of ${total}` : `${total}`;
+}
+
+/** Pure — the shell bell is urgent when an unread notification is critical (an unresolved SHEQ inspection, an overdue work order or task). Pending approvals stay dark green. */
+export function bellHasUrgentUnread(items: Array<Pick<Notification, 'unread' | 'status'>>): boolean {
+  return items.some(n => n.unread && n.status === 'critical');
 }
 
 /** Pure — "X could not be loaded", "X and Y could not be loaded", "X, Y and Z could not be loaded". */
@@ -85,11 +90,7 @@ export function ShellNotifications() {
         <PopoverTrigger asChild>
           <IconButton icon="bell" label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'} variant="shell" size="shell" />
         </PopoverTrigger>
-        {unreadCount > 0 && (
-          <span className="pointer-events-none absolute -right-0.5 -top-0.5">
-            <CountBadge value={unreadCount > 9 ? '9+' : unreadCount} tone="danger" />
-          </span>
-        )}
+        {unreadCount > 0 && <BellBadge value={unreadCount} urgent={bellHasUrgentUnread(notifications)} />}
       </span>
       <PopoverContent align="end" className="w-[22rem] p-0">
         <div className="flex items-center justify-between border-b border-line-subtle px-3.5 py-2.5">
