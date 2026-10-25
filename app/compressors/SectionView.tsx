@@ -1,5 +1,6 @@
 // app/compressors/SectionView.tsx — how one independently loaded block presents loading, failure and stale data.
-// A failed load is never shown as "no data": the reason is shown with a retry, and rows already loaded stay visible.
+// Any load in flight (first load or a filter change) shows the skeleton, never the previous rows; a failed load is
+// never shown as "no data": the reason is shown with a retry, and rows already loaded stay visible behind a warning.
 'use client';
 
 import type { ReactNode } from 'react';
@@ -14,6 +15,7 @@ export function SectionView<T>({ section, subject, onRetry, children }: {
   children: (data: T) => ReactNode;
 }) {
   const cap = subject.charAt(0).toUpperCase() + subject.slice(1);
+  if (section.loading) return <LoadingPulse label={section.loaded ? `Reloading ${subject}` : `Loading ${subject}`} />;
   if (!section.loaded && section.error) {
     return <Notice tone="danger" title={`${cap} could not be loaded`} action={<Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button>}>{section.error}</Notice>;
   }

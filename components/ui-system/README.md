@@ -68,6 +68,22 @@ broken: nothing is called empty before one successful response; a failed request
 already loaded stay visible through a failed refresh (with a "may be out of date" banner); HTTP 401/403 is an access message.
 Hooks should report `{ loading, loaded, error, errorStatus }`; `lib/useApiList.ts` does this and ignores superseded responses.
 
+**Badges: `StatusBadge` tones, one role each.** `success` is a good or achieved state (active, passed, in stock);
+`warning` needs attention soon (expiring, due, degraded); `danger` is bad, failed or blocking (expired, failed,
+overdue); `info` is neutral-but-notable (a count, a system state); `neutral` is inactive or metadata (paused,
+archived, a scope label); `brand` marks product scope (mine-wide, cover). Pick the tone by what the state means, never
+for decoration, and never invent a page-local color map — a new meaning earns a tone here first. Every badge carries
+text; color is never the only signal.
+
+**Empty states: `EmptyState`, and when each state shows.** `EmptyState` means one thing: the request succeeded and
+there is nothing (with the next action when there is one). It is never a failure — a failure is a `Notice` with a Try
+again button — and never a pre-first-response guess: before the first success the region shows the loading animation.
+A filter, pagination or any other param change starts from nothing (skeleton, never the previous params' rows —
+`useApiList` resets scope on path change; page-local hooks must do the same). A background refresh of the same params
+keeps the rows with a subtle indicator instead. Retry rules: every failure offers Try again wired to the refetch; a
+failure that waiting can fix (timeouts, 5xx, the service waking up) retries itself with a growing delay and adds a
+"still trying" line after 20 s; anything else (including all 4xx) is reported at once and never auto-retried.
+
 **Dialogs.** `Dialog` is Radix Dialog with focus return to a still-connected opener, a scrollable body between a fixed header
 and footer, and `dismissible={false}` while saving. Focus opens on the first field when the body has one, else the title (`focusTitle` pins either). `FormDialog` is the one create/edit dialog: a real `<form>`, a submit
 button wired to it, a pending state that blocks double submit and dismissal, validation by returning `false`, and a save
