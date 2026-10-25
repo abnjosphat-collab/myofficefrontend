@@ -6,8 +6,9 @@ import { AuthCard } from '@/components/app-shell/auth/AuthLayout';
 
 describe('ToolsBrand', () => {
   it('shows the Dallaglio symbol beside the MyOffice name and links home', () => {
+    // C8: the link says a separate sign-in may be needed; the visible wordmark stays short.
     render(<ToolsBrand />);
-    const link = screen.getByRole('link', { name: 'MyOffice home' });
+    const link = screen.getByRole('link', { name: 'Back to MyOffice (separate sign-in)' });
     expect(link).toHaveAttribute('href', '/');
     expect(screen.getByRole('img', { name: 'Dallaglio' })).toHaveAttribute('src', '/brand/dallaglio-mark.png');
     expect(screen.getByText('MyOffice')).toBeInTheDocument();

@@ -18,6 +18,24 @@ describe('NavSpotlight', () => {
   });
 });
 
+describe('NavItem hint (C8)', () => {
+  it('shows a muted caption under the label', () => {
+    render(<NavItem label="Tools & Equipment" hint="Uses its own sign-in" icon="home" href="/tools" />);
+    const link = screen.getByRole('link', { name: /Tools & Equipment/ });
+    expect(link).toHaveTextContent('Uses its own sign-in');
+  });
+
+  it('hides the caption on the icon-only rail', () => {
+    render(<NavItem label="Tools & Equipment" hint="Uses its own sign-in" icon="home" href="/tools" collapsed />);
+    expect(screen.queryByText('Uses its own sign-in')).toBeNull();
+  });
+
+  it('renders no caption without a hint', () => {
+    const { container } = render(<NavItem label="Equipment" icon="home" href="/equipment" />);
+    expect(container.querySelector('small')).toBeNull();
+  });
+});
+
 describe('NavItem', () => {
   it('marks the active destination with the selected fill', () => {
     render(<NavItem label="Equipment" icon="home" active onClick={vi.fn()} />);

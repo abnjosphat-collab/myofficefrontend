@@ -3,7 +3,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui-system';
+import Link from 'next/link';
+import { Button, Icon } from '@/components/ui-system';
 import { EmployeeForm, EmployeeNumberForm, EmployeeSectionForm, MarkReadyForm, MovementForm, ToolForm, TITLES, type RecordCheckInput } from './ToolsForms';
 import { BulkIssueForm } from './BulkIssueForm';
 import { RecordCheckDialog, RecordRepairDialog } from './ToolsResolve';
@@ -109,10 +110,16 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     return null;
   })();
   // Signed out: the workspace is closed until sign-in, so the sign-in is a full screen over the deep-space field, not a dialog.
+  // C8: the screen names its system and links back to MyOffice, stating the separate sign-in (mirrors AuthPage's way back).
   if (modal?.kind === 'auth' && w.authenticationRequired) {
     return (
       <DeepSpaceStage>
-        <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title" logo={<DallaglioLogo />}>{body}</AuthCard>
+        <main className="flex w-full flex-col items-center gap-4">
+          <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title" logo={<DallaglioLogo />}>{body}</AuthCard>
+          <Link href="/" className="focus-ring touch-target inline-flex items-center gap-1.5 rounded-control px-3 font-sans text-body-sm text-ink-muted hover:text-ink">
+            <Icon name="chevron-left" size="sm" />Back to MyOffice (separate sign-in)
+          </Link>
+        </main>
       </DeepSpaceStage>
     );
   }
