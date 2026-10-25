@@ -19,14 +19,14 @@ export function Segmented<T extends string>({ value, onValueChange, options, lab
 }) {
   const markDirty = useMarkDirty();
   return (
-    <div role="group" aria-label={label} className={cn('inline-flex max-w-full flex-wrap rounded-control border border-line-control bg-surface-muted p-0.5', className)}>
+    <div role="group" aria-label={label} className={cn('inline-flex max-w-full flex-wrap gap-0.5 rounded-control bg-surface-muted p-0.5', className)}>
       {options.map(option => (
         <button
           key={option.value}
           type="button"
           aria-pressed={value === option.value}
           onClick={() => { markDirty(); onValueChange(option.value); }}
-          className="focus-ring touch-target inline-flex h-8 items-center rounded-sm px-3 font-sans text-label font-medium text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action aria-pressed:text-action-ink"
+          className="focus-ring touch-target inline-flex h-8 items-center rounded-sm px-3 font-sans text-label font-medium text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:bg-surface-interactive hover:text-ink aria-pressed:bg-action aria-pressed:text-action-ink"
         >
           {option.label}
         </button>

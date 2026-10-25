@@ -431,7 +431,7 @@ describe('Tools form validation messages', () => {
     const onReportIncident = vi.fn();
     const tools = [{ ...SEED_TOOLS[0], backendId: 'tool-1', archived: false }];
     render(<ToolsCompliance tools={tools} employees={[]} competencies={[]} inspections={[]} incidents={[]} plan={[]} canManage onSaveCompetency={async () => {}} onRecordInspection={async () => {}} onReportIncident={onReportIncident} onCloseIncident={async () => {}} />);
-    await user.click(screen.getByRole('button', { name: 'Record' }));
+    await user.click(screen.getByRole('tab', { name: 'Record' }));
     // The button is normally disabled until the form is valid; drive the submit directly to prove the guard explains itself.
     fireEvent.submit(screen.getByRole('button', { name: 'Report incident', hidden: true }).closest('form')!);
     expect(onReportIncident).not.toHaveBeenCalled();
@@ -442,7 +442,7 @@ describe('Tools form validation messages', () => {
     const onRecordInspection = vi.fn();
     const tools = [{ ...SEED_TOOLS[0], backendId: 'tool-1', archived: false }];
     render(<ToolsCompliance tools={tools} employees={[]} competencies={[]} inspections={[]} incidents={[]} plan={[]} canManage onSaveCompetency={async () => {}} onRecordInspection={onRecordInspection} onReportIncident={async () => {}} onCloseIncident={async () => {}} />);
-    await user.click(screen.getByRole('button', { name: 'Record' }));
+    await user.click(screen.getByRole('tab', { name: 'Record' }));
     await user.click(screen.getByRole('combobox', { name: 'Outcome', hidden: true }));
     await user.click(await screen.findByRole('option', { name: /Failed/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Record check', hidden: true }));

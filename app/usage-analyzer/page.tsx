@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Card, Chart, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, Chart, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches, usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
@@ -143,7 +143,14 @@ function UsageAnalyzerContent() {
         )}
       />
 
-      {canViewAll && <Segmented label="Data source" value={dataSource} onValueChange={switchSource} options={[{ value: 'local', label: 'This device' }, { value: 'all', label: 'All users' }]} />}
+      <Tabs value={dataSource} onValueChange={v => switchSource(v as typeof dataSource)} className="flex flex-col gap-4">
+        {canViewAll && (
+        <TabsList aria-label="Data source" guideId="usage-analyzer-source" guideText="Switch between this device and all users here">
+          <TabsTrigger value="local">This device</TabsTrigger>
+          <TabsTrigger value="all">All users</TabsTrigger>
+        </TabsList>
+        )}
+        <TabsContent value={dataSource} className="flex flex-col gap-4">
 
       {dataSource === 'all' && remoteError && <Notice tone="warning" title={remoteError} action={<Button size="sm" onClick={loadRemote}>Try again</Button>} />}
 
@@ -311,6 +318,8 @@ function UsageAnalyzerContent() {
             </div>
           </>
         )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

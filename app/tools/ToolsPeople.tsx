@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, Checkbox, EmptyState, Field, Icon, Input, Notice, SearchField, Segmented, useConfirm } from '@/components/ui-system';
+import { Button, Checkbox, EmptyState, Field, Icon, Input, Notice, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, useConfirm } from '@/components/ui-system';
 import type { CompetencyRecord } from './complianceTypes';
 import { ToolsDialog } from './ToolsUI';
 import { EligibilityByEquipment, EligibilityByPerson } from './ToolsEligibility';
@@ -138,7 +138,6 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <Segmented label="Show eligibility" value={view} onValueChange={setView} options={[{ value: 'person', label: 'By person' }, { value: 'equipment', label: 'By equipment' }]} />
         {inactiveCount > 0 && <Button type="button" variant="ghost" size="sm" aria-pressed={showInactive} onClick={() => setShowInactive(value => !value)}>{showInactive ? 'Hide inactive people' : `Show ${inactiveCount} inactive ${inactiveCount === 1 ? 'person' : 'people'}`}</Button>}
         {canManage && <Field label="Authorised by" className="ml-auto w-full sm:w-72"><Input aria-label="Authorised by" value={authoriser} onChange={event => setAuthoriser(event.target.value)} placeholder="Name of the authorising officer" /></Field>}
       </div>
@@ -148,14 +147,23 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
           {approvals.state === 'loading' ? 'Who is eligible for what will appear in a moment.' : `${approvals.message || 'The server did not answer.'} Eligibility is not shown until they load, so nobody is listed as having none.`}
         </Notice>
       )}
-      {view === 'person' && bulkBar}
-      {view === 'person'
-        ? (visible.length
+      <Tabs value={view} onValueChange={v => setView(v as typeof view)}>
+        <TabsList aria-label="Show eligibility" guideId="tools-people" guideText="Switch between the per-person and per-equipment views here">
+          <TabsTrigger value="person">By person</TabsTrigger>
+          <TabsTrigger value="equipment">By equipment</TabsTrigger>
+        </TabsList>
+        <TabsContent value="person">
+          {bulkBar}
+          {visible.length
           ? <EligibilityByPerson selection={canSelect && selecting ? { picked, blocked: blockedReason, onToggle: (employee, on) => setPicked(current => on ? [...current, employee.id] : current.filter(id => id !== employee.id)) } : undefined}
               employees={visible} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()}
               onGrant={onSaveCompetency} onOpenApprovals={employee => { setSelected(employee); setToolSearch(''); }} onIssue={onIssue} onSetActive={onSetActive} allowDeactivate={allowDeactivate} />
-          : <EmptyState icon="search" title="No matching employees" description="Try a name, employee number, supervisor or department." />)
-        : <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} search={search} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} />}
+          : <EmptyState icon="search" title="No matching employees" description="Try a name, employee number, supervisor or department." />}
+        </TabsContent>
+        <TabsContent value="equipment">
+          <EligibilityByEquipment employees={employees} tools={tools} eligibility={eligibility} competencies={competencies} ready={approvals.state === 'ready'} search={search} canManage={canManage && approvals.state === 'ready'} authoriser={authoriser.trim()} onGrant={onSaveCompetency} />
+        </TabsContent>
+      </Tabs>
       <ToolsDialog open={!!selected} onClose={() => setSelected(null)} title={shown?.name || 'Employee details'} description={shown ? `${shown.employeeNumber ?? 'Not recorded'} · ${shown.department}` : ''} wide>
         {shown && (
           <div className="flex flex-col gap-5">

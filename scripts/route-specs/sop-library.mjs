@@ -35,10 +35,10 @@ const spec = {
     await page.keyboard.press('Escape');
     await viewer.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
 
-    await page.getByRole('button', { name: 'Archive', exact: true }).click();
+    await page.getByRole('tab', { name: 'Archive', exact: true }).click();
     await page.getByText('Retired procedure').first().waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('Retired procedure').first().isVisible(), 'the archive scope lists archived SOPs');
-    await page.getByRole('button', { name: 'Library', exact: true }).click();
+    await page.getByRole('tab', { name: 'Library', exact: true }).click();
     await page.screenshot({ path: 'node_modules/.cache/mo-audit/shots-routes/sop-after-archive.png' });
 
     // create: failed save keeps the form and what was typed

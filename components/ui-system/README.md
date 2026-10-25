@@ -99,6 +99,8 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 **Bell badges.** Both bells (MyOffice shell, Tools) render `BellBadge`: dark green normally, red only when something is overdue or critical. Each bell decides its own `urgent` from its own data; the rule "urgent means red" lives in `BellBadge` alone. Never tone a bell badge directly with `CountBadge`.
 
+**Tabs and Segmented.** Tabs switch views (panels of different content); Segmented picks a value (a filter, a form choice, a scope). Never nest one tab strip inside another — a filter inside a tab panel stays a Segmented. TabsList draws a sliding indicator under the active tab (instant under reduced motion) and can show a first-visit guide line (`guideId` + `guideText`) that retires after the first tab change and is remembered per strip.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).

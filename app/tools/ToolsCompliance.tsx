@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Button, Checkbox, Field, Icon, Input, Notice, Segmented, Select, Textarea, useRefusedSubmit } from '@/components/ui-system';
+import { Button, Checkbox, Field, Icon, Input, Notice, Select, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, useRefusedSubmit } from '@/components/ui-system';
 import { ApprovalsView, IncidentsView, InspectionsView, INCIDENT_NAMES } from './ToolsComplianceViews';
 import type { CompetencyRecord, IncidentRecord, InspectionPlanRow, InspectionRecord, InspectionType } from './complianceTypes';
 import { employeeLabel, type Employee, type Tool } from './prototype';
@@ -160,7 +160,6 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
   }
 
   const summary = [{ one: 'Check overdue', many: 'Checks overdue', value: dueTools.length }, { one: 'Open incident', many: 'Open incidents', value: openIncidents.length }, { one: 'Approval', many: 'Approvals', value: eligibleCount }, { one: 'Inspection record', many: 'Inspection records', value: inspections.length }];
-  const sections: Array<{ value: 'inspections' | 'incidents' | 'approvals' | 'record'; label: string }> = [{ value: 'inspections', label: 'Inspections' }, { value: 'incidents', label: openIncidents.length ? `Incidents (${openIncidents.length})` : 'Incidents' }, { value: 'approvals', label: 'Approvals' }, ...(canManage ? [{ value: 'record' as const, label: 'Record' }] : [])];
   const recordCheck = (tool: Tool) => { setInspectionToolId(tool.backendId || ''); setOpenForm('inspection'); setSection('record'); };
   const closeInvestigation = (incident: IncidentRecord) => { setClosingIncidentId(incident.id); setOpenForm('close'); setSection('record'); };
 
@@ -174,11 +173,18 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
           </div>
         ))}
       </dl>
-      <Segmented label="Compliance sections" value={section} onValueChange={setSection} options={sections} />
-      {section === 'inspections' && <InspectionsView tools={activeTools} plan={plan} inspections={inspections} onRecord={canManage ? recordCheck : undefined} />}
-      {section === 'incidents' && <IncidentsView incidents={openIncidents} toolById={toolById} employeeById={employeeById} onClose={canManage ? closeInvestigation : undefined} />}
-      {section === 'approvals' && <ApprovalsView tools={activeTools} competencies={competencies} toolById={toolById} employeeById={employeeById} onOpenEmployees={onOpenEmployees} />}
-      {section === 'record' && canManage && (
+      <Tabs value={section} onValueChange={v => setSection(v as typeof section)} className="flex flex-col gap-5">
+        <TabsList aria-label="Compliance sections" guideId="tools-compliance" guideText="Switch between inspections, incidents, approvals and records here">
+          <TabsTrigger value="inspections">Inspections</TabsTrigger>
+          <TabsTrigger value="incidents" count={openIncidents.length}>Incidents</TabsTrigger>
+          <TabsTrigger value="approvals">Approvals</TabsTrigger>
+          {canManage && <TabsTrigger value="record">Record</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="inspections"><InspectionsView tools={activeTools} plan={plan} inspections={inspections} onRecord={canManage ? recordCheck : undefined} /></TabsContent>
+        <TabsContent value="incidents"><IncidentsView incidents={openIncidents} toolById={toolById} employeeById={employeeById} onClose={canManage ? closeInvestigation : undefined} /></TabsContent>
+        <TabsContent value="approvals"><ApprovalsView tools={activeTools} competencies={competencies} toolById={toolById} employeeById={employeeById} onOpenEmployees={onOpenEmployees} /></TabsContent>
+        {canManage && (
+        <TabsContent value="record">
         <div className="flex flex-col gap-3">
           <FormCard name="competency" open={openForm === 'competency'} onToggle={toggleForm} title="Training and authorization" note="All three criteria are required before issue">
             <form ref={competencyFormRef} className="flex flex-col gap-4" onSubmit={submitCompetency} noValidate>
@@ -258,7 +264,9 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
             </form>
           </FormCard>
         </div>
-      )}
+        </TabsContent>
+        )}
+      </Tabs>
     </section>
   );
 }

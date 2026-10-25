@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, EmptyState, MetricGrid, MetricTile, PageHeader, SearchField, Segmented, Select, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
+  Button, DataRegion, EmptyState, MetricGrid, MetricTile, PageHeader, SearchField, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
   type DataStatus, FilterField
 } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
@@ -114,10 +114,15 @@ function SopLibraryContent() {
         <MetricTile compact label="Due for review" tone="warning" value={counts.dueForReview} loading={loading && !loaded} unavailable={!loaded && !loading} />
       </MetricGrid>
 
+      <Tabs value={scope} onValueChange={v => switchScope(v as typeof scope)} className="flex flex-col gap-4">
+        <TabsList aria-label="Library scope" guideId="sop-library" guideText="Switch between the library and the archive here">
+          <TabsTrigger value="library">Library</TabsTrigger>
+          <TabsTrigger value="archive">Archive</TabsTrigger>
+        </TabsList>
+        <TabsContent value={scope} className="flex flex-col gap-4">
       <Toolbar
         filtered={hasFilters}
         activeCount={(owner !== ALL ? 1 : 0) + (review !== ALL ? 1 : 0)}
-        trailing={<Segmented label="Library scope" value={scope} onValueChange={switchScope} options={[{ value: 'library', label: 'Library' }, { value: 'archive', label: 'Archive' }]} />}
         moreFilters={!showArchive ? (
           <>
             <FilterField label="Owner"><Select aria-label="Filter by owner" value={owner} onValueChange={setOwner} options={[{ value: ALL, label: 'All owners' }, ...owners.map(o => ({ value: o, label: o }))]} /></FilterField>
@@ -162,6 +167,8 @@ function SopLibraryContent() {
           ))}
         </div>
       </DataRegion>
+        </TabsContent>
+      </Tabs>
 
       <SopViewer
         sop={viewing}
