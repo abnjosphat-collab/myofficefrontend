@@ -229,7 +229,7 @@ function MaintenanceContent() {
 
         <TabsContent value="analytics" className="mt-4">
           {orders.loaded
-            ? <AnalyticsView orders={items} />
+            ? <AnalyticsView orders={items} onOpen={id => setViewingId(String(id))} />
             : (orders.error ? <p className="font-sans text-body-sm text-ink-muted">The work orders could not be loaded; see the Work orders tab.</p> : <LoadingPulse compact label="Loading work orders" />)}
         </TabsContent>
       </Tabs>

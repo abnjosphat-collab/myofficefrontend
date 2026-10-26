@@ -2,7 +2,7 @@
 // between the maintenance page and its extracted modal components.
 import { api, ApiError } from '@/lib/apiClient';
 import type { Breakdown } from '../breakdowns/types';
-import type { WorkOrder, MaintenanceSchedule } from './types';
+import type { MeasuresPayload, WorkOrder, MaintenanceSchedule } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
 // localStorage and return { success: true } on failure, so a work order that
@@ -51,6 +51,10 @@ export async function recordBreakdownForWorkOrder(id: string | number): Promise<
 
 export async function deleteWorkOrder(id: string): Promise<void> {
   await api.delete(`/api/maintenance/work-orders/${id}`);
+}
+/** The seven maintenance measures as the server counts them (M5), with drill-down ids. Throws on failure. */
+export async function fetchMeasures(days = 90, weeks = 12): Promise<MeasuresPayload> {
+  return api.get<MeasuresPayload>(`/api/maintenance/measures?days=${days}&weeks=${weeks}`);
 }
 
 /**

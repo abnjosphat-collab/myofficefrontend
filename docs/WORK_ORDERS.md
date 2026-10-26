@@ -99,6 +99,29 @@ delete the job first).
   (null when opted out); a breakdown-job create/PATCH answers `breakdown_id`
   (the shell, or null).
 
+## Measures (M5, 26 Oct 2026)
+
+The seven measures are computed on the server (`GET /api/maintenance/measures?days=90&weeks=12`,
+clamped to 7-365 days and 4-26 weeks) and read from the same scoped rows as the register, so every
+figure reconciles with its drill-down by construction. Each figure carries the ids it counts: the
+Analytics tab opens work-order figures as the counted jobs and links breakdown figures to
+`/breakdowns?q=<machine>`. An empty denominator reads "No data", never 0%. The misleading
+"Completion %" tile (completed divided by every work order ever) is removed.
+
+A job's completion date is its `completed_at` stamp, else its `artisan_date` (a completed job with
+neither counts as completed on no known date). A work order's machine is its `equipment_id` when
+linked, else its trimmed `equipment_info` (case-insensitive); breakdowns carry `machine_name` only,
+so the worst-machines open-job match is by normalized name.
+| # | Measure | Numerator | Denominator / set | Period | Statuses |
+|---|---|---|---|---|---|
+| 1 | PM done on time % | Planned jobs due in the period, completed on or before `due_date` | Planned jobs due in the period, excluding `cancelled` (`not-done`, still-open and completed-without-a-date count as missed) | Trailing 90 days | All but `cancelled` |
+| 2 | Backlog by age | Open jobs in each bucket: 0-7, 8-30, 31-90, over 90 days since `date_raised`, plus "Date unknown" | All open jobs (not `completed`/`cancelled`/`not-done`) | Today | Open only |
+| 3 | Opened vs completed per week | Per week: opened (by `date_raised`), completed (by completion date); unknowable dates counted once as undated | All jobs | Last 12 Harare weeks (Monday start), incl. the current week | Opened: all; completed: `completed` |
+| 4 | Downtime / MTTR / MTBF per machine | Downtime = sum of `downtime_minutes`; MTTR = mean `repair_time_minutes` (null when none recorded); MTBF = mean gap in days between consecutive breakdown starts (null under 2) | Breakdowns with `breakdown_date` in the period, grouped by `machine_name` (case-insensitive) | Trailing 90 days | All breakdowns |
+| 5 | Repeat failures | Breakdown jobs sharing a machine and Problem code (`failure_mode`, case-insensitive), 2 or more in the period; "30-day" when the span is 30 days or less, else "90-day" | Breakdown-classified jobs with a code | Trailing 90 days | All |
+| 6 | Worst machines | Machines ranked by breakdowns, then downtime (top 10), with open-job counts name-matched (machines with open jobs but no breakdowns do not appear) | Breakdowns in the period + open jobs | Trailing 90 days | Breakdowns: all; jobs: open only |
+| 7 | Labour hours and spares cost per machine | Labour = recorded `total_time_worked` only (`7h 30m` or a bare number; estimates never count); spares = quantity x `unit_cost` (work-order spares; breakdown-side spares not included yet) | Jobs raised in the period | Trailing 90 days | All |
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.

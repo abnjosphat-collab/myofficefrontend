@@ -10,13 +10,14 @@ import { Button, Chart, ChartPanel, Distribution, EmptyState, Field, Input, Metr
 import { formatCurrency } from '@/components/shared/utils';
 import { NO_ANALYTICS_FILTERS, analyticsFilterCount, calcStats, distinct, filterAnalytics, type AnalyticsFilters } from './helpers';
 import { CLASSIFICATIONS, DISCIPLINES } from './meta';
+import { MeasuresView } from './MeasuresView';
 import type { WorkOrder } from './types';
 
 const ALL = '__all__';
 const choices = (label: string, values: string[]) => [{ value: ALL, label }, ...values.map(v => ({ value: v, label: v }))];
 const line = (rows: { name: string; value: number }[], unit = '') => rows.map(r => `${r.name} ${r.value}${unit}`).join('; ') || 'none';
 
-export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
+export function AnalyticsView({ orders, onOpen }: { orders: WorkOrder[]; onOpen: (id: string | number) => void }) {
   const [f, setF] = useState<AnalyticsFilters>(NO_ANALYTICS_FILTERS);
   const set = (patch: Partial<AnalyticsFilters>) => setF(prev => ({ ...prev, ...patch }));
   const active = analyticsFilterCount(f);
@@ -40,6 +41,7 @@ export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
   if (orders.length === 0) return <EmptyState icon="analytics" title="Nothing to analyse yet" description="Raise a work order and its numbers will appear here." />;
   return (
     <div className="flex flex-col gap-5">
+      <MeasuresView orders={orders} onOpen={onOpen} />
       <section aria-labelledby="an-f" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="an-f" className="font-sans text-label font-semibold text-ink">Filter the analytics</h2>
@@ -61,12 +63,11 @@ export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
 
       {scoped.length === 0 ? <EmptyState icon="search" title="No work orders match" description="Try fewer filters." action={<Button onClick={() => setF(NO_ANALYTICS_FILTERS)}>Clear filters</Button>} /> : (
         <>
-          <MetricGrid columns={5}>
+          <MetricGrid columns={4}>
             <MetricTile label="Work orders" icon="wrench" value={st.total} detail={active > 0 ? `of ${all.total}` : undefined} />
             <MetricTile label="Breakdowns" icon="breakdown" tone={st.breakdowns ? 'warning' : 'default'} value={st.breakdowns} detail={st.total ? `${Math.round((st.breakdowns / st.total) * 100)}% of the total` : undefined} />
             <MetricTile label="Planned maintenance" icon="maintenance" value={st.plannedMaintenance} />
             <MetricTile label="Breakdown hours" icon="clock" value={`${breakdownHours.toFixed(1)}h`} detail={st.artisanCost.some(a => a.estimated > 0) ? 'Includes estimates' : 'Recorded time'} />
-            <MetricTile label="Completion" icon="success" tone={st.efficiency >= 70 ? 'success' : st.efficiency >= 40 ? 'warning' : 'danger'} value={`${st.efficiency}%`} detail={`${st.completed} of ${st.total}`} />
           </MetricGrid>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <ChartPanel title="By classification" summary={`Work orders by classification: ${line(classes)}.`}><Distribution rows={classes} empty="No work orders are classified yet." /></ChartPanel>

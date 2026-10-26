@@ -52,3 +52,22 @@ export interface WorkOrder {
   equipment_id?: number | null; schedule_id?: number | null;
   started_at?: string | null; completed_at?: string | null; signed_off_at?: string | null;
 }
+// M5: the maintenance measures, computed on the server (GET /api/maintenance/measures).
+// Every figure carries the ids it counts, so the UI drills down to exactly that list.
+export type MeasureId = string | number;
+export interface MeasuresPeriod { days: number; weeks: number; start: string; end: string; }
+export interface PmOnTime { percent: number | null; on_time: number; total: number; ids: MeasureId[]; on_time_ids: MeasureId[]; }
+export interface BacklogBucket { label: string; count: number; ids: MeasureId[]; }
+export interface BacklogByAge { total: number; buckets: BacklogBucket[]; }
+export interface MeasureWeek { week_start: string; opened: number; completed: number; opened_ids: MeasureId[]; completed_ids: MeasureId[]; }
+export interface OpenedVsCompleted { weeks: MeasureWeek[]; undated_opened: MeasureId[]; undated_completed: MeasureId[]; }
+export interface DowntimeRow { machine: string; breakdowns: number; downtime_hours: number; mttr_hours: number | null; mtbf_days: number | null; breakdown_ids: MeasureId[]; }
+export interface RepeatGroup { machine: string; code: string; count: number; window_days: number; first: string; last: string; ids: MeasureId[]; }
+export interface RepeatFailures { groups_30d: number; groups_90d: number; groups: RepeatGroup[]; }
+export interface WorstRow { machine: string; breakdowns: number; downtime_hours: number; open_jobs: number; breakdown_ids: MeasureId[]; work_order_ids: MeasureId[]; }
+export interface CostRow { machine: string; equipment_id: number | null; labour_hours: number; spares_cost: number; jobs: number; ids: MeasureId[]; }
+export interface MeasuresPayload {
+  period: MeasuresPeriod; pm_on_time: PmOnTime; backlog_by_age: BacklogByAge; opened_vs_completed: OpenedVsCompleted;
+  machine_downtime: { rows: DowntimeRow[] }; repeat_failures: RepeatFailures;
+  worst_machines: { rows: WorstRow[] }; cost_by_machine: { rows: CostRow[] };
+}

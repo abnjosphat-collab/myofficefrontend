@@ -93,7 +93,7 @@ export function calcStats(orders: WorkOrder[]) {
   const sparesTotalCost = orders.reduce((acc, w) => acc + (w.spares_used || []).reduce((s, x) => s + x.quantity * x.unit_cost, 0), 0);
   return {
     total, pending: by('pending'), inProgress: by('in-progress'), completed, onHold: by('on-hold'), notDone: by('not-done'),
-    overdue: orders.filter(o => isOverdue(o)).length, efficiency: total > 0 ? Math.round((completed / total) * 100) : 0,
+    overdue: orders.filter(o => isOverdue(o)).length,
     plannedMaintenance: byClass('planned_maintenance'), projects: byClass('project'), breakdowns: byClass('breakdown'), customClass: byClass('custom'),
     mechanical: byDiscipline('Mechanical'), electrical: byDiscipline('Electrical'), artisanCost, failureModes, hourBuckets, sparesTotalCost,
   };

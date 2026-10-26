@@ -113,7 +113,7 @@ describe('calcStats', () => {
     expect(s.artisanCost[0]).toMatchObject({ name: 'Alex', hours: 6.5, estimated: 4, sparesCost: 20, count: 2 });
     expect(s.failureModes).toEqual([['Bearing failure', 2]]);
     expect(s.hourBuckets[7]).toBe(2);
-    expect(s).toMatchObject({ total: 3, completed: 1, efficiency: 33, breakdowns: 2, plannedMaintenance: 1 });
+    expect(s).toMatchObject({ total: 3, completed: 1, breakdowns: 2, plannedMaintenance: 1 });
   });
 });
 

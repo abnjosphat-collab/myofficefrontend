@@ -24,6 +24,28 @@ let failSave = false; let failPause = false; let refuseMachine = null;
 let wo2breakdown = null;
 const wo2shell = () => ({ id: 31, machine_id: 'Crusher 1', machine_name: 'Crusher 1', artisan_name: 'Alex', department: 'Engineering', location: '', breakdown_date: local(-5), breakdown_type: 'mechanical', status: 'logged', priority: 'high', breakdown_description: 'Bearing gone', breakdown_start: '08:00', breakdown_end: '10:00', work_start: '08:30', work_end: '09:30', spares_used: [], work_order_id: 2 });
 const patchOf = id => request => (failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...ORDERS.find(o => o.id === id), ...request.postDataJSON(), id, updated_at: new Date().toISOString() });
+const MEASURES = {
+  period: { days: 90, weeks: 4, start: local(-90), end: local(0) },
+  pm_on_time: { percent: 0, on_time: 0, total: 2, ids: [1, 5], on_time_ids: [] },
+  backlog_by_age: {
+    total: 3,
+    buckets: [
+      { label: '0-7 days', count: 3, ids: [1, 2, 4] },
+      { label: '8-30 days', count: 0, ids: [] },
+      { label: '31-90 days', count: 0, ids: [] },
+      { label: 'Over 90 days', count: 0, ids: [] },
+      { label: 'Date unknown', count: 0, ids: [] },
+    ],
+  },
+  opened_vs_completed: {
+    weeks: [{ week_start: local(-7), opened: 4, completed: 1, opened_ids: [1, 2, 3, 5], completed_ids: [3] }],
+    undated_opened: [4], undated_completed: [],
+  },
+  machine_downtime: { rows: [{ machine: 'Crusher 1', breakdowns: 1, downtime_hours: 2.0, mttr_hours: 1.0, mtbf_days: null, breakdown_ids: [31] }] },
+  repeat_failures: { groups_30d: 0, groups_90d: 0, groups: [] },
+  worst_machines: { rows: [{ machine: 'Crusher 1', breakdowns: 1, downtime_hours: 2.0, open_jobs: 1, breakdown_ids: [31], work_order_ids: [2] }] },
+  cost_by_machine: { rows: [{ machine: 'Crusher 1', equipment_id: null, labour_hours: 2.5, spares_cost: 20, jobs: 1, ids: [2] }] },
+};
 
 const spec = {
   route: '/maintenance',
@@ -47,6 +69,7 @@ const spec = {
       }
       return wo2breakdown;
     },
+    '/api/maintenance/measures': MEASURES,
     '/api/lookup-lists/failure_problem': [{ id: 11, value: 'Bearing failure' }],
     '/api/lookup-lists/failure_cause': [{ id: 12, value: 'Wear & tear' }],
     '/api/lookup-lists/failure_action': [{ id: 13, value: 'Replaced component' }],
@@ -262,6 +285,12 @@ const spec = {
     await page.getByRole('combobox', { name: 'Classification' }).click();
     await page.getByRole('option', { name: 'Breakdown' }).click();
     check(await page.getByText(/Showing 1 of 5 work orders/).isVisible(), 'an analytics filter narrows the numbers and says how many are shown');
+    check(await page.getByText('PM done on time').isVisible() && await page.getByRole('heading', { name: 'Downtime, MTTR and MTBF per machine' }).isVisible(), 'analytics shows the server-counted measures');
+    check(await page.getByText('Completion', { exact: true }).count() === 0, 'the misleading Completion tile is gone');
+    await page.getByRole('button', { name: '0-7 days: 3 jobs' }).click();
+    const drill = page.getByRole('dialog', { name: 'Backlog: 0-7 days' });
+    check(await drill.getByText('#WO-00002').isVisible(), 'a measure drills down to the jobs it counts');
+    await drill.getByRole('button', { name: 'Close', exact: true }).click();
     await shot(page, 'analytics@1440');
   },
   create: {
