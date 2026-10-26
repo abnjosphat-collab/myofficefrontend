@@ -2,8 +2,8 @@
  *
  * The ONE source of visual values for the whole ERP (Tools included). Values
  * derive from the Tools workspace: near-white canvas, pale-sage surfaces,
- * charcoal-green action. This file is the sage/light floor; six colour themes
- * by four darkness steps override it in ./themes.css. See
+ * charcoal-green action. This file is the sage/light floor; the monochrome
+ * dark override lives in ./themes.css. See
  * components/ui-system/README.md for the rules.
  *
  * Everything lives on :root so body-portalled content (Radix dialogs, menus,

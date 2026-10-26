@@ -152,121 +152,104 @@ describe('foundation token contrast', () => {
   });
 });
 
-// C7: the same contrast battery for every theme/darkness combination (6 x 4).
-// Brand action, status meaning and chart order never change hue per theme;
-// themes tint surfaces, text and lines only. Dark steps carry their own
-// lightened chart series, which get their own distinctness proof below.
-const THEMES = ['sage', 'forest', 'ocean', 'clay', 'slate', 'sand'];
-const DARKNESS = ['light', 'shaded', 'dark', 'deep'];
+// Mono dark: the contrast battery for the single override combination.
+// Sage/light needs no block (the :root base already paints it), so the battery
+// runs on mono/dark merged over :root. Chrome is neutral grey; brand action,
+// status meaning, focus and the chart series keep dark-scheme hues.
 
-/** Effective tokens for one combination: :root base merged with its override block. */
-const comboTokens = (theme: string, darkness: string): Record<string, string> => {
+/** Effective tokens: :root base merged with the mono/dark override block. */
+const comboTokens = (): Record<string, string> => {
   const merged: Record<string, string> = {};
   for (const m of css.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})/g)) merged[m[1]] = m[2];
-  const block = new RegExp(
-    `:root\\[data-theme='${theme}'\\]\\[data-darkness='${darkness}'\\]\\s*\\{([^}]*)\\}`,
-  ).exec(themesCss);
-  if (!block) throw new Error(`theme block ${theme}/${darkness} not found in themes.css`);
+  const block = /html\[data-theme='mono'\]\[data-darkness='dark'\]\s*\{([^}]*)\}/.exec(themesCss);
+  if (!block) throw new Error('theme block mono/dark not found in themes.css');
   for (const m of block[1].matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})/g)) merged[m[1]] = m[2];
   return merged;
 };
 
-/** Raw (possibly non-hex) declaration for one combination; throws when the block or token is missing. */
-const rawDecl = (theme: string, darkness: string, name: string): string => {
-  const block = new RegExp(
-    `:root\\[data-theme='${theme}'\\]\\[data-darkness='${darkness}'\\]\\s*\\{([^}]*)\\}`,
-  ).exec(themesCss);
-  if (!block) throw new Error(`theme block ${theme}/${darkness} not found in themes.css`);
+/** Raw (possibly non-hex) declaration; throws when the block or token is missing. */
+const rawDecl = (name: string): string => {
+  const block = /html\[data-theme='mono'\]\[data-darkness='dark'\]\s*\{([^}]*)\}/.exec(themesCss);
+  if (!block) throw new Error('theme block mono/dark not found in themes.css');
   const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(block[1]);
-  if (!m) throw new Error(`token --${name} missing for ${theme}/${darkness}`);
+  if (!m) throw new Error(`token --${name} missing for mono/dark`);
   return m[1].trim();
 };
 
 const comboSeries = (tokens: Record<string, string>): string[] =>
   Array.from({ length: 8 }, (_, i) => tokens[`mo-chart-${i + 1}`]);
 
-describe('theme and darkness token contrast', () => {
-  it('every combination holds the contrast battery', () => {
-    for (const theme of THEMES) {
-      for (const darkness of DARKNESS) {
-        const at = (name: string): string => {
-          const value = comboTokens(theme, darkness)[name];
-          if (!value) throw new Error(`token --${name} missing for ${theme}/${darkness}`);
-          return value;
-        };
-        const where = `${theme}/${darkness}`;
-        for (let slot = 1; slot <= 8; slot += 1) {
-          for (const ground of ['mo-surface', 'mo-surface-raised', 'mo-surface-subtle']) {
-            expect(ratio(at(`mo-chart-${slot}`), at(ground)), `${where} chart-${slot} on ${ground}`).toBeGreaterThanOrEqual(3);
-          }
-        }
-        for (const name of ['success', 'warning', 'danger', 'info', 'neutral']) {
-          expect(ratio(at(`mo-${name}`), at(`mo-${name}-soft`)), `${where} ${name}`).toBeGreaterThanOrEqual(4.5);
-        }
-        expect(ratio(at('mo-chart-axis'), at('mo-surface')), `${where} axis`).toBeGreaterThanOrEqual(4.5);
-        expect(ratio(at('mo-action'), at('mo-surface-muted')), `${where} pill on track`).toBeGreaterThanOrEqual(3);
-        expect(ratio(at('mo-action-ink'), at('mo-action')), `${where} ink on pill`).toBeGreaterThanOrEqual(4.5);
-        expect(ratio(at('mo-ink-muted'), at('mo-surface-muted')), `${where} idle on track`).toBeGreaterThanOrEqual(4.5);
-        for (const ground of ['mo-canvas', 'mo-surface', 'mo-surface-raised', 'mo-surface-muted']) {
-          expect(ratio(at('mo-line-control'), at(ground)), `${where} line-control on ${ground}`).toBeGreaterThanOrEqual(3);
-        }
-        expect(ratio(at('mo-ink'), at('mo-surface-subtle')), `${where} ink on subtle`).toBeGreaterThanOrEqual(4.5);
-        expect(ratio(at('mo-action'), at('mo-action-soft')), `${where} action on soft`).toBeGreaterThanOrEqual(4.5);
+describe('mono dark token contrast', () => {
+  it('holds the contrast battery', () => {
+    const tokens = comboTokens();
+    const at = (name: string): string => {
+      const value = tokens[name];
+      if (!value) throw new Error(`token --${name} missing for mono/dark`);
+      return value;
+    };
+    for (let slot = 1; slot <= 8; slot += 1) {
+      for (const ground of ['mo-surface', 'mo-surface-raised', 'mo-surface-subtle']) {
+        expect(ratio(at(`mo-chart-${slot}`), at(ground)), `chart-${slot} on ${ground}`).toBeGreaterThanOrEqual(3);
       }
+    }
+    for (const name of ['success', 'warning', 'danger', 'info', 'neutral']) {
+      expect(ratio(at(`mo-${name}`), at(`mo-${name}-soft`)), name).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(ratio(at('mo-chart-axis'), at('mo-surface')), 'axis').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(at('mo-action'), at('mo-surface-muted')), 'pill on track').toBeGreaterThanOrEqual(3);
+    expect(ratio(at('mo-action-ink'), at('mo-action')), 'ink on pill').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(at('mo-ink-muted'), at('mo-surface-muted')), 'idle on track').toBeGreaterThanOrEqual(4.5);
+    for (const ground of ['mo-canvas', 'mo-surface', 'mo-surface-raised', 'mo-surface-muted']) {
+      expect(ratio(at('mo-line-control'), at(ground)), `line-control on ${ground}`).toBeGreaterThanOrEqual(3);
+    }
+    expect(ratio(at('mo-ink'), at('mo-surface-subtle')), 'ink on subtle').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(at('mo-action'), at('mo-action-soft')), 'action on soft').toBeGreaterThanOrEqual(4.5);
+    expect(ratio(at('mo-ink'), at('mo-canvas')), 'body text pops').toBeGreaterThanOrEqual(12);
+  });
+
+  it('keeps chrome neutral grey (no hue in grounds, ink or lines)', () => {
+    const tokens = comboTokens();
+    const spread = (hex: string): number => {
+      const c = [0, 2, 4].map(i => parseInt(hex.slice(i + 1, i + 3), 16) / 255);
+      return Math.max(...c) - Math.min(...c);
+    };
+    for (const name of ['mo-canvas', 'mo-surface', 'mo-surface-raised', 'mo-surface-subtle', 'mo-surface-muted',
+      'mo-paper', 'mo-soft', 'mo-surface-interactive', 'mo-surface-interactive-hover',
+      'mo-ink', 'mo-ink-muted', 'mo-ink-subtle', 'mo-line', 'mo-line-subtle',
+      'mo-line-control', 'mo-line-strong', 'mo-chart-grid']) {
+      expect(spread(tokens[name]), name).toBeLessThanOrEqual(0.02);
     }
   });
 
-  it('the dark chart series stay distinct (dE > 30) and deuteranopia-separable', () => {
-    const dark = comboSeries(comboTokens('sage', 'dark'));
-    const labs = dark.map(hexToLab);
+  it('the chart series stay distinct (dE > 30) and deuteranopia-separable', () => {
+    const labs = comboSeries(comboTokens()).map(hexToLab);
     for (let i = 0; i < labs.length; i += 1) {
       for (let j = i + 1; j < labs.length; j += 1) {
-        expect(deltaE(labs[i], labs[j]), `dark chart-${i + 1} vs chart-${j + 1}`).toBeGreaterThan(30);
+        expect(deltaE(labs[i], labs[j]), `chart-${i + 1} vs chart-${j + 1}`).toBeGreaterThan(30);
       }
     }
-    const deut = dark.map(deuteranopia);
+    const deut = comboSeries(comboTokens()).map(deuteranopia);
     for (let i = 0; i < deut.length; i += 1) {
       for (let j = i + 1; j < deut.length; j += 1) {
-        expect(deltaE(deut[i], deut[j]), `dark chart-${i + 1} vs chart-${j + 1} (deuteranopia)`).toBeGreaterThanOrEqual(10);
+        expect(deltaE(deut[i], deut[j]), `chart-${i + 1} vs chart-${j + 1} (deuteranopia)`).toBeGreaterThanOrEqual(10);
       }
     }
   });
 
-  it('the dialog scrim stays dark in every step (never ink-derived when ink is light)', () => {
+  it('the dialog scrim is a black veil (never ink-derived: ink is light)', () => {
     // The floor derives --mo-overlay from --mo-ink, which is light in dark mode
-    // and washed the whole page pale behind every dialog. Each theme block pins
-    // its own scrim: the live formula where ink is dark, a black veil where not.
-    const FLOOR_FORMULA = 'color-mix(in srgb, var(--mo-ink) 38%, transparent)';
-    for (const theme of THEMES) {
-      for (const darkness of DARKNESS) {
-        const overlay = rawDecl(theme, darkness, 'mo-overlay');
-        if (darkness === 'dark' || darkness === 'deep') {
-          expect(overlay, `${theme}/${darkness} scrim`).toMatch(/^rgb\(0 0 0 \/ 0\.\d+\)$/);
-        } else {
-          expect(overlay, `${theme}/${darkness} scrim keeps the live formula`).toBe(FLOOR_FORMULA);
-        }
-      }
+    // and washed the whole page pale behind every dialog.
+    expect(rawDecl('mo-overlay'), 'scrim').toMatch(/^rgb\(0 0 0 \/ 0\.\d+\)$/);
+  });
+
+  it('elevation shadows are neutral black (no ink-derived halo)', () => {
+    for (const name of ['mo-shadow-card', 'mo-shadow-card-hover', 'mo-shadow-popover', 'mo-shadow-dialog']) {
+      expect(rawDecl(name), name).not.toContain('var(--mo-ink)');
     }
   });
 
-  it('elevation shadows stay dark in dark mode (no ink-derived halo)', () => {
-    // Same floor leak as the scrim: ink-derived shadows glow pale on dark grounds.
-    for (const theme of THEMES) {
-      for (const darkness of ['dark', 'deep']) {
-        for (const name of ['mo-shadow-card', 'mo-shadow-card-hover', 'mo-shadow-popover', 'mo-shadow-dialog']) {
-          expect(rawDecl(theme, darkness, name), `${theme}/${darkness} ${name}`).not.toContain('var(--mo-ink)');
-        }
-      }
-      for (const darkness of ['light', 'shaded']) {
-        // Light steps keep the live floor formulas byte-for-byte: nobody's look changes.
-        expect(rawDecl(theme, darkness, 'mo-shadow-card'), `${theme}/${darkness} card shadow`).toContain('var(--mo-ink)');
-      }
-    }
-  });
-
-  it('dark and deep share one lightened series; light and shaded share the :root series', () => {
-    expect(comboSeries(comboTokens('sage', 'deep'))).toEqual(comboSeries(comboTokens('sage', 'dark')));
-    expect(comboSeries(comboTokens('ocean', 'shaded'))).toEqual(comboSeries(comboTokens('sage', 'light')));
-    expect(comboSeries(comboTokens('sage', 'dark'))).not.toEqual(comboSeries(comboTokens('sage', 'light')));
+  it('light needs no override block (the base look is untouched)', () => {
+    expect(themesCss).not.toContain("data-darkness='light'");
+    expect(themesCss.match(/html\[data-theme=/g)?.length ?? 0).toBe(1);
   });
 });
