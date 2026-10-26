@@ -20,6 +20,9 @@ export interface MaintenanceSchedule {
   recurrence_dow: number; recurrence_dom: number; recurrence_months: number[];
   specific_dates: string[]; advance_days: number; active: boolean; next_due_date: string;
   last_generated: string; created_at: string;
+  // M1: register link + what generated jobs inherit (absent until the M1 SQL has run).
+  equipment_id?: number | null; classification?: WOClassification;
+  discipline?: Discipline; trade?: Trade;
 }
 
 // Picker record types + fetch hooks are shared (hooks/useLookups) — these are aliases
@@ -44,4 +47,8 @@ export interface WorkOrder {
   notes?: string; due_date?: string; created_at: string; updated_at: string;
   classification?: WOClassification; classification_custom?: string; failure_mode?: string;
   discipline?: Discipline; trade?: Trade; spares_used?: SpareItem[];
+  // M1: register link, raising schedule, and server-stamped times (absent until the M1 SQL
+  // has run; the stamps are set by the server on status/sign-off transitions, never sent).
+  equipment_id?: number | null; schedule_id?: number | null;
+  started_at?: string | null; completed_at?: string | null; signed_off_at?: string | null;
 }
