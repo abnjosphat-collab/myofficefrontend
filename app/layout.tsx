@@ -2,6 +2,12 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+// Theme overrides ride a JS-side import, not a CSS @import: Vercel's builder
+// dropped the globals.css @import of this file on some route-group chunks
+// (live 25 Oct 2026: new HTML/JS, stylesheet without the theme block),
+// while JS-imported CSS (floor-themes.css) survives everywhere. Order stays:
+// overrides load after the base tokens they beat on specificity.
+import "../components/ui-system/foundations/themes.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/Providers";
 import { MyOfficeAccessBoundary } from "@/components/MyOfficeAccessBoundary";

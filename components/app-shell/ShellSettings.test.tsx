@@ -1,5 +1,5 @@
-// components/app-shell/ShellSettings.test.tsx — C7: the colour-theme and darkness
-// switches render in app Settings only for trial-flagged profiles
+// components/app-shell/ShellSettings.test.tsx — the Look switch (light or
+// black-and-white dark) renders in app Settings only for trial-flagged profiles
 // (permissions.features has 'appearance_themes'), and never in Tools settings,
 // which keeps its sage floor.
 import { render, screen } from '@testing-library/react';
@@ -31,40 +31,37 @@ function renderSettings() {
   );
 }
 
-describe('ShellSettings theme gating (C7)', () => {
-  it('hides the theme switches for unflagged profiles', () => {
+describe('ShellSettings appearance gating', () => {
+  it('hides the Look switch for unflagged profiles', () => {
     authState.features = [];
     renderSettings();
-    expect(screen.queryByText('Colour theme')).not.toBeInTheDocument();
-    expect(screen.queryByText('Darkness')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Look' })).not.toBeInTheDocument();
     // The shared controls stay: typeface, text size, hints.
     expect(screen.getByText('Typeface')).toBeInTheDocument();
   });
 
-  it('shows the theme switches for trial-flagged profiles', () => {
+  it('shows the Look switch for trial-flagged profiles', () => {
     authState.features = ['appearance_themes'];
     renderSettings();
-    expect(screen.getByText('Colour theme')).toBeInTheDocument();
-    expect(screen.getByText('Darkness')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Look' })).toBeInTheDocument();
   });
 
   it('ignores other flags', () => {
     authState.features = ['something-else'];
     renderSettings();
-    expect(screen.queryByText('Colour theme')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Look' })).not.toBeInTheDocument();
   });
 });
 
-describe('ToolsCustomize theme gating (C7)', () => {
-  it('never shows the theme switches, even for flagged profiles', () => {
+describe('ToolsCustomize appearance gating', () => {
+  it('never shows the Look switch, even for flagged profiles', () => {
     authState.features = ['appearance_themes'];
     render(
       <AppearanceProvider>
         <ToolsCustomize options={{ ...DEFAULT_OPTIONS }} setOptions={() => {}} />
       </AppearanceProvider>,
     );
-    expect(screen.queryByText('Colour theme')).not.toBeInTheDocument();
-    expect(screen.queryByText('Darkness')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Look' })).not.toBeInTheDocument();
     expect(screen.getByText('Typeface')).toBeInTheDocument();
   });
 });

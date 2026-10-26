@@ -1,5 +1,5 @@
 // Appearance contract — the one validated, versioned record for typeface, text
-// size, helpful hints, colour theme and darkness, shared by Tools and every
+// size, helpful hints and the light/dark look, shared by Tools and every
 // other MyOffice route.
 // Module view/filter/layout preferences stay separate (see usePersistentState).
 //
@@ -11,6 +11,8 @@
 // Unsupported legacy fonts (system, sora, anything unknown) map to Inter;
 // legacy scale presets map to the nearest supported 5% step; records written
 // before themes existed stay on sage and light, so nobody's look changes.
+// The retired six-colour trial (forest/ocean/clay/slate/sand, shaded/deep)
+// migrates by intent: any dark step becomes mono/dark, anything else sage/light.
 //
 // Themes stay dark unless the profile carries the trial flag: see
 // effectiveAppearance. The Tools routes always render the sage floor.
@@ -22,11 +24,11 @@ const LEGACY_SCALE_KEY = 'oz_fontScale';
 
 export type AppearanceFont = 'inter' | 'manrope' | 'jakarta';
 
-/** Six colour themes. Sage is the default floor every route renders without a choice. */
-export type AppearanceTheme = 'sage' | 'forest' | 'ocean' | 'clay' | 'slate' | 'sand';
+/** Two looks. Sage is the default floor every route renders without a choice; mono is the black-and-white dark mode. */
+export type AppearanceTheme = 'sage' | 'mono';
 
-/** Four darkness steps. Fresh installs derive theirs from the OS (see preferredDarkness). */
-export type AppearanceDarkness = 'light' | 'shaded' | 'dark' | 'deep';
+/** Two steps. Fresh installs derive theirs from the OS (see preferredDarkness). */
+export type AppearanceDarkness = 'light' | 'dark';
 
 export type Appearance = {
   version: 1;
@@ -43,19 +45,14 @@ export const DEFAULT_APPEARANCE: Appearance = { version: 1, font: 'inter', fontS
 
 export const APPEARANCE_THEMES: ReadonlyArray<{ id: AppearanceTheme; label: string; description: string }> = [
   { id: 'sage', label: 'Sage', description: 'The default green-grey floor' },
-  { id: 'forest', label: 'Forest', description: 'Deeper green tints' },
-  { id: 'ocean', label: 'Ocean', description: 'Cool blue-grey tints' },
-  { id: 'clay', label: 'Clay', description: 'Warm earthen tints' },
-  { id: 'slate', label: 'Slate', description: 'Neutral grey, no hue' },
-  { id: 'sand', label: 'Sand', description: 'Warm pale tints' },
+  { id: 'mono', label: 'Mono', description: 'Black-and-white dark mode' },
 ];
 
 export const APPEARANCE_DARKNESS: ReadonlyArray<{ id: AppearanceDarkness; label: string; description: string }> = [
   { id: 'light', label: 'Light', description: 'Bright pages, dark text' },
-  { id: 'shaded', label: 'Shaded', description: 'Soft grey pages, dark text' },
   { id: 'dark', label: 'Dark', description: 'Dark pages, light text' },
-  { id: 'deep', label: 'Deeper dark', description: 'Darkest pages, strongest contrast' },
 ];
+
 
 const THEMES = new Set<string>(APPEARANCE_THEMES.map(theme => theme.id));
 const DARKNESS = new Set<string>(APPEARANCE_DARKNESS.map(step => step.id));
@@ -82,21 +79,21 @@ export function mapLegacyFont(value: unknown): AppearanceFont {
   return typeof value === 'string' && FONTS.has(value) ? (value as AppearanceFont) : 'inter';
 }
 
-/** Stored theme id → known theme. Unknown ids become sage. */
-export function mapTheme(value: unknown): AppearanceTheme {
-  return typeof value === 'string' && THEMES.has(value) ? (value as AppearanceTheme) : 'sage';
+/** Stored pair → the canonical pair for its intent. Only sage/light and mono/dark have styles; every legacy id (forest/ocean/…, shaded/deep) lands on one of them. */
+export function mapThemePair(theme: unknown, darkness: unknown): { theme: AppearanceTheme; darkness: AppearanceDarkness } {
+  if (typeof theme === 'string' && THEMES.has(theme) && typeof darkness === 'string' && DARKNESS.has(darkness)) {
+    const pair = { theme: theme as AppearanceTheme, darkness: darkness as AppearanceDarkness };
+    if ((pair.theme === 'mono') === (pair.darkness === 'dark')) return pair;
+  }
+  const darkIntent = darkness === 'dark' || darkness === 'deep';
+  return darkIntent ? { theme: 'mono', darkness: 'dark' } : { theme: 'sage', darkness: 'light' };
 }
 
-/** Stored darkness id → known step. Unknown ids become light. */
-export function mapDarkness(value: unknown): AppearanceDarkness {
-  return typeof value === 'string' && DARKNESS.has(value) ? (value as AppearanceDarkness) : 'light';
-}
-
-/** The darkness a fresh install starts on: deepest for more contrast, dark for dark OS, else light. Never throws. */
+/** The darkness a fresh install starts on: dark for a dark OS or more contrast, else light. Never throws. */
 export function preferredDarkness(): AppearanceDarkness {
   try {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light';
-    if (window.matchMedia('(prefers-contrast: more)').matches) return 'deep';
+    if (window.matchMedia('(prefers-contrast: more)').matches) return 'dark';
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     return 'light';
   } catch {
@@ -125,13 +122,14 @@ export function parseAppearance(raw: string | null): Appearance | null {
   try {
     const value = JSON.parse(raw) as Partial<Appearance> | null;
     if (!value || value.version !== 1) return null;
+    const pair = mapThemePair(value.theme, value.darkness);
     return {
       version: 1,
       font: mapLegacyFont(value.font),
       fontSize: clampFontSize(value.fontSize),
       guidance: value.guidance !== false,
-      theme: mapTheme(value.theme),
-      darkness: mapDarkness(value.darkness),
+      theme: pair.theme,
+      darkness: pair.darkness,
     };
   } catch {
     return null; // corrupt storage → caller falls through to the next source
@@ -186,7 +184,8 @@ export function migrateAppearance(storage: AppearanceStore | null | undefined): 
       darkness: 'light',
     };
   }
-  return { ...DEFAULT_APPEARANCE, darkness: preferredDarkness() };
+  const darkness = preferredDarkness();
+  return { ...DEFAULT_APPEARANCE, theme: darkness === 'dark' ? 'mono' : 'sage', darkness };
 }
 
 export function persistAppearance(storage: AppearanceStore | null | undefined, appearance: Appearance): void {
@@ -208,10 +207,10 @@ export function applyAppearanceToDocument(appearance: Appearance, root: HTMLElem
 
 /**
  * Pre-paint bootstrap, inlined into <head> by app/layout.tsx so the first paint
- * already uses the saved typeface, text size, theme and darkness (no flash, no
+ * already uses the saved typeface, text size and light/dark look (no flash, no
  * layout jump). It reads only the shared v1 record; legacy sources are migrated
  * on mount by AppearanceProvider. With nothing stored, darkness follows the OS
- * (deeper for more contrast, dark for dark mode, else light); Tools routes always
+ * (dark for dark mode or more contrast, else light); Tools routes always
  * pre-paint the sage floor. Kept in agreement with parseAppearance by appearance.test.ts.
  */
-export const APPEARANCE_BOOTSTRAP = `(function(){try{var r=document.documentElement,a=null;try{a=JSON.parse(localStorage.getItem(${JSON.stringify(APPEARANCE_KEY)})||'null');}catch(e){a=null;}var ok=a&&a.version===1;var f=ok&&${JSON.stringify([...FONTS])}.indexOf(a.font)>=0?a.font:'inter';var n=ok?Number(a.fontSize):NaN;n=isFinite(n)?Math.min(${FONT_SIZE_MAX},Math.max(${FONT_SIZE_MIN},Math.round(n/${FONT_SIZE_STEP})*${FONT_SIZE_STEP})):100;var g=ok&&a.guidance===false?'off':'on';var th=ok&&${JSON.stringify([...THEMES])}.indexOf(a.theme)>=0?a.theme:'sage';var osDark=false,osContrast=false;try{if(window.matchMedia){osContrast=window.matchMedia('(prefers-contrast: more)').matches;osDark=window.matchMedia('(prefers-color-scheme: dark)').matches;}}catch(e){}var dk=ok&&${JSON.stringify([...DARKNESS])}.indexOf(a.darkness)>=0?a.darkness:(osContrast?'deep':osDark?'dark':'light');var tools=false;try{tools=typeof location!=='undefined'&&location.pathname.indexOf('/tools')===0;}catch(e){}if(tools){th='sage';dk='light';}r.dataset.font=f;r.dataset.guidance=g;r.dataset.theme=th;r.dataset.darkness=dk;r.style.setProperty('--mo-text-scale',String(n/100));}catch(e){}})();`;
+export const APPEARANCE_BOOTSTRAP = `(function(){try{var r=document.documentElement,a=null;try{a=JSON.parse(localStorage.getItem(${JSON.stringify(APPEARANCE_KEY)})||'null');}catch(e){a=null;}var ok=a&&a.version===1;var f=ok&&${JSON.stringify([...FONTS])}.indexOf(a.font)>=0?a.font:'inter';var n=ok?Number(a.fontSize):NaN;n=isFinite(n)?Math.min(${FONT_SIZE_MAX},Math.max(${FONT_SIZE_MIN},Math.round(n/${FONT_SIZE_STEP})*${FONT_SIZE_STEP})):100;var g=ok&&a.guidance===false?'off':'on';var th=ok&&${JSON.stringify([...THEMES])}.indexOf(a.theme)>=0?a.theme:'sage';var osDark=false,osContrast=false;try{if(window.matchMedia){osContrast=window.matchMedia('(prefers-contrast: more)').matches;osDark=window.matchMedia('(prefers-color-scheme: dark)').matches;}}catch(e){}var dk=ok&&${JSON.stringify([...DARKNESS])}.indexOf(a.darkness)>=0?a.darkness:((osContrast||osDark)?'dark':'light');var tools=false;try{tools=typeof location!=='undefined'&&location.pathname.indexOf('/tools')===0;}catch(e){}if(tools){th='sage';dk='light';}else{if(dk==='dark'){th='mono';}else{th='sage';}}r.dataset.font=f;r.dataset.guidance=g;r.dataset.theme=th;r.dataset.darkness=dk;r.style.setProperty('--mo-text-scale',String(n/100));}catch(e){}})();`;
