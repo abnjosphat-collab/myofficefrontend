@@ -4,13 +4,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, DetailActions } from '@/components/ui-system';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
+import { minutesToDisplay } from '../breakdowns/calcBreakdowns';
+import { downtimeOf, repairOf } from '../breakdowns/breakdownLogic';
+import { statusMeta as breakdownStatusMeta } from '../breakdowns/breakdownMeta';
 import { ArtisanReportForm } from './ArtisanReportForm';
 import { ForemanSignoff } from './ForemanSignoff';
+import { recordBreakdownForWorkOrder } from './api';
 import { isAwaitingSignoff, isClosable, isOverdue } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
 import type { WorkOrder } from './types';
+import { useLinkedBreakdown } from './useMaintenanceData';
 
 export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved, onDone }: {
   order: WorkOrder | null; onClose: () => void; onEdit: (w: WorkOrder) => void; onDelete: (w: WorkOrder) => void; onSaved: (w: WorkOrder) => void; onDone: (w: WorkOrder) => void;
@@ -22,6 +29,21 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved, onD
   const status = w ? statusMeta(w.status) : null;
   const priority = w ? priorityMeta(w.priority) : null;
   const overdue = w ? isOverdue(w) : false;
+  const linked = useLinkedBreakdown(w?.id, w?.classification === 'breakdown');
+  const [recording, setRecording] = useState(false);
+  const record = async () => {
+    if (!w) return;
+    setRecording(true);
+    try {
+      const out = await recordBreakdownForWorkOrder(w.id);
+      toast.success(out.already_linked ? 'The breakdown is already linked.' : 'Downtime record created.');
+      linked.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'The breakdown could not be recorded.');
+    } finally {
+      setRecording(false);
+    }
+  };
   return (
     <Dialog
       open={!!w} onOpenChange={o => { if (!o) onClose(); }} size="xl" title={w ? `Work order ${w.work_order_number}` : 'Work order'} description={w?.equipment_info}
@@ -56,6 +78,32 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved, onD
                 <Fact label="Job request" wide>{w.job_request_details}</Fact>
                 {w.job_instructions && <Fact label="Special instructions" wide>{w.job_instructions}</Fact>}
               </FactList>
+              {w.classification === 'breakdown' && (
+                <div className="mt-4">
+                  <FactSection
+                    title="Downtime"
+                    aside={linked.breakdown ? <Button size="sm" variant="ghost" asChild icon="external"><Link href={`/breakdowns?open=${linked.breakdown.id}`}>Open breakdown</Link></Button> : undefined}
+                  >
+                    {linked.loading ? (
+                      <p className="font-sans text-body-sm text-ink-muted">Loading the breakdown…</p>
+                    ) : linked.failed ? (
+                      <p className="font-sans text-body-sm text-ink-muted">The breakdown could not be loaded. <Button size="sm" variant="ghost" onClick={() => linked.refetch()}>Try again</Button></p>
+                    ) : linked.breakdown ? (
+                      <FactList>
+                        <Fact label="Breakdown date">{linked.breakdown.breakdown_date && fmtDate(linked.breakdown.breakdown_date)}</Fact>
+                        <Fact label="Status">{breakdownStatusMeta(linked.breakdown.status).label}</Fact>
+                        <Fact label="Downtime">{downtimeOf(linked.breakdown) > 0 ? minutesToDisplay(downtimeOf(linked.breakdown)) : ''}</Fact>
+                        <Fact label="Repair time">{repairOf(linked.breakdown) > 0 ? minutesToDisplay(repairOf(linked.breakdown)) : ''}</Fact>
+                      </FactList>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-sans text-body-sm text-ink-muted">No downtime recorded yet.</p>
+                        <Button size="sm" variant="secondary" pending={recording} onClick={record}>Record downtime</Button>
+                      </div>
+                    )}
+                  </FactSection>
+                </div>
+              )}
             </TabsContent>
             {/* The forms start from the saved work order, so they restart after every save. */}
             <TabsContent value="artisan" className="mt-4"><ArtisanReportForm key={`${w.id}-${w.updated_at}`} order={w} onSaved={onSaved} /></TabsContent>

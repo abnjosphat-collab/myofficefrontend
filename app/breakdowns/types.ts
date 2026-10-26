@@ -10,6 +10,8 @@ export interface SpareUsed { part_number?: string; name?: string; quantity?: num
 export interface Breakdown {
   id: number;
   breakdown_uid?: string;
+  /** The job raised for this breakdown (M4 link; null until one is raised). */
+  work_order_id?: number | null;
   machine_id: string;
   machine_name: string;
   machine_description?: string;
@@ -42,9 +44,25 @@ export interface BreakdownFormData {
   artisan_recommendations: string; status: string; priority: string;
   breakdown_start: string; breakdown_end: string; work_start: string; work_end: string;
   spares_used: SparePart[];
+  /** Log-time choice (M4): raise the breakdown's work order with it. On by default. */
+  raise_work_order: boolean;
 }
 
 export interface Filters { status: string; breakdown_type: string; priority: string; department: string; location: string; }
+
+/** What logging a breakdown answers: the record, plus the job it raised (null when opted out). */
+export interface CreateBreakdownResult {
+  success: boolean; data: Breakdown;
+  work_order: { id: number; work_order_number: string } | null;
+  message: string;
+}
+
+/** What raising a job for an existing breakdown answers. */
+export interface RaiseWorkOrderResult {
+  breakdown_id: number | string;
+  work_order: { id: number; work_order_number: string };
+  already_linked: boolean;
+}
 
 export interface HeatmapData {
   heatmap: { hour_day: number[][]; labels: { hours: string[]; days: string[] } };

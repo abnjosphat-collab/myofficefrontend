@@ -1,6 +1,7 @@
 // frontend/app/maintenance/api.ts — work order + schedule API calls, shared
 // between the maintenance page and its extracted modal components.
 import { api, ApiError } from '@/lib/apiClient';
+import type { Breakdown } from '../breakdowns/types';
 import type { WorkOrder, MaintenanceSchedule } from './types';
 
 // The database is the only source of truth. These calls used to fall back to
@@ -34,6 +35,18 @@ export interface BulkCloseResult { closed: (string | number)[]; skipped: { id: s
 /** Close routine planned jobs in bulk; the server reports each row as closed or skipped with its reason. */
 export async function bulkCloseWorkOrders(body: Record<string, unknown>): Promise<BulkCloseResult> {
   return api.post<BulkCloseResult>('/api/maintenance/work-orders/bulk-close', body);
+}
+
+/** The breakdown linked to a work order, or null when there is none. */
+export async function fetchWorkOrderBreakdown(id: string | number): Promise<Breakdown | null> {
+  return api.get<Breakdown | null>(`/api/maintenance/work-orders/${id}/breakdown`);
+}
+
+export interface RecordBreakdownResult { work_order_id: string | number; breakdown: Breakdown; already_linked: boolean; }
+
+/** Record the downtime shell for a breakdown job that has none; answers the linked one again. */
+export async function recordBreakdownForWorkOrder(id: string | number): Promise<RecordBreakdownResult> {
+  return api.post<RecordBreakdownResult>(`/api/maintenance/work-orders/${id}/breakdown`);
 }
 
 export async function deleteWorkOrder(id: string): Promise<void> {

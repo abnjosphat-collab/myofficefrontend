@@ -9,7 +9,9 @@ import { isTransientError, retryDelay } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
 import { toPayload } from './breakdownLogic';
 import type { HeatmapData } from './insights/types';
-import type { Breakdown, BreakdownFormData } from './types';
+import type { Breakdown, BreakdownFormData, CreateBreakdownResult, RaiseWorkOrderResult } from './types';
+import { fetchWorkOrderById } from '../maintenance/api';
+import type { WorkOrder } from '../maintenance/types';
 
 export const useBreakdowns = () => useApiList<Breakdown>('/api/breakdowns/get-breakdowns', undefined, { paged: true, pick: unwrapRows<Breakdown> });
 
@@ -23,9 +25,29 @@ export async function fetchBreakdownById(id: number | string): Promise<Breakdown
   }
 }
 
-export const createBreakdown = (form: BreakdownFormData) => api.post('/api/breakdowns/', toPayload(form));
+export const createBreakdown = (form: BreakdownFormData) => api.post<CreateBreakdownResult>('/api/breakdowns/', toPayload(form));
 export const updateBreakdown = (id: number, form: BreakdownFormData) => api.patch(`/api/breakdowns/${id}`, toPayload(form));
 export const deleteBreakdown = (id: number) => api.delete(`/api/breakdowns/${id}`);
+
+/** Raise the work order for an unlinked breakdown (idempotent: answers the linked one again). */
+export const raiseWorkOrderForBreakdown = (id: number | string) => api.post<RaiseWorkOrderResult>(`/api/breakdowns/${id}/work-order`);
+
+/** The work order a breakdown links to (null until one is raised). A failed read is flagged, never an empty link. */
+export function useLinkedWorkOrder(workOrderId: number | string | null | undefined) {
+  const [settled, setSettled] = useState<{ key: string; order: WorkOrder | null; failed: boolean }>({ key: '', order: null, failed: false });
+  const key = workOrderId === null || workOrderId === undefined ? '' : String(workOrderId);
+  useEffect(() => {
+    if (key === '') return;
+    let current = true;
+    fetchWorkOrderById(key).then(
+      row => { if (current) setSettled({ key, order: row, failed: row === null }); },
+      () => { if (current) setSettled({ key, order: null, failed: true }); },
+    );
+    return () => { current = false; };
+  }, [key]);
+  const mine = key !== '' && settled.key === key ? settled : null;
+  return { order: mine?.order ?? null, loading: key !== '' && !mine, failed: mine?.failed ?? false };
+}
 
 export interface InsightFilters { from?: string; to?: string; department?: string; machineId?: string; status?: string; type?: string; priority?: string; location?: string }
 /** The query string for the analytics endpoint. Empty and "all" values are left out; the endpoint takes one status, so "open" is not sent. */

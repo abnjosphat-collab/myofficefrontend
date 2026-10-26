@@ -90,7 +90,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
         </div>
         <Field label="Job request: what to do" required error={err(missing.job, 'Describe what the artisan should do.')}><Textarea rows={3} value={form.job_request_details} onChange={e => set({ job_request_details: e.target.value })} placeholder="Describe exactly what the artisan has to do" /></Field>
         <Field label="Special instructions" optional><Textarea rows={2} value={form.job_instructions} onChange={e => set({ job_instructions: e.target.value })} placeholder="Safety notes, special tools, access needed" /></Field>
-        <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Classification <span className="font-normal text-ink-muted">Optional, the artisan can set it later</span></span><Segmented label="Classification" value={form.classification} onValueChange={v => set({ classification: v as RequestForm['classification'] })} options={CLASSES} /></div>
+        <div className="flex flex-col gap-1.5"><span className="font-sans text-label font-medium text-ink">Classification <span className="font-normal text-ink-muted">Optional, the artisan can set it later</span></span><Segmented label="Classification" value={form.classification} onValueChange={v => set({ classification: v as RequestForm['classification'] })} options={CLASSES} />{form.classification === 'breakdown' && <p className="font-sans text-caption text-ink-muted">A breakdown record is created with this job — record the downtime there instead of retyping it here.</p>}</div>
       </div>
     </FormDialog>
   );

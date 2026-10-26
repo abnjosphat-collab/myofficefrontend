@@ -2,15 +2,21 @@
 // the downtime and repair worked out, what happened, the work done and recommendations, and the parts used with their cost.
 'use client';
 
-import { Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Button, Dialog, StatusBadge, Fact, FactList, FactSection, DetailActions } from '@/components/ui-system';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
+import { statusMeta as workOrderStatusMeta } from '../maintenance/meta';
 import { minutesToDisplay } from './calcBreakdowns';
 import { priorityMeta, statusMeta, typeMeta } from './breakdownMeta';
 import { costOf, downtimeOf, partsOf, repairOf } from './breakdownLogic';
 import type { Breakdown } from './types';
+import { useLinkedWorkOrder } from './useBreakdownsData';
 
 const time = (t?: string | null) => (t ? t.slice(0, 5) : '');
-export function BreakdownDetail({ record: b, onClose, onEdit, onDelete }: { record: Breakdown | null; onClose: () => void; onEdit: (b: Breakdown) => void; onDelete: (b: Breakdown) => void }) {
+export function BreakdownDetail({ record: b, onClose, onEdit, onDelete, onRaiseWorkOrder }: { record: Breakdown | null; onClose: () => void; onEdit: (b: Breakdown) => void; onDelete: (b: Breakdown) => void; onRaiseWorkOrder?: (b: Breakdown) => Promise<void> }) {
+  const linked = useLinkedWorkOrder(b?.work_order_id ?? null);
+  const [raising, setRaising] = useState(false);
   const parts = b ? partsOf(b) : [];
   const down = b ? downtimeOf(b) : 0; const repair = b ? repairOf(b) : 0;
   const range = (a?: string | null, z?: string | null) => (a && z ? `${time(a)} to ${time(z)}` : a ? `from ${time(a)}` : '');
@@ -28,6 +34,23 @@ export function BreakdownDetail({ record: b, onClose, onEdit, onDelete }: { reco
           </div>
           <FactList>
             <Fact label="What happened" wide>{b.breakdown_description || b.machine_description}</Fact>
+            <Fact label="Work order">
+              {!b.work_order_id ? (
+                onRaiseWorkOrder ? (
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span className="text-ink-muted">No work order yet.</span>
+                    <Button size="sm" variant="secondary" pending={raising} onClick={async () => { setRaising(true); try { await onRaiseWorkOrder(b); } finally { setRaising(false); } }}>Raise work order</Button>
+                  </span>
+                ) : 'No work order yet.'
+              ) : linked.loading ? (
+                `Work order #${b.work_order_id}…`
+              ) : (
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <span>{linked.order ? `${linked.order.work_order_number} · ${workOrderStatusMeta(linked.order.status).label}` : `Work order #${b.work_order_id}`}</span>
+                  <Button size="sm" variant="secondary" asChild><Link href={`/maintenance?open=${b.work_order_id}`}>Open work order</Link></Button>
+                </span>
+              )}
+            </Fact>
             <Fact label="Artisan">{b.artisan_name}</Fact>
             <Fact label="Location">{b.location}</Fact>
             <Fact label="Department">{b.department}</Fact>

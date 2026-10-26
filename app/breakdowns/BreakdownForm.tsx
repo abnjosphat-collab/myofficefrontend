@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Combobox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
+import { Checkbox, Combobox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { ListInput } from '@/components/shared/ListInput';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { RecentChoices, rememberChoice } from '@/components/shared/RecentChoices';
@@ -15,13 +15,13 @@ import { todayLocal } from '@/lib/dates';
 import { minutesToDisplay } from './calcBreakdowns';
 import { PRIORITIES, STATUSES, TYPES } from './breakdownMeta';
 import { emptyForm, formFromRecord, formProblems, previewDowntime } from './breakdownLogic';
-import type { Breakdown, BreakdownFormData } from './types';
+import type { Breakdown, BreakdownFormData, CreateBreakdownResult } from './types';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
 const OPTIONS = (list: { value: string; label: string }[]) => list.map(m => ({ value: m.value, label: m.label }));
 const h2 = 'border-b border-line pb-1.5 font-display text-section font-semibold text-ink';
 
-export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: boolean; record: Breakdown | null; onOpenChange: (open: boolean) => void; onSave: (form: BreakdownFormData, id?: number) => Promise<void> }) {
+export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: boolean; record: Breakdown | null; onOpenChange: (open: boolean) => void; onSave: (form: BreakdownFormData, id?: number) => Promise<CreateBreakdownResult | void> }) {
   const equipment = useEquipment();
   const [f, setF] = useState<BreakdownFormData>(() => emptyForm(todayLocal()));
   const [touched, setTouched] = useState(false);
@@ -40,9 +40,10 @@ export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: bo
   const submit = async () => {
     setTouched(true);
     if (Object.keys(problems).length > 0) return false;
-    await onSave(f, record?.id);
+    const out = await onSave(f, record?.id);
     rememberChoice('bd_description', f.breakdown_description); if (f.work_done.trim()) rememberChoice('bd_work_done', f.work_done);
-    toast.success(editing ? 'Breakdown updated.' : 'Breakdown logged.');
+    const raised = !editing && out ? out.work_order : null;
+    toast.success(editing ? 'Breakdown updated.' : raised ? `Breakdown logged. Work order ${raised.work_order_number} raised.` : 'Breakdown logged.');
   };
 
   return (
@@ -97,6 +98,9 @@ export function BreakdownForm({ open, record, onOpenChange, onSave }: { open: bo
         </section>
 
         <SparesEditor value={parts} onChange={lines => set({ spares_used: lines.map(l => ({ name: l.name, part_number: l.part_number, quantity: Math.max(1, Math.round(l.quantity)), unit_price: l.unit_price ?? 0, total_cost: Math.max(1, Math.round(l.quantity)) * (l.unit_price ?? 0) })) })} />
+        {!editing && (
+          <Checkbox label="Raise a work order for this breakdown" description="The job is linked to this breakdown — no double entry. Untick for a trivial log with no job behind it." checked={f.raise_work_order} onChange={e => set({ raise_work_order: e.target.checked })} />
+        )}
       </div>
     </FormDialog>
   );

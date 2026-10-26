@@ -5,6 +5,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
@@ -18,8 +19,8 @@ import { BreakdownForm } from './BreakdownForm';
 import { ALL, NO_FILTERS, OPEN, costOf, distinct, downtimeOf, filterBreakdowns, isFiltered, sortBreakdowns, summarise, type Filters, type SortKey } from './breakdownLogic';
 import { PRIORITIES, STATUSES, TYPES, priorityMeta, statusMeta, typeMeta } from './breakdownMeta';
 import { InsightsPanel } from './insights/InsightsPanel';
-import type { Breakdown, BreakdownFormData } from './types';
-import { createBreakdown, deleteBreakdown, fetchBreakdownById, insightQuery, updateBreakdown, useBreakdowns } from './useBreakdownsData';
+import type { Breakdown, BreakdownFormData, CreateBreakdownResult } from './types';
+import { createBreakdown, deleteBreakdown, fetchBreakdownById, insightQuery, raiseWorkOrderForBreakdown, updateBreakdown, useBreakdowns } from './useBreakdownsData';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 
 const PAGE_SIZE = 24;
@@ -76,7 +77,17 @@ function BreakdownsContent() {
   const tile = { loading: list.loading && !list.loaded, unavailable: !list.loaded && !list.loading };
   const query = useMemo(() => insightQuery({ from: f.from, to: f.to, department: f.department, status: f.status, type: f.type, priority: f.priority, location: f.location }), [f]);
 
-  const save = async (form: BreakdownFormData, id?: number) => { if (id) await updateBreakdown(id, form); else await createBreakdown(form); await list.refetch(); };
+  const save = async (form: BreakdownFormData, id?: number): Promise<CreateBreakdownResult | void> => {
+    if (id) { await updateBreakdown(id, form); await list.refetch(); return; }
+    const created = await createBreakdown(form);
+    await list.refetch();
+    return created;
+  };
+  const raiseFor = async (b: Breakdown) => {
+    const out = await raiseWorkOrderForBreakdown(b.id);
+    toast.success(out.already_linked ? `Work order ${out.work_order.work_order_number} is already linked.` : `Work order ${out.work_order.work_order_number} raised.`);
+    await list.refetch();
+  };
   const remove = async (b: Breakdown) => {
     await confirmDelete({ title: 'Delete this breakdown?', message: `${b.machine_name}, ${b.breakdown_date ? fmtDate(b.breakdown_date) : 'no date'}. This cannot be undone.`, what: 'The breakdown', run: async () => { await deleteBreakdown(b.id); setViewingId(null); }, done: 'Breakdown deleted.', after: () => list.refetch() });
   };
@@ -196,7 +207,7 @@ function BreakdownsContent() {
         </TabsContent>
       </Tabs>
 
-      <BreakdownDetail record={viewing} onClose={() => setViewingId(null)} onEdit={b => { setViewingId(null); setFormFor({ record: b }); }} onDelete={remove} />
+      <BreakdownDetail record={viewing} onClose={() => setViewingId(null)} onEdit={b => { setViewingId(null); setFormFor({ record: b }); }} onDelete={remove} onRaiseWorkOrder={raiseFor} />
       <BreakdownForm open={!!formFor} record={formFor?.record ?? null} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
     </div>
   );

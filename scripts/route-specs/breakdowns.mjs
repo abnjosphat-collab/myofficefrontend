@@ -4,7 +4,7 @@ const pad = n => String(n).padStart(2, '0');
 const local = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const bd = (id, over = {}) => ({ id, machine_id: `M${id}`, machine_name: `Machine ${id}`, artisan_name: 'Ann Alpha', department: 'Engineering', location: '6 Level', breakdown_date: local(-id), breakdown_type: 'mechanical', status: 'logged', priority: 'medium', breakdown_description: `Fault ${id}`, spares_used: [], ...over });
 const RECS = [
-  bd(1, { machine_name: 'Winder 1', machine_id: 'W1', status: 'resolved', priority: 'critical', breakdown_nature: 'Bearing failure', breakdown_start: '08:00:00', breakdown_end: '10:00:00', work_start: '08:30:00', work_end: '09:45:00', work_done: 'Replaced the bearing', spares_used: [{ name: 'Bearing 6204', quantity: 2, unit_price: 10, total_cost: 20 }] }),
+  bd(1, { machine_name: 'Winder 1', machine_id: 'W1', status: 'resolved', priority: 'critical', breakdown_nature: 'Bearing failure', breakdown_start: '08:00:00', breakdown_end: '10:00:00', work_start: '08:30:00', work_end: '09:45:00', work_done: 'Replaced the bearing', spares_used: [{ name: 'Bearing 6204', quantity: 2, unit_price: 10, total_cost: 20 }], work_order_id: 7 }),
   bd(2, { machine_name: 'Crusher 1', machine_id: 'C1', priority: 'high', breakdown_type: 'electrical', location: 'Plant' }),
   bd(3, { machine_name: 'Fan 3', status: 'in_progress', spares_used: '[{"name":"Belt","quantity":1,"unit_price":5,"total_cost":5}]' }),
   // A legacy record with almost nothing on it must render rather than crash.
@@ -34,6 +34,8 @@ const spec = {
     '/api/breakdowns/': request => (failSave ? { __status: 422, body: { detail: 'Machine ID rejected (fixture)' } } : { id: 99, ...request.postDataJSON() }),
     'PATCH /api/breakdowns/1': request => ({ ...RECS[0], ...request.postDataJSON() }),
     'DELETE /api/breakdowns/2': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
+    '/api/maintenance/work-orders/7': { id: 7, work_order_number: 'WO-00007', status: 'pending' },
+    'POST /api/breakdowns/2/work-order': { breakdown_id: 2, work_order: { id: 8, work_order_number: 'WO-00008' }, already_linked: false },
     '/api/breakdowns/analytics/heatmap': INSIGHTS,
     '/api/equipment': [{ id: 1, name: 'Winder 1', equipment_id: 'W1', department: 'Engineering', location: '6 Level', status: 'operational' }, { id: 2, name: 'Hoist 2', equipment_id: 'H2', department: 'Engineering', location: 'Shaft', status: 'operational' }],
     '/api/employees': [], '/api/spares': [],
@@ -66,6 +68,9 @@ const spec = {
     const det = dialog('Winder 1');
     await det.waitFor({ timeout: 5000 });
     check(await det.getByText('Bearing failure').isVisible() && await det.getByText('Bearing 6204').isVisible(), 'the detail shows the nature and the parts used');
+    const woLink = det.getByRole('link', { name: 'Open work order' });
+    await woLink.waitFor({ timeout: 5000 }).catch(() => {});
+    check(await det.getByText(/WO-00007/).isVisible() && await woLink.getAttribute('href') === '/maintenance?open=7', 'a linked breakdown names its job and opens it in Maintenance');
     await shot(page, 'detail@1440');
     await det.getByRole('button', { name: 'Edit', exact: true }).click();
     const ed = dialog(/^Edit breakdown/);
@@ -91,6 +96,16 @@ const spec = {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await page.getByText(/Manager role required/).first().waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText(/was not deleted: Manager role required/).isVisible(), 'a refused delete shows the reason');
+
+    // raise the job for an unlinked breakdown, from its detail
+    await page.getByRole('button', { name: /^Open the breakdown of Crusher 1/ }).click();
+    const det2 = dialog('Crusher 1');
+    await det2.waitFor({ timeout: 5000 });
+    await det2.getByRole('button', { name: 'Raise work order' }).click();
+    await page.waitForTimeout(600);
+    const raiseCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/breakdowns/2/work-order').pop();
+    check(!!raiseCall, 'raising posts to the work-order endpoint for that breakdown');
+    await page.keyboard.press('Escape');
 
     // analytics tab
     await page.getByRole('tab', { name: 'Analytics' }).click();
@@ -123,6 +138,11 @@ const spec = {
     await nw.getByText('Machine ID rejected (fixture)').waitFor({ timeout: 5000 }).catch(() => {});
     check(await nw.getByText('Machine ID rejected (fixture)').isVisible() && (await nw.getByLabel(/^Machine name/).inputValue()) === 'Hoist 2', 'a refused log shows the reason and keeps what was typed');
     failSave = false;
+    await nw.getByLabel(/Raise a work order/).uncheck();
+    await nw.getByRole('button', { name: 'Log breakdown' }).click();
+    await nw.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const optOut = calls.filter(c => c.method === 'POST' && c.pathname === '/api/breakdowns/').pop();
+    check(optOut?.body.raise_work_order === false, 'unticking the box logs the breakdown with no job', JSON.stringify(optOut?.body).slice(0, 120));
   },
   create: {
     open: 'Log breakdown', dialog: 'Log a breakdown', path: '/api/breakdowns/', listPath: '/api/breakdowns/get-breakdowns', submit: 'Log breakdown',
@@ -133,7 +153,7 @@ const spec = {
       await dialog.getByLabel(/^Breakdown started/).fill('22:30'); await dialog.getByLabel(/^Breakdown ended/).fill('01:00');
     },
     async kept(dialog) { return (await dialog.getByLabel(/^Machine name/).inputValue()) === 'Hoist 2' && (await dialog.getByLabel(/^Nature of the breakdown/).inputValue()) === 'Rope wear'; },
-    body: b => b.machine_id === 'H2' && b.machine_name === 'Hoist 2' && b.breakdown_nature === 'Rope wear' && b.breakdown_start === '22:30' && b.breakdown_end === '01:00' && b.status === 'logged' && Array.isArray(b.spares_used),
+    body: b => b.machine_id === 'H2' && b.machine_name === 'Hoist 2' && b.breakdown_nature === 'Rope wear' && b.breakdown_start === '22:30' && b.breakdown_end === '01:00' && b.status === 'logged' && Array.isArray(b.spares_used) && b.raise_work_order === true,
   },
   empty: { data: { '/api/breakdowns/get-breakdowns': { data: [], count: 0, success: true } }, text: 'No breakdowns logged yet' },
   failing: { paths: ['/api/breakdowns/get-breakdowns'], text: 'Breakdowns could not be loaded', notShown: ['No breakdowns logged yet'], async recovered(page, { check }) { await page.getByRole('list', { name: 'Breakdowns' }).getByRole('button').first().waitFor({ timeout: 8000 }).catch(() => {}); check(await page.getByRole('list', { name: 'Breakdowns' }).getByRole('button').first().isVisible(), 'Try again loads the register'); } },

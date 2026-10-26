@@ -81,13 +81,13 @@ export const distinct = (list: Breakdown[], pick: (b: Breakdown) => string | und
 
 export const emptyForm = (today: string): BreakdownFormData => ({
   machine_id: '', machine_name: '', breakdown_description: '', artisan_name: '', breakdown_date: today, location: '', department: DEFAULT_DEPARTMENT, breakdown_type: 'mechanical', breakdown_nature: '',
-  work_done: '', artisan_recommendations: '', status: 'logged', priority: 'medium', breakdown_start: '', breakdown_end: '', work_start: '', work_end: '', spares_used: [],
+  work_done: '', artisan_recommendations: '', status: 'logged', priority: 'medium', breakdown_start: '', breakdown_end: '', work_start: '', work_end: '', spares_used: [], raise_work_order: true,
 });
 export const formFromRecord = (b: Breakdown, today: string): BreakdownFormData => ({
   machine_id: b.machine_id || '', machine_name: b.machine_name || '', breakdown_description: b.breakdown_description || b.machine_description || '', artisan_name: b.artisan_name || '',
   breakdown_date: day(b.breakdown_date) || today, location: b.location || '', department: b.department || DEFAULT_DEPARTMENT, breakdown_type: b.breakdown_type || 'mechanical', breakdown_nature: b.breakdown_nature || '',
   work_done: b.work_done || '', artisan_recommendations: b.artisan_recommendations || '', status: b.status || 'logged', priority: b.priority || 'medium',
-  breakdown_start: (b.breakdown_start || '').slice(0, 5), breakdown_end: (b.breakdown_end || '').slice(0, 5), work_start: (b.work_start || '').slice(0, 5), work_end: (b.work_end || '').slice(0, 5), spares_used: partsOf(b),
+  breakdown_start: (b.breakdown_start || '').slice(0, 5), breakdown_end: (b.breakdown_end || '').slice(0, 5), work_start: (b.work_start || '').slice(0, 5), work_end: (b.work_end || '').slice(0, 5), spares_used: partsOf(b), raise_work_order: true,
 });
 
 export type FormProblems = Partial<Record<'machine_name' | 'machine_id' | 'breakdown_description' | 'artisan_name' | 'location' | 'department' | 'breakdown_date' | 'breakdown_end' | 'work_end', string>>;
@@ -115,6 +115,7 @@ export function toPayload(f: BreakdownFormData) {
     breakdown_nature: f.breakdown_nature.trim(), work_done: f.work_done, artisan_recommendations: f.artisan_recommendations, status: f.status || 'logged', priority: f.priority || 'medium',
     breakdown_start: f.breakdown_start, breakdown_end: f.breakdown_end, work_start: f.work_start, work_end: f.work_end,
     spares_used: f.spares_used.map(s => { const quantity = Math.max(1, Math.round(Number(s.quantity) || 1)); const unit_price = Math.max(0, Number(s.unit_price) || 0); return { name: s.name, part_number: s.part_number || '', quantity, unit_price, total_cost: quantity * unit_price }; }),
+    raise_work_order: f.raise_work_order,
   };
 }
 

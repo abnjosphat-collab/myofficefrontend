@@ -65,6 +65,40 @@ Anything else closes without them: the codes are required only for breakdowns.
   not on its list adds it (case-insensitive match first, so "Wear" and "wear"
   do not both land on the list). Learning never fails the write.
 
+## One entry for breakdowns (M4, 26 Oct 2026)
+
+A breakdown holds the downtime; its work order holds the job and the cost.
+Each breakdown links to at most one work order through
+`breakdowns.work_order_id` (nullable; the M4 SQL below). The work order's
+breakdown is read back through the same column, so the two directions can
+never disagree. Deleting a job unlinks its breakdown (the downtime record
+survives); a breakdown with a job cannot be deleted (409 naming the job —
+delete the job first).
+
+- **Breakdown first:** logging a breakdown raises its job (`classification:
+  breakdown`, with the machine, artisan, department, date and description
+  carried over; critical becomes urgent) unless unticked ("Raise a work
+  order", on by default). The job is raised before the breakdown is stored,
+  so a failed raise stores nothing.
+- **Job first:** raising a breakdown job (or classifying one as a breakdown,
+  or closing one) raises a breakdown shell — machine, artisan and date
+  carried over, times and metrics NULL until recorded. Only a breakdown job
+  can record downtime (422 otherwise).
+- **The old rows:** `POST /api/breakdowns/{id}/work-order` raises the job
+  for an unlinked breakdown; `POST /api/maintenance/work-orders/{id}/breakdown`
+  records the shell for a breakdown job without one. Both are idempotent
+  (`already_linked`); `GET .../work-orders/{id}/breakdown` answers the
+  linked breakdown or null.
+- **Pre-SQL:** until `supabase_m4_breakdown_work_order_20261026.sql` has run
+  (NOT RUN — owner-run, one transaction, backup inside), logging still
+  raises the job but stores no link; shells are skipped (a shell with no
+  link is the double entry M4 removes); the reverse read answers null and
+  the explicit shell endpoint refuses (409). The SQL backfills nothing: no
+  live breakdown matches a live breakdown job by machine and date.
+- A breakdown create answers its job as `work_order: {id, work_order_number}`
+  (null when opted out); a breakdown-job create/PATCH answers `breakdown_id`
+  (the shell, or null).
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.

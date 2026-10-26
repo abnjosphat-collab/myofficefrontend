@@ -21,6 +21,8 @@ const SCHEDULES = [
   { id: 2, name: 'Monthly conveyor audit', equipment_info: 'Conveyor 3', to_department: 'Plant', allocated_to: '', authorising_foreman: '', estimated_hours: '3', job_request_details: 'Audit rollers', job_instructions: '', priority: 'low', recurrence_type: 'monthly', recurrence_dow: 1, recurrence_dom: 22, recurrence_months: [], specific_dates: [], advance_days: 0, active: false, next_due_date: local(20) },
 ];
 let failSave = false; let failPause = false; let refuseMachine = null;
+let wo2breakdown = null;
+const wo2shell = () => ({ id: 31, machine_id: 'Crusher 1', machine_name: 'Crusher 1', artisan_name: 'Alex', department: 'Engineering', location: '', breakdown_date: local(-5), breakdown_type: 'mechanical', status: 'logged', priority: 'high', breakdown_description: 'Bearing gone', breakdown_start: '08:00', breakdown_end: '10:00', work_start: '08:30', work_end: '09:30', spares_used: [], work_order_id: 2 });
 const patchOf = id => request => (failSave ? { __status: 422, body: { detail: 'Save rejected (fixture)' } } : { ...ORDERS.find(o => o.id === id), ...request.postDataJSON(), id, updated_at: new Date().toISOString() });
 
 const spec = {
@@ -38,6 +40,13 @@ const spec = {
     'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {}, 'DELETE /api/maintenance/work-orders/5': {},
     '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
     'PATCH /api/schedules/1': () => (failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),
+    '/api/maintenance/work-orders/2/breakdown': request => {
+      if (request.method() === 'POST') {
+        wo2breakdown = wo2shell();
+        return { work_order_id: 2, breakdown: wo2breakdown, already_linked: false };
+      }
+      return wo2breakdown;
+    },
     '/api/lookup-lists/failure_problem': [{ id: 11, value: 'Bearing failure' }],
     '/api/lookup-lists/failure_cause': [{ id: 12, value: 'Wear & tear' }],
     '/api/lookup-lists/failure_action': [{ id: 13, value: 'Replaced component' }],
@@ -134,6 +143,13 @@ const spec = {
     check(bdCall?.body.corrective_action === 'Replaced component' && bdCall?.body.cause_of_failure === 'Wear & tear', 'a breakdown close sends its Cause and Action codes', JSON.stringify(bdCall?.body).slice(0, 200));
     await d.getByRole('tab', { name: 'Work request' }).click();
     check(await d.getByText('Inspect the seal').isVisible() && await d.getByText('Alex').first().isVisible(), 'the request step shows the job and who does it');
+    check(await d.getByText('No downtime recorded yet.').isVisible(), 'a breakdown job without a shell offers to record its downtime');
+    await d.getByRole('button', { name: 'Record downtime' }).click();
+    await d.getByText('2h').first().waitFor({ timeout: 5000 }).catch(() => {});
+    const recCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/2/breakdown').pop();
+    check(!!recCall, 'recording downtime posts to the breakdown endpoint for that job');
+    check(await d.getByText('2h').first().isVisible(), 'the recorded downtime shows in the request step');
+    check(await d.getByRole('link', { name: 'Open breakdown' }).getAttribute('href') === '/breakdowns?open=31', 'the downtime opens across in Breakdowns');
     await page.waitForTimeout(450); await shot(page, 'detail@1440');
     await d.getByRole('tab', { name: 'Artisan report' }).click();
     // removing the only spare must really remove it (an emptied list used to be left out of the save)

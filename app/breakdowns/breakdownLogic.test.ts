@@ -64,6 +64,12 @@ describe('the form', () => {
     expect(p.breakdown_start).toBe('');
     expect(p.spares_used[0].total_cost).toBe(7);
   });
+  it('raises a work order by default, and sends the choice through', () => {
+    expect(emptyForm('2026-09-10').raise_work_order).toBe(true);
+    expect(formFromRecord(bd(1), '2026-09-10').raise_work_order).toBe(true);
+    expect(toPayload(ok).raise_work_order).toBe(true);
+    expect(toPayload({ ...ok, raise_work_order: false }).raise_work_order).toBe(false);
+  });
   it('round-trips a record, trimming stored times to HH:MM', () => {
     const f = formFromRecord(bd(1, { breakdown_start: '08:30:00', breakdown_end: '09:00:00', breakdown_nature: 'Seal', breakdown_date: '2026-09-10T00:00:00' }), '2026-01-01');
     expect(f).toMatchObject({ breakdown_start: '08:30', breakdown_end: '09:00', breakdown_nature: 'Seal', breakdown_date: '2026-09-10' });
