@@ -257,6 +257,7 @@ const spec = {
     const sched = page.getByRole('list', { name: 'Schedules' });
     await sched.waitFor({ timeout: 5000 });
     check(await sched.getByText('Active').isVisible() && await sched.getByText('Paused').isVisible() && await sched.getByText('Monthly on the 22nd').isVisible(), 'schedules say how often and whether they are active');
+    check(await page.getByRole('link', { name: 'Import' }).getAttribute('href') === '/maintenance/import?kind=schedules', 'the schedules tab links the eMaint PM import');
     await shot(page, 'schedules@1440');
     const before = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders').length;
     await sched.getByRole('button', { name: 'Raise now' }).first().click();

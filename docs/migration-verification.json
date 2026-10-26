@@ -99,9 +99,15 @@
     },
     "/maintenance": {
       "status": "verified",
-      "date": "2026-10-21",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail and schedules screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save and emptied spares and a cleared classification, foreman sign-off from the current status), edit with a cleared due date, raising two machines with one refused, schedules (raise now per machine, a refused pause that reverts, validation) and analytics with a filter. No live data, no real signatures. Re-rendered Oct 2026 (U3.1): notification deep-link landing; 1440 screenshot inspected. (U9) route spec repaired to drive the dirty-guard Discard flow, green.",
+      "date": "2026-10-26",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (cards, detail and schedules screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load and create states; status tiles as filters, search and priority buttons, cards and table, bulk delete with confirmation and a refused item, the three-step detail (request, artisan report with a refused save and emptied spares and a cleared classification, foreman sign-off from the current status), edit with a cleared due date, raising two machines with one refused, schedules (raise now per machine, a refused pause that reverts, validation) and analytics with a filter. No live data, no real signatures. Re-rendered Oct 2026 (U3.1): notification deep-link landing; 1440 screenshot inspected. (U9) route spec repaired to drive the dirty-guard Discard flow, green. Re-rendered Oct 2026 (M7): schedules-tab Import link to /maintenance/import?kind=schedules (href asserted); full spec green; 1440 screenshot inspected.",
       "note": "Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns."
+    },
+    "/maintenance/import": {
+      "status": "verified",
+      "date": "2026-10-26",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (upload, matches, result and PM-review screenshots inspected at 1440, matches at 390; 820/844/1180 by the no-overflow checks); both tabs (Assets, PM schedules) with ?kind= deep link; template offer, column guide, a refused file, column mapping with confidence, register matching (new/exists/near-miss/invalid), import confirmation with cancel, a failed import with retry, the result counts and the unmatched report with download. No live data, no real spreadsheet.",
+      "note": "eMaint import (M7): Assets and PM-schedules tabs over one upload, column-mapping, register-match, import and unmatched-report flow."
     },
     "/timesheets": {
       "status": "verified",
@@ -250,7 +256,7 @@
     "/equipment": {
       "status": "verified",
       "date": "2026-10-26",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; pagination, search, status tiles, cards and table, detail, edit with validation (a cleared field is sent as null), add with a refused save, delete with confirmation. No live data. Re-rendered Oct 2026 (M6): History links on every card, table row and the detail dialog (hrefs asserted), green.",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; pagination, search, status tiles, cards and table, detail, edit with validation (a cleared field is sent as null), add with a refused save, delete with confirmation. No live data. Re-rendered Oct 2026 (M6): History links on every card, table row and the detail dialog (hrefs asserted), green. Re-rendered Oct 2026 (M7): header Import link to /maintenance/import?kind=assets (href asserted); 1440 screenshot inspected.",
       "note": "Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog."
     },
     "/equipment/history": {

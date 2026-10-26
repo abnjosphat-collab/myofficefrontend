@@ -103,6 +103,7 @@ function EquipmentContent() {
           <>
             <IconButton icon="refresh" label="Refresh equipment" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             {items.length > 0 && <DownloadButton data={items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" />}
+            <Button icon="upload" asChild><Link href="/maintenance/import?kind=assets">Import</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
           </>
         )}

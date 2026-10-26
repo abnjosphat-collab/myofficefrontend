@@ -18,6 +18,7 @@ const spec = {
   async ready(page, calls, { check, shot }) {
     const cards = page.getByRole('button', { name: /^View / });
     check(await cards.count() === 12, 'the first page shows 12 cards (a legacy record with no fields does not crash)');
+    check(await page.getByRole('link', { name: 'Import' }).getAttribute('href') === '/maintenance/import?kind=assets', 'the header links the eMaint asset import');
     const historyLinks = page.getByRole('link', { name: /^History of / });
     check(await historyLinks.count() === 12, 'every card links its machine history');
     check(((await historyLinks.first().getAttribute('href')) || '').startsWith('/equipment/history?equipment='), 'the card link carries the machine id');

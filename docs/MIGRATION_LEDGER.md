@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**61 routes.** Migrated: 51. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 53.
+**62 routes.** Migrated: 52. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 54.
 
 | Column | Meaning |
 |---|---|
@@ -47,7 +47,8 @@
 | `/leaves` | Migrated | Yes | 4 | Yes, 2026-10-21 | Register of leave requests (also where /leave-management now redirects). The shared ApprovalGate shell was rebuilt on Dialog (focus trap, Escape, dialog role). |
 | `/login` | Own chrome | No | No | Not checked | sign-in page |
 | `/login-preview` | Own chrome | No | No | Not checked | standalone prototype (sign-in over an Icelandic landscape with drifting clouds; own layout, no shell) |
-| `/maintenance` | Migrated | Yes | 5 | Yes, 2026-10-21 | Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns. |
+| `/maintenance` | Migrated | Yes | 5 | Yes, 2026-10-26 | Register pattern with three tabs and a three-step detail. The old page built on the Tools stylesheet directly; this one uses the shared patterns. |
+| `/maintenance/import` | Migrated | Yes | 2 | Yes, 2026-10-26 | eMaint import (M7): Assets and PM-schedules tabs over one upload, column-mapping, register-match, import and unmatched-report flow. |
 | `/near_miss` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register table with section tiles as filters, detail dialog, add/edit/delete; failed save keeps input; failed load is not shown as empty. Inline row expansion dropped (the detail dialog shows the same fields). |
 | `/noticeboard` | Migrated | Yes | 3 | Yes, 2026-10-21 | Pinned and other notices as cards or a table, status/pinned tiles as filters, server-side filters and a debounced search (one request per finished word), detail dialog with attachment thumbnails and download links, optimistic pin with revert, archive-all-expired and unpin-all now ask first, hide-expired stays a view-only toggle, add/edit/delete with multi-file attachment upload (failures shown in place and the save waits for uploads). Tiles count the current view and say so when filters are on. The list route is unbounded (CrudRouter) and not paged. The shell's active-notices popup was rebuilt on the UI system and moved to the bottom (it covered the top bar and page title on phones and the header actions on desktop). |
 | `/overtime` | Migrated | Yes | 5 | Yes, 2026-10-21 | Register pattern with three tabs. The largest page: 2789 lines became a page of about 200 plus 17 focused files. |

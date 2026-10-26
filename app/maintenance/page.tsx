@@ -3,6 +3,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
@@ -130,7 +131,7 @@ function MaintenanceContent() {
     { id: 'progress', header: 'Progress', cell: w => <div className="min-w-32"><Progress value={w.progress ?? 0} label={`${w.equipment_info} progress`} /></div> },
   ];
   const headerAction = tab === 'schedules'
-    ? <Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button>
+    ? <><Button icon="upload" asChild><Link href="/maintenance/import?kind=schedules">Import</Link></Button><Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button></>
     : tab === 'orders' ? <Button variant="primary" icon="plus" disabled={!orders.loaded} onClick={() => setFormFor({ order: null })}>New work order</Button> : null;
 
   return (

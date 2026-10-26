@@ -161,6 +161,45 @@ The register links in: every card, table row and the detail dialog carry a
 History link to the machine's page. Jobs link out to `/maintenance?open=` and
 breakdowns to `/breakdowns?open=`.
 
+## eMaint import (M7, 26 Oct 2026)
+
+Assets and PM schedules arrive from eMaint through `/maintenance/import`
+(two tabs; `?kind=schedules` lands on the PM tab): the server reads the
+file, the user checks the column mapping, every row is matched to the
+register, and only new rows are imported. Matched rows are always skipped,
+never overwritten, so re-running an import is safe. The eMaint export was
+not available, so the headings below are assumed (aliases accepted); the
+full list lives in `M7_REPORT.md`.
+
+- **Assets:** `POST /api/emaint-import/assets/infer|preview|commit`.
+  Assumed headings: Asset ID, Asset Description (required), Asset Type,
+  Manufacturer, Model, Serial Number, Location, Department, Status (Active,
+  Under Maintenance, Out of Service, Retired, Standby; blank is Active),
+  Criticality (High/Medium/Low), Commission Date, Supplier, Purchase Cost,
+  Warranty Info, Notes. A row matches by exact Equipment ID or exact
+  trimmed name ("already there"); a case-only name hit is a near miss and
+  is held, never auto-matched. Manufacturer and Criticality are reported
+  but held back: the live register has no such columns yet.
+- **PM schedules:** `POST /api/emaint-import/schedules/infer|preview|commit`
+  (commit is manager-only, like every schedule write). Assumed headings:
+  PM ID, Asset ID, Asset Description, PM Description (required), Frequency
+  (required: Daily, Weekly, Biweekly, Monthly, Quarterly, Annual),
+  Next Due, Last Done, Assigned To, Department, Priority, Estimated Hours,
+  Instructions, Active. The machine must already be on the register
+  (exact code or exact name; near misses are named, not matched).
+  Semi-annual and meter-based PMs are refused with a reason, not
+  mis-scheduled. The rhythm anchors on Next Due (weekly keeps the
+  weekday, monthly the day, yearly the month and day).
+- **Files:** Excel (.xlsx, .xls), CSV or TSV to 25 MB and 2,000 rows;
+  UTF-8 (BOM-tolerant, cp1252 fallback); dates ISO or D/M/YYYY. A blank
+  Next Due means the next occurrence from today; a codeless asset gets an
+  EQ- number. Section-scoped importers match and write inside their
+  section only. The result names every row that was not imported, with
+  its reason, and downloads as the unmatched report.
+- **No SQL in this batch.** Schedule rows link by `equipment_id` once the
+  M1 file has run (names before that); asset rows store Manufacturer and
+  Criticality once the register grows those columns.
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.
@@ -182,6 +221,7 @@ Stamps are written once and never cleared or overwritten (reopening keeps histor
 | API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates; `app/routers/schedules.py` — schedules and generation; `app/routers/equipment.py` — the register plus `GET /{id}/history` (M6); `app/machine_history.py` — the pure history computation |
 | UI module | `app/maintenance/` — `page.tsx`, `types.ts`, `api.ts`, `helpers.ts`, `WorkOrderForm.tsx`, `WorkOrderDetail.tsx`, `QuickCloseDialog.tsx`, `SchedulesView.tsx`, `ScheduleForm.tsx`, `AnalyticsView.tsx`, `ArtisanReportForm.tsx`, `ForemanSignoff.tsx`, `MachinePicker.tsx`, `PhraseField.tsx`, `phrases.ts`, `SignOffField.tsx`, `meta.ts`, `useMaintenanceData.ts` |
 | Machine history (M6) | `app/equipment/history/page.tsx`, `app/equipment/history/MachineHistoryView.tsx`, `app/equipment/historyTypes.ts`, `app/equipment/api.ts` (`fetchMachineHistory`); History links on `app/equipment/page.tsx` (cards, table, detail) |
+| eMaint import (M7) | `app/maintenance/import/page.tsx`, `app/maintenance/import/EmaintImportFlow.tsx`, `app/maintenance/import/emaintImport.ts`; entry links on `app/equipment/page.tsx` and `app/maintenance/page.tsx` (schedules tab); backend `app/emaint_import.py` + `app/routers/emaint_import.py` (`/api/emaint-import`) |
 | Related ops | Breakdowns, requisitions, spares, equipment pages may link or reference maintenance context — grep before assuming isolation |
 
 ## Journey checklist (when touching WOs)
