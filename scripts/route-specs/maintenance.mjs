@@ -33,10 +33,14 @@ const spec = {
     'PATCH /api/maintenance/work-orders/1': patchOf(1), 'PATCH /api/maintenance/work-orders/2': patchOf(2),
     'POST /api/maintenance/work-orders/1/close': request => ({ ...ORDERS.find(o => o.id === 1), ...request.postDataJSON(), id: 1, status: 'completed', progress: 100, updated_at: new Date().toISOString() }),
     'POST /api/maintenance/work-orders/bulk-close': { closed: [1, 4], skipped: [] },
+    'POST /api/maintenance/work-orders/2/close': request => ({ ...ORDERS.find(o => o.id === 2), ...request.postDataJSON(), id: 2, status: 'completed', progress: 100, updated_at: new Date().toISOString() }),
     'DELETE /api/maintenance/work-orders/4': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
     'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {}, 'DELETE /api/maintenance/work-orders/5': {},
     '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
     'PATCH /api/schedules/1': () => (failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),
+    '/api/lookup-lists/failure_problem': [{ id: 11, value: 'Bearing failure' }],
+    '/api/lookup-lists/failure_cause': [{ id: 12, value: 'Wear & tear' }],
+    '/api/lookup-lists/failure_action': [{ id: 13, value: 'Replaced component' }],
     '/api/equipment': [{ id: 1, name: 'Pump A', equipment_id: 'EQ-1', department: 'Mining', location: 'Pit', status: 'operational' }, { id: 2, name: 'Crusher 1', equipment_id: 'EQ-2', department: 'Plant', status: 'operational' }],
     '/api/employees': [{ id: 11, employee_id: 'C1', first_name: 'Alex', last_name: 'Smith', designation: 'Fitter' }, { id: 12, employee_id: 'C2', first_name: 'Lee', last_name: 'Jones', designation: 'Foreman' }],
   },
@@ -118,9 +122,16 @@ const spec = {
     await d.getByRole('button', { name: 'Done', exact: true }).click();
     const qcd = dialog('Done: WO-00002');
     await qcd.waitFor({ timeout: 5000 });
-    check(await qcd.getByLabel(/Cause of failure/).isVisible(), 'Done from the detail opens the fast close, with breakdown fields for a breakdown');
-    await page.keyboard.press('Escape');
+    check(await qcd.getByLabel('Problem').isVisible() && await qcd.getByLabel(/^Cause/).isVisible() && await qcd.getByLabel('Action taken').isVisible(), 'Done from the detail opens the fast close, with Problem/Cause/Action for a breakdown');
+    const problemOpts = await qcd.getByLabel('Problem').evaluate(el => Array.from((document.getElementById(el.getAttribute('list'))?.querySelectorAll('option') ?? [])).map(o => o.value));
+    check(problemOpts.includes('Bearing failure'), 'the Problem field offers the managed list', problemOpts.join(','));
+    await qcd.getByLabel(/Work done/).fill('Bearing replaced.');
+    await qcd.getByLabel(/^Cause/).fill('Wear & tear');
+    await qcd.getByLabel('Action taken').fill('Replaced component');
+    await qcd.getByRole('button', { name: 'Close work order' }).click();
     await qcd.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const bdCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/2/close').pop();
+    check(bdCall?.body.corrective_action === 'Replaced component' && bdCall?.body.cause_of_failure === 'Wear & tear', 'a breakdown close sends its Cause and Action codes', JSON.stringify(bdCall?.body).slice(0, 200));
     await d.getByRole('tab', { name: 'Work request' }).click();
     check(await d.getByText('Inspect the seal').isVisible() && await d.getByText('Alex').first().isVisible(), 'the request step shows the job and who does it');
     await page.waitForTimeout(450); await shot(page, 'detail@1440');
@@ -137,7 +148,7 @@ const spec = {
     await page.waitForTimeout(600);
     const put = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
     check(Array.isArray(put?.body.spares_used) && put.body.spares_used.length === 0, 'saving with every spare removed sends an empty list, so they really go', JSON.stringify(put?.body?.spares_used));
-    check(put?.body.classification === null && put.body.failure_mode === null && put.body.total_time_worked === '', 'a cleared classification is sent as null (and drops the failure mode that only applies to breakdowns)', JSON.stringify(put?.body).slice(0, 160));
+    check(put?.body.classification === null && put.body.failure_mode === null && put.body.corrective_action === null && put.body.total_time_worked === '', 'a cleared classification is sent as null (and drops the failure codes that only apply to breakdowns)', JSON.stringify(put?.body).slice(0, 200));
 
     // foreman sign-off starts from the order as saved, so it cannot write back an older status
     await d.getByRole('button', { name: 'Close', exact: true }).click();
@@ -145,7 +156,7 @@ const spec = {
     const d2 = dialog('Work order WO-00002');
     await d2.waitFor({ timeout: 5000 });
     await d2.getByRole('tab', { name: 'Foreman sign-off' }).click();
-    check(await d2.getByRole('combobox', { name: /Final status/ }).innerText().then(t => /In progress/.test(t)), 'the foreman step starts from the current status');
+    check(await d2.getByRole('combobox', { name: /Final status/ }).innerText().then(t => /Completed/.test(t)), 'the foreman step starts from the current status (WO-00002 was closed above)');
     await d2.getByRole('button', { name: /Foreman signature, not signed/ }).click();
     const pad = page.getByRole('dialog', { name: 'Foreman signature' });
     await pad.waitFor({ timeout: 5000 });
@@ -156,7 +167,7 @@ const spec = {
     await d2.getByRole('button', { name: 'Save foreman sign-off' }).click();
     await page.waitForTimeout(500);
     const fp = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
-    check(/^data:image\/png/.test(fp?.body.foreman_sign || '') && fp.body.status === 'in-progress', 'the sign-off is saved with the current status', JSON.stringify(fp?.body).slice(0, 120));
+    check(/^data:image\/png/.test(fp?.body.foreman_sign || '') && fp.body.status === 'completed', 'the sign-off is saved with the current status', JSON.stringify(fp?.body).slice(0, 120));
     await page.keyboard.press('Escape');
 
     // edit the request: an emptied due date is cleared, not kept

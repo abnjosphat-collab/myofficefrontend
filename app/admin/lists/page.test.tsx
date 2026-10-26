@@ -23,4 +23,10 @@ describe('admin lists quick-add', () => {
     expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
     expect(screen.queryByText('Type a value to enable Add.')).not.toBeInTheDocument();
   });
+
+  it('marks a starter list as replace-with-eMaint', async () => {
+    render(<ConfirmProvider><ListPane list={{ key: 'failure_problem', label: 'Failure problems', icon: 'breakdown', empty: 'problems', note: 'Starter list — replace with the eMaint codes.' }} /></ConfirmProvider>);
+    await waitFor(() => expect(getMock).toHaveBeenCalled());
+    expect(screen.getByText('Starter list — replace with the eMaint codes.')).toBeInTheDocument();
+  });
 });

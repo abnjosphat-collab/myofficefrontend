@@ -37,6 +37,34 @@ completed when the artisan closes it, whether or not the foreman has signed.
 - The full artisan report (`ArtisanReportForm`) still closes the old way (PATCH with `status: completed`); the close
   endpoints are additive, so today's frontend keeps working.
 
+## Failure coding (M3, 26 Oct 2026)
+
+A breakdown is closed with three codes — Problem, Cause, Action — picked from
+manager-edited lists (or typed new, which remembers the value for next time).
+Anything else closes without them: the codes are required only for breakdowns.
+
+| Code | Work-order column | Lookup list |
+|------|-------------------|-------------|
+| Problem (what failed) | `failure_mode` | `failure_problem` |
+| Cause (why it failed) | `cause_of_failure` | `failure_cause` |
+| Action (what fixed it) | `corrective_action` (nullable; M3 SQL below) | `failure_action` |
+
+- **Required only for breakdowns:** `POST .../close` refuses a breakdown close
+  missing any of the three (422 naming each gap), on the same merged values as
+  M2 (what was sent, falling back to the row). Other jobs never need codes,
+  and bulk close never carries them (breakdowns cannot join a batch).
+- **The lists are seeded starters:** `supabase_m3_failure_codes_20261026.sql`
+  (NOT RUN — owner-run, one transaction, backup inside) adds the
+  `corrective_action` column and seeds 8 values per list. They are marked
+  "starter list, replace with eMaint codes" in the Admin panel; managers edit
+  them at Admin panel > Shared lists (add, rename, delete; rename/delete are
+  manager-only on the server too). Until the SQL runs, the server neither
+  requires nor stores the Action (the column does not exist); Problem and
+  Cause work before and after.
+- **New values are learned:** a close or artisan report that stores a value
+  not on its list adds it (case-insensitive match first, so "Wear" and "wear"
+  do not both land on the list). Learning never fails the write.
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.

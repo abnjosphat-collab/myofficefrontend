@@ -1,6 +1,9 @@
 // /admin/lists: shared pick-or-type lists (rename, delete with confirmation, add).
 const LOCATIONS = [{ id: 1, value: 'Shaft 1' }, { id: 2, value: 'Mill' }];
 const NATURES = [{ id: 7, value: 'Electrical fault' }];
+const PROBLEMS = [{ id: 11, value: 'Bearing failure' }];
+const CAUSES = [{ id: 12, value: 'Wear & tear' }];
+const ACTIONS = [{ id: 13, value: 'Replaced component' }];
 
 const spec = {
   route: '/admin/lists',
@@ -8,6 +11,9 @@ const spec = {
   data: {
     '/api/lookup-lists/location': request => (request.method() === 'POST' ? { id: 3, value: 'Yard' } : LOCATIONS),
     '/api/lookup-lists/breakdown_nature': NATURES,
+    '/api/lookup-lists/failure_problem': PROBLEMS,
+    '/api/lookup-lists/failure_cause': CAUSES,
+    '/api/lookup-lists/failure_action': ACTIONS,
     'PATCH /api/lookup-lists/location/1': {},
     'DELETE /api/lookup-lists/location/2': {},
   },
@@ -16,6 +22,15 @@ const spec = {
     await page.getByRole('tab', { name: 'Nature of breakdown' }).click();
     await page.getByText('Electrical fault').waitFor({ timeout: 5000 }).catch(() => {});
     check(await page.getByText('Electrical fault').isVisible() && !(await page.getByText('Shaft 1').isVisible().catch(() => false)), 'switching tabs shows the other list only');
+    await page.getByRole('tab', { name: 'Locations' }).click();
+    await page.getByText('Shaft 1').waitFor({ timeout: 5000 });
+
+    await page.getByRole('tab', { name: 'Failure problems' }).click();
+    await page.getByText('Bearing failure').waitFor({ timeout: 5000 }).catch(() => {});
+    check(await page.getByText('Bearing failure').isVisible() && await page.getByText('Starter list — replace with the eMaint codes.').isVisible(), 'the failure code lists are managed here, marked as starter lists');
+    await page.getByRole('tab', { name: 'Failure actions' }).click();
+    await page.getByText('Replaced component').waitFor({ timeout: 5000 }).catch(() => {});
+    check(await page.getByText('Replaced component').isVisible(), 'the Action list shows its values');
     await page.getByRole('tab', { name: 'Locations' }).click();
     await page.getByText('Shaft 1').waitFor({ timeout: 5000 });
 

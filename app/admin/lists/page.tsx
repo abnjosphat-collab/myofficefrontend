@@ -1,6 +1,6 @@
 // app/admin/lists/page.tsx — manage the shared, growing "pick from a list, or type a new value" registers
 // (backend/app/routers/lookup_lists.py). Values are added automatically as people type new ones into the
-// forms that use them (Breakdowns' Location and Nature of Breakdown, PPE's Location, Equipment's
+// forms that use them (Breakdowns' Location and Nature of Breakdown, the maintenance failure codes, PPE's
 // Location, Compressors' Location, near-miss / SHEQ inspection / safety complaint Location…). This page
 // is where a typo or duplicate gets fixed without deleting and re-adding a record, or a value is removed.
 'use client';
@@ -17,9 +17,12 @@ import { useApiList } from '@/lib/useApiList';
 interface LookupValue { id: number; value: string }
 
 // Extensible: add an entry here whenever a new shared list is introduced; nothing else on this page changes.
-const KNOWN_LISTS: { key: string; label: string; icon: IconMeaning; empty: string }[] = [
+const KNOWN_LISTS: { key: string; label: string; icon: IconMeaning; empty: string; note?: string }[] = [
   { key: 'location', label: 'Locations', icon: 'departments', empty: 'locations' },
   { key: 'breakdown_nature', label: 'Nature of breakdown', icon: 'breakdown', empty: 'breakdown types' },
+  { key: 'failure_problem', label: 'Failure problems', icon: 'breakdown', empty: 'problems', note: 'Starter list — replace with the eMaint codes.' },
+  { key: 'failure_cause', label: 'Failure causes', icon: 'breakdown', empty: 'causes', note: 'Starter list — replace with the eMaint codes.' },
+  { key: 'failure_action', label: 'Failure actions', icon: 'breakdown', empty: 'actions', note: 'Starter list — replace with the eMaint codes.' },
 ];
 
 function ListRow({ item, onRename, onDelete }: { item: LookupValue; onRename: (id: number, value: string) => Promise<boolean>; onDelete: (item: LookupValue) => void }) {
@@ -104,6 +107,7 @@ export function ListPane({ list }: { list: (typeof KNOWN_LISTS)[number] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {list.note && <p className="font-sans text-caption text-ink-muted">{list.note}</p>}
       <form className="flex gap-2" onSubmit={e => { e.preventDefault(); add(); }}>
         <Input aria-label={`New ${list.label.toLowerCase()} value`} value={newValue} onChange={e => setNewValue(e.target.value)} placeholder="Add a new value" className="min-w-0 flex-1" />
         <Button type="submit" variant="primary" icon="plus" pending={adding} disabled={!newValue.trim()}>Add</Button>
@@ -140,7 +144,7 @@ function AdminListsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'System' }, { label: 'Admin panel' }, { label: 'Shared lists' }]}
         title="Shared lists"
-        description="The pick-or-type lists used across the app: location, nature of breakdown, and any added later."
+        description="The pick-or-type lists used across the app: location, nature of breakdown, and the failure Problem / Cause / Action codes."
       />
       <Tabs value={activeList} onValueChange={setActiveList}>
         <TabsList aria-label="Shared lists">

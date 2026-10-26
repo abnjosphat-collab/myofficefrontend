@@ -189,12 +189,12 @@ export function editOrderBody(form: RequestForm) {
 export interface ArtisanReport {
   work_done_details: string; cause_of_failure: string; delay_details: string; time_work_started: string; time_work_finished: string; overtime_start_time: string; overtime_end_time: string;
   delay_from_time: string; delay_to_time: string; artisan_name: string; artisan_sign: string; artisan_date: string; status: WorkOrderStatus; progress: number;
-  classification: WOClassification | ''; classification_custom: string; failure_mode: string; discipline: Discipline | ''; trade: Trade | '';
+  classification: WOClassification | ''; classification_custom: string; failure_mode: string; corrective_action: string; discipline: Discipline | ''; trade: Trade | '';
 }
 
 /**
  * The artisan's report as the server should store it. The three durations are worked out from the times, never typed. A choice that was
- * cleared or no longer applies (a failure mode on a job that is not a breakdown) is sent as null so it is cleared, and the spares are
+ * cleared or no longer applies (a code on a job that is not a breakdown) is sent as null so it is cleared, and the spares are
  * always sent as a list: sending nothing for an emptied list kept the old spares for ever.
  */
 export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
@@ -205,7 +205,7 @@ export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
     delay_from_time: r.delay_from_time, delay_to_time: r.delay_to_time, total_delay_hours: durationText(r.delay_from_time, r.delay_to_time),
     artisan_name: r.artisan_name, artisan_sign: r.artisan_sign, artisan_date: r.artisan_date, status: r.status, progress: r.progress,
     classification: r.classification || null, classification_custom: r.classification === 'custom' ? r.classification_custom || null : null,
-    failure_mode: r.classification === 'breakdown' ? r.failure_mode || null : null, discipline: r.discipline || null, trade: r.discipline === 'Mechanical' ? r.trade || null : null,
+    failure_mode: r.classification === 'breakdown' ? r.failure_mode || null : null, corrective_action: r.classification === 'breakdown' ? r.corrective_action || null : null, discipline: r.discipline || null, trade: r.discipline === 'Mechanical' ? r.trade || null : null,
     spares_used: spares,
   };
 }
@@ -213,7 +213,7 @@ export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
 // ── Fast close (M2) ─────────────────────────────────────────────────────────────────────────────────────────
 export interface QuickCloseDraft {
   work_done: string; mode: 'times' | 'hours'; start: string; finish: string; hours: string;
-  artisan_name: string; artisan_date: string; cause: string; failure_mode: string;
+  artisan_name: string; artisan_date: string; cause: string; failure_mode: string; action: string;
 }
 
 const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
@@ -224,8 +224,8 @@ const minsOf = (v: string): number | null => { const m = v.trim().match(HHMM); r
  * same merged values (what was typed, falling back to what the job already holds): the server re-checks everything, so
  * this is an early courtesy, never the rule.
  */
-export function quickCloseProblems(d: QuickCloseDraft, w: WorkOrder): { work_done?: string; time?: string; cause?: string; failure_mode?: string; date?: string } {
-  const out: { work_done?: string; time?: string; cause?: string; failure_mode?: string; date?: string } = {};
+export function quickCloseProblems(d: QuickCloseDraft, w: WorkOrder): { work_done?: string; time?: string; cause?: string; failure_mode?: string; action?: string; date?: string } {
+  const out: { work_done?: string; time?: string; cause?: string; failure_mode?: string; action?: string; date?: string } = {};
   if (!d.work_done.trim() && !(w.work_done_details || '').trim()) out.work_done = 'Say what was done.';
   const rowTime = (w.total_time_worked || '').trim();
   if (d.mode === 'hours') {
@@ -242,6 +242,7 @@ export function quickCloseProblems(d: QuickCloseDraft, w: WorkOrder): { work_don
   if (w.classification === 'breakdown') {
     if (!d.cause.trim() && !(w.cause_of_failure || '').trim()) out.cause = 'Say what caused the breakdown.';
     if (!d.failure_mode.trim() && !(w.failure_mode || '').trim()) out.failure_mode = 'Pick the failure mode.';
+    if (!d.action.trim() && !(w.corrective_action || '').trim()) out.action = 'Say what action fixed it.';
   }
   if (d.artisan_date.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(d.artisan_date.trim())) out.date = 'The date must be YYYY-MM-DD.';
   return out;
@@ -256,6 +257,7 @@ export function quickCloseBody(d: QuickCloseDraft): Record<string, unknown> {
   if (d.artisan_date.trim()) body.artisan_date = d.artisan_date.trim();
   if (d.cause.trim()) body.cause_of_failure = d.cause.trim();
   if (d.failure_mode.trim()) body.failure_mode = d.failure_mode.trim();
+  if (d.action.trim()) body.corrective_action = d.action.trim();
   return body;
 }
 

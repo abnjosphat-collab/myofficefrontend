@@ -86,19 +86,20 @@ describe('sign-off, not-done and closing', () => {
     expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'breakdown' }))).toBe('Only routine planned jobs close in bulk.');
     expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'project' }))).toBe('Only routine planned jobs close in bulk.');
   });
-  const q: QuickCloseDraft = { work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: '', artisan_date: '', cause: '', failure_mode: '' };
+  const q: QuickCloseDraft = { work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: '', artisan_date: '', cause: '', failure_mode: '', action: '' };
   it('asks for what is missing, counting what the job already holds', () => {
     expect(quickCloseProblems(q, wo())).toEqual({ work_done: 'Say what was done.', time: 'Record the time worked: start and finish, or hours.' });
     expect(quickCloseProblems(q, wo({ work_done_details: 'Seal replaced.', total_time_worked: '2h 00m' }))).toEqual({});
     expect(quickCloseProblems({ ...q, work_done: 'Done', start: '08:00' }, wo())).toEqual({ time: 'Give both the start and finish times, or hours instead.' });
     expect(quickCloseProblems({ ...q, work_done: 'Done', mode: 'hours', hours: '0' }, wo())).toEqual({ time: 'Hours must be more than 0 (and below 1000).' });
     expect(quickCloseProblems({ ...q, work_done: 'Done', mode: 'hours', hours: '2.5' }, wo())).toEqual({});
-    expect(quickCloseProblems(q, wo({ work_done_details: 'd', total_time_worked: '1h 00m', classification: 'breakdown' }))).toEqual({ cause: 'Say what caused the breakdown.', failure_mode: 'Pick the failure mode.' });
+    expect(quickCloseProblems(q, wo({ work_done_details: 'd', total_time_worked: '1h 00m', classification: 'breakdown' }))).toEqual({ cause: 'Say what caused the breakdown.', failure_mode: 'Pick the failure mode.', action: 'Say what action fixed it.' });
     expect(quickCloseProblems({ ...q, work_done: 'd', mode: 'hours', hours: '1', artisan_date: '32 Oct' }, wo())).toEqual({ date: 'The date must be YYYY-MM-DD.' });
   });
   it('sends only what was typed', () => {
     expect(quickCloseBody({ ...q, work_done: ' Done ', mode: 'hours', hours: '2.5', artisan_name: 'Alex' })).toEqual({ work_done_details: 'Done', total_hours: 2.5, artisan_name: 'Alex' });
     expect(quickCloseBody({ ...q, work_done: 'd', start: '08:00', finish: '10:30' })).toEqual({ work_done_details: 'd', time_work_started: '08:00', time_work_finished: '10:30' });
+    expect(quickCloseBody({ ...q, work_done: 'd', cause: 'c', failure_mode: 'm', action: 'a' })).toMatchObject({ cause_of_failure: 'c', failure_mode: 'm', corrective_action: 'a' });
   });
 });
 
@@ -150,15 +151,15 @@ describe('what the forms send', () => {
 describe('artisanBody', () => {
   const r: ArtisanReport = {
     work_done_details: 'Replaced seal', cause_of_failure: '', delay_details: '', time_work_started: '08:00', time_work_finished: '10:30', overtime_start_time: '', overtime_end_time: '', delay_from_time: '', delay_to_time: '',
-    artisan_name: 'Alex', artisan_sign: 'Alex', artisan_date: '2026-10-04', status: 'completed', progress: 100, classification: 'breakdown', classification_custom: 'ignored', failure_mode: 'Seal / gasket failure', discipline: 'Mechanical', trade: 'Fitter',
+    artisan_name: 'Alex', artisan_sign: 'Alex', artisan_date: '2026-10-04', status: 'completed', progress: 100, classification: 'breakdown', classification_custom: 'ignored', failure_mode: 'Seal / gasket failure', corrective_action: 'Replaced seal', discipline: 'Mechanical', trade: 'Fitter',
   };
   it('works out the durations from the times and keeps what applies', () => {
     const b = artisanBody(r, []);
-    expect(b).toMatchObject({ total_time_worked: '2h 30m', overtime_hours: '', total_delay_hours: '', classification: 'breakdown', failure_mode: 'Seal / gasket failure', classification_custom: null, trade: 'Fitter' });
+    expect(b).toMatchObject({ total_time_worked: '2h 30m', overtime_hours: '', total_delay_hours: '', classification: 'breakdown', failure_mode: 'Seal / gasket failure', corrective_action: 'Replaced seal', classification_custom: null, trade: 'Fitter' });
   });
   it('clears what no longer applies and always sends the spares as a list', () => {
     const b = artisanBody({ ...r, classification: '', discipline: 'Electrical' }, []);
-    expect(b).toMatchObject({ classification: null, failure_mode: null, trade: null, discipline: 'Electrical', spares_used: [] });
+    expect(b).toMatchObject({ classification: null, failure_mode: null, corrective_action: null, trade: null, discipline: 'Electrical', spares_used: [] });
     expect(artisanBody({ ...r, classification: 'custom', classification_custom: 'Shutdown' }, []).classification_custom).toBe('Shutdown');
   });
 });

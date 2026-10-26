@@ -8,11 +8,12 @@ import { toast } from 'sonner';
 import { Button, Checkbox, Field, FieldGroup, Input, Notice, Segmented, Select } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { rememberChoice } from '@/components/shared/RecentChoices';
+import { ListInput } from '@/components/shared/ListInput';
 import { SparesEditor, type SpareLine } from '@/components/shared/SparesEditor';
 import { todayLocal } from '@/lib/dates';
 import { updateWorkOrder } from './api';
 import { artisanBody, durationText, type ArtisanReport } from './helpers';
-import { CLASSIFICATIONS, DISCIPLINES, FAILURE_MODES, MECHANICAL_TRADES, REPORT_STATUSES, statusMeta } from './meta';
+import { CLASSIFICATIONS, DISCIPLINES, MECHANICAL_TRADES, REPORT_STATUSES, statusMeta } from './meta';
 import { PhraseField } from './PhraseField';
 import { SignOffField } from './SignOffField';
 import type { SpareItem, WorkOrder, WorkOrderStatus } from './types';
@@ -35,7 +36,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
     time_work_started: order.time_work_started || '', time_work_finished: order.time_work_finished || '', overtime_start_time: order.overtime_start_time || '', overtime_end_time: order.overtime_end_time || '',
     delay_from_time: order.delay_from_time || '', delay_to_time: order.delay_to_time || '', artisan_name: order.artisan_name || order.allocated_to || savedName(), artisan_sign: order.artisan_sign || '',
     artisan_date: order.artisan_date || todayLocal(), status: order.status, progress: order.progress ?? 0, classification: order.classification || '', classification_custom: order.classification_custom || '',
-    failure_mode: order.failure_mode || '', discipline: order.discipline || '', trade: order.trade || '',
+    failure_mode: order.failure_mode || '', corrective_action: order.corrective_action || '', discipline: order.discipline || '', trade: order.trade || '',
   }));
   const [spares, setSpares] = useState<SpareItem[]>(order.spares_used || []);
   const [pending, setPending] = useState(false);
@@ -63,7 +64,10 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
         <Segmented label="Classification" value={r.classification} onValueChange={v => set({ classification: v as ArtisanReport['classification'] })} options={CLASS_OPTIONS} />
         {r.classification === 'custom' && <Field label="Specify the type"><Input value={r.classification_custom} onChange={e => set({ classification_custom: e.target.value })} placeholder="Commissioning, shutdown work" /></Field>}
         {r.classification === 'breakdown' && (
-          <Field label="Failure mode" optional><Input list="ar-failure-modes" value={r.failure_mode} onChange={e => set({ failure_mode: e.target.value })} placeholder="Choose or type" /><datalist id="ar-failure-modes">{FAILURE_MODES.map(m => <option key={m} value={m}>{m}</option>)}</datalist></Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Problem" optional><ListInput listName="failure_problem" value={r.failure_mode} onChange={v => set({ failure_mode: v })} placeholder="What failed" /></Field>
+            <Field label="Action taken" optional><ListInput listName="failure_action" value={r.corrective_action} onChange={v => set({ corrective_action: v })} placeholder="What fixed it" /></Field>
+          </div>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FieldGroup label="Discipline"><Segmented label="Discipline" value={r.discipline} onValueChange={v => set({ discipline: v as ArtisanReport['discipline'], ...(v !== 'Mechanical' ? { trade: '' } : {}) })} options={DISCIPLINE_OPTIONS} /></FieldGroup>
@@ -78,7 +82,7 @@ export function ArtisanReportForm({ order, onSaved }: { order: WorkOrder; onSave
 
       <PhraseField label="Work done" value={r.work_done_details} onChange={v => set({ work_done_details: v })} placeholder="Describe exactly what was done" historyKey="maint_work_done" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <PhraseField label="Cause of failure" value={r.cause_of_failure} onChange={v => set({ cause_of_failure: v })} placeholder="What caused the issue" historyKey="maint_cause" />
+        <Field label="Cause" optional><ListInput listName="failure_cause" value={r.cause_of_failure} onChange={v => set({ cause_of_failure: v })} placeholder="Why it failed" /></Field>
         <PhraseField label="Delay details" value={r.delay_details} onChange={v => set({ delay_details: v })} placeholder="Any delays met" historyKey="maint_delay" />
       </div>
 

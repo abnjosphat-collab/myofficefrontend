@@ -1,5 +1,5 @@
 // app/maintenance/QuickCloseDialog.tsx — close a job in seconds: what was done, the time as start/finish or plain hours,
-// and (for a breakdown) its cause and failure mode. One job or a batch of routine planned jobs share the same note and
+// and (for a breakdown) its Problem, Cause and Action codes. One job or a batch of routine planned jobs share the same note and
 // time; each job keeps its own artisan and date, and anything already recorded counts. A refusal shows its reason here
 // and keeps what was typed.
 'use client';
@@ -14,7 +14,7 @@ import { todayLocal } from '@/lib/dates';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import { bulkCloseWorkOrders, closeWorkOrder, type BulkCloseResult } from './api';
 import { bulkCloseRefusal, durationText, parseDurationHours, quickCloseBody, quickCloseProblems, type QuickCloseDraft } from './helpers';
-import { FAILURE_MODES } from './meta';
+import { ListInput } from '@/components/shared/ListInput';
 import { PhraseField } from './PhraseField';
 import type { WorkOrder } from './types';
 
@@ -22,13 +22,13 @@ export type QuickCloseRequest = { kind: 'single'; order: WorkOrder } | { kind: '
 
 const SAVED_NAME = 'maint_artisan_name';
 const savedName = () => { try { return localStorage.getItem(SAVED_NAME) || ''; } catch { return ''; } };
-const blank = (): QuickCloseDraft => ({ work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: savedName(), artisan_date: todayLocal(), cause: '', failure_mode: '' });
+const blank = (): QuickCloseDraft => ({ work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: savedName(), artisan_date: todayLocal(), cause: '', failure_mode: '', action: '' });
 const fromOrder = (w: WorkOrder): QuickCloseDraft => {
   const hours = !w.time_work_started && !w.time_work_finished && w.total_time_worked ? String(parseDurationHours(w.total_time_worked) || '') : '';
   return {
     work_done: w.work_done_details || '', mode: hours ? 'hours' : 'times', start: w.time_work_started || '', finish: w.time_work_finished || '', hours,
     artisan_name: w.artisan_name || w.allocated_to || savedName(), artisan_date: w.artisan_date || todayLocal(),
-    cause: w.cause_of_failure || '', failure_mode: w.failure_mode || '',
+    cause: w.cause_of_failure || '', failure_mode: w.failure_mode || '', action: w.corrective_action || '',
   };
 };
 // Bulk validation runs against an empty probe: the shared note and time are always required, and breakdowns (with
@@ -108,9 +108,10 @@ export function QuickCloseDialog({ request, onOpenChange, onClosed, onBulkClosed
           )}
         </FieldGroup>
         {breakdown && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <PhraseField label="Cause of failure" value={d.cause} onChange={v => set({ cause: v })} placeholder="What caused the breakdown" historyKey="maint_cause" required error={err(problems.cause)} />
-            <Field label="Failure mode" required error={err(problems.failure_mode)}><Input list="qc-failure-modes" value={d.failure_mode} onChange={e => set({ failure_mode: e.target.value })} placeholder="Choose or type" /><datalist id="qc-failure-modes">{FAILURE_MODES.map(m => <option key={m} value={m}>{m}</option>)}</datalist></Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label="Problem" required error={err(problems.failure_mode)}><ListInput listName="failure_problem" value={d.failure_mode} onChange={v => set({ failure_mode: v })} placeholder="What failed" /></Field>
+            <Field label="Cause" required error={err(problems.cause)}><ListInput listName="failure_cause" value={d.cause} onChange={v => set({ cause: v })} placeholder="Why it failed" /></Field>
+            <Field label="Action taken" required error={err(problems.action)}><ListInput listName="failure_action" value={d.action} onChange={v => set({ action: v })} placeholder="What fixed it" /></Field>
           </div>
         )}
         {single && (

@@ -5,7 +5,7 @@ import { ConfirmProvider } from '@/components/ui-system';
 import { QuickCloseDialog, type QuickCloseRequest } from './QuickCloseDialog';
 import type { WorkOrder } from './types';
 
-vi.mock('@/hooks/useLookups', () => ({ useEmployees: () => [], useEquipment: () => [] }));
+vi.mock('@/hooks/useLookups', () => ({ useEmployees: () => [], useEquipment: () => [], useLookupList: () => [] }));
 vi.mock('./api', () => ({ closeWorkOrder: vi.fn(), bulkCloseWorkOrders: vi.fn() }));
 
 import { bulkCloseWorkOrders, closeWorkOrder } from './api';
@@ -28,15 +28,17 @@ function setup(request: QuickCloseRequest) {
 describe('QuickCloseDialog', () => {
   beforeEach(() => { vi.mocked(closeWorkOrder).mockClear(); vi.mocked(bulkCloseWorkOrders).mockClear(); });
 
-  it('a breakdown asks for cause and failure mode, and an empty submit explains without calling', async () => {
+  it('a breakdown asks for its Problem, Cause and Action, and an empty submit explains without calling', async () => {
     const user = userEvent.setup();
     setup({ kind: 'single', order: wo({ classification: 'breakdown' }) });
     expect(screen.getByRole('dialog', { name: /WO-00001/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Cause of failure/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Failure mode/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Problem/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Cause/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Action taken/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close work order' }));
     expect(screen.getByText('Say what was done.')).toBeInTheDocument();
     expect(screen.getByText('Say what caused the breakdown.')).toBeInTheDocument();
+    expect(screen.getByText('Say what action fixed it.')).toBeInTheDocument();
     expect(vi.mocked(closeWorkOrder)).not.toHaveBeenCalled();
   });
 

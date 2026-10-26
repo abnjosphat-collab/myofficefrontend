@@ -45,7 +45,7 @@ export interface WorkOrder {
   delay_from_time: string; delay_to_time: string; total_delay_hours: string;
   status: WorkOrderStatus; priority: WorkOrderPriority; progress: number;
   notes?: string; due_date?: string; created_at: string; updated_at: string;
-  classification?: WOClassification; classification_custom?: string; failure_mode?: string;
+  classification?: WOClassification; classification_custom?: string; failure_mode?: string; corrective_action?: string;
   discipline?: Discipline; trade?: Trade; spares_used?: SpareItem[];
   // M1: register link, raising schedule, and server-stamped times (absent until the M1 SQL
   // has run; the stamps are set by the server on status/sign-off transitions, never sent).

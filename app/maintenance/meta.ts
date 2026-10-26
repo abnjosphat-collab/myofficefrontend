@@ -1,6 +1,6 @@
 // app/maintenance/meta.ts — the fixed vocabulary of the work-order module: statuses, priorities, classifications, disciplines and
-// trades, the common failure modes, and the recurrence kinds a schedule can follow. Lookups fall back to the raw value so a record
-// holding something unexpected still renders.
+// trades, and the recurrence kinds a schedule can follow. Failure codes (Problem/Cause/Action) are manager-edited lookup lists,
+// not fixed here. Lookups fall back to the raw value so a record holding something unexpected still renders.
 import type { Tone } from '@/components/ui-system';
 import type { Discipline, RecurrenceType, Trade, WOClassification, WorkOrderPriority, WorkOrderStatus } from './types';
 import { priorityTone, statusTone } from '@/lib/status';
@@ -30,12 +30,6 @@ export const classificationLabel = (wo: { classification?: string; classificatio
 
 export const DISCIPLINES: Discipline[] = ['Mechanical', 'Electrical'];
 export const MECHANICAL_TRADES: Trade[] = ['Fitter', 'Boilermaker', 'Rigger', 'Plumber', 'Carpenter'];
-export const FAILURE_MODES = [
-  'Bearing failure', 'Seal / gasket failure', 'Motor failure', 'Belt / chain failure', 'Shaft failure', 'Coupling failure', 'Gearbox failure', 'Pump failure', 'Valve failure',
-  'Electrical fault', 'Lubrication failure', 'Structural failure / cracking', 'Overheating', 'Blockage / fouling', 'Corrosion', 'Wear & tear', 'Operator error',
-  'Foreign object damage', 'Calibration drift', 'Other',
-];
-
 export const RECURRENCES: { value: RecurrenceType; label: string }[] = [
   { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Every 2 weeks' }, { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Quarterly' }, { value: 'yearly', label: 'Yearly' }, { value: 'custom', label: 'Specific dates' },
