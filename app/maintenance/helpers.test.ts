@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  NO_FILTERS, artisanBody, calcStats, countByStatus, durationText, editOrderBody, filterOrders, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, recurrenceLabel,
+  NO_FILTERS, artisanBody, bulkCloseRefusal, calcStats, countByStatus, durationText, editOrderBody, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, quickCloseBody, quickCloseProblems, recurrenceLabel, type QuickCloseDraft,
   NO_ANALYTICS_FILTERS, analyticsFilterCount, distinct, filterAnalytics, scheduleBody, scheduleProblems, type ArtisanReport, type RequestForm, type ScheduleDraft,
 } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
@@ -15,6 +15,7 @@ describe('isOverdue', () => {
     expect(isOverdue({ due_date: TODAY, status: 'pending' }, TODAY)).toBe(false);
     expect(isOverdue({ due_date: '2026-10-03', status: 'completed' }, TODAY)).toBe(false);
     expect(isOverdue({ due_date: '2026-10-03', status: 'cancelled' }, TODAY)).toBe(false);
+    expect(isOverdue({ due_date: '2026-10-03', status: 'not-done' }, TODAY)).toBe(false);
     expect(isOverdue({ due_date: undefined, status: 'pending' }, TODAY)).toBe(false);
   });
 });
@@ -56,9 +57,48 @@ describe('the register filter and sort', () => {
     expect(ids({ sort: 'date-asc' })).toEqual(['a', 'c', 'b']);
   });
   it('counts per status tile, overdue included', () => {
-    expect(countByStatus(rows, TODAY)).toEqual({ all: 3, pending: 1, 'in-progress': 1, completed: 1, 'on-hold': 0, overdue: 1 });
+    expect(countByStatus(rows, TODAY)).toEqual({ all: 3, pending: 1, 'in-progress': 1, completed: 1, 'on-hold': 0, 'not-done': 0, 'sign-off': 1, overdue: 1 });
     expect(isFiltered(NO_FILTERS)).toBe(false);
     expect(isFiltered({ ...NO_FILTERS, priorities: ['low'] })).toBe(true);
+  });
+});
+
+describe('sign-off, not-done and closing', () => {
+  const rows = [
+    wo({ id: 'a', status: 'completed', foreman_sign: '' }),
+    wo({ id: 'b', status: 'completed', foreman_sign: 'signed' }),
+    wo({ id: 'c', status: 'not-done' }),
+    wo({ id: 'd', status: 'pending' }),
+    wo({ id: 'e', status: 'cancelled' }),
+  ];
+  const ids = (f: Partial<typeof NO_FILTERS>) => filterOrders(rows, { ...NO_FILTERS, ...f }, TODAY).map(r => r.id);
+  it('awaits sign-off only when finished but unsigned, and closes anything not terminal', () => {
+    expect(rows.map(isAwaitingSignoff)).toEqual([true, false, false, false, false]);
+    expect(rows.map(isClosable)).toEqual([false, false, false, true, false]);
+    expect(ids({ status: 'sign-off' })).toEqual(['a']);
+    expect(ids({ status: 'not-done' })).toEqual(['c']);
+    expect(countByStatus(rows, TODAY)).toMatchObject({ 'sign-off': 1, 'not-done': 1, completed: 2 });
+  });
+  it('refuses a bulk close for finished or non-routine jobs', () => {
+    expect(bulkCloseRefusal(wo({ status: 'pending' }))).toBeNull();
+    expect(bulkCloseRefusal(wo({ status: 'in-progress', classification: 'planned_maintenance' }))).toBeNull();
+    expect(bulkCloseRefusal(wo({ status: 'completed' }))).toBe('Already completed.');
+    expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'breakdown' }))).toBe('Only routine planned jobs close in bulk.');
+    expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'project' }))).toBe('Only routine planned jobs close in bulk.');
+  });
+  const q: QuickCloseDraft = { work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: '', artisan_date: '', cause: '', failure_mode: '' };
+  it('asks for what is missing, counting what the job already holds', () => {
+    expect(quickCloseProblems(q, wo())).toEqual({ work_done: 'Say what was done.', time: 'Record the time worked: start and finish, or hours.' });
+    expect(quickCloseProblems(q, wo({ work_done_details: 'Seal replaced.', total_time_worked: '2h 00m' }))).toEqual({});
+    expect(quickCloseProblems({ ...q, work_done: 'Done', start: '08:00' }, wo())).toEqual({ time: 'Give both the start and finish times, or hours instead.' });
+    expect(quickCloseProblems({ ...q, work_done: 'Done', mode: 'hours', hours: '0' }, wo())).toEqual({ time: 'Hours must be more than 0 (and below 1000).' });
+    expect(quickCloseProblems({ ...q, work_done: 'Done', mode: 'hours', hours: '2.5' }, wo())).toEqual({});
+    expect(quickCloseProblems(q, wo({ work_done_details: 'd', total_time_worked: '1h 00m', classification: 'breakdown' }))).toEqual({ cause: 'Say what caused the breakdown.', failure_mode: 'Pick the failure mode.' });
+    expect(quickCloseProblems({ ...q, work_done: 'd', mode: 'hours', hours: '1', artisan_date: '32 Oct' }, wo())).toEqual({ date: 'The date must be YYYY-MM-DD.' });
+  });
+  it('sends only what was typed', () => {
+    expect(quickCloseBody({ ...q, work_done: ' Done ', mode: 'hours', hours: '2.5', artisan_name: 'Alex' })).toEqual({ work_done_details: 'Done', total_hours: 2.5, artisan_name: 'Alex' });
+    expect(quickCloseBody({ ...q, work_done: 'd', start: '08:00', finish: '10:30' })).toEqual({ work_done_details: 'd', time_work_started: '08:00', time_work_finished: '10:30' });
   });
 });
 

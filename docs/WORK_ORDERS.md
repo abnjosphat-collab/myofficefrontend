@@ -12,8 +12,30 @@ From backend `app/routers/maintenance.py` stats and filters:
 | `in-progress` | Hyphenated string in DB |
 | `completed` | Used for overdue logic exclusion |
 | `on-hold` | Hyphenated string in DB |
+| `not-done` | A planned job that was missed (M0 section 2; terminal, never overdue) |
+| `cancelled` | Set aside (terminal, never overdue) |
+| `postponed` | Deliberately deferred (still open; can be overdue) |
 
-Overdue calculation treats rows with `due_date` and `status != 'completed'`. Any new status must be wired through stats, filters, and UI consistently.
+Overdue = a row with a `due_date` in the past whose status is not terminal (terminal = `completed`, `cancelled`, `not-done`).
+Any new status must be wired through stats, filters, and UI consistently.
+
+## Closing a job (M2, 26 Oct 2026)
+
+The artisan closes fast; the foreman signs later. Completion and sign-off are separate steps: a job counts as
+completed when the artisan closes it, whether or not the foreman has signed.
+
+- **Single close:** `POST /api/maintenance/work-orders/{id}/close` with what was done plus the actual time (start and
+  finish times, or plain hours). A breakdown also needs its cause and failure mode. Anything the row already holds
+  counts: the check runs on the merged values, so a job reported earlier closes with only what is missing. Sets
+  `status: completed`, `progress: 100`, the M1 stamps, and one `closed` audit event. Refuses a terminal job (409) or a
+  job with gaps (422 naming each one). The foreman sign-off is untouched.
+- **Bulk close:** `POST /api/maintenance/work-orders/bulk-close` with up to 100 ids plus the shared note and time.
+  Only open, routine planned jobs close in bulk (no classification yet, or `planned_maintenance`); every other row is
+  skipped with its reason. The answer is always 200: `{closed: [ids], skipped: [{id, reason}]}`.
+- **Awaiting sign-off** = `status: completed` with a blank `foreman_sign`. It has its own tile, filter, and badge on
+  the register; the foreman signs from the work-order detail as before.
+- The full artisan report (`ArtisanReportForm`) still closes the old way (PATCH with `status: completed`); the close
+  endpoints are additive, so today's frontend keeps working.
 
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
@@ -34,7 +56,7 @@ Stamps are written once and never cleared or overwritten (reopening keeps histor
 | Layer | Path |
 |--------|------|
 | API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates; `app/routers/schedules.py` — schedules and generation |
-| UI module | `app/maintenance/` — `page.tsx`, `types.ts`, `api.ts`, `helpers.ts`, `WorkOrderForm.tsx`, `WorkOrderDetail.tsx`, `SchedulesView.tsx`, `ScheduleForm.tsx`, `AnalyticsView.tsx`, `ArtisanReportForm.tsx`, `ForemanSignoff.tsx`, `MachinePicker.tsx`, `PhraseField.tsx`, `phrases.ts`, `SignOffField.tsx`, `meta.ts`, `useMaintenanceData.ts` |
+| UI module | `app/maintenance/` — `page.tsx`, `types.ts`, `api.ts`, `helpers.ts`, `WorkOrderForm.tsx`, `WorkOrderDetail.tsx`, `QuickCloseDialog.tsx`, `SchedulesView.tsx`, `ScheduleForm.tsx`, `AnalyticsView.tsx`, `ArtisanReportForm.tsx`, `ForemanSignoff.tsx`, `MachinePicker.tsx`, `PhraseField.tsx`, `phrases.ts`, `SignOffField.tsx`, `meta.ts`, `useMaintenanceData.ts` |
 | Related ops | Breakdowns, requisitions, spares, equipment pages may link or reference maintenance context — grep before assuming isolation |
 
 ## Journey checklist (when touching WOs)

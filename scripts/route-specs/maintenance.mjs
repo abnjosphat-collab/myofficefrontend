@@ -12,6 +12,7 @@ const ORDERS = [
   wo(1, { priority: 'high', due_date: local(-2), classification: 'planned_maintenance' }),
   wo(2, { equipment_info: 'Crusher 1', status: 'in-progress', progress: 40, classification: 'breakdown', failure_mode: 'Bearing failure', discipline: 'Mechanical', trade: 'Fitter', time_raised: '07:30', total_time_worked: '2h 30m', spares_used: [{ id: 's1', name: 'Bearing 6204', quantity: 2, unit_cost: 10 }] }),
   wo(3, { equipment_info: 'Fan 2', status: 'completed', priority: 'low', progress: 100 }),
+  wo(5, { equipment_info: 'Conveyor 5', status: 'not-done', priority: 'low', progress: 0, classification: 'planned_maintenance' }),
   // A legacy record with an unknown status and priority and almost nothing else must render rather than crash.
   { id: 4, work_order_number: 'WO-00004', equipment_info: 'Legacy rig', status: 'weird', priority: 'weird' },
 ];
@@ -30,8 +31,10 @@ const spec = {
       ? (refuseMachine && request.postData()?.includes(refuseMachine) ? { __status: 422, body: { detail: 'Asset is locked (fixture)' } } : { id: 99, ...request.postDataJSON() })
       : ORDERS),
     'PATCH /api/maintenance/work-orders/1': patchOf(1), 'PATCH /api/maintenance/work-orders/2': patchOf(2),
+    'POST /api/maintenance/work-orders/1/close': request => ({ ...ORDERS.find(o => o.id === 1), ...request.postDataJSON(), id: 1, status: 'completed', progress: 100, updated_at: new Date().toISOString() }),
+    'POST /api/maintenance/work-orders/bulk-close': { closed: [1, 4], skipped: [] },
     'DELETE /api/maintenance/work-orders/4': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
-    'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {},
+    'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {}, 'DELETE /api/maintenance/work-orders/5': {},
     '/api/schedules': request => (request.method() === 'POST' ? { id: 77, ...request.postDataJSON() } : SCHEDULES),
     'PATCH /api/schedules/1': () => (failPause ? { __status: 500, body: { detail: 'Pause failed (fixture)' } } : {}),
     '/api/equipment': [{ id: 1, name: 'Pump A', equipment_id: 'EQ-1', department: 'Mining', location: 'Pit', status: 'operational' }, { id: 2, name: 'Crusher 1', equipment_id: 'EQ-2', department: 'Plant', status: 'operational' }],
@@ -40,7 +43,7 @@ const spec = {
   async ready(page, calls, { check, shot }) {
     const dialog = name => page.getByRole('dialog', { name });
     const cards = page.getByRole('list', { name: 'Work orders' }).getByRole('button', { name: /^Open work order/ });
-    check(await cards.count() === 4, 'four work order cards (a legacy record with an unknown status and priority does not crash)', String(await cards.count()));
+    check(await cards.count() === 5, 'five work order cards (a legacy record with an unknown status and priority does not crash)', String(await cards.count()));
     check(await page.getByText('Overdue', { exact: true }).first().isVisible(), 'an overdue job says so in words');
     await shot(page, 'cards@1440');
 
@@ -54,10 +57,33 @@ const spec = {
     check(await cards.count() === 1, 'a priority button narrows the register');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
+    // tiles: the foreman's sign-off list and the missed planned jobs
+    await page.getByRole('button', { name: /^Awaiting sign-off\s*\d/ }).click();
+    check(await cards.count() === 1, 'the Awaiting sign-off tile shows finished-but-unsigned jobs');
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await page.getByRole('button', { name: /^Not done\s*\d/ }).click();
+    check(await cards.count() === 1, 'the Not done tile shows missed planned jobs');
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+
+    // fast close from a card: an empty submit explains, a filled one closes
+    await page.getByRole('button', { name: 'Close work order WO-00001' }).click();
+    const qc = dialog('Done: WO-00001');
+    await qc.waitFor({ timeout: 5000 });
+    await qc.getByRole('button', { name: 'Close work order' }).click();
+    check(await qc.getByText('Say what was done.').isVisible(), 'closing with nothing typed explains what is missing');
+    await qc.getByLabel(/Work done/).fill('Seal replaced.');
+    await qc.getByLabel('Started').fill('08:00');
+    await qc.getByLabel('Finished').fill('10:30');
+    await shot(page, 'quick-close@1440');
+    await qc.getByRole('button', { name: 'Close work order' }).click();
+    await qc.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const qcCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/1/close').pop();
+    check(qcCall?.body.work_done_details === 'Seal replaced.' && qcCall?.body.time_work_started === '08:00' && qcCall?.body.time_work_finished === '10:30' && typeof qcCall?.body.expected_updated_at === 'string', 'closing sends the note, the times and the row version', JSON.stringify(qcCall?.body).slice(0, 160));
+
     // table + bulk delete: confirm first, report a refused one with the server's reason
     await page.getByRole('button', { name: 'Table view' }).click();
     const table = page.getByRole('table', { name: 'Work orders' });
-    check(await table.getByRole('row').count() === 5, 'table view lists the work orders');
+    check(await table.getByRole('row').count() === 6, 'table view lists the work orders');
     await shot(page, 'table@1440');
     await table.getByRole('checkbox', { name: 'Select all rows on this page' }).check();
     await page.getByRole('button', { name: 'Delete selected' }).click();
@@ -66,16 +92,35 @@ const spec = {
     await c0.getByRole('button', { name: 'Cancel' }).click();
     check(!calls.some(c => c.method === 'DELETE'), 'cancelling the confirmation deletes nothing');
     await page.getByRole('button', { name: 'Delete selected' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete 4' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete 5' }).click();
     await page.getByText(/1 could not be deleted: Manager role required/).waitFor({ timeout: 5000 }).catch(() => {});
-    check(await page.getByText(/1 could not be deleted: Manager role required/).isVisible() && calls.filter(c => c.method === 'DELETE').length === 4, 'a refused delete shows the server\'s reason while the others go through');
+    check(await page.getByText(/1 could not be deleted: Manager role required/).isVisible() && calls.filter(c => c.method === 'DELETE').length === 5, 'a refused delete shows the server\'s reason while the others go through');
+    // bulk mark-done: the batch names who cannot join and sends only the rest (the delete above reloaded the list, so WO-00001 is pending again)
+    await table.getByRole('checkbox', { name: 'Select all rows on this page' }).check();
+    await page.getByRole('button', { name: 'Mark done' }).click();
+    const qcb = dialog('Done: 2 work orders');
+    await qcb.waitFor({ timeout: 5000 });
+    check(await qcb.getByText(/cannot close in this batch/).isVisible(), 'a bulk close names the jobs that cannot join it');
+    await qcb.getByLabel(/Work done/).fill('Routine check done.');
+    await qcb.getByRole('button', { name: 'Hours' }).click();
+    await qcb.getByLabel('Hours').fill('0.5');
+    await qcb.getByRole('button', { name: 'Close 2 work orders' }).click();
+    await qcb.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const bulkCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/bulk-close').pop();
+    check(JSON.stringify(bulkCall?.body.ids) === '[1,4]' && bulkCall?.body.total_hours === 0.5, 'a bulk close sends the shared note and time for the eligible jobs only', JSON.stringify(bulkCall?.body).slice(0, 160));
     await page.getByRole('button', { name: 'Card view' }).click();
 
-    // detail: the request, then the artisan's report
+    // detail: the request (with its Done shortcut), then the artisan's report
     await page.getByRole('button', { name: /^Open work order WO-00002/ }).click();
     const d = dialog('Work order WO-00002');
     await d.waitFor({ timeout: 5000 });
     check(await d.getByRole('tab', { name: 'Artisan report' }).getAttribute('aria-selected') === 'true', 'the detail opens on the artisan report');
+    await d.getByRole('button', { name: 'Done', exact: true }).click();
+    const qcd = dialog('Done: WO-00002');
+    await qcd.waitFor({ timeout: 5000 });
+    check(await qcd.getByLabel(/Cause of failure/).isVisible(), 'Done from the detail opens the fast close, with breakdown fields for a breakdown');
+    await page.keyboard.press('Escape');
+    await qcd.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     await d.getByRole('tab', { name: 'Work request' }).click();
     check(await d.getByText('Inspect the seal').isVisible() && await d.getByText('Alex').first().isVisible(), 'the request step shows the job and who does it');
     await page.waitForTimeout(450); await shot(page, 'detail@1440');
@@ -189,7 +234,7 @@ const spec = {
     check(await page.getByRole('heading', { name: 'By classification' }).isVisible() && await page.getByRole('heading', { name: 'Failure modes' }).isVisible(), 'analytics shows the classification, status and failure mode breakdowns');
     await page.getByRole('combobox', { name: 'Classification' }).click();
     await page.getByRole('option', { name: 'Breakdown' }).click();
-    check(await page.getByText(/Showing 1 of 4 work orders/).isVisible(), 'an analytics filter narrows the numbers and says how many are shown');
+    check(await page.getByText(/Showing 1 of 5 work orders/).isVisible(), 'an analytics filter narrows the numbers and says how many are shown');
     await shot(page, 'analytics@1440');
   },
   create: {

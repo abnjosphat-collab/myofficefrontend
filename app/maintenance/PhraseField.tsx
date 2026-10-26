@@ -6,11 +6,11 @@ import { Button, Field, Textarea } from '@/components/ui-system';
 import { RecentChoices } from '@/components/shared/RecentChoices';
 import { suggestCompletions } from './phrases';
 
-export function PhraseField({ label, value, onChange, placeholder, rows = 3, historyKey }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number; historyKey: string }) {
+export function PhraseField({ label, value, onChange, placeholder, rows = 3, historyKey, required, error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number; historyKey: string; required?: boolean; error?: string }) {
   const options = suggestCompletions(value);
   return (
     <div className="flex flex-col gap-1.5">
-      <Field label={label} optional><Textarea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} /></Field>
+      <Field label={label} required={required} optional={!required} error={error}><Textarea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} /></Field>
       {options.length > 0 && (
         <div role="group" aria-label={`Complete ${label}`} className="flex flex-wrap items-center gap-1.5">
           <span className="font-sans text-caption text-ink-muted">Finish with:</span>

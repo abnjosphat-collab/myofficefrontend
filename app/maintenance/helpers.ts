@@ -24,7 +24,7 @@ export function recurrenceLabel(s: MaintenanceSchedule): string {
   }
 }
 
-export const DONE_STATUSES: WorkOrderStatus[] = ['completed', 'cancelled'];
+export const DONE_STATUSES: WorkOrderStatus[] = ['completed', 'cancelled', 'not-done'];
 
 /**
  * Overdue = has a due date that has already passed, and the job is still open. ISO date strings are compared, not Date objects:
@@ -92,7 +92,7 @@ export function calcStats(orders: WorkOrder[]) {
 
   const sparesTotalCost = orders.reduce((acc, w) => acc + (w.spares_used || []).reduce((s, x) => s + x.quantity * x.unit_cost, 0), 0);
   return {
-    total, pending: by('pending'), inProgress: by('in-progress'), completed, onHold: by('on-hold'),
+    total, pending: by('pending'), inProgress: by('in-progress'), completed, onHold: by('on-hold'), notDone: by('not-done'),
     overdue: orders.filter(o => isOverdue(o)).length, efficiency: total > 0 ? Math.round((completed / total) * 100) : 0,
     plannedMaintenance: byClass('planned_maintenance'), projects: byClass('project'), breakdowns: byClass('breakdown'), customClass: byClass('custom'),
     mechanical: byDiscipline('Mechanical'), electrical: byDiscipline('Electrical'), artisanCost, failureModes, hourBuckets, sparesTotalCost,
@@ -107,7 +107,7 @@ export function nextWONumber(existingOrders: WorkOrder[], offset = 0): string {
 }
 
 // ── The register's filter and sort ──────────────────────────────────────────────────────────────────────
-export type StatusFilter = 'all' | 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'overdue';
+export type StatusFilter = 'all' | 'pending' | 'in-progress' | 'completed' | 'on-hold' | 'not-done' | 'sign-off' | 'overdue';
 export type SortKey = 'date-desc' | 'date-asc' | 'priority' | 'machine' | 'status';
 export interface OrderFilters { search: string; status: StatusFilter; priorities: WorkOrderPriority[]; sort: SortKey }
 export const NO_FILTERS: OrderFilters = { search: '', status: 'all', priorities: [], sort: 'date-desc' };
@@ -115,11 +115,21 @@ export const isFiltered = (f: OrderFilters) => f.search.trim() !== '' || f.statu
 
 const STATUS_RANK: Record<WorkOrderStatus, number> = { 'in-progress': 0, pending: 1, 'on-hold': 2, 'not-done': 3, completed: 4, postponed: 5, cancelled: 6 };
 
+/** Finished by the artisan but not yet signed by the foreman: completion and sign-off are separate steps. */
+export function isAwaitingSignoff(w: Pick<WorkOrder, 'status' | 'foreman_sign'>): boolean {
+  return w.status === 'completed' && !(w.foreman_sign || '').trim();
+}
+
+/** A job that fast close may finish: anything not already completed, cancelled or not done. */
+export function isClosable(w: Pick<WorkOrder, 'status'>): boolean {
+  return !DONE_STATUSES.includes(w.status);
+}
+
 export function filterOrders(orders: WorkOrder[], f: OrderFilters, today = todayLocal()): WorkOrder[] {
   const q = f.search.trim().toLowerCase();
   const hit = (w: WorkOrder) => [w.work_order_number, w.equipment_info, w.allocated_to, w.artisan_name, w.job_request_details, w.to_department, w.requested_by].some(v => (v || '').toLowerCase().includes(q));
   const rows = orders.filter(w => {
-    if (f.status === 'overdue' ? !isOverdue(w, today) : f.status !== 'all' && w.status !== f.status) return false;
+    if (f.status === 'overdue' ? !isOverdue(w, today) : f.status === 'sign-off' ? !isAwaitingSignoff(w) : f.status !== 'all' && w.status !== f.status) return false;
     if (f.priorities.length > 0 && !f.priorities.includes(w.priority)) return false;
     return !q || hit(w);
   });
@@ -135,7 +145,7 @@ export function filterOrders(orders: WorkOrder[], f: OrderFilters, today = today
 
 export function countByStatus(orders: WorkOrder[], today = todayLocal()): Record<StatusFilter, number> {
   const n = (s: WorkOrderStatus) => orders.filter(o => o.status === s).length;
-  return { all: orders.length, pending: n('pending'), 'in-progress': n('in-progress'), completed: n('completed'), 'on-hold': n('on-hold'), overdue: orders.filter(o => isOverdue(o, today)).length };
+  return { all: orders.length, pending: n('pending'), 'in-progress': n('in-progress'), completed: n('completed'), 'on-hold': n('on-hold'), 'not-done': n('not-done'), 'sign-off': orders.filter(isAwaitingSignoff).length, overdue: orders.filter(o => isOverdue(o, today)).length };
 }
 
 // ── What the forms send ─────────────────────────────────────────────────────────────────────────────────
@@ -198,6 +208,62 @@ export function artisanBody(r: ArtisanReport, spares: SpareItem[]) {
     failure_mode: r.classification === 'breakdown' ? r.failure_mode || null : null, discipline: r.discipline || null, trade: r.discipline === 'Mechanical' ? r.trade || null : null,
     spares_used: spares,
   };
+}
+
+// ── Fast close (M2) ─────────────────────────────────────────────────────────────────────────────────────────
+export interface QuickCloseDraft {
+  work_done: string; mode: 'times' | 'hours'; start: string; finish: string; hours: string;
+  artisan_name: string; artisan_date: string; cause: string; failure_mode: string;
+}
+
+const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+const minsOf = (v: string): number | null => { const m = v.trim().match(HHMM); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null; };
+
+/**
+ * What is missing or contradictory in a fast close, as one reason per field. Mirrors the server's close check on the
+ * same merged values (what was typed, falling back to what the job already holds): the server re-checks everything, so
+ * this is an early courtesy, never the rule.
+ */
+export function quickCloseProblems(d: QuickCloseDraft, w: WorkOrder): { work_done?: string; time?: string; cause?: string; failure_mode?: string; date?: string } {
+  const out: { work_done?: string; time?: string; cause?: string; failure_mode?: string; date?: string } = {};
+  if (!d.work_done.trim() && !(w.work_done_details || '').trim()) out.work_done = 'Say what was done.';
+  const rowTime = (w.total_time_worked || '').trim();
+  if (d.mode === 'hours') {
+    if (d.hours.trim()) {
+      const h = parseFloat(d.hours);
+      if (isNaN(h) || h <= 0 || h > 1000) out.time = 'Hours must be more than 0 (and below 1000).';
+    } else if (!rowTime) out.time = 'Record the time worked: start and finish, or hours.';
+  } else if (d.start || d.finish) {
+    const s = minsOf(d.start); const f = minsOf(d.finish);
+    if (d.start.trim() === '' || d.finish.trim() === '') out.time = 'Give both the start and finish times, or hours instead.';
+    else if (s === null || f === null) out.time = 'Times must look like 08:30.';
+    else if (s === f) out.time = 'The finish time must be after the start time.';
+  } else if (!rowTime) out.time = 'Record the time worked: start and finish, or hours.';
+  if (w.classification === 'breakdown') {
+    if (!d.cause.trim() && !(w.cause_of_failure || '').trim()) out.cause = 'Say what caused the breakdown.';
+    if (!d.failure_mode.trim() && !(w.failure_mode || '').trim()) out.failure_mode = 'Pick the failure mode.';
+  }
+  if (d.artisan_date.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(d.artisan_date.trim())) out.date = 'The date must be YYYY-MM-DD.';
+  return out;
+}
+
+/** The close body: only what was typed (the server merges it over what the job already holds). */
+export function quickCloseBody(d: QuickCloseDraft): Record<string, unknown> {
+  const body: Record<string, unknown> = { work_done_details: d.work_done.trim() };
+  if (d.mode === 'hours' && d.hours.trim()) body.total_hours = parseFloat(d.hours);
+  if (d.mode === 'times' && (d.start || d.finish)) { body.time_work_started = d.start; body.time_work_finished = d.finish; }
+  if (d.artisan_name.trim()) body.artisan_name = d.artisan_name.trim();
+  if (d.artisan_date.trim()) body.artisan_date = d.artisan_date.trim();
+  if (d.cause.trim()) body.cause_of_failure = d.cause.trim();
+  if (d.failure_mode.trim()) body.failure_mode = d.failure_mode.trim();
+  return body;
+}
+
+/** Why a job cannot join a bulk close, or null when it can: only open, routine planned jobs close in bulk. */
+export function bulkCloseRefusal(w: WorkOrder): string | null {
+  if (!isClosable(w)) return `Already ${w.status}.`;
+  if (w.classification && w.classification !== 'planned_maintenance') return 'Only routine planned jobs close in bulk.';
+  return null;
 }
 
 // ── Schedules ────────────────────────────────────────────────────────────────────────────────────────────

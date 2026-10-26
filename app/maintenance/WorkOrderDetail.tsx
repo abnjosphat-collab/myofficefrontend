@@ -4,16 +4,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, Progress, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanReportForm } from './ArtisanReportForm';
 import { ForemanSignoff } from './ForemanSignoff';
-import { isOverdue } from './helpers';
+import { isAwaitingSignoff, isClosable, isOverdue } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
 import type { WorkOrder } from './types';
 
-export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
-  order: WorkOrder | null; onClose: () => void; onEdit: (w: WorkOrder) => void; onDelete: (w: WorkOrder) => void; onSaved: (w: WorkOrder) => void;
+export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved, onDone }: {
+  order: WorkOrder | null; onClose: () => void; onEdit: (w: WorkOrder) => void; onDelete: (w: WorkOrder) => void; onSaved: (w: WorkOrder) => void; onDone: (w: WorkOrder) => void;
 }) {
   const [tab, setTab] = useState('artisan');
   const [seen, setSeen] = useState<string | null>(null);
@@ -25,13 +25,14 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved }: {
   return (
     <Dialog
       open={!!w} onOpenChange={o => { if (!o) onClose(); }} size="xl" title={w ? `Work order ${w.work_order_number}` : 'Work order'} description={w?.equipment_info}
-      footer={w && (<DetailActions onDelete={() => onDelete(w)} onClose={onClose} onEdit={() => onEdit(w)} editLabel="Edit request" />)}
+      footer={w && (<DetailActions onDelete={() => onDelete(w)} onClose={onClose} onEdit={() => onEdit(w)} editLabel="Edit request">{isClosable(w) && <Button variant="primary" icon="check" onClick={() => onDone(w)}>Done</Button>}</DetailActions>)}
     >
       {w && status && priority && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             <StatusBadge tone={priority.tone}>{priority.label} priority</StatusBadge>
+            {w && isAwaitingSignoff(w) && <StatusBadge tone="info">Awaiting sign-off</StatusBadge>}
             {overdue && <StatusBadge tone="danger">Overdue</StatusBadge>}
             {classificationLabel(w) && <StatusBadge tone="info">{classificationLabel(w)}</StatusBadge>}
           </div>

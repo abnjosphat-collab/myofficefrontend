@@ -24,6 +24,18 @@ export async function updateWorkOrder(id: string, updates: Record<string, unknow
   return api.patch<WorkOrder>(`/api/maintenance/work-orders/${id}`, { ...updates, updated_at: new Date().toISOString() });
 }
 
+/** Close one job fast: completed, progress 100, the server-stamped times, one audit event. */
+export async function closeWorkOrder(id: string, body: Record<string, unknown>): Promise<WorkOrder> {
+  return api.post<WorkOrder>(`/api/maintenance/work-orders/${id}/close`, body);
+}
+
+export interface BulkCloseResult { closed: (string | number)[]; skipped: { id: string | number; reason: string }[]; }
+
+/** Close routine planned jobs in bulk; the server reports each row as closed or skipped with its reason. */
+export async function bulkCloseWorkOrders(body: Record<string, unknown>): Promise<BulkCloseResult> {
+  return api.post<BulkCloseResult>('/api/maintenance/work-orders/bulk-close', body);
+}
+
 export async function deleteWorkOrder(id: string): Promise<void> {
   await api.delete(`/api/maintenance/work-orders/${id}`);
 }

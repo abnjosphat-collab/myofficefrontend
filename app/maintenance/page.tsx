@@ -19,7 +19,8 @@ import { formatDate } from '@/lib/format';
 import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 import { deleteWorkOrder, fetchWorkOrderById, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
 import { AnalyticsView } from './AnalyticsView';
-import { NO_FILTERS, countByStatus, filterOrders, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
+import { QuickCloseDialog, type QuickCloseRequest } from './QuickCloseDialog';
+import { NO_FILTERS, bulkCloseRefusal, countByStatus, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
 import { PRIORITY, classificationLabel, priorityMeta, statusMeta } from './meta';
 import { ScheduleForm } from './ScheduleForm';
 import { SchedulesView } from './SchedulesView';
@@ -60,6 +61,7 @@ function MaintenanceContent() {
   const [formFor, setFormFor] = useState<{ order: WorkOrder | null } | null>(null);
   const [schedFor, setSchedFor] = useState<{ schedule: MaintenanceSchedule | null } | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [closing, setClosing] = useState<QuickCloseRequest | null>(null);
   const set = (patch: Partial<OrderFilters>) => { setF(prev => ({ ...prev, ...patch })); setPage(1); };
 
   // Work done in an older version of this page was kept only in this browser; send it to the server once, then reload.
@@ -115,10 +117,11 @@ function MaintenanceContent() {
 
   const actionsOf = (w: WorkOrder) => (
     <span className="inline-flex gap-1">
+      {isClosable(w) && <IconButton icon="check" size="sm" variant="ghost" label={`Close work order ${w.work_order_number}`} onClick={() => setClosing({ kind: 'single', order: w })} />}
       <IconButton icon="edit" size="sm" variant="ghost" label={`Edit work order ${w.work_order_number}`} onClick={() => setFormFor({ order: w })} />
     </span>
   );
-  const badges = (w: WorkOrder) => { const s = statusMeta(w.status); return <><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{isOverdue(w) && <StatusBadge tone="danger">Overdue</StatusBadge>}</>; };
+  const badges = (w: WorkOrder) => { const s = statusMeta(w.status); return <><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{isAwaitingSignoff(w) && <StatusBadge tone="info">Awaiting sign-off</StatusBadge>}{isOverdue(w) && <StatusBadge tone="danger">Overdue</StatusBadge>}</>; };
   const COLUMNS: Column<WorkOrder>[] = [
     { id: 'wo', header: 'Work order', sticky: true, cell: w => <div className="min-w-0"><p className="font-medium text-ink [overflow-wrap:anywhere]">{w.equipment_info}</p><p className="text-caption text-ink-muted tabular">{[`#${w.work_order_number}`, classificationLabel(w), w.trade || w.discipline].filter(Boolean).join(', ')}</p></div> },
     { id: 'status', header: 'Status', cell: w => <div className="flex flex-col items-start gap-1"><span className="flex flex-wrap gap-1">{badges(w)}</span><span className="text-caption text-ink-muted">{priorityMeta(w.priority).label} priority</span></div> },
@@ -154,6 +157,8 @@ function MaintenanceContent() {
         <MetricTile compact label="Pending" tone={counts.pending ? 'warning' : 'default'} value={counts.pending} selected={tab === 'orders' && f.status === 'pending'} onClick={() => { setTab('orders'); set({ status: f.status === 'pending' ? 'all' : 'pending' }); }} {...tile} />
         <MetricTile compact label="In progress" value={counts['in-progress']} selected={tab === 'orders' && f.status === 'in-progress'} onClick={() => { setTab('orders'); set({ status: f.status === 'in-progress' ? 'all' : 'in-progress' }); }} {...tile} />
         <MetricTile compact label="Completed" tone="success" value={counts.completed} selected={tab === 'orders' && f.status === 'completed'} onClick={() => { setTab('orders'); set({ status: f.status === 'completed' ? 'all' : 'completed' }); }} {...tile} />
+        <MetricTile compact label="Awaiting sign-off" tone={counts['sign-off'] ? 'warning' : 'default'} value={counts['sign-off']} selected={tab === 'orders' && f.status === 'sign-off'} onClick={() => { setTab('orders'); set({ status: f.status === 'sign-off' ? 'all' : 'sign-off' }); }} {...tile} />
+        <MetricTile compact label="Not done" value={counts['not-done']} selected={tab === 'orders' && f.status === 'not-done'} onClick={() => { setTab('orders'); set({ status: f.status === 'not-done' ? 'all' : 'not-done' }); }} {...tile} />
         <MetricTile compact label="Overdue" tone={counts.overdue ? 'danger' : 'default'} value={counts.overdue} detail={`${counts['on-hold']} on hold`} selected={tab === 'orders' && f.status === 'overdue'} onClick={() => { setTab('orders'); set({ status: f.status === 'overdue' ? 'all' : 'overdue' }); }} {...tile} />
       </MetricGrid>
 
@@ -182,6 +187,7 @@ function MaintenanceContent() {
           {view === 'table' && selected.size > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">
               <span className="font-sans text-label font-semibold text-ink">{selected.size} selected</span>
+              <Button size="sm" variant="primary" icon="check" disabled={chosen.every(w => bulkCloseRefusal(w))} onClick={() => setClosing({ kind: 'bulk', orders: chosen })}>Mark done</Button>
               <Button size="sm" variant="danger" icon="delete" onClick={removeMany}>Delete selected</Button>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>Clear selection</Button>
             </div>
@@ -228,7 +234,17 @@ function MaintenanceContent() {
         </TabsContent>
       </Tabs>
 
-      <WorkOrderDetail order={viewing} onClose={() => setViewingId(null)} onEdit={w => { setViewingId(null); setFormFor({ order: w }); }} onDelete={remove} onSaved={merge} />
+      <WorkOrderDetail order={viewing} onClose={() => setViewingId(null)} onEdit={w => { setViewingId(null); setFormFor({ order: w }); }} onDelete={remove} onSaved={merge} onDone={w => setClosing({ kind: 'single', order: w })} />
+      <QuickCloseDialog
+        request={closing} onOpenChange={o => { if (!o) setClosing(null); }} onStale={() => void orders.refetch()}
+        onClosed={updated => { merge(updated); setClosing(null); }}
+        onBulkClosed={result => {
+          const names = new Map(items.map(w => [String(w.id), w.work_order_number]));
+          if (result.closed.length) toast.success(`${result.closed.length} ${result.closed.length === 1 ? 'work order' : 'work orders'} closed.`);
+          if (result.skipped.length) toast.warning(`${result.skipped.length} not closed: ${result.skipped.map(s => `${names.get(String(s.id)) ?? `#${s.id}`}: ${s.reason}`).join(' ')}`);
+          setSelected(new Set()); setClosing(null); void orders.refetch();
+        }}
+      />
       <WorkOrderForm open={!!formFor} order={formFor?.order ?? null} allOrders={items} onOpenChange={o => { if (!o) setFormFor(null); }} onChanged={merge} />
       <ScheduleForm open={!!schedFor} schedule={schedFor?.schedule ?? null} onOpenChange={o => { if (!o) setSchedFor(null); }} onSaved={() => void schedules.refetch()} />
     </div>

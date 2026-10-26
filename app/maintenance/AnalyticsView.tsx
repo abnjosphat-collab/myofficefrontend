@@ -29,7 +29,7 @@ export function AnalyticsView({ orders }: { orders: WorkOrder[] }) {
   }), [orders]);
 
   const classes = [{ name: 'Planned maintenance', value: st.plannedMaintenance }, { name: 'Projects', value: st.projects }, { name: 'Breakdowns', value: st.breakdowns }, { name: 'Other', value: st.customClass }].filter(r => r.value > 0);
-  const statuses = [{ name: 'Pending', value: st.pending }, { name: 'In progress', value: st.inProgress }, { name: 'Completed', value: st.completed }, { name: 'On hold', value: st.onHold }].filter(r => r.value > 0);
+  const statuses = [{ name: 'Pending', value: st.pending }, { name: 'In progress', value: st.inProgress }, { name: 'Completed', value: st.completed }, { name: 'On hold', value: st.onHold }, { name: 'Not done', value: st.notDone }].filter(r => r.value > 0);
   const disciplines = [{ name: 'Mechanical', value: st.mechanical }, { name: 'Electrical', value: st.electrical }].filter(r => r.value > 0);
   const artisans = st.artisanCost.slice(0, 6).map(a => ({ name: `${a.estimated > 0 ? '~' : ''}${a.name}`, value: Math.round(a.hours * 10) / 10 }));
   const failures = st.failureModes.map(([name, value]) => ({ name, value }));
