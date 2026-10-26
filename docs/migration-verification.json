@@ -249,9 +249,15 @@
     },
     "/equipment": {
       "status": "verified",
-      "date": "2026-10-04",
-      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; pagination, search, status tiles, cards and table, detail, edit with validation (a cleared field is sent as null), add with a refused save, delete with confirmation. No live data.",
+      "date": "2026-10-26",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (1440 screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty and failed-load states; pagination, search, status tiles, cards and table, detail, edit with validation (a cleared field is sent as null), add with a refused save, delete with confirmation. No live data. Re-rendered Oct 2026 (M6): History links on every card, table row and the detail dialog (hrefs asserted), green.",
       "note": "Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog."
+    },
+    "/equipment/history": {
+      "status": "verified",
+      "date": "2026-10-26",
+      "scope": "Rendered with a fixture session and mocked API at 1440, 820 and 390 px (history, empty, choose-a-machine and register-detail screenshots inspected; 820/844/1180 by the no-overflow checks); ready, empty, failed-load-with-retry and 390 px states for both the bare route (choose-a-machine, no request) and ?equipment=15 (tiles, jobs/breakdowns/planned-work/spares/measures sections, job-row and breakdown-row navigation to ?open= deep links). No live data.",
+      "note": "One machine history page (M6): jobs, breakdowns, planned work, spares, hours and measures for the register item named by ?equipment=<id>."
     },
     "/shifts": {
       "status": "verified",

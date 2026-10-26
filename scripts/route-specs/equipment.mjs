@@ -18,6 +18,9 @@ const spec = {
   async ready(page, calls, { check, shot }) {
     const cards = page.getByRole('button', { name: /^View / });
     check(await cards.count() === 12, 'the first page shows 12 cards (a legacy record with no fields does not crash)');
+    const historyLinks = page.getByRole('link', { name: /^History of / });
+    check(await historyLinks.count() === 12, 'every card links its machine history');
+    check(((await historyLinks.first().getAttribute('href')) || '').startsWith('/equipment/history?equipment='), 'the card link carries the machine id');
     check(await page.getByText('1 – 12 of 16').or(page.getByText(/1.*12.*16/)).first().isVisible(), 'the page range is stated');
     await shot(page, 'cards@1440');
     await page.getByRole('button', { name: 'Next page' }).click();
@@ -36,6 +39,7 @@ const spec = {
     await page.getByRole('button', { name: 'Table view' }).click();
     const table = page.getByRole('table', { name: 'Equipment register' });
     check(await table.getByRole('row').count() === 13, 'table view lists the first page');
+    check(await table.getByRole('link', { name: /^History of / }).count() === 12, 'every table row links its machine history');
     await shot(page, 'table@1440');
     await page.getByRole('button', { name: 'Card view' }).click();
 
@@ -45,6 +49,7 @@ const spec = {
     const detail = page.getByRole('dialog', { name: 'Crusher One' });
     await detail.waitFor({ timeout: 5000 });
     check(await detail.getByText('SN-CRUSH-9').isVisible() && await detail.getByText('6 months').isVisible(), 'the detail shows the serial number and maintenance interval');
+    check(await detail.getByRole('link', { name: 'History' }).getAttribute('href') === '/equipment/history?equipment=15', 'the detail links the machine history');
     await shot(page, 'detail@1440');
     await detail.getByRole('button', { name: 'Edit' }).click();
     const edit = page.getByRole('dialog', { name: 'Edit equipment' });

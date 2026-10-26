@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
@@ -27,6 +28,7 @@ const PAGE_SIZES = [12, 24, 48, 96].map(n => ({ value: String(n), label: `${n} p
 const statusOf = (e: EquipmentItem) => (e.status || '').toLowerCase();
 const StatusTag = ({ item }: { item: EquipmentItem }) => { const s = statusOf(item); const m = STATUS_META[s]; return <StatusBadge tone={m?.tone ?? 'neutral'} icon={m?.icon}>{STATUS_LABELS[s] ?? (item.status || 'Unknown')}</StatusBadge>; };
 const dateText = (d?: string) => (d ? fmtDate(d) : '');
+const historyHref = (id: number | string) => `/equipment/history?equipment=${id}`;
 
 const EXPORT_COLUMNS: DLColumn[] = [
   { key: 'equipment_id', label: 'Equipment ID', width: 16 }, { key: 'name', label: 'Name', width: 28 }, { key: 'category', label: 'Category', width: 18 }, { key: 'status', label: 'Status', width: 16 },
@@ -150,7 +152,12 @@ function EquipmentContent() {
                   ...(i.criticality ? [{ label: 'Criticality', value: <StatusBadge tone={CRIT_TONE[i.criticality] ?? 'neutral'}>{i.criticality}</StatusBadge> }] : []),
                   { label: 'Age', value: calcAge(i.commission_date) },
                 ]}
-                action={<RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />}
+                action={(
+                  <span className="inline-flex items-center gap-1">
+                    <Button variant="ghost" size="sm" icon="history" asChild><Link href={historyHref(i.id)} aria-label={`History of ${i.name}`}>History</Link></Button>
+                    <RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />
+                  </span>
+                )}
                 onOpen={() => setViewingId(i.id)} openLabel={`View ${i.name}`}
               />
             ))}
@@ -159,7 +166,12 @@ function EquipmentContent() {
           <DataTable
             caption="Equipment register" rows={pageRows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={s => { setSort(s); setPage(1); }}
             onRowActivate={i => setViewingId(i.id)}
-            rowActions={i => <RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />}
+            rowActions={i => (
+              <span className="inline-flex items-center gap-1">
+                <Button variant="ghost" size="sm" icon="history" asChild><Link href={historyHref(i.id)} aria-label={`History of ${i.name}`}>History</Link></Button>
+                <RowActions subject={`${i.name}`} onEdit={() => openForm(i)} onDelete={() => remove(i)} />
+              </span>
+            )}
           />
         )}
         {filtered.length > pageSize && (
@@ -172,7 +184,7 @@ function EquipmentContent() {
 
       <Dialog
         open={!!viewing} onOpenChange={o => { if (!o) setViewingId(null); }} title={viewing?.name ?? 'Equipment'} description={viewing?.equipment_id} size="lg"
-        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} onEdit={() => openForm(viewing)} />)}
+        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} onEdit={() => openForm(viewing)} primary="edit"><Button variant="secondary" icon="history" asChild><Link href={historyHref(viewing.id)}>History</Link></Button></DetailActions>)}
       >
         {viewing && (
           <div className="flex flex-col gap-5">

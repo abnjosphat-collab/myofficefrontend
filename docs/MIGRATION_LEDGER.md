@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**60 routes.** Migrated: 50. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 52.
+**61 routes.** Migrated: 51. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 6. Browser verified: 53.
 
 | Column | Meaning |
 |---|---|
@@ -38,7 +38,8 @@
 | `/employees-preview` | Redirect | No | No | Yes, 2026-10-04 | Retired sandbox (owner decision 4 Oct 2026); its components and grouping module were deleted, the register's own grouping is now the single one. |
 | `/engineering_report` | Migrated | Yes | No | Yes, 2026-10-03 | Monthly report; each source fails independently; report targets are hard-coded policy numbers to confirm. |
 | `/engineering-dashboard` | Migrated | Yes | No | Yes, 2026-10-03 | Only real figures; invented KPIs removed. |
-| `/equipment` | Migrated | Yes | 1 | Yes, 2026-10-04 | Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog. |
+| `/equipment` | Migrated | Yes | 1 | Yes, 2026-10-26 | Register of assets. The old category accordion was dropped for cards/table with sortable columns; the legacy EquipmentForm was replaced by a FormDialog. |
+| `/equipment/history` | Migrated | Yes | 1 | Yes, 2026-10-26 | One machine history page (M6): jobs, breakdowns, planned work, spares, hours and measures for the register item named by ?equipment=<id>. |
 | `/inventory` | Migrated | Yes | 2 | Yes, 2026-10-22 | Shared register on the inventory_items table (owner decision 2026-10-09); a browser's old local items are moved up once. No seeded sample data. |
 | `/issues` | Migrated | Yes | 4 | Yes, 2026-10-21 | Workflow page: record form first, issue log and analytics in tabs. Exports kept (Excel with line items, PDF). |
 | `/job-cards` | Migrated | Yes | 1 | Yes, 2026-10-03 | Register and details dialog with task toggles and save; dead New job card button removed. |

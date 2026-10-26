@@ -122,6 +122,45 @@ so the worst-machines open-job match is by normalized name.
 | 6 | Worst machines | Machines ranked by breakdowns, then downtime (top 10), with open-job counts name-matched (machines with open jobs but no breakdowns do not appear) | Breakdowns in the period + open jobs | Trailing 90 days | Breakdowns: all; jobs: open only |
 | 7 | Labour hours and spares cost per machine | Labour = recorded `total_time_worked` only (`7h 30m` or a bare number; estimates never count); spares = quantity x `unit_cost` (work-order spares; breakdown-side spares not included yet) | Jobs raised in the period | Trailing 90 days | All |
 
+## Machine history (M6, 26 Oct 2026)
+
+One page per Equipment register item (`/equipment/history?equipment=<id>`):
+its jobs, breakdowns, planned work, spares, hours and its measures, counted
+on the server (`GET /api/equipment/{id}/history?days=90`, clamped to 7-365
+days). Unknown and out-of-scope machines both answer 404. No SQL in this
+batch: the endpoint reads existing columns only.
+
+A job or schedule belongs to the machine by its `equipment_id` link when the
+M1 columns exist (before that, links match nothing), else by its
+`compressor-routine:NN` marker naming the register id, else by its machine
+name normalized (trimmed, case-insensitive). Breakdowns match by normalized
+`machine_name` only — they carry no `equipment_id`, and M6 does not add one.
+Name matching is case-insensitive on purpose (aggregation, like M5), unlike
+M1's case-sensitive link resolution (a write, which must not guess). The
+payload says `links_active` so the page can caveat name-matched figures.
+
+Lists (jobs newest first, breakdowns newest first, schedules active first
+then next due, spares by cost) and totals cover everything ever recorded, so
+each total reconciles with the list beside it:
+
+| Total | Definition |
+|---|---|
+| Open jobs | Jobs whose status is not `completed`/`cancelled`/`not-done` |
+| Labour hours | Recorded `total_time_worked` only (`7h 30m` or a bare number; estimates never count) |
+| Spares cost | Work-order lines (`quantity` x `unit_cost`) plus breakdown lines (`total_cost`, else `quantity` x `unit_price`), by part name; a line with no name is counted nowhere |
+| Downtime hours | Sum of `downtime_minutes` over the machine's breakdowns, divided by 60 |
+
+The measures reuse the M5 definitions over the trailing window: PM done on
+time % over the machine's planned jobs; downtime/MTTR/MTBF over its
+breakdowns in the window (a single row — every matched breakdown shares the
+machine's normalized name); repeat failures by Problem code alone (every job
+here is this machine's already, however it matched). Empty denominators read
+"No data", never 0.
+
+The register links in: every card, table row and the detail dialog carry a
+History link to the machine's page. Jobs link out to `/maintenance?open=` and
+breakdowns to `/breakdowns?open=`.
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.
@@ -140,8 +179,9 @@ Stamps are written once and never cleared or overwritten (reopening keeps histor
 
 | Layer | Path |
 |--------|------|
-| API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates; `app/routers/schedules.py` — schedules and generation |
+| API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates; `app/routers/schedules.py` — schedules and generation; `app/routers/equipment.py` — the register plus `GET /{id}/history` (M6); `app/machine_history.py` — the pure history computation |
 | UI module | `app/maintenance/` — `page.tsx`, `types.ts`, `api.ts`, `helpers.ts`, `WorkOrderForm.tsx`, `WorkOrderDetail.tsx`, `QuickCloseDialog.tsx`, `SchedulesView.tsx`, `ScheduleForm.tsx`, `AnalyticsView.tsx`, `ArtisanReportForm.tsx`, `ForemanSignoff.tsx`, `MachinePicker.tsx`, `PhraseField.tsx`, `phrases.ts`, `SignOffField.tsx`, `meta.ts`, `useMaintenanceData.ts` |
+| Machine history (M6) | `app/equipment/history/page.tsx`, `app/equipment/history/MachineHistoryView.tsx`, `app/equipment/historyTypes.ts`, `app/equipment/api.ts` (`fetchMachineHistory`); History links on `app/equipment/page.tsx` (cards, table, detail) |
 | Related ops | Breakdowns, requisitions, spares, equipment pages may link or reference maintenance context — grep before assuming isolation |
 
 ## Journey checklist (when touching WOs)
