@@ -43,7 +43,11 @@ const spec = {
     await edit.getByRole('button', { name: 'Save changes' }).click();
     check(await edit.getByText('Enter the employee name.').isVisible(), 'clearing a required field shows its error');
     await edit.getByRole('button', { name: 'Cancel' }).click();
-    await edit.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+    const dc = page.getByRole('alertdialog');
+    await dc.waitFor({ timeout: 5000 });
+    check(await dc.getByText(/Discard the changes/).isVisible(), 'cancelling a dirty edit asks before discarding');
+    await dc.getByRole('button', { name: 'Discard changes' }).click();
+    await edit.waitFor({ state: 'hidden', timeout: 5000 });
     await page.getByRole('button', { name: 'Delete First aid for Ann Alpha' }).click();
     const confirm = page.getByRole('alertdialog');
     await confirm.waitFor({ timeout: 5000 });
