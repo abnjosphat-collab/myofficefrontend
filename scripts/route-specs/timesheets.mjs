@@ -217,9 +217,12 @@ const spec = {
     await page.getByRole('tab', { name: 'Roster' }).click();
     await grid.waitFor({ timeout: 5000 });
 
-    // a refused refresh says so and keeps the grid it already has (a server outage is retried automatically instead)
+    // a refused background refresh says so and keeps the grid it already has (silent once, stated twice; a server outage is retried automatically instead)
     refuseEmployees = true;
-    await page.getByRole('button', { name: 'Refresh timesheets' }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.waitForTimeout(800);
+    check(!(await page.getByText('Could not load timesheets').isVisible().catch(() => false)), 'the first failed background tick stays silent');
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
     await page.getByText('Could not load timesheets').waitFor({ timeout: 8000 }).catch(() => {});
     check(await page.getByText('Could not load timesheets').isVisible() && await page.getByText('Not allowed (fixture)').first().isVisible(), 'a refused refresh shows the reason');
     check(await grid.isVisible(), 'and the grid already on screen stays');

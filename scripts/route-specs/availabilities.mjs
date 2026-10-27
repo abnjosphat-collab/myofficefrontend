@@ -77,9 +77,13 @@ const spec = {
     await page.waitForTimeout(700);
     check(calls.some(c => c.method === 'DELETE' && /\/api\/availability-records\/\d+$/.test(c.pathname)), 'confirming sends the delete');
 
-    // a failing derived source is a notice, not an empty list
+    // a failing derived source is a notice, not an empty list (background ticks fire it: silent once, stated twice)
     failDerived = true;
-    await page.getByRole('button', { name: 'Refresh availability records' }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.waitForTimeout(800);
+    check(!(await page.getByText('Records derived from breakdowns could not be loaded').isVisible().catch(() => false)), 'the first failed background tick stays silent');
+    check(await table.getByRole('row').count() >= 3, 'the manual records stay visible through it');
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
     await page.getByText('Records derived from breakdowns could not be loaded').waitFor({ timeout: 8000 }).catch(() => {});
     check(await page.getByText('Records derived from breakdowns could not be loaded').isVisible() && await page.getByText('Derived records are down').first().isVisible(), 'a failed derived source is stated with its reason');
     check(await table.getByRole('row').count() >= 3, 'the manual records stay visible');
