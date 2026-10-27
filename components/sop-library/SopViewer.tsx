@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Drawer, Notice, LoadingPulse } from '@/components/ui-system';
+import { Button, Drawer, ExportButton, Notice, LoadingPulse } from '@/components/ui-system';
 import { SOP_SECTION_LABELS, type SopDocument, type SopRevision } from '@/lib/sops/types';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { SopBadges } from './SopCard';
@@ -42,8 +42,12 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
       description={sop ? `${sop.department} · owner ${sop.owner || 'unassigned'}` : undefined}
       footer={sop && (
         <>
-          <Button icon="download" onClick={() => onExportWord(sop)}>Export Word</Button>
-          <Button icon="pdf" onClick={() => onExportPdf(sop)}>Export PDF</Button>
+          <ExportButton
+            items={[
+              { label: 'Export Word', icon: 'download', onSelect: () => onExportWord(sop) },
+              { label: 'Export PDF', icon: 'pdf', onSelect: () => onExportPdf(sop) },
+            ]}
+          />
           {canEdit && !archived && <Button variant="primary" icon="edit" onClick={() => onEdit(sop)}>Edit</Button>}
         </>
       )}

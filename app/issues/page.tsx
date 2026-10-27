@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -81,13 +81,6 @@ function IssuesContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh stock issues" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
-            <Menu>
-              <MenuTrigger asChild><Button icon="download" disabled={issues.length === 0}>Download</Button></MenuTrigger>
-              <MenuContent>
-                <MenuItem icon="download" onSelect={() => run(() => exportIssuesExcel(issues), `Excel exported, ${issues.length} issues.`)}>Excel (.xlsx)</MenuItem>
-                <MenuItem icon="pdf" onSelect={() => run(() => exportIssuesPdf(issues), `PDF exported, ${issues.length} issues.`)}>PDF</MenuItem>
-              </MenuContent>
-            </Menu>
           </>
         )}
       />
@@ -134,6 +127,13 @@ function IssuesContent() {
 
         <TabsContent value="log" className="mt-4 flex flex-col gap-4">
           <Toolbar
+            trailing={(<ExportButton
+              disabled={issues.length === 0}
+              items={[
+                { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => run(() => exportIssuesExcel(issues), `Excel exported, ${issues.length} issues.`) },
+                { label: 'PDF', icon: 'pdf', onSelect: () => run(() => exportIssuesPdf(issues), `PDF exported, ${issues.length} issues.`) },
+              ]}
+            />)}
             filtered={hasFilters}
             onClear={clearFilters}
             activeCount={[dateFrom, dateTo].filter(Boolean).length}

@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, MoreMenu, LoadingPulse } from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, ExportButton, LoadingPulse } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -95,11 +95,14 @@ function QuotationsContent() {
         actions={(
           <>
             <Button icon="save" onClick={save}>Save</Button>
-            <MoreMenu pending={busy === 'word'} items={[
-              { label: 'New', icon: 'plus', onSelect: startNew },
-              { label: 'Word', icon: 'download', disabled: busy !== null, onSelect: () => run('word') },
-            ]} />
-            <Button variant="primary" icon="pdf" pending={busy === 'pdf'} disabled={busy !== null} onClick={() => run('pdf')}>PDF</Button>
+            <ExportButton
+              pending={busy !== null}
+              items={[
+                { label: 'PDF', icon: 'pdf', disabled: busy !== null, onSelect: () => run('pdf') },
+                { label: 'Word', icon: 'download', disabled: busy !== null, onSelect: () => run('word') },
+              ]}
+            />
+            <Button icon="plus" onClick={startNew}>New</Button>
           </>
         )}
       />

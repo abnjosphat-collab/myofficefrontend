@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
@@ -158,13 +158,6 @@ function DriversContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh drivers" variant="shell" pending={loading && loaded} onClick={() => loadData()} />
-            <Menu>
-              <MenuTrigger asChild><Button variant="secondary" icon="download" iconAfter="chevron-down" disabled={filtered.length === 0}>Download</Button></MenuTrigger>
-              <MenuContent align="end" className="min-w-48">
-                <MenuItem icon="table-view" onSelect={() => exportExcel(filtered)}>Export Excel</MenuItem>
-                <MenuItem icon="pdf" onSelect={() => exportPDF(filtered, filterLabel)}>Export PDF</MenuItem>
-              </MenuContent>
-            </Menu>
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>
           </>
         )}
@@ -177,7 +170,19 @@ function DriversContent() {
         <MetricTile compact label="Departments" value={stats.depts} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
-      <Toolbar filtered={hasFilters} trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+      <Toolbar
+        filtered={hasFilters}
+        trailing={(<>
+          <ExportButton
+            disabled={filtered.length === 0}
+            items={[
+              { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => exportExcel(filtered) },
+              { label: 'PDF', icon: 'pdf', onSelect: () => exportPDF(filtered, filterLabel) },
+            ]}
+          />
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+      >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search name, department or phone" wrapperClassName="min-w-56 max-w-md flex-1" />
         {departments.length > 0 && <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...departments.map(d => ({ value: d, label: d }))]} />}
         <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: 'all', label: 'All' }, ...STATUS_OPTIONS.map(o => ({ value: o.value as Driver['status'], label: o.label }))]} />
