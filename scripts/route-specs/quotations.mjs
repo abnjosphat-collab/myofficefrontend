@@ -17,7 +17,8 @@ const spec = {
     check(!(await page.getByText(/Elite Solutions|Tech Innovations|Premium/).first().isVisible().catch(() => false)), 'no demo company, client or template appears');
 
     // an empty quotation cannot be exported, and says why
-    await page.getByRole('button', { name: 'PDF', exact: true }).click();
+    await page.getByRole('button', { name: 'Export' }).click();
+    await page.getByRole('menuitem', { name: 'PDF', exact: true }).click();
     check(await page.getByText('Fix these before exporting').isVisible() && await page.getByText('Add at least one line item.').isVisible(), 'exporting an empty quotation lists what is missing');
     await shot(page, 'blocked@1440');
 
