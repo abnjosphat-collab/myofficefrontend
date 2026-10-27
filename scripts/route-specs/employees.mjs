@@ -100,7 +100,7 @@ const spec = {
     check(await page.getByText(/was not deleted: Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
     // organised roster export
-    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('button', { name: 'Export' }).click();
     await page.getByRole('menuitem', { name: 'Organised roster' }).click();
     const ro = dialog('Download the organised roster');
     await ro.waitFor({ timeout: 5000 });
@@ -111,7 +111,7 @@ const spec = {
     await ro.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
 
     // registry download
-    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'More' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)', exact: true }).click(); })()]);
+    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)', exact: true }).click(); })()]);
     check(!!dl2 && /Personnel_Registry/.test(dl2.suggestedFilename()), 'the registry download produces a workbook', dl2?.suggestedFilename());
 
     // normalise: shows what it will change; a refused batch says so

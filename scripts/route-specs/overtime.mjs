@@ -219,8 +219,8 @@ const spec = {
     check(await page.getByText(/leaves out 1 record charged to another department/).isVisible(), 'other cost centres are left out and the summary says so');
     check(await page.getByRole('heading', { name: 'Main reason, by person' }).isVisible() && await page.getByRole('heading', { name: 'Overtime by person' }).isVisible(), 'each person\'s main reason and entries are listed');
     await shot(page, 'weekly@1440');
-    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.getByRole('button', { name: 'Download Excel' }).click()]);
-    check(!!download && /OT_Weekly_Summary/.test(download.suggestedFilename()), 'Download Excel produces the workbook', download?.suggestedFilename());
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.getByRole('button', { name: 'Export Excel' }).click()]);
+    check(!!download && /OT_Weekly_Summary/.test(download.suggestedFilename()), 'Export Excel produces the workbook', download?.suggestedFilename());
   },
   create: {
     open: 'New request', dialog: 'New overtime request', path: '/api/overtime', submit: 'Submit request',

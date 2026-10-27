@@ -187,8 +187,7 @@ const spec = {
     check(!(await page.getByRole('button', { name: 'Copy previous period' }).isVisible().catch(() => false)), 'there is no copy-previous escape hatch');
 
     // download
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: 'Download' }).click();
+    await page.getByRole('button', { name: 'Export' }).click();
     const dl = page.getByRole('dialog', { name: 'Download timesheet' });
     await dl.waitFor({ timeout: 5000 });
     const [file] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), dl.getByRole('button', { name: 'Download' }).click()]);

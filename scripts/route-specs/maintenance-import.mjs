@@ -110,7 +110,7 @@ const assets = {
     check(await page.getByRole('link', { name: 'View the register' }).getAttribute('href') === '/equipment', 'the result links the register');
     const report = page.getByRole('table', { name: 'Rows not imported' });
     check(await report.getByText('Crusher 1').first().isVisible() && await report.getByText('Already there').isVisible() && await report.getByText('Near miss').isVisible(), 'the unmatched report names each row and why');
-    check(await page.getByRole('button', { name: 'Download' }).isVisible(), 'the unmatched report downloads');
+    check(await page.getByRole('button', { name: 'Export Excel' }).isVisible(), 'the unmatched report downloads');
     await shot(page, 'result@1440');
   },
 };

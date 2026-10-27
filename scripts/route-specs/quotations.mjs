@@ -48,10 +48,10 @@ const spec = {
     await page.getByRole('tab', { name: 'Edit' }).click();
 
     // exports
-    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), page.getByRole('button', { name: 'PDF', exact: true }).click()]);
+    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'PDF', exact: true }).click(); })()]);
     check(!!pdf && /^quotation-QT-.*\.pdf$/.test(pdf.suggestedFilename()), 'the PDF downloads', pdf?.suggestedFilename());
     await pdf?.saveAs('node_modules/.cache/mo-audit/quotation-export.pdf').catch(() => {});
-    const [word] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'More' }).click(); await page.getByRole('menuitem', { name: 'Word', exact: true }).click(); })()]);
+    const [word] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'Word', exact: true }).click(); })()]);
     check(!!word && /^quotation-QT-.*\.docx$/.test(word.suggestedFilename()), 'the Word file downloads', word?.suggestedFilename());
     await word?.saveAs('node_modules/.cache/mo-audit/quotation-export.docx').catch(() => {});
 
@@ -71,8 +71,7 @@ const spec = {
     check(calls.some(c => c.method === 'PUT' && c.pathname === '/api/quotations/QT-TEST-1' && c.body?.draft?.client?.name === 'Acme Mining'), 'the whole quotation is sent');
     await page.getByRole('tab', { name: 'Saved (1)' }).click();
     await shot(page, 'saved@1440');
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: 'New', exact: true }).click();
+    await page.getByRole('button', { name: 'New', exact: true }).click();
     const c1 = page.getByRole('alertdialog'); await c1.waitFor({ timeout: 5000 });
     await c1.getByRole('button', { name: 'Start new' }).click();
     await c1.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});

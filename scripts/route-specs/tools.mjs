@@ -53,6 +53,16 @@ const spec = {
     check(await pods.count() === 1, 'the overdue figure filters the register to the overdue tool');
     await page.getByRole('button', { name: /Return overdue\s*1/ }).click();
     await shot(page, 'register@1440');
+    // export sits beside the view switch, not inside More
+    await page.getByRole('button', { name: 'Actions' }).click();
+    check((await page.getByRole('menuitem', { name: /Download|Export/ }).count()) === 0, 'nothing export-related hides inside More');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const expo = page.getByRole('dialog', { name: 'Download this view' });
+    await expo.waitFor({ timeout: 5000 });
+    check(await expo.getByText('Excel workbook').isVisible() && await expo.getByText('Word document').isVisible() && await expo.getByText('PDF', { exact: true }).isVisible(), 'the export dialog offers Excel, Word and PDF');
+    await page.keyboard.press('Escape');
+    await expo.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
     // An open loan whose pre-use check is still due says so in the panel, with the recording form.
     await pods.filter({ hasText: 'Angle grinder' }).click();

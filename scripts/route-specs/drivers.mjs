@@ -27,6 +27,11 @@ const spec = {
     await page.getByRole('button', { name: 'Table view' }).click();
     check(await page.getByRole('table', { name: 'Authorised drivers' }).isVisible(), 'table view renders');
     await shot(page, 'table@1440');
+    // export: one labelled trigger with Excel and PDF in its menu
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Excel (.xlsx)' }).waitFor({ timeout: 5000 });
+    check(await page.getByRole('menuitem', { name: 'Excel (.xlsx)' }).isVisible() && await page.getByRole('menuitem', { name: 'PDF' }).isVisible(), 'the Export menu offers Excel and PDF');
+    await page.keyboard.press('Escape');
 
     // edit -> PATCH; delete needs confirmation
     await page.getByRole('button', { name: 'Edit Ann Alpha' }).first().click();
