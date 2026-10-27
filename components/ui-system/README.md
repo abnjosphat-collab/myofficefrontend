@@ -107,12 +107,14 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 **Tabs and Segmented.** Tabs switch views (panels of different content); Segmented picks a value (a filter, a form choice, a scope). Never nest one tab strip inside another — a filter inside a tab panel stays a Segmented. TabsList draws a sliding indicator under the active tab (instant under reduced motion) and can show a first-visit guide line (`guideId` + `guideText`) that retires after the first tab change and is remembered per strip.
 
+**Exports.** Every page-level export is one labelled `ExportButton` in the Toolbar's trailing slot, before the view toggle: "Export" with a caret and an "Excel (.xlsx)" / "PDF" menu, or "Export Excel" / "Export PDF" with no menu for a single format. `DownloadButton` renders through it. `iconOnly` is for dense table row actions only (a docs check fails it elsewhere). Nothing export-related sits in More. At 390 px and below a single-format label shortens to "Export", never to a bare icon.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).
 2. Replace the data hook with `useApiList` (or keep the hook but expose `loaded/error/errorStatus`).
 3. Build `PageHeader` > `MetricGrid` > `Toolbar` > `DataRegion` > `DataTable`/`RecordCard`; create/edit in `FormDialog`;
-   destructive actions through `useConfirm`; export through `DownloadButton` (already on the shared `Menu`).
+   destructive actions through `useConfirm`; export through `DownloadButton` or `ExportButton` in the Toolbar's trailing slot, before the view toggle.
 4. Render `<AppShell migrated>`. Remove invented data, dead controls and swallowed errors; record each in the checkpoint.
 5. Add `scripts/route-specs/<name>.mjs` (see [`docs/TESTING.md`](../../docs/TESTING.md)), run it, look at the screenshots.
 6. Record what was rendered in `docs/migration-verification.json`, run `npm run docs:ledger`, update the handoff.
