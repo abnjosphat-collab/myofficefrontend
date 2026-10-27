@@ -156,6 +156,12 @@
 
   --ease-standard: var(--mo-ease-standard);
   --ease-emphasized: var(--mo-ease-emphasized);
+  /* Spring easings: the generated linear() curves from tokens.css (same feel as
+     the framer presets). Pair with duration-[var(--mo-spring-*-duration)]. */
+  --ease-spring-smooth: var(--mo-spring-smooth);
+  --ease-spring-gentle: var(--mo-spring-gentle);
+  --ease-spring-snappy: var(--mo-spring-snappy);
+  --ease-spring-quick: var(--mo-spring-quick);
 }
 
 /* Shared focus treatment: one visible ring for every interactive element. */

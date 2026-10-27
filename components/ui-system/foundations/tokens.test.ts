@@ -3,6 +3,7 @@
 // chart can sit on; status text must hold WCAG 1.4.3 text contrast (4.5:1) on its
 // soft fill. Values are read from tokens.css itself, so a future re-tint that
 // breaks contrast fails here instead of silently shipping.
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -251,5 +252,46 @@ describe('mono dark token contrast', () => {
   it('light needs no override block (the base look is untouched)', () => {
     expect(themesCss).not.toContain("data-darkness='light'");
     expect(themesCss.match(/html\[data-theme=/g)?.length ?? 0).toBe(1);
+  });
+});
+
+
+// Motion springs: the CSS linear() curves generated from motion/presets.ts.
+// The generator is the single source — this battery pins its output, not the
+// numbers themselves (change a preset, re-run the script, commit both files).
+describe('generated motion springs', () => {
+  const themeCss = readFileSync(
+    join(process.cwd(), 'components/ui-system/foundations/theme.css'),
+    'utf8',
+  );
+
+  it('matches the generator output (run node scripts/gen-spring-css.mjs)', () => {
+    execFileSync(process.execPath, ['scripts/gen-spring-css.mjs', '--check'], { stdio: 'pipe' });
+  });
+
+  it('declares a curve and a duration for every spring preset', () => {
+    for (const name of ['smooth', 'gentle', 'snappy', 'quick']) {
+      const curve = new RegExp(`--mo-spring-${name}:\\s*linear\\([^;]+\\);`).exec(css);
+      expect(curve, `--mo-spring-${name}`).toBeTruthy();
+      const points = curve?.[0].match(/-?[\d.]+/g) ?? [];
+      // A real spring curve: dozens of samples that start at 0 and settle at 1.
+      expect(points.length, `${name} samples`).toBeGreaterThan(20);
+      expect(Number(points[0]), `${name} starts`).toBe(0);
+      expect(Number(points[points.length - 1]), `${name} settles`).toBe(1);
+      expect(css, `${name} duration`).toMatch(new RegExp(`--mo-spring-${name}-duration:\\s*\\d+ms;`));
+    }
+  });
+
+  it('exposes every spring as a Tailwind ease utility', () => {
+    for (const name of ['smooth', 'gentle', 'snappy', 'quick']) {
+      expect(themeCss, `ease-spring-${name}`).toContain(`--ease-spring-${name}: var(--mo-spring-${name});`);
+    }
+  });
+
+  it('keeps reduced motion (and its gallery simulation) instant', () => {
+    for (const name of ['smooth', 'gentle', 'snappy', 'quick']) {
+      expect(css, `reduce ${name}`).toContain(`--mo-spring-${name}-duration: 1ms;`);
+    }
+    expect(css).toContain(':root[data-mo-motion="reduce"]');
   });
 });

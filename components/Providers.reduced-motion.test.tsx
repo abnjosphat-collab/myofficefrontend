@@ -1,8 +1,8 @@
 // components/Providers.reduced-motion.test.tsx — F-15 companion: with the OS
-// asking for reduced motion, the app's MotionConfig reducedMotion="user" must
-// report reduce-motion to motion components. Separate file from
-// Providers.test.tsx because framer's OS-preference listener is a module
-// singleton initialised once per file.
+// asking for reduced motion, the app's MotionProvider (MotionConfig
+// reducedMotion="user") must report reduce-motion to motion components.
+// Separate file from Providers.test.tsx because framer's OS-preference
+// listener is a module singleton initialised once per file.
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -12,11 +12,17 @@ vi.mock('@/lib/auth-context', () => ({
 }));
 vi.mock('@/components/app-shell/mfa-ui', () => ({ GlobalMfaGate: () => null }));
 vi.mock('@/components/app-shell/ServiceWorkerRegistrar', () => ({ ServiceWorkerRegistrar: () => null }));
-vi.mock('@/components/ui-system', () => ({
-  AppearanceProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-  ConfirmProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
+vi.mock('@/components/ui-system', async () => {
+  // The real MotionProvider (the wiring under test); the neighbouring
+  // providers are passthroughs so this file observes motion config only.
+  const { MotionProvider } = await import('@/components/ui-system/motion/MotionProvider');
+  return {
+    AppearanceProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    ConfirmProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    MotionProvider,
+  };
+});
 vi.mock('@/components/shared/floor/FloorProvider', () => ({
   FloorProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
