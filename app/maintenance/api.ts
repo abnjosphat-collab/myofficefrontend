@@ -37,6 +37,13 @@ export async function bulkCloseWorkOrders(body: Record<string, unknown>): Promis
   return api.post<BulkCloseResult>('/api/maintenance/work-orders/bulk-close', body);
 }
 
+export interface BulkDeleteResult { deleted: (string | number)[]; failed: { id: string | number; reason: string }[]; }
+
+/** Delete work orders in one server call (manager-only); the server reports each row as deleted or failed with its reason. */
+export async function bulkDeleteWorkOrders(body: { ids: (string | number)[] }): Promise<BulkDeleteResult> {
+  return api.post<BulkDeleteResult>('/api/maintenance/work-orders/bulk-delete', body);
+}
+
 /** The breakdown linked to a work order, or null when there is none. */
 export async function fetchWorkOrderBreakdown(id: string | number): Promise<Breakdown | null> {
   return api.get<Breakdown | null>(`/api/maintenance/work-orders/${id}/breakdown`);

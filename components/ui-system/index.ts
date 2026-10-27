@@ -61,6 +61,8 @@ export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';
+export { BulkBar } from './patterns/BulkBar';
+export type { BulkBarProps } from './patterns/BulkBar';
 export { Fact, FactList, FactSection } from './patterns/Fact';
 export { DetailActions, RowActions } from './patterns/RecordActions';
 export { DataTable } from './patterns/DataTable';

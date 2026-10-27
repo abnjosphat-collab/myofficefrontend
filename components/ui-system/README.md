@@ -82,6 +82,12 @@ wrapper that contains buttons.
 numbers, `aria-sort` on sortable headers, selection as a fill **and** a checked box. Sorting and selection logic lives in
 `tableLogic.ts` (unit-tested).
 
+**Bulk selection.** `RecordCard` takes an optional shared selection checkbox (`selectable`, `selected`,
+`onSelectedChange`): a 44 px target at the top-left that never opens the card. One `BulkBar` per register
+carries the count ("3 selected (1 hidden by filters)"), "Select all shown (n)" and "Clear" plus the
+caller's actions; it floats at the bottom of the viewport on phones and sits inline above the list on
+desktop. Selection is shared across views and survives filtering; bulk actions act on the whole set.
+
 **Charts.** Use `ChartPanel` with a `summary` (the text alternative is required), the `Chart` frame around the Recharts chart (responsive box, hidden from assistive technology, still under prefers-reduced-motion), and `chartTheme`/`chartColor` for styling.
 Heatmaps and charts are `aria-hidden`; the summary carries the information.
 

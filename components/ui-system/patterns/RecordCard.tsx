@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { cardVariants } from '../primitives/Card';
+import { Checkbox } from '../primitives/Checkbox';
 
 export interface RecordCardProps {
   /** Small identifier line above the title (register number, WO number, employee number). */
@@ -17,6 +18,12 @@ export interface RecordCardProps {
   /** Primary action for the card (e.g. Issue / Receive). A separate control stacked above the open target. */
   action?: ReactNode;
   selected?: boolean;
+  /** Show a selection checkbox at the top-left. A shared prop: any card list can select. */
+  selectable?: boolean;
+  /** Fires when the selection checkbox changes. Checking never opens the card. */
+  onSelectedChange?: (selected: boolean) => void;
+  /** Accessible name for the selection checkbox. Defaults to "Select this record". */
+  selectLabel?: string;
   /** Makes the whole card open the record. Implemented as ONE real button (the title) stretched over the card. */
   onOpen?: () => void;
   /** Accessible name for the open button; defaults to the title text. */
@@ -32,7 +39,7 @@ export interface RecordCardProps {
  * one correct control, and nested actions stay valid sibling controls (a role=button
  * wrapper around other buttons is invalid ARIA). Stationary: no lift or tilt.
  */
-export function RecordCard({ eyebrow, title, subtitle, status, facts, meta, action, selected, onOpen, openLabel, className }: RecordCardProps) {
+export function RecordCard({ eyebrow, title, subtitle, status, facts, meta, action, selected, selectable, onSelectedChange, selectLabel, onOpen, openLabel, className }: RecordCardProps) {
   const interactive = Boolean(onOpen);
   return (
     <div
@@ -45,6 +52,15 @@ export function RecordCard({ eyebrow, title, subtitle, status, facts, meta, acti
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        {selectable && (
+          <span className="relative z-10 -m-2 flex size-11 shrink-0 items-center justify-center">
+            <Checkbox
+              aria-label={selectLabel ?? 'Select this record'}
+              checked={selected ?? false}
+              onChange={event => onSelectedChange?.(event.target.checked)}
+            />
+          </span>
+        )}
         <div className="min-w-0 flex-1 basis-40">
           {eyebrow && <p className="truncate font-sans text-caption text-ink-muted tabular">{eyebrow}</p>}
           <h3 className={cn(type.recordTitle, '[overflow-wrap:anywhere]')}>

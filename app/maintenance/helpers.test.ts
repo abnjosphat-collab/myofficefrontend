@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  NO_FILTERS, artisanBody, bulkCloseRefusal, calcStats, countByStatus, durationText, editOrderBody, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, quickCloseBody, quickCloseProblems, recurrenceLabel, type QuickCloseDraft,
+  NO_FILTERS, artisanBody, bulkCloseRefusal, calcStats, countByStatus, countHiddenSelected, durationText, editOrderBody, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, machinesOf, newOrderBody, nextWONumber, parseDurationHours, quickCloseBody, quickCloseProblems, recurrenceLabel, type QuickCloseDraft,
   NO_ANALYTICS_FILTERS, analyticsFilterCount, distinct, filterAnalytics, scheduleBody, scheduleProblems, type ArtisanReport, type RequestForm, type ScheduleDraft,
 } from './helpers';
 import { classificationLabel, priorityMeta, statusMeta } from './meta';
@@ -85,6 +85,12 @@ describe('sign-off, not-done and closing', () => {
     expect(bulkCloseRefusal(wo({ status: 'completed' }))).toBe('Already completed.');
     expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'breakdown' }))).toBe('Only routine planned jobs close in bulk.');
     expect(bulkCloseRefusal(wo({ status: 'pending', classification: 'project' }))).toBe('Only routine planned jobs close in bulk.');
+  });
+  it('counts selected rows the filters hide', () => {
+    expect(countHiddenSelected(new Set(['1', '2', '3']), new Set(['1', '2', '3']))).toBe(0);
+    expect(countHiddenSelected(new Set(['1', '2', '3']), new Set(['1', '2']))).toBe(1);
+    expect(countHiddenSelected(new Set(['1', '2', '3']), new Set())).toBe(3);
+    expect(countHiddenSelected(new Set(), new Set(['1']))).toBe(0);
   });
   const q: QuickCloseDraft = { work_done: '', mode: 'times', start: '', finish: '', hours: '', artisan_name: '', artisan_date: '', cause: '', failure_mode: '', action: '' };
   it('asks for what is missing, counting what the job already holds', () => {

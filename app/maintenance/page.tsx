@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useConfirm, useViewPreference, type Column,
+  Button, BulkBar, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
+  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, pruneSelection, toggleOne, useConfirm, useViewPreference, type Column,
   LoadingPulse,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -18,11 +18,11 @@ import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
-import { deleteWorkOrder, fetchWorkOrderById, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
+import { bulkDeleteWorkOrders, deleteWorkOrder, fetchWorkOrderById, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
 import { GuideView } from './GuideView';
 import { AnalyticsView } from './AnalyticsView';
 import { QuickCloseDialog, type QuickCloseRequest } from './QuickCloseDialog';
-import { NO_FILTERS, bulkCloseRefusal, countByStatus, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
+import { NO_FILTERS, bulkCloseRefusal, countByStatus, countHiddenSelected, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
 import { PRIORITY, classificationLabel, priorityMeta, statusMeta } from './meta';
 import { ScheduleForm } from './ScheduleForm';
 import { SchedulesView } from './SchedulesView';
@@ -89,6 +89,11 @@ function MaintenanceContent() {
   const tile = { loading: orders.loading && !orders.loaded, unavailable: !orders.loaded && !orders.loading };
   const clear = () => { setF(NO_FILTERS); setPage(1); };
   const chosen = useMemo(() => items.filter(w => selected.has(String(w.id))), [items, selected]);
+  // Ids that no longer exist (after a delete or refetch) drop out of the live set;
+  // filter changes never prune — hidden selections stay and are counted.
+  const live = useMemo(() => pruneSelection(selected, items.map(w => String(w.id))), [selected, items]);
+  const shownIds = useMemo(() => new Set(rows.map(w => String(w.id))), [rows]);
+  const hiddenCount = countHiddenSelected(live, shownIds);
   const merge = (updated?: WorkOrder) => { if (updated) orders.setItems(prev => prev.map(w => (String(w.id) === String(updated.id) ? { ...w, ...updated } : w))); else void orders.refetch(); };
   // Bell deep link (?open=<id>): land on the work order.
   const [deepNotice, setDeepNotice] = useState<string | null>(null);
@@ -110,10 +115,14 @@ function MaintenanceContent() {
   };
   const removeMany = async () => {
     if (!await confirm({ title: `Delete ${chosen.length} work ${chosen.length === 1 ? 'order' : 'orders'}?`, message: 'This cannot be undone.', confirmLabel: `Delete ${chosen.length}`, destructive: true })) return;
-    let ok = 0; let first = '';
-    for (const w of chosen) { try { await deleteWorkOrder(w.id); ok += 1; } catch (e) { first ||= (e as Error).message; } }
-    if (ok) toast.success(`${ok} deleted.`);
-    if (ok < chosen.length) toast.error(`${chosen.length - ok} could not be deleted: ${first}`);
+    try {
+      const result = await bulkDeleteWorkOrders({ ids: chosen.map(w => w.id) });
+      const names = new Map(items.map(w => [String(w.id), w.work_order_number]));
+      if (result.deleted.length) toast.success(`${result.deleted.length} deleted.`);
+      if (result.failed.length) toast.error(`${result.failed.length} could not be deleted: ${result.failed.map(s => `${names.get(String(s.id)) ?? `#${s.id}`}: ${s.reason}`).join(' ')}`);
+    } catch (e) {
+      toast.error(`The work orders were not deleted: ${(e as Error).message}`);
+    }
     setSelected(new Set());
     await orders.refetch();
   };
@@ -188,13 +197,20 @@ function MaintenanceContent() {
             <span className="font-sans text-caption text-ink-muted">Priority:</span>
             {(Object.keys(PRIORITY) as WorkOrderPriority[]).map(p => { const on = f.priorities.includes(p); return <Button key={p} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on} onClick={() => set({ priorities: on ? f.priorities.filter(x => x !== p) : [...f.priorities, p] })}>{PRIORITY[p].label}</Button>; })}
           </div>
-          {view === 'table' && selected.size > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">
-              <span className="font-sans text-label font-semibold text-ink">{selected.size} selected</span>
-              <Button size="sm" variant="primary" icon="check" disabled={chosen.every(w => bulkCloseRefusal(w))} onClick={() => setClosing({ kind: 'bulk', orders: chosen })}>Mark done</Button>
-              {canManage && <Button size="sm" variant="danger" icon="delete" onClick={removeMany}>Delete selected</Button>}
-              <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>Clear selection</Button>
-            </div>
+          {live.size > 0 && (
+            <BulkBar
+              selectedCount={live.size}
+              hiddenCount={hiddenCount}
+              shownCount={rows.length}
+              onSelectAllShown={() => setSelected(prev => new Set([...prev, ...rows.map(w => String(w.id))]))}
+              onClear={() => setSelected(new Set())}
+              actions={(
+                <>
+                  <Button size="sm" variant="primary" icon="check" disabled={chosen.every(w => bulkCloseRefusal(w))} onClick={() => setClosing({ kind: 'bulk', orders: chosen })}>Mark done</Button>
+                  {canManage && <Button size="sm" variant="danger" icon="delete" onClick={removeMany}>Delete selected</Button>}
+                </>
+              )}
+            />
           )}
           <DataRegion
             status={status} subject="work orders" error={orders.error} onRetry={() => orders.refetch()}
@@ -211,6 +227,7 @@ function MaintenanceContent() {
                     <li key={String(w.id)} className="relative">
                       <RecordCard
                         eyebrow={`#${w.work_order_number}`} title={w.equipment_info} subtitle={w.job_request_details || undefined} openLabel={`Open work order ${w.work_order_number}, ${w.equipment_info}`} onOpen={() => setViewingId(String(w.id))}
+                        selectable selected={selected.has(String(w.id))} onSelectedChange={() => setSelected(prev => toggleOne(String(w.id), prev))} selectLabel={`Select work order ${w.work_order_number}`}
                         status={badges(w)}
                         facts={[{ label: 'Assigned', value: w.allocated_to || w.artisan_name || 'Unassigned' }, { label: 'Priority', value: p.label }, ...(w.due_date ? [{ label: 'Due', value: <span className={isOverdue(w) ? 'font-semibold text-danger' : ''}>{fmtDate(w.due_date)}</span> }] : []), ...(classificationLabel(w) ? [{ label: 'Class', value: classificationLabel(w) }] : [])]}
                         meta={<div className="w-full min-w-40"><Progress value={w.progress ?? 0} label={`${w.equipment_info} progress`} /></div>}
