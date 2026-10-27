@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { ImportDialog } from './ImportDialog';
@@ -104,7 +104,6 @@ function ServicesContent() {
         description={scope ? `Contractor jobs, and where each one is in the approval circuit from planning to payment. — showing ${scope} only.` : 'Contractor jobs, and where each one is in the approval circuit from planning to payment.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh services" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu items={[{ label: 'Import or scan', icon: 'upload', disabled: !list.loaded, onSelect: () => setImporting(true) }]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button>
           </>
@@ -144,7 +143,7 @@ function ServicesContent() {
           ? <EmptyState icon="search" title="No jobs match" description="Try a different search or clear the filters." action={<Button onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>} />
           : scope ? <EmptyState icon="service" title={`No ${scope} services recorded yet`} description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} /> : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'job' : 'jobs'}{matches.length !== records.length ? ` of ${records.length}` : ''}</p>
+        <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'job' : 'jobs'}{matches.length !== records.length ? ` of ${records.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Services">
             {visible.map(r => {

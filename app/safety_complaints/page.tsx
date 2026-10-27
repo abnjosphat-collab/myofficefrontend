@@ -6,7 +6,7 @@ import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'rec
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
@@ -204,7 +204,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function SafetyComplaintsContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { complaints, loading, loaded, error, errorStatus, refetch } = useSafetyComplaintsData();
+  const { complaints, loading, loaded, error, errorStatus, updatedAt, refetch } = useSafetyComplaintsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState(ALL);
@@ -274,7 +274,6 @@ function SafetyComplaintsContent() {
         description={scope ? `Register, track and resolve safety complaints with full accountability. \u2014 showing ${scope} only.` : 'Register, track and resolve safety complaints with full accountability.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh complaints" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>
           </>
         )}
@@ -332,7 +331,7 @@ function SafetyComplaintsContent() {
             <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
           </TabsList>
           <TabsContent value="records" className="mt-5 flex flex-col gap-3">
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'complaint' : 'complaints'}{filtered.length !== complaints.length ? ` of ${complaints.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'complaint' : 'complaints'}{filtered.length !== complaints.length ? ` of ${complaints.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Safety complaints"
               rows={rows}

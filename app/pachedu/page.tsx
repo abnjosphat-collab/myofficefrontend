@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -190,7 +190,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function PacheduContent() {
   const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
-  const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePacheduData();
+  const { reports, setReports, loading, loaded, error, errorStatus, updatedAt, refetch } = usePacheduData();
   const [view, setView] = useViewPreference('pachedu', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
@@ -258,7 +258,6 @@ function PacheduContent() {
         description={scope ? `Be your brother's keeper: track care observations and supportive actions. — showing ${scope} only.` : "Be your brother's keeper: track care observations and supportive actions."}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh Pachedu reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button>
           </>
         )}
@@ -309,7 +308,7 @@ function PacheduContent() {
           ? <EmptyState icon="search" title="No care observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : scope ? <EmptyState icon="care" title={`No ${scope} care observations yet`} description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} /> : <EmptyState icon="care" title="No care observations yet" description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {bySection} · {intentional} intentional</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {bySection} · {intentional} intentional<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => (

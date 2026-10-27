@@ -37,5 +37,5 @@ export const api = {
 
 export function useSafetyComplaintsData() {
   const list = useApiList<Complaint>(`${BASE}/`, undefined, { paged: true });
-  return { complaints: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { complaints: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

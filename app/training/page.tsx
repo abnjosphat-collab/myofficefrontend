@@ -9,7 +9,7 @@ import { todayLocal } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, sortRows, type Column, type SortState, type Tone } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone } from '@/components/ui-system';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
@@ -103,7 +103,7 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 function TrainingContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { certs, refreshers, compliance, loading, refreshing, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, fetchAll } = useTrainingData();
+  const { certs, refreshers, compliance, loading, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, updatedAt, fetchAll } = useTrainingData();
   const [tab, setTab] = useState('register');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(ALL);
@@ -155,7 +155,6 @@ function TrainingContent() {
         description={scope ? `Employee qualifications, expiry dates and compliance — showing ${scope} only.` : 'Employee qualifications, expiry dates and compliance.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh training records" variant="shell" pending={refreshing} onClick={() => fetchAll(true)} />
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
           </>
         )}
@@ -195,7 +194,7 @@ function TrainingContent() {
               ? <EmptyState icon="search" title="No certifications match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setStatusFilter(ALL); setDeptFilter(ALL); }}>Clear filters</Button>} />
               : scope ? <EmptyState icon="training" title={`No ${scope} certifications yet`} description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} /> : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {certs.length} certifications</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {certs.length} certifications<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Certification register"
               rows={rows}

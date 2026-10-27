@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -225,7 +225,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function VFLContent() {
   const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
-  const { reports, setReports, loading, loaded, error, errorStatus, refetch } = useVFLData();
+  const { reports, setReports, loading, loaded, error, errorStatus, updatedAt, refetch } = useVFLData();
   const [view, setView] = useViewPreference('vfl', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
@@ -292,7 +292,6 @@ function VFLContent() {
         description={scope ? `Safety observations and coaching tracking. — showing ${scope} only.` : 'Safety observations and coaching tracking.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh observations" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>
           </>
         )}
@@ -344,7 +343,7 @@ function VFLContent() {
           ? <EmptyState icon="search" title="No observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : scope ? <EmptyState icon="eye" title={`No ${scope} VFL observations yet`} description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} /> : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {totalActions} {totalActions === 1 ? 'action' : 'actions'} across all observations</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {totalActions} {totalActions === 1 ? 'action' : 'actions'} across all observations<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => {

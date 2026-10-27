@@ -13,5 +13,5 @@ export const deleteVFLReport = (id: string) => api.delete<void>(`/api/vfl/${id}/
 
 export function useVFLData() {
   const list = useApiList<VFLReport>('/api/vfl/', undefined, { paged: true });
-  return { reports: list.items, setReports: list.setItems, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { reports: list.items, setReports: list.setItems, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

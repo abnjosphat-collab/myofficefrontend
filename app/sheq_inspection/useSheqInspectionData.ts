@@ -23,5 +23,5 @@ export const deleteInspection = (id: string) => api.delete(`/api/sheq/${id}/`);
 
 export function useSheqInspectionData() {
   const list = useApiList<SHEQFormData>('/api/sheq/');
-  return { inspections: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { inspections: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

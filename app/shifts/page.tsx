@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
   Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge,
-  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
+  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
   type Column,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -42,7 +42,7 @@ const PatternTag = ({ type }: { type: string }) => { const p = patternOf(type); 
 function ShiftsContent() {
   const confirm = useConfirm();
   const { scope } = useAuth();
-  const { assignments: list, leaves, refresh } = useShiftsData();
+  const { assignments: list, leaves } = useShiftsData();
   const items = list.items;
   const [view, setView] = useViewPreference('shifts', VIEW_CARDS_TABLE);
   const [tab, setTab] = useState('assignments');
@@ -128,7 +128,6 @@ function ShiftsContent() {
         description={scope ? `Who is on duty, off duty or on standby, by shift cycle — showing ${scope} only.` : 'Who is on duty, off duty or on standby, by shift cycle.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded) || (duty.loading && duty.loaded)} onClick={() => { refresh(); duty.refetch(); }} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button>
           </>
         )}
@@ -178,7 +177,7 @@ function ShiftsContent() {
             <TabsTrigger value="schedule" icon="calendar">Four-week schedule</TabsTrigger>
           </TabsList>
           <TabsContent value="assignments" className="mt-4 flex flex-col gap-3">
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} assignments</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} assignments<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.map(a => {

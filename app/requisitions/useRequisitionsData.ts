@@ -45,5 +45,5 @@ export async function apiDelete(id: string): Promise<void> {
 
 export function useRequisitionsData() {
   const list = useApiList<Record<string, unknown>, Requisition>('/api/requisitions', fromBackend);
-  return { reqs: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { reqs: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

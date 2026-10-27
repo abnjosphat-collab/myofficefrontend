@@ -110,7 +110,6 @@ function Board({ completedBy }: { completedBy: string }) {
         description="Upcoming events and to-dos in one list, checked off when done."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh events and tasks" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
           </>
         )}

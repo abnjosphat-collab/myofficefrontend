@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Card, Chart, ChartPanel, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, Chart, ChartPanel, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, Progress, Rating, Segmented, Tabs, TabsContent, TabsList, TabsTrigger, chartColor, chartTheme, useConfirm, LoadingPulse } from '@/components/ui-system';
 import {
   getEvents, clearUsage, USAGE_EVENT, summarize, topModules, topSearches, usageOverTime, hourWeekdayHeat, usageByHourSplit, dailyActivity, dwellByPath, getFeedback, fmtDuration,
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
@@ -148,7 +148,6 @@ function UsageAnalyzerContent() {
         description="How this workspace is being used: most-opened modules, activity over time, busiest hours, dwell time and feedback."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh usage data" variant="shell" pending={remoteLoading} onClick={() => (dataSource === 'all' ? loadRemote() : refresh())} />
             {dataSource === 'local' && <Button variant="danger-quiet" icon="delete" onClick={clearAll}>Clear</Button>}
           </>
         )}
@@ -163,7 +162,7 @@ function UsageAnalyzerContent() {
         )}
         <TabsContent value={dataSource} className="flex flex-col gap-4">
 
-      {dataSource === 'all' && remoteError && <Notice tone="warning" title={remoteError} action={<Button size="sm" onClick={loadRemote}>Try again</Button>} />}
+      {dataSource === 'all' && remoteError && <Notice tone="warning" title={remoteError} action={<Button size="sm" onClick={() => loadRemote()}>Try again</Button>} />}
 
       {showRemoteSkeleton ? <LoadingPulse label="Loading activity across all users" />
         : showRemoteError ? null
@@ -313,7 +312,7 @@ function UsageAnalyzerContent() {
             <div id="feedback" className="scroll-mt-24">
               <Panel title={`Feedback (${feedback.length})`} action={<span className="font-sans text-caption text-ink-muted">{canViewAll ? 'Every account' : 'This device'}</span>}>
                 {feedbackLoading ? <LoadingPulse compact label="Loading feedback from every account" /> : null}
-                {feedbackError ? <Notice tone="warning" title="Feedback from every account could not be loaded." action={<Button size="sm" onClick={loadRemote}>Try again</Button>} /> : null}
+                {feedbackError ? <Notice tone="warning" title="Feedback from every account could not be loaded." action={<Button size="sm" onClick={() => loadRemote()}>Try again</Button>} /> : null}
                 {!feedbackLoading && !feedbackError && (feedback.length === 0 ? <NoData hint="Send feedback from the top bar. It collects here by page and rating." /> : (
                   <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
                     {feedback.map((f, i) => (

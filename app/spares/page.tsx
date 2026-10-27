@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { apiCreate, apiDelete, apiUpdate } from './api';
 import { CategoryPanel } from './CategoryPanel';
@@ -98,7 +98,6 @@ function SparesContent() {
         description="What is in stock against its minimum, and the requisitions to restock it."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh spares" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu items={[
               { label: `Requisition${filled(lines).length ? ` (${filled(lines).length})` : ''}`, icon: 'cart', onSelect: () => setReqOpen(true) },
               { label: 'Import Excel', icon: 'upload', onSelect: () => router.push('/spares/import') },
@@ -145,7 +144,7 @@ function SparesContent() {
           ? <EmptyState icon="search" title="No parts match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
           : <EmptyState icon="spares" title="No spare parts yet" description="Add the first one, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ spare: null })}>Add spare</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'part' : 'parts'}{matches.length !== spares.length ? ` of ${spares.length}` : ''}</p>
+        <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'part' : 'parts'}{matches.length !== spares.length ? ` of ${spares.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Spare parts">
             {visible.map(s => (

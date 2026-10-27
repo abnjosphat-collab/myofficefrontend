@@ -13,5 +13,5 @@ export const deletePTOReport = (id: string) => api.delete<void>(`/api/pto/${id}/
 
 export function usePTOData() {
   const list = useApiList<PTOReport>('/api/pto/', undefined, { paged: true });
-  return { reports: list.items, setReports: list.setItems, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { reports: list.items, setReports: list.setItems, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

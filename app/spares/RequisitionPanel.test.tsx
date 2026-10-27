@@ -24,7 +24,7 @@ function setup(header: ReqHeader, lines: ReqLine[] = []) {
   const onHeader = vi.fn();
   const onLines = vi.fn();
   const saved: ApiListState<SavedRequisition> = {
-    items: [savedItem], loading: false, loaded: true, error: null, errorStatus: null,
+    items: [savedItem], loading: false, loaded: true, error: null, errorStatus: null, updatedAt: null,
     refetch: async () => {}, setItems: () => {},
   };
   render(

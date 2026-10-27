@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -192,7 +192,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function RequisitionsContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { reqs, loading, loaded, error, errorStatus, refetch } = useRequisitionsData();
+  const { reqs, loading, loaded, error, errorStatus, updatedAt, refetch } = useRequisitionsData();
   const [tab, setTab] = useState('records');
   const [search, setSearch] = useState('');
   const [statusF, setStatusF] = useState(ALL);
@@ -249,7 +249,6 @@ function RequisitionsContent() {
         description={scope ? `Raise, track and approve purchase requests. \u2014 showing ${scope} only.` : 'Raise, track and approve purchase requests.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh requisitions" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button>
           </>
         )}
@@ -304,7 +303,7 @@ function RequisitionsContent() {
             <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
           </TabsList>
           <TabsContent value="records" className="mt-5 flex flex-col gap-3">
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'requisition' : 'requisitions'}{filtered.length !== reqs.length ? ` of ${reqs.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'requisition' : 'requisitions'}{filtered.length !== reqs.length ? ` of ${reqs.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Purchase requisitions"
               rows={rows}

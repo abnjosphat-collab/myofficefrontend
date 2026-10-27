@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  Chart, ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
+  Chart, ChartPanel, DataRegion, DataTable, EmptyState, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
   deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { useReliabilityData } from './useReliabilityData';
@@ -46,7 +46,6 @@ function ReliabilityContent() {
         title="Reliability"
         description="Fleet reliability and availability, calculated from the breakdowns recorded in MyOffice."
         meta={loaded ? `Based on ${recordCount} recorded ${recordCount === 1 ? 'breakdown' : 'breakdowns'}.` : undefined}
-        actions={<IconButton icon="refresh" label="Refresh analytics" variant="shell" pending={loading && loaded} onClick={refresh} />}
       />
 
       <DataRegion

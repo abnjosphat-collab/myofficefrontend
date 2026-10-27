@@ -65,7 +65,6 @@ function StandbyContent() {
   const dutyRotationsStatus = deriveDataStatus({ loaded: dutyRotations.loaded, loading: dutyRotations.loading, error: dutyRotations.error, errorStatus: dutyRotations.errorStatus, count: dutyRotations.items.length, transient: isTransientStatus(dutyRotations.errorStatus) });
   const dutyStatus = deriveDataStatus({ loaded: duty.loaded, loading: duty.loading, error: duty.error, errorStatus: duty.errorStatus, count: duty.items.length, transient: isTransientStatus(duty.errorStatus) });
   const coversStatus = deriveDataStatus({ loaded: covers.loaded, loading: covers.loading, error: covers.error, errorStatus: covers.errorStatus, count: covers.items.length, transient: isTransientStatus(covers.errorStatus) });
-  const refresh = () => { void rotations.refetch(); void dutyRotations.refetch(); void duty.refetch(); void covers.refetch(); void leaves.refetch(); };
 
   const saveRotation = async (id: number | null, payload: Record<string, unknown>) => {
     try {
@@ -164,7 +163,6 @@ function StandbyContent() {
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Standby' }]}
         title="Standby"
         description={scope ? `Who stands standby each week, who holds in place of whom, and who answers as duty official — showing ${scope} only.` : 'Who stands standby each week, who holds in place of whom, and who answers as duty official.'}
-        actions={<IconButton icon="refresh" label="Refresh standby" variant="ghost" pending={(rotations.loading && rotations.loaded) || (duty.loading && duty.loaded)} onClick={refresh} />}
       />
 
       <Tabs value={tab} onValueChange={setTab}>

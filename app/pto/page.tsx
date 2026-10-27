@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
@@ -280,7 +280,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function PTOContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { reports, setReports, loading, loaded, error, errorStatus, refetch } = usePTOData();
+  const { reports, setReports, loading, loaded, error, errorStatus, updatedAt, refetch } = usePTOData();
   const [view, setView] = useViewPreference('pto', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
@@ -346,7 +346,6 @@ function PTOContent() {
         description={scope ? `Complete PTO forms with risk assessment and action tracking. \u2014 showing ${scope} only.` : 'Complete PTO forms with risk assessment and action tracking.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh PTO reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>
           </>
         )}
@@ -399,7 +398,7 @@ function PTOContent() {
           ? <EmptyState icon="search" title="No PTO reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : scope ? <EmptyState icon="task" title={`No ${scope} PTO reports yet`} description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} /> : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {allActions.filter(a => a.status === 'Completed').length} of {allActions.length} actions completed across all reports</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {allActions.filter(a => a.status === 'Completed').length} of {allActions.length} actions completed across all reports<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => {

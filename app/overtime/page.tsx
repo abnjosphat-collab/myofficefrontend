@@ -5,7 +5,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -259,7 +259,6 @@ function OvertimeContent() {
         description={scope ? `Submit overtime, approve it with a signature, and see where the hours go — showing ${scope} only.` : 'Submit overtime, approve it with a signature, and see where the hours go.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Overtime for several people</Button>
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
           </>
@@ -339,7 +338,7 @@ function OvertimeContent() {
               ? <EmptyState icon="search" title="No overtime requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
               : scope ? <EmptyState icon="clock" title={`No ${scope} overtime requests yet`} description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} /> : <EmptyState icon="clock" title="No overtime requests yet" description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'request' : 'requests'}{matches.length !== records.length ? ` of ${records.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'request' : 'requests'}{matches.length !== records.length ? ` of ${records.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overtime requests">
                 {visible.map(r => {

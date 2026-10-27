@@ -5,7 +5,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -240,7 +240,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function InspectionContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { inspections, loading, loaded, error, errorStatus, refetch } = useSheqInspectionData();
+  const { inspections, loading, loaded, error, errorStatus, updatedAt, refetch } = useSheqInspectionData();
   const [view, setView] = useViewPreference('sheq-inspection', VIEW_CARDS_TABLE);
   const [search, setSearch] = useState('');
   const [sectionF, setSectionF] = useState(ALL);
@@ -310,7 +310,6 @@ function InspectionContent() {
         description={scope ? `Safety, health, environment and quality compliance tracking. \u2014 showing ${scope} only.` : 'Safety, health, environment and quality compliance tracking.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh inspections" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>
           </>
         )}
@@ -366,7 +365,7 @@ function InspectionContent() {
           ? <EmptyState icon="search" title="No inspections match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : scope ? <EmptyState icon="compliance" title={`No ${scope} inspections yet`} description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} /> : <EmptyState icon="compliance" title="No inspections yet" description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'inspection' : 'inspections'}{filtered.length !== inspections.length ? ` of ${inspections.length}` : ''} · {stats.critical} critical {stats.critical === 1 ? 'finding' : 'findings'} across all inspections</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'inspection' : 'inspections'}{filtered.length !== inspections.length ? ` of ${inspections.length}` : ''} · {stats.critical} critical {stats.critical === 1 ? 'finding' : 'findings'} across all inspections<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(i => {

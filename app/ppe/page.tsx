@@ -8,12 +8,13 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
+  Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, UpdatedCaption,
   deriveDataStatus, isTransientStatus, useConfirm, MoreMenu, type MoreMenuItem,
   LoadingPulse,
 } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { todayLocal } from '@/lib/dates';
+import { latestUpdated } from '@/lib/format';
 import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
 import { enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
@@ -255,7 +256,6 @@ function PPEContent() {
         description={scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh PPE" variant="shell" pending={recs.loading && recs.loaded} onClick={reload} />
             <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
             <Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button>
             <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
@@ -296,7 +296,7 @@ function PPEContent() {
               ? <EmptyState icon="archive" title="Everyone with PPE is archived" description="Show them to look through their records." action={<Button onClick={() => setShowArchived(true)}>Show archived</Button>} />
               : scope ? <EmptyState icon="ppe" title={`No ${scope} PPE issued yet`} description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} /> : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}<UpdatedCaption at={latestUpdated(recs.updatedAt, roster.updatedAt)} /></p>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
               {shown.map(h => (
                 <li key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">

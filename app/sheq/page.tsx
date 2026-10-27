@@ -1,7 +1,7 @@
 // app/sheq/page.tsx — SHEQ safety dashboard (read-only overview across the six safety modules)
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
@@ -111,7 +111,6 @@ function SheqContent() {
   const [range, setRange] = useState<QuickRange | 'custom'>('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(false);
   const [targets, setTargets] = usePersistentState<Record<TargetKey, number>>('sheq_weekly_targets', DEFAULT_TARGETS, validTargets);
   const [editingTargets, setEditingTargets] = useState(false);
   const [notes, setNotes] = usePersistentState<Comment[]>('sheq_dash_notes', [], validNotes);
@@ -120,13 +119,6 @@ function SheqContent() {
   const [ai, setAi] = useState<AiResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (autoRefresh) timer.current = setInterval(refresh, 5 * 60 * 1000);
-    return () => { if (timer.current) clearInterval(timer.current); };
-  }, [autoRefresh, refresh]);
-
   const [from, to] = useMemo(() => rangeToFromTo(range, customFrom, customTo), [range, customFrom, customTo]);
   const stats = useMemo(() => computeStats(raw, from, to), [raw, from, to]);
   const actuals = useMemo(() => weeklyActuals(raw), [raw]);
@@ -194,14 +186,8 @@ function SheqContent() {
         breadcrumbs={[{ label: 'Safety and compliance' }, { label: 'SHEQ dashboard' }]}
         title="SHEQ"
         description={scope ? `Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu. \u2014 showing ${scope} only.` : 'Overview across near miss, work stoppage, VFL, PTO, inspections and Pachedu.'}
-        actions={(
-          <>
-            <Button variant={autoRefresh ? "secondary" : "ghost"} icon="sync" aria-pressed={autoRefresh} onClick={() => setAutoRefresh(a => !a)}>{autoRefresh ? 'Auto-refresh on' : 'Auto-refresh off'}</Button>
-            <IconButton icon="refresh" label="Refresh dashboard" variant="shell" pending={(loading && loaded) || refreshing} onClick={() => refresh()} />
-          </>
-        )}
       />
-      {lastUpdated && <p className="-mt-3 font-sans text-caption text-ink-muted">Refreshed {formatTime(lastUpdated)}{autoRefresh ? ' · refreshes every 5 minutes' : ''}</p>}
+      {lastUpdated && <p className="-mt-3 font-sans text-caption text-ink-muted">Refreshed {formatTime(lastUpdated)}</p>}
 
       <Toolbar>
         <Segmented label="Period" value={range} onValueChange={setRange} options={RANGES} />
