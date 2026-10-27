@@ -18,3 +18,5 @@ export { NumberTransition } from './NumberTransition';
 export type { NumberTransitionProps } from './NumberTransition';
 export { MotionList, MotionListItem, Presence, presenceMotion } from './Presence';
 export type { MotionListItemProps, MotionListProps, PresenceProps } from './Presence';
+export { SlidingIndicator, useSlidingIndicator } from './Indicator';
+export type { IndicatorRect, SlidingIndicatorProps } from './Indicator';

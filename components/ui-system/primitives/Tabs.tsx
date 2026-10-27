@@ -99,7 +99,7 @@ export const TabsList = forwardRef<ElementRef<typeof TabsPrimitive.List>, TabsLi
           <span
             aria-hidden="true"
             data-testid="tabs-indicator"
-            className="pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-action transition-[transform,width] duration-[var(--mo-duration-base)] motion-reduce:transition-none"
+            className="pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-action transition-[transform,width] duration-[var(--mo-spring-smooth-duration)] ease-spring-smooth motion-reduce:transition-none"
             style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }}
           />
         )}
