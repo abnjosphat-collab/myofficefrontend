@@ -111,6 +111,58 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 **Refresh.** A page never needs a refresh button: lists and dashboards re-read themselves on a silent background tick (60 s while visible, visible-again after 30 s away, back-online; the bell every 15 s). A background refresh never shows a "refreshing" state, never moves scroll or focus, and only surfaces the "may be out of date" line after two failures in a row. `icon="refresh"` outside error-state "Try again"/"Retry" and the named do-more controls fails `docs:check`.
 
+## Motion
+
+One motion layer in `motion/`, one feel: **calm and precise** — smooth springs,
+no visible bounce, under 0.5 s, motion only where it explains something. All
+framer-motion use goes through `motion/` (enforced by
+`local/no-framer-outside-motion` and `scripts/motion-consistency.mjs`); every
+duration and bounce lives in `motion/presets.ts`, and the CSS `linear()`
+springs in `foundations/tokens.css` are generated from those presets by
+`scripts/gen-spring-css.mjs` (re-run it after changing a preset).
+
+Rules (from the WWDC sessions behind PLAN 5.1):
+
+- Motion has to mean something: where it came from, what changed, did the
+  action work, is something still happening, what next. Otherwise it doesn't move.
+- Springs, not timing curves. Smooth (bounce 0) almost everywhere, at most 0.1
+  for press feedback, hard cap 0.15. Linear only for a repeating spinner.
+- Never wait for a spring to "settle": no logic on animation-complete callbacks,
+  no `isAnimating` flags; a transition can start or reverse at any time.
+- Continuity: the thing tapped becomes the thing seen (card zoom, button-grown
+  dialog, sliding tab indicator).
+- Reduced motion is respected, not just switched off: movement becomes a short
+  crossfade, numbers change in place, indefinite effects stop, feedback stays.
+- Scope every animation to the thing it belongs to (`layout` only on the moving
+  element, never on a generic wrapper) and animate only transform and opacity
+  (plus the list height collapse, on lists of ~100 items or fewer).
+- Restraint: no animation on page navigation, sorting, filtering, typing, hover
+  of ordinary rows, or charts redrawing after a refresh. At most one moving
+  thing per user action.
+
+Effect–meaning matrix (one meaning per effect, applied everywhere):
+
+| Effect | Means | Used for |
+|---|---|---|
+| bounce (once) | it happened / it arrived | bell on new notices; check after save, close, approve; export finished |
+| wiggle (once) | a next step you might overlook | first error's icon on invalid submit; sign-off action; post-import Review |
+| pulse (while true) | ongoing activity | uploads, background sync, running-job dot |
+| rotate (while true) | a task in progress | spinners only (the only linear motion) |
+| connecting (while true) | trying to reach the server | the "still trying" line while the service wakes |
+| scale (while selected) | this is the selected one | selected MetricTile filter / ViewToggle icon (1.0 → 1.08) |
+| replace | the state of this control flipped | star/pin, mute, show/hide, copy → copied, download → done (down-up; up-up for progress; slash draw for slash pairs) |
+| appear/disappear | it came or went | badges, bulk bar, chips |
+| number roll | the value changed | metric tiles, counts, badges, percentages |
+| zoom | this became that | card → detail; row thumbnail → detail; "New …" button → its form |
+
+Not used, by decision: breathe (pulse already says "ongoing"); bouncy springs,
+parallax, page-to-page transitions, scroll-linked transforms, confetti and
+celebratory flips. One small scroll behaviour: horizontal strips snap with CSS
+`scroll-snap`, no transforms. The Personell study page keeps its 3D tilt.
+
+The gallery at `/dev/motion` (signed-in admin only, not in the nav) shows every
+piece and every matrix row with a simulated reduce-motion switch.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).
