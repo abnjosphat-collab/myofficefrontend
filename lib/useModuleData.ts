@@ -1,25 +1,43 @@
-// lib/useModuleData.ts — generic CRUD hook for engineering module pages
+// lib/useModuleData.ts — generic CRUD hook for engineering module pages. Like
+// useApiList it keeps itself fresh on a silent background tick (60 s while
+// visible, visible-again after 30 s away, online); see lib/useAutoRefresh.ts.
+// A background refresh never flips `loading` and only surfaces an error after
+// two failures in a row.
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { ApiError } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 
 const BASE_URL = API_BASE;
 
-export function useModuleData<T extends { id: number | string }>(endpoint: string) {
+export interface UseModuleDataOptions {
+  /** Background refresh (default: 60 s tick + visible-again + online). `false` wires nothing. */
+  refresh?: false | { every?: number };
+}
+
+export function useModuleData<T extends { id: number | string }>(endpoint: string, options: UseModuleDataOptions = {}) {
+  const refreshOpt = options.refresh;
   const [data,    setData]    = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const url = `${BASE_URL}/api/${endpoint}`;
 
   const latest = useRef(0);
+  /** True while any read (foreground or quiet) is unsettled; ticks skip while it holds. */
+  const busyRef = useRef(false);
+  /** Consecutive quiet failures; the error surfaces from the second one. */
+  const quietFails = useRef(0);
+  /** The params of the latest foreground read, so a background tick re-reads the same slice. */
+  const paramsRef = useRef<Record<string, string> | undefined>(undefined);
   // A read that fails because the service is slow, waking up or unreachable is retried (the page keeps loading); a refusal or a
   // bad request is reported at once. The message keeps the "<HTTP status>: <body>" form the pages parse.
-  const refetch = useCallback(async (params?: Record<string, string>) => {
+  const doFetch = useCallback(async (params: Record<string, string> | undefined, quiet: boolean) => {
     const request = ++latest.current;
-    setLoading(true);
-    setError('');
+    if (!quiet) { paramsRef.current = params; quietFails.current = 0; setLoading(true); setError(''); }
+    busyRef.current = true;
     try {
       const q = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
       // authFetch (not raw fetch) so the read carries the Supabase token — keeps GET
@@ -29,15 +47,33 @@ export function useModuleData<T extends { id: number | string }>(endpoint: strin
         if (!r.ok) throw new ApiError(`${r.status}: ${await r.text()}`, r.status);
         return r.json();
       }, { cancelled: () => request !== latest.current });
-      if (request === latest.current) setData(rows);
+      if (request === latest.current) {
+        setData(rows);
+        setError('');
+        quietFails.current = 0;
+        setUpdatedAt(new Date());
+      }
     } catch (e) {
-      if (request === latest.current) setError((e as Error).message);
+      // A failed background refresh keeps the rows and stays silent the first
+      // time; from the second failure in a row the error shows.
+      if (request === latest.current && (!quiet || ++quietFails.current >= 2)) setError((e as Error).message);
     } finally {
-      if (request === latest.current) setLoading(false);
+      if (request === latest.current) { busyRef.current = false; if (!quiet) setLoading(false); }
     }
   }, [url]);
 
+  const refetch = useCallback(async (params?: Record<string, string>) => {
+    await doFetch(params, false);
+  }, [doFetch]);
+
   useEffect(() => { refetch(); }, [refetch]);
+
+  const quietRefetch = useCallback(() => { void doFetch(paramsRef.current, true); }, [doFetch]);
+  useAutoRefresh(quietRefetch, {
+    enabled: refreshOpt !== false,
+    every: typeof refreshOpt === 'object' ? refreshOpt.every : undefined,
+    isLoading: () => busyRef.current,
+  });
 
   const create = async (body: Partial<T>): Promise<T | null> => {
     const r = await authFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -61,5 +97,5 @@ export function useModuleData<T extends { id: number | string }>(endpoint: strin
     setData(prev => prev.filter(item => item.id !== id));
   };
 
-  return { data, loading, error, refetch, create, update, remove };
+  return { data, loading, error, updatedAt, refetch, create, update, remove };
 }

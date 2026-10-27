@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authFetch } from '@/lib/api';
 import { useModuleData } from './useModuleData';
 
-vi.mock('@/lib/api', () => ({ authFetch: vi.fn() }));
+vi.mock('@/lib/api', () => ({ authFetch: vi.fn(), isMutationInFlight: () => false }));
 vi.mock('@/lib/config', () => ({ API_BASE: 'http://api.test' }));
 
 type Row = { id: number; name: string };
@@ -151,6 +151,54 @@ describe('useModuleData', () => {
       vi.mocked(authFetch).mockResolvedValueOnce(respond(500, 'boom'));
       await expect(result.current.update(1, { name: 'x' })).rejects.toThrow('boom');
       expect(result.current.data).toEqual([{ id: 1, name: 'a' }]);
+    });
+  });
+
+  describe('background refresh', () => {
+    it('re-reads on the 60 s tick without ever flipping loading, and stamps updatedAt', async () => {
+      vi.useFakeTimers();
+      vi.mocked(authFetch)
+        .mockResolvedValueOnce(respond(200, [{ id: 1, name: 'a' }]))
+        .mockResolvedValue(respond(200, [{ id: 1, name: 'a' }, { id: 2, name: 'b' }]));
+      const seen: boolean[] = [];
+      const { result } = renderHook(() => {
+        const state = useModuleData<Row>('job-cards');
+        seen.push(state.loading);
+        return state;
+      });
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(result.current.loading).toBe(false);
+      expect(result.current.updatedAt).toBeInstanceOf(Date);
+      seen.length = 0;
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(authFetch).toHaveBeenCalledTimes(2);
+      expect(result.current.data).toEqual([{ id: 1, name: 'a' }, { id: 2, name: 'b' }]);
+      expect(seen).not.toContain(true);
+      expect(result.current.error).toBe('');
+    });
+
+    it('stays silent on the first quiet failure and surfaces the second, keeping the rows throughout', async () => {
+      vi.useFakeTimers();
+      vi.mocked(authFetch).mockResolvedValueOnce(respond(200, [{ id: 1, name: 'a' }]));
+      const { result } = renderHook(() => useModuleData<Row>('job-cards'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      vi.mocked(authFetch).mockResolvedValue(respond(403, 'No'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.data).toEqual([{ id: 1, name: 'a' }]);
+      expect(result.current.error).toBe('');
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.data).toEqual([{ id: 1, name: 'a' }]);
+      expect(result.current.error).toBe('403: No');
+    });
+
+    it('wires nothing when refresh is false', async () => {
+      vi.useFakeTimers();
+      vi.mocked(authFetch).mockResolvedValue(respond(200, []));
+      const { result } = renderHook(() => useModuleData<Row>('job-cards', { refresh: false }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(result.current.loading).toBe(false);
+      await act(async () => { await vi.advanceTimersByTimeAsync(600_000); });
+      expect(authFetch).toHaveBeenCalledTimes(1);
     });
   });
 });

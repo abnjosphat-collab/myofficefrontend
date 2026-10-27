@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const authFetch = vi.fn();
 vi.mock('@/lib/api', () => ({
   authFetch: (...args: unknown[]) => (authFetch as (...a: unknown[]) => unknown)(...args),
+  isMutationInFlight: () => false,
 }));
 
 const toastError = vi.fn();

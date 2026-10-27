@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authFetch } from '@/lib/api';
 import { PhotoUpload } from './PhotoUpload';
 
-vi.mock('@/lib/api', () => ({ authFetch: vi.fn() }));
+vi.mock('@/lib/api', () => ({ authFetch: vi.fn(), isMutationInFlight: () => false }));
 const fetchMock = vi.mocked(authFetch);
 
 const sized = (name: string, size: number) => {

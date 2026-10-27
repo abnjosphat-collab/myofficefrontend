@@ -122,4 +122,99 @@ describe('useApiList', () => {
       } finally { vi.useRealTimers(); }
     });
   });
+
+  describe('background refresh', () => {
+    it('re-reads on the 60 s tick without ever flipping loading, and stamps updatedAt', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(api.get).mockResolvedValueOnce([{ id: 1 }]).mockResolvedValue([{ id: 1 }, { id: 2 }]);
+        const seen: boolean[] = [];
+        const { result } = renderHook(() => {
+          const state = useApiList<{ id: number }>('/api/x');
+          seen.push(state.loading);
+          return state;
+        });
+        await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+        expect(result.current.loaded).toBe(true);
+        expect(result.current.updatedAt).toBeInstanceOf(Date);
+        const first = result.current.updatedAt!.getTime();
+        seen.length = 0;
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+        expect(api.get).toHaveBeenCalledTimes(2);
+        expect(result.current.items).toEqual([{ id: 1 }, { id: 2 }]);
+        expect(seen).not.toContain(true); // no "refreshing" state for DataRegion to show
+        expect(result.current.updatedAt!.getTime()).toBeGreaterThanOrEqual(first);
+        expect(result.current.error).toBeNull();
+      } finally { vi.useRealTimers(); }
+    });
+
+    it('stays silent on the first quiet failure and surfaces the second, keeping the rows throughout', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(api.get).mockResolvedValueOnce([{ id: 1 }]);
+        const { result } = renderHook(() => useApiList<{ id: number }>('/api/x'));
+        await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+        vi.mocked(api.get).mockRejectedValue(new ApiError('No', 403));
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+        expect(result.current.items).toEqual([{ id: 1 }]);
+        expect(result.current.error).toBeNull();
+        expect(result.current.loading).toBe(false);
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+        expect(result.current.items).toEqual([{ id: 1 }]);
+        expect(result.current.error).toBe('No'); // the "may be out of date" line may now show
+        expect(result.current.errorStatus).toBe(403);
+      } finally { vi.useRealTimers(); }
+    });
+
+    it('a manual refetch resets the quiet failure count, and a quiet success clears a manual error', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(api.get).mockResolvedValueOnce([{ id: 1 }]);
+        const { result } = renderHook(() => useApiList<{ id: number }>('/api/x'));
+        await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+        vi.mocked(api.get).mockRejectedValue(new ApiError('No', 403));
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); }); // quiet failure 1: silent
+        expect(result.current.error).toBeNull();
+        await act(async () => { await result.current.refetch(); }); // manual: surfaces + resets the count
+        expect(result.current.error).toBe('No');
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); }); // quiet failure 1 again: adds nothing
+        expect(result.current.error).toBe('No');
+        vi.mocked(api.get).mockResolvedValue([{ id: 9 }]);
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+        expect(result.current.items).toEqual([{ id: 9 }]);
+        expect(result.current.error).toBeNull();
+      } finally { vi.useRealTimers(); }
+    });
+
+    it('never ticks while a request is already in flight', async () => {
+      vi.useFakeTimers();
+      try {
+        let release!: (rows: unknown[]) => void;
+        vi.mocked(api.get).mockReturnValueOnce(new Promise(r => { release = r as (rows: unknown[]) => void; }));
+        const { result } = renderHook(() => useApiList<{ id: number }>('/api/x'));
+        await act(async () => { await vi.advanceTimersByTimeAsync(60_000); }); // tick during the first load
+        expect(api.get).toHaveBeenCalledTimes(1);
+        await act(async () => { release([{ id: 1 }]); await vi.advanceTimersByTimeAsync(10); });
+        expect(result.current.loaded).toBe(true);
+      } finally { vi.useRealTimers(); }
+    });
+
+    it('wires nothing when refresh is false, and honours refresh.every', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(api.get).mockResolvedValue([{ id: 1 }]);
+        const off = renderHook(() => useApiList<{ id: number }>('/api/x', undefined, { refresh: false }));
+        await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+        expect(off.result.current.loaded).toBe(true);
+        await act(async () => { await vi.advanceTimersByTimeAsync(600_000); });
+        expect(api.get).toHaveBeenCalledTimes(1);
+        const custom = renderHook(() => useApiList<{ id: number }>('/api/x', undefined, { refresh: { every: 15_000 } }));
+        await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+        const calls = vi.mocked(api.get).mock.calls.length;
+        await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+        expect(vi.mocked(api.get).mock.calls.length).toBe(calls + 1);
+        expect(custom.result.current.items).toEqual([{ id: 1 }]);
+      } finally { vi.useRealTimers(); }
+    });
+  });
 });
