@@ -3,7 +3,7 @@
 // per value change. Separate file: framer's OS-preference listener is a
 // module singleton.
 import { Profiler, type ReactNode } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('framer-motion', async (importOriginal) => {
@@ -41,7 +41,7 @@ describe('NumberTransition (full motion)', () => {
     expect(container.querySelectorAll('.flex-col').length).toBe(1);
     rerender(profiled(<NumberTransition value={42} />, phases));
     expect(container.querySelectorAll('.flex-col').length).toBe(2);
-    expect(screen.getByLabelText('42')).toBeInTheDocument();
+    expect(container.querySelector('.sr-only')).toHaveTextContent('42');
     // Let the roll settle: no further commits means no per-frame setState.
     await new Promise(resolve => setTimeout(resolve, 700));
     expect(phases).toEqual(['mount', 'update']);

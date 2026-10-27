@@ -49,8 +49,9 @@ function DigitColumn({ digit }: { digit: number }) {
  * A number whose digits roll digit by digit to the new value, in tabular
  * numerals with no layout shift. Each digit column is a motion value
  * translated with transform — React renders once per value change, never
- * per frame (see the render-count test). Screen readers hear the final
- * value only. Under reduced motion the value changes in place.
+ * per frame (see the render-count test). Screen readers hear the final value
+ * once, from visually-hidden text; the rolling strip is aria-hidden. Under
+ * reduced motion the value changes in place.
  */
 export function NumberTransition({ value, decimals = 0, prefix = '', suffix = '', label, className }: NumberTransitionProps) {
   const reduce = useIsReducedMotion();
@@ -63,7 +64,8 @@ export function NumberTransition({ value, decimals = 0, prefix = '', suffix = ''
 
   if (!finite || reduce) {
     return (
-      <span aria-label={accessible} className={cn('tabular', className)}>
+      <span className={cn('tabular', className)}>
+        <span className="sr-only">{accessible}</span>
         <span aria-hidden="true">{!finite ? '—' : text}</span>
       </span>
     );
@@ -71,7 +73,8 @@ export function NumberTransition({ value, decimals = 0, prefix = '', suffix = ''
 
   const [integer, fraction] = Math.abs(value).toFixed(places).split('.');
   return (
-    <span aria-label={accessible} className={cn('tabular', className)}>
+    <span className={cn('tabular', className)}>
+      <span className="sr-only">{accessible}</span>
       <span aria-hidden="true">
         {prefix}
         {value < 0 ? '-' : ''}
