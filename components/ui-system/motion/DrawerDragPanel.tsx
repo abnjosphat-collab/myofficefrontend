@@ -33,7 +33,7 @@ export const DrawerDragPanel = forwardRef<HTMLDivElement, DrawerDragPanelProps>(
       ref={ref}
       data-motion="drag-x"
       drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
+      dragConstraints={{ left: 0, right: 600 }}
       dragElastic={0.6}
       dragDirectionLock
       dragMomentum={false}
