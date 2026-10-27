@@ -309,6 +309,17 @@ Part C of the motion-and-fixes plan (backend first, then frontend; full account 
 - Pre-existing, not B0's: Frontend CI is red on `npm audit --omit=dev` (fresh upstream critical advisories in dompurify + next) — the base commit fails identically; package upgrades left for a security pass. The shared :3000 dev server began serving broken JS manifests mid-run (environmental); specs ran against a local production build instead.
 - Release note: work orders select in both views with one bulk bar; managers delete through one server call with per-row results.
 
+## 8n. B1 labelled exports (Muse, 27 Oct 2026; merged to main, pushed and live 27 Oct 2026, tagged `release-2026-10-27-b1`)
+
+Part A of the motion-and-fixes plan, no motion (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B1.md`, plan `PLAN_B1.md`, choices `ASSUMPTIONS.md` 9-22). Frontend main `ab90919` (branch `b1-exports`, 14 commits — 13 inherited + the training spec repair); backend untouched. No schema/data changes; no live writes.
+
+- One `ExportButton` pattern (`ui-system/patterns`, menu "Excel (.xlsx)"/"PDF" or single "Export Excel"/"Export PDF"); `DownloadButton` defaults to labelled and renders through it; `iconOnly` only for dense table row actions, enforced by `scripts/export-consistency.mjs` in `docs:check`. Zero iconOnly usages.
+- Every page export moved to the toolbar trailing slot before the view toggle (25 pages); bespoke exporters migrated with logic kept (Timesheets, Tools, Employees, Issues, Overtime weekly, Drivers, Quotations header Save+Export+New, SOP viewer, Artisan editor, Spares drawer, NEC person view, eMaint). Nothing export-related left in any More. 390px: labels stay, wrap, shorten to icon+Export at worst.
+- Verified: tsc clean, eslint 0 errors, vitest 284/2144 green (2 worker-start timeouts under memory pressure re-ran green at --maxWorkers=1), coverage floor held (45.8/42.92/36.89/49.73), docs:check 0 errors, build green (63 routes), full route suite green (training spec repaired to drive the dirty-guard Discard flow — pre-existing gap, spec-only), axe green except pre-existing /issues SpareLookup nested-interactive (out of scope, carried to B5), 1440+390 renders inspected. Live: production serves the B1 build (marker in /training chunks); 10 touched pages load 200 with no console errors.
+- Pre-existing, not B1's: frontend CI red only on `npm audit` (dompurify + next criticals, identical on base); Linux tsc/lint/docs/coverage all green in CI. Visual-baseline workflow run 40556679612 green, committed `46cfdc2` with fresh B1 baselines.
+- Release note: every export is one labelled Export button in the toolbar; nothing hides in More.
+- Worktree note: another actor's one-line ExportButton doc-comment fix (17:55) was preserved uncommitted via stash/pop; backend's untracked reset SQL preserved, never run.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
