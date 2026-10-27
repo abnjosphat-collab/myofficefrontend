@@ -21,6 +21,17 @@ export function formatDateTime(value?: string | number | Date | null): string {
   });
 }
 
+/** "just now" / "2 min ago" / "3 hr ago" — how long since a background refresh landed (under 90 s reads "just now"). Future dates read "just now". */
+export function formatUpdatedAgo(at: Date, now: Date = new Date()): string {
+  const seconds = Math.max(0, Math.floor((now.getTime() - at.getTime()) / 1000));
+  if (seconds < 90) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return formatDate(at);
+}
+
 /** "14:30" — 24h time only. */
 export function formatTime(value?: string | number | Date | null): string {
   if (value === null || value === undefined || value === '') return '—';

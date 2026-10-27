@@ -109,6 +109,8 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 **Exports.** Every page-level export is one labelled `ExportButton` in the Toolbar's trailing slot, before the view toggle: "Export" with a caret and an "Excel (.xlsx)" / "PDF" menu, or "Export Excel" / "Export PDF" with no menu for a single format. `DownloadButton` renders through it. `iconOnly` is for dense table row actions only (a docs check fails it elsewhere). Nothing export-related sits in More. At 390 px and below a single-format label shortens to "Export", never to a bare icon.
 
+**Refresh.** A page never needs a refresh button: lists and dashboards re-read themselves on a silent background tick (60 s while visible, visible-again after 30 s away, back-online; the bell every 15 s). A background refresh never shows a "refreshing" state, never moves scroll or focus, and only surfaces the "may be out of date" line after two failures in a row. `icon="refresh"` outside error-state "Try again"/"Retry" and the named do-more controls fails `docs:check`.
+
 ## Recipe: migrating a page
 
 1. Read the page, its hook and its API calls. List the business rules (validation, permissions, exports, statuses).
