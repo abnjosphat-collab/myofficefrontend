@@ -98,6 +98,16 @@ describe('Dialog footer', () => {
   });
 });
 
+describe('Dialog surface motion', () => {
+  it('scales 0.98 and fades on the smooth spring', () => {
+    render(<Dialog open onOpenChange={() => {}} title="Record"><p>Read-only details.</p></Dialog>);
+    const panel = screen.getByRole('dialog', { name: 'Record' });
+    expect(panel.className).toContain('zoom-in-[0.98]');
+    expect(panel.className).toContain('duration-[var(--mo-spring-smooth-duration)]');
+    expect(panel.className).toContain('ease-spring-smooth');
+  });
+});
+
 describe('firstDialogField', () => {
   it('finds nothing without a root, and skips hidden and disabled fields', () => {
     expect(firstDialogField(null)).toBeNull();

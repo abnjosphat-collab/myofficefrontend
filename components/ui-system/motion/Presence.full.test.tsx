@@ -50,6 +50,14 @@ describe('Presence/MotionList (full motion)', () => {
     expect(item.style.overflow).toBe('');
   });
 
+  it('swaps phases fade-only when asked (the DataRegion crossfade)', () => {
+    const { container, rerender } = render(<Presence visible fadeOnly swapKey="loading"><p>Loading</p></Presence>);
+    const first = container.querySelector('[data-testid="motion-presence"]') as HTMLElement;
+    expect(first.style.overflow).toBe('');
+    rerender(<Presence visible fadeOnly swapKey="settled"><p>Rows</p></Presence>);
+    expect(container.querySelector('[data-testid="motion-presence"]')).toBeInTheDocument();
+  });
+
   it('clamps collapsing rows for the height exit', () => {
     const { container } = render(
       <MotionList>

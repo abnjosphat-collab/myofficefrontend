@@ -5,6 +5,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DataRegion } from './DataRegion';
 
+describe('DataRegion loading crossfade', () => {
+  it('swaps loading for content with no transform in the reduced path', () => {
+    const view = render(<DataRegion status="loading" subject="work orders">records</DataRegion>);
+    expect(screen.getByRole('status', { name: 'Loading work orders' })).toBeInTheDocument();
+    view.rerender(<DataRegion status="ready" subject="work orders">records</DataRegion>);
+    expect(screen.getByText('records')).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Loading work orders' })).not.toBeInTheDocument();
+  });
+
+  it('keeps records, retry and banners together on later refreshes (no phase swap)', () => {
+    const view = render(<DataRegion status="ready" subject="work orders">records</DataRegion>);
+    view.rerender(<DataRegion status="stale-error" subject="work orders" error="Timed out.">records</DataRegion>);
+    expect(screen.getByText('records')).toBeInTheDocument();
+    expect(screen.getByText(/may be out of date/)).toBeInTheDocument();
+  });
+});
+
 describe('DataRegion retry escalation', () => {
   afterEach(() => { vi.useRealTimers(); });
 

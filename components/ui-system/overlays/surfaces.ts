@@ -1,13 +1,14 @@
 /** Shared class strings for every floating surface (menu, select list, popover, tooltip, dialog). */
 
-/** Floating panel: menus, select lists, popovers. Animates only opacity/translate; instant under reduced motion. */
+/** Floating panel: menus, select lists, popovers. Fade + 4 px from the trigger side on the quick spring; instant under reduced motion. */
 export const floatingSurface = [
   'z-popover overflow-hidden rounded-card border border-line bg-surface font-sans text-body text-ink shadow-popover',
   'origin-[var(--radix-popover-content-transform-origin)]',
-  'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.98]',
-  'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.98]',
+  'data-[state=open]:animate-in data-[state=open]:fade-in-0',
+  'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
   'data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1',
-  'duration-[var(--mo-duration-base)]',
+  'data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1',
+  'duration-[var(--mo-spring-quick-duration)] ease-spring-quick',
 ].join(' ');
 
 /** One option / menu row. Selection is shown by the indicator, not colour alone. */

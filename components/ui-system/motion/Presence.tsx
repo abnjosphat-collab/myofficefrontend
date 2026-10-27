@@ -52,6 +52,10 @@ export interface PresenceProps {
   visible: boolean;
   children: ReactNode;
   className?: string;
+  /** Swap key for content that stays visible but changes phase (DataRegion's loading↔settled crossfade). A key change exits the old phase before the new one enters. */
+  swapKey?: string | number;
+  /** Fade only, no rise or collapse (DataRegion's skeleton→content crossfade). */
+  fadeOnly?: boolean;
 }
 
 /**
@@ -59,22 +63,25 @@ export interface PresenceProps {
  * rise in, fade + collapse out. Under reduced motion the block appears and
  * disappears instantly.
  */
-export function Presence({ visible, children, className }: PresenceProps) {
+export function Presence({ visible, children, className, swapKey = 'content', fadeOnly = false }: PresenceProps) {
   const reduce = useIsReducedMotion();
+  const enter = fadeOnly ? presenceMotion.enterFadeOnly : presenceMotion.enter;
+  const exit = fadeOnly ? presenceMotion.exitFadeOnly : presenceMotion.exitCollapse;
   if (reduce) {
     return visible ? <>{children}</> : null;
   }
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence initial={false} mode="wait">
       {visible && (
         <motion.div
+          key={swapKey}
           data-testid="motion-presence"
           className={className}
-          style={{ overflow: 'hidden' }}
-          initial={presenceMotion.enter.initial}
-          animate={presenceMotion.enter.animate}
-          exit={presenceMotion.exitCollapse.exit}
-          transition={{ ...presenceMotion.enter.transition, ...presenceMotion.exitCollapse.transition }}
+          style={fadeOnly ? undefined : { overflow: 'hidden' }}
+          initial={enter.initial}
+          animate={enter.animate}
+          exit={exit.exit}
+          transition={{ ...enter.transition, ...exit.transition }}
         >
           {children}
         </motion.div>

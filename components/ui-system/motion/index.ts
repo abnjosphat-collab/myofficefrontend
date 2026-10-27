@@ -20,3 +20,5 @@ export { MotionList, MotionListItem, Presence, presenceMotion } from './Presence
 export type { MotionListItemProps, MotionListProps, PresenceProps } from './Presence';
 export { SlidingIndicator, useSlidingIndicator } from './Indicator';
 export type { IndicatorRect, SlidingIndicatorProps } from './Indicator';
+export { DrawerDragPanel } from './DrawerDragPanel';
+export type { DrawerDragPanelProps } from './DrawerDragPanel';
