@@ -299,14 +299,6 @@ function WorkStoppageContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh work stoppages" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Work_Stoppage_Reports')}
-                title="Work Stoppages"
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>
           </>
         )}
@@ -325,6 +317,14 @@ function WorkStoppageContent() {
         onClear={clearFilters}
         activeCount={[dateFrom, dateTo].filter(Boolean).length}
         trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('Work_Stoppage_Reports')}
+              title="Work Stoppages"
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(

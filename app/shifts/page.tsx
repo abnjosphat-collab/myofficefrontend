@@ -129,7 +129,6 @@ function ShiftsContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh shifts" variant="ghost" pending={(list.loading && list.loaded) || (leaves.loading && leaves.loaded) || (duty.loading && duty.loaded)} onClick={() => { refresh(); duty.refetch(); }} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('Shifts')} title="Shifts" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button>
           </>
         )}
@@ -149,6 +148,7 @@ function ShiftsContent() {
         onClear={clear}
         trailing={(<>
           <Select className="w-36" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
+          {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('Shifts')} title="Shifts" />}
           {tab === 'assignments' ? <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} /> : undefined}
         </>)}
       >

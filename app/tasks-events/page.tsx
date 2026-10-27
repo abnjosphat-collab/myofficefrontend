@@ -111,7 +111,6 @@ function Board({ completedBy }: { completedBy: string }) {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh events and tasks" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
           </>
         )}
@@ -140,6 +139,7 @@ function Board({ completedBy }: { completedBy: string }) {
       )}
 
       <Toolbar
+        trailing={filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" />}
         filtered={hasFilters}
         onClear={clearFilters}
         activeCount={priorityF !== ALL ? 1 : 0}

@@ -156,7 +156,6 @@ function TrainingContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh training records" variant="shell" pending={refreshing} onClick={() => fetchAll(true)} />
-            <DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" />
             <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
           </>
         )}
@@ -180,7 +179,9 @@ function TrainingContent() {
         </TabsList>
 
         <TabsContent value="register" className="mt-5 flex flex-col gap-4">
-          <Toolbar filtered={hasFilters}>
+          <Toolbar filtered={hasFilters}
+            trailing={<DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" />}
+          >
             <SearchField value={search} onValueChange={setSearch} placeholder="Search employee, certification or ID" wrapperClassName="min-w-56 max-w-md flex-1" />
             <Select className="w-44" aria-label="Filter by status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: ALL, label: 'All statuses' }, { value: 'Valid', label: 'Valid' }, { value: 'Due Soon', label: 'Due soon' }, { value: 'Expired', label: 'Expired' }]} />
             <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} />

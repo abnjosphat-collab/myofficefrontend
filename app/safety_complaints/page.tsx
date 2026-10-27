@@ -275,16 +275,6 @@ function SafetyComplaintsContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh complaints" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Safety_Complaints')}
-                title="Safety Complaints"
-                statusColumn="status"
-                statusColor={(_v, row) => exportStatusColor(String(row.status))}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>
           </>
         )}
@@ -299,6 +289,16 @@ function SafetyComplaintsContent() {
       </MetricGrid>
 
       <Toolbar
+        trailing={filtered.length > 0 && (
+          <DownloadButton
+            data={filtered as unknown as Record<string, unknown>[]}
+            columns={EXPORT_COLUMNS}
+            filename={exportFilename('Safety_Complaints')}
+            title="Safety Complaints"
+            statusColumn="status"
+            statusColor={(_v, row) => exportStatusColor(String(row.status))}
+          />
+        )}
         filtered={hasFilters} onClear={clearFilters}
         activeCount={[sectionF, categoryF, byWhoF, locationF].filter(v => v !== ALL).length + [dateFrom, dateTo].filter(v => v !== '').length}
         moreFilters={(

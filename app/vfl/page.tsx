@@ -293,16 +293,6 @@ function VFLContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh observations" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('VFL_Observations')}
-                title="Visible Felt Leadership"
-                statusColumn="status"
-                statusColor={(_v, row) => exportStatusColor(String(row.status))}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>
           </>
         )}
@@ -321,6 +311,16 @@ function VFLContent() {
         onClear={clearFilters}
         activeCount={[dateFrom, dateTo].filter(Boolean).length}
         trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('VFL_Observations')}
+              title="Visible Felt Leadership"
+              statusColumn="status"
+              statusColor={(_v, row) => exportStatusColor(String(row.status))}
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(

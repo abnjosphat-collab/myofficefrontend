@@ -311,16 +311,6 @@ function InspectionContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh inspections" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('SHEQ_Inspections')}
-                title="SHEQ Inspections"
-                statusColumn="status"
-                statusColor={(_v, row) => exportStatusColor(String(row.status))}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>
           </>
         )}
@@ -343,6 +333,16 @@ function InspectionContent() {
         onClear={clearFilters}
         activeCount={[dateFrom, dateTo].filter(Boolean).length}
         trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('SHEQ_Inspections')}
+              title="SHEQ Inspections"
+              statusColumn="status"
+              statusColor={(_v, row) => exportStatusColor(String(row.status))}
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(
