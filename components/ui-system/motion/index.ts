@@ -16,3 +16,5 @@ export { IconSwap } from './IconSwap';
 export type { IconSwapProps } from './IconSwap';
 export { NumberTransition } from './NumberTransition';
 export type { NumberTransitionProps } from './NumberTransition';
+export { MotionList, MotionListItem, Presence, presenceMotion } from './Presence';
+export type { MotionListItemProps, MotionListProps, PresenceProps } from './Presence';
