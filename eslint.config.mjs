@@ -140,6 +140,36 @@ const localRules = {
         };
       },
     },
+    // One motion layer: components/ui-system/motion is the only place that
+    // may import framer-motion, besides the files named below (B4 migrates
+    // the compressors/floor/popup ones onto the presets; the loading loops,
+    // the typewriter guide and the test-homepage study stay by decision).
+    // A dedicated local rule rather than no-restricted-imports, which cannot
+    // mix severities per path: restating it here would silently re-severity
+    // the phosphor/Skeleton warns above. scripts/motion-consistency.mjs is
+    // the docs:check backstop with the same list.
+    "no-framer-outside-motion": {
+      meta: { type: "problem", schema: [] },
+      create(context) {
+        const filename = (context.filename ?? '').replace(/\\/g, '/');
+        const allowed = filename.includes('components/ui-system/motion/')
+          || /(^|\/)(app\/compressors\/(page|UnitDrawer|UnitPod|UnitView)\.tsx|app\/test-homepage\/.*|components\/shared\/floor\/motion\.tsx|components\/app-shell\/ActiveNoticesPopup\.tsx|components\/ui-system\/patterns\/LoadingPulse\.tsx|components\/home\/useTypewriterPlaceholder\.ts)$/.test(filename)
+          || /\.test\.tsx?$/.test(filename);
+        if (allowed) return {};
+        const report = (node) => context.report({
+          node,
+          message: 'Import the motion piece from @/components/ui-system (the one motion layer) instead of framer-motion directly. B4 migrates the listed exceptions.',
+        });
+        return {
+          ImportDeclaration(node) {
+            if (node.source.value === 'framer-motion') report(node);
+          },
+          ImportExpression(node) {
+            if (node.source.type === 'Literal' && node.source.value === 'framer-motion') report(node);
+          },
+        };
+      },
+    },
   },
 };
 
@@ -303,6 +333,16 @@ const eslintConfig = defineConfig([
     rules: {
       "local/no-hex-colour": "warn",
       "local/no-locale-date": "warn",
+    },
+  },
+  // One motion layer (see the local rule above for why it is not
+  // no-restricted-imports). Tests are out: mocks need the real module.
+  {
+    files: ["app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "lib/**/*.ts", "lib/**/*.tsx", "hooks/**/*.ts", "hooks/**/*.tsx"],
+    ignores: ["**/*.test.ts", "**/*.test.tsx"],
+    plugins: { local: localRules },
+    rules: {
+      "local/no-framer-outside-motion": "error",
     },
   },
   // Override default ignores of eslint-config-next.
