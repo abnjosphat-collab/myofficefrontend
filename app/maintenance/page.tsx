@@ -154,7 +154,6 @@ function MaintenanceContent() {
         actions={(
           <>
             <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="shell" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
-            {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} />}
             {headerAction}
           </>
         )}
@@ -188,6 +187,7 @@ function MaintenanceContent() {
             onClear={clear}
             trailing={(<>
               <Select aria-label="Order" className="w-36" value={f.sort} onValueChange={v => set({ sort: v as SortKey })} options={SORTS} />
+              {tab === 'orders' && rows.length > 0 && <DownloadButton data={rows as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Orders')} title="Work Orders" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} />}
               <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
             </>)}
           >

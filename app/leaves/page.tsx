@@ -163,7 +163,6 @@ function LeavesContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh leave requests" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={['Leaves', f.search || null, f.status !== 'all' ? f.status : null, f.type !== 'all' ? f.type : null].filter(Boolean).join('_')} title="Leave Records" subtitle={[f.search && `Employee: ${f.search}`, f.status !== 'all' && `Status: ${f.status}`].filter(Boolean).join(' | ') || 'All records'} formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button>
           </>
         )}
@@ -194,6 +193,7 @@ function LeavesContent() {
             activeCount={[f.from, f.to].filter(Boolean).length}
             trailing={(<>
               <Select className="w-36" aria-label="Sort order" value={f.sort} onValueChange={v => set({ sort: v })} options={SORTS} />
+              {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT} filename={['Leaves', f.search || null, f.status !== 'all' ? f.status : null, f.type !== 'all' ? f.type : null].filter(Boolean).join('_')} title="Leave Records" subtitle={[f.search && `Employee: ${f.search}`, f.status !== 'all' && `Status: ${f.status}`].filter(Boolean).join(' | ') || 'All records'} formats={['excel']} />}
               <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
             </>)}
             moreFilters={(

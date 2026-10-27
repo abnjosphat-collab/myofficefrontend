@@ -162,16 +162,6 @@ function InventoryPageContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh inventory" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Inventory')}
-                title="Inventory"
-                statusColumn="status"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS[stockStatus(row as unknown as InventoryItem)].tone]}
-              />
-            )}
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => openEditor(null)}>Add item</Button>
           </>
         )}
@@ -190,7 +180,19 @@ function InventoryPageContent() {
       <Toolbar
         filtered={hasFilters}
         activeCount={supplier !== ALL ? 1 : 0}
-        trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}
+        trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={exportColumns}
+              filename={exportFilename('Inventory')}
+              title="Inventory"
+              statusColumn="status"
+              statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS[stockStatus(row as unknown as InventoryItem)].tone]}
+            />
+          )}
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
         moreFilters={suppliers.length > 0 ? <FilterField label="Supplier"><Select aria-label="Filter by supplier" value={supplier} onValueChange={setSupplier} options={[{ value: ALL, label: 'All suppliers' }, ...suppliers.map(s => ({ value: s, label: s }))]} /></FilterField> : undefined}
       >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search name, SKU or description" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />

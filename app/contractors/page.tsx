@@ -197,16 +197,6 @@ function ContractorsContent() {
         description="Third-party contractor register and job tracking."
         actions={(
           <>
-            {displayed.length > 0 && (
-              <DownloadButton
-                data={displayed as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Contractors')}
-                title="Contractors"
-                statusColumn="status"
-                statusColor={(_v, row) => (row.status === 'active' ? '34d399' : '94a3b8')}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>
           </>
         )}
@@ -219,7 +209,21 @@ function ContractorsContent() {
         <MetricTile compact label="Current jobs" value={stats.jobs} loading={loading && !loaded} unavailable={unavailable && !loading} />
       </MetricGrid>
 
-      <Toolbar trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}>
+      <Toolbar
+        trailing={(<>
+          {displayed.length > 0 && (
+            <DownloadButton
+              data={displayed as unknown as Record<string, unknown>[]}
+              columns={exportColumns}
+              filename={exportFilename('Contractors')}
+              title="Contractors"
+              statusColumn="status"
+              statusColor={(_v, row) => (row.status === 'active' ? '34d399' : '94a3b8')}
+            />
+          )}
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
+      >
         <Select className="w-52" aria-label="Filter by trade" value={tradeFilter} onValueChange={setTradeFilter} options={[{ value: 'all', label: 'All trades' }, ...TRADES.map(trade => ({ value: trade, label: trade }))]} />
         <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_OPTIONS} />
       </Toolbar>

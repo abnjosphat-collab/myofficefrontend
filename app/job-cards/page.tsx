@@ -184,21 +184,22 @@ function JobCardsContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh job cards" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Job_Cards')}
-                title="Job Cards"
-                statusColumn="status"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[statusMeta(row.status as string).tone]}
-              />
-            )}
           </>
         )}
       />
 
-      <Toolbar>
+      <Toolbar
+        trailing={filtered.length > 0 && (
+          <DownloadButton
+            data={filtered as unknown as Record<string, unknown>[]}
+            columns={exportColumns}
+            filename={exportFilename('Job_Cards')}
+            title="Job Cards"
+            statusColumn="status"
+            statusColor={(_v, row) => EXPORT_TONE_HEX[statusMeta(row.status as string).tone]}
+          />
+        )}
+      >
         <SearchField value={search} onValueChange={setSearch} placeholder="Search job number, title or equipment" wrapperClassName="min-w-56 max-w-md flex-1" />
         <Segmented label="Status" value={filter} onValueChange={setFilter} options={options} />
       </Toolbar>

@@ -102,7 +102,6 @@ function EquipmentContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh equipment" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            {items.length > 0 && <DownloadButton data={items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" />}
             <Button icon="upload" asChild><Link href="/maintenance/import?kind=assets">Import</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
           </>
@@ -119,7 +118,10 @@ function EquipmentContent() {
 
       <Toolbar
         filtered={hasFilters} onClear={clear} activeCount={[f.category, f.location].filter(v => v !== ALL).length}
-        trailing={<ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />}
+        trailing={(<>
+          {items.length > 0 && <DownloadButton data={items as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" />}
+          <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
+        </>)}
         moreFilters={(
           <>
             <FilterField label="Category"><Select aria-label="Filter by category" value={f.category} onValueChange={v => set({ category: v })} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} /></FilterField>
