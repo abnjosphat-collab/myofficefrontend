@@ -14,3 +14,5 @@ export { AnimatedIcon } from './AnimatedIcon';
 export type { AnimatedIconEffect, AnimatedIconProps } from './AnimatedIcon';
 export { IconSwap } from './IconSwap';
 export type { IconSwapProps } from './IconSwap';
+export { NumberTransition } from './NumberTransition';
+export type { NumberTransitionProps } from './NumberTransition';
