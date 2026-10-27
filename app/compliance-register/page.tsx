@@ -133,16 +133,6 @@ function ComplianceRegisterContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh register" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {displayed.length > 0 && (
-              <DownloadButton
-                data={displayed as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Compliance_Register')}
-                title="Statutory Compliance Register"
-                statusColumn="status"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS_META[row.status as Status]?.tone ?? 'neutral']}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>
           </>
         )}
@@ -154,7 +144,18 @@ function ComplianceRegisterContent() {
         <MetricTile compact label="Overdue" tone="danger" value={counts.overdue} loading={pending} unavailable={unavailable} selected={filter === 'overdue'} onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')} />
       </MetricGrid>
 
-      <Toolbar>
+      <Toolbar
+        trailing={displayed.length > 0 && (
+          <DownloadButton
+            data={displayed as unknown as Record<string, unknown>[]}
+            columns={exportColumns}
+            filename={exportFilename('Compliance_Register')}
+            title="Statutory Compliance Register"
+            statusColumn="status"
+            statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS_META[row.status as Status]?.tone ?? 'neutral']}
+          />
+        )}
+      >
         <Segmented label="Status" value={filter} onValueChange={setFilter} options={FILTERS} />
       </Toolbar>
 

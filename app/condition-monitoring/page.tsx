@@ -121,16 +121,6 @@ function ConditionMonitoringContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh readings" variant="shell" pending={loading && loaded} onClick={() => fetchReadings()} />
-            {displayed.length > 0 && (
-              <DownloadButton
-                data={displayed as unknown as Record<string, unknown>[]}
-                columns={exportColumns}
-                filename={exportFilename('Condition_Monitoring')}
-                title="Condition Monitoring"
-                statusColumn="result"
-                statusColor={(_v, row) => EXPORT_TONE_HEX[RESULT_META[row.result as CMResult]?.tone ?? 'neutral']}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>
           </>
         )}
@@ -143,7 +133,18 @@ function ConditionMonitoringContent() {
         <MetricTile compact label="Normal" tone="success" value={counts.normal} loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
-      <Toolbar>
+      <Toolbar
+        trailing={displayed.length > 0 && (
+          <DownloadButton
+            data={displayed as unknown as Record<string, unknown>[]}
+            columns={exportColumns}
+            filename={exportFilename('Condition_Monitoring')}
+            title="Condition Monitoring"
+            statusColumn="result"
+            statusColor={(_v, row) => EXPORT_TONE_HEX[RESULT_META[row.result as CMResult]?.tone ?? 'neutral']}
+          />
+        )}
+      >
         <Segmented label="Monitoring type" value={tab} onValueChange={setTab} options={TYPE_FILTERS} />
       </Toolbar>
 

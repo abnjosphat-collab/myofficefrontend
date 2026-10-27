@@ -111,7 +111,6 @@ function AvailabilityContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh availability" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[meta(row.status as Equipment['status']).tone]} />}
             <Button asChild variant="primary"><Link href="/breakdowns">Report breakdown</Link></Button>
           </>
         )}
@@ -129,6 +128,7 @@ function AvailabilityContent() {
       </div>
 
       <Toolbar
+        trailing={filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Equipment_Availability')} title="Equipment Availability" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[meta(row.status as Equipment['status']).tone]} />}
         filtered={hasFilters} onClear={clearFilters} activeCount={category !== ALL ? 1 : 0}
         moreFilters={(
           <FilterField label="Category"><Select aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} /></FilterField>

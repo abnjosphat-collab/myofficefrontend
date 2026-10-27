@@ -150,7 +150,6 @@ function AvailabilitiesContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh availability records" variant="shell" pending={manual.loading && manual.loaded} onClick={() => refresh()} />
-            {filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={recordsExport} filename={`Availability_Records_${dateFrom}_to_${dateTo}`} title="Equipment Availability Records" subtitle={`Period: ${dateFrom} to ${dateTo}`} formats={['excel']} />}
             <Button asChild variant="ghost"><Link href="/breakdowns">Breakdowns</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={openNew}>Log record</Button>
           </>
@@ -169,6 +168,7 @@ function AvailabilitiesContent() {
       {eqList.error && <Notice tone="warning" title="The equipment list could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => eqList.refetch()}>Try again</Button>}>{eqList.error} Department and category filters are limited, and a record cannot be logged until it loads.</Notice>}
 
       <Toolbar
+        trailing={filtered.length > 0 && <DownloadButton data={filtered as unknown as Record<string, unknown>[]} columns={recordsExport} filename={`Availability_Records_${dateFrom}_to_${dateTo}`} title="Equipment Availability Records" subtitle={`Period: ${dateFrom} to ${dateTo}`} formats={['excel']} />}
         filtered={hasFilters} onClear={clearFilters}
         activeCount={(catFilter !== ALL ? 1 : 0) + [dateFrom, dateTo].filter(Boolean).length}
         moreFilters={(

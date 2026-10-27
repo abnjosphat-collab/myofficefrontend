@@ -120,7 +120,6 @@ function BreakdownsContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh breakdowns" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            {list.loaded && matches.length > 0 && <DownloadButton data={matches as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('breakdowns')} title="Equipment Breakdowns" formats={['excel']} />}
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button>
           </>
         )}
@@ -144,6 +143,7 @@ function BreakdownsContent() {
           <>
             <Select aria-label="Sort by" className="w-36" value={sort} onValueChange={v => setSort(v as SortKey)} options={SORTS} />
             <IconButton icon="sort" variant="ghost" label={dir === 'asc' ? 'Ascending, reverse' : 'Descending, reverse'} onClick={() => setDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
+            {list.loaded && matches.length > 0 && <DownloadButton data={matches as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('breakdowns')} title="Equipment Breakdowns" formats={['excel']} />}
             <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
           </>
         ) : undefined}

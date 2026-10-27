@@ -139,9 +139,6 @@ function CompetencyContent() {
         breadcrumbs={[{ label: 'Core management' }, { label: 'Competency matrix' }]}
         title="Competency"
         description={scope ? `Employee skills and equipment qualification tracking — showing ${scope} only.` : 'Employee skills and equipment qualification tracking.'}
-        actions={displayed.length > 0 && (
-          <DownloadButton data={displayed as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Competency_Matrix')} title="Competency Matrix" />
-        )}
       />
 
       <MetricGrid compact>
@@ -150,7 +147,9 @@ function CompetencyContent() {
         <MetricTile compact label="Need renewal" tone="warning" value={needsRenewal} detail="At least one skill at level 1" loading={pending} unavailable={unavailable} />
       </MetricGrid>
 
-      <Toolbar>
+      <Toolbar
+        trailing={displayed.length > 0 &&       <DownloadButton data={displayed as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Competency_Matrix')} title="Competency Matrix" />}
+      >
         <Select className="w-52" aria-label="Filter by trade" value={tradeFilter} onValueChange={setTradeFilter} options={[{ value: 'all', label: 'All trades' }, ...TRADES_STATIC.map(trade => ({ value: trade, label: trade }))]} />
       </Toolbar>
 
