@@ -28,7 +28,7 @@ export function visibleCrumbs(breadcrumbs: Crumb[] | undefined, title: string): 
  * Page title block, kept to one quiet row like the Tools top bar: the single <h1>, a hint icon holding the page's
  * description (hidden with the "Helpful hints" preference), an optional small `meta` line for live facts, and the
  * actions. Actions follow one rule: one primary button with a verb ("Add employee"), every other action an
- * icon with a tooltip (refresh, download, more). A breadcrumb trail shows only when it links somewhere.
+ * icon with a tooltip (refresh, more). Exports are labelled buttons in the toolbar's trailing slot, before the view toggle. A breadcrumb trail shows only when it links somewhere.
  */
 export function PageHeader({ title, description, breadcrumbs, actions, meta, className }: {
   title: string;

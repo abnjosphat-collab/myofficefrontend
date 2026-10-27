@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, IconButton, Menu, MenuContent, MenuItem, MenuTrigger } from '@/components/ui-system';
+import { ExportButton } from '@/components/ui-system';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
@@ -38,7 +37,8 @@ interface DownloadButtonProps {
    *  6-digit hex color (no '#'), or undefined for no override. Applied to
    *  both the Excel cell font and the PDF table cell text color. */
   statusColor?: (value: string, row: Record<string, unknown>) => string | undefined;
-  /** An icon with a tooltip (the default, beside a page's one primary action). False shows the word. */
+  /** Icon-only trigger for dense table row actions ONLY (a docs check fails it
+   *  elsewhere). Page and section exports are always labelled. Default false. */
   iconOnly?: boolean;
 }
 
@@ -57,13 +57,11 @@ function getVal(row: Record<string, unknown>, col: DLColumn): string {
 
 export function DownloadButton({
   data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'], pdfColumns,
-  statusColumn, statusColor, iconOnly = true,
+  statusColumn, statusColor, iconOnly = false,
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
-  const [open, setOpen] = useState(false);
 
   const downloadExcel = async () => {
-    setOpen(false);
     try {
       const ExcelJS = (await import('exceljs')).default;
       const { saveAs } = await import('file-saver');
@@ -178,7 +176,6 @@ export function DownloadButton({
   };
 
   const downloadPDF = async () => {
-    setOpen(false);
     try {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
@@ -237,22 +234,17 @@ export function DownloadButton({
   if (formats.length === 1) {
     const onlyFormat = formats[0];
     const run = onlyFormat === 'excel' ? downloadExcel : downloadPDF;
-    return iconOnly
-      ? <IconButton icon="download" label="Download" tooltip={onlyFormat === 'excel' ? 'Download Excel' : 'Download PDF'} variant="shell" onClick={run} className={className || undefined} />
-      : <Button variant="secondary" icon="download" onClick={run} className={className}>Download</Button>;
+    return <ExportButton label={onlyFormat === 'excel' ? 'Export Excel' : 'Export PDF'} onPress={() => void run()} iconOnly={iconOnly} className={className} />;
   }
 
   return (
-    <Menu open={open} onOpenChange={setOpen}>
-      <MenuTrigger asChild>
-        {iconOnly
-          ? <IconButton icon="download" label="Download" tooltip="Download Excel or PDF" variant="shell" className={className || undefined} />
-          : <Button variant="secondary" icon="download" iconAfter="chevron-down" className={className}>Download</Button>}
-      </MenuTrigger>
-      <MenuContent align="end" className="min-w-48">
-        <MenuItem icon="table-view" onSelect={downloadExcel}>Export Excel</MenuItem>
-        <MenuItem icon="pdf" onSelect={downloadPDF}>Export PDF</MenuItem>
-      </MenuContent>
-    </Menu>
+    <ExportButton
+      iconOnly={iconOnly}
+      className={className}
+      items={[
+        { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => void downloadExcel() },
+        { label: 'PDF', icon: 'pdf', onSelect: () => void downloadPDF() },
+      ]}
+    />
   );
 }

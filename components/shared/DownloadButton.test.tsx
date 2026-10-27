@@ -27,7 +27,7 @@ const data = [{ id: 'C1', name: 'Jane Doe', dept: 'Engineering' }];
 async function downloadAndParse(props: Partial<Parameters<typeof DownloadButton>[0]> = {}) {
   const user = userEvent.setup();
   render(<DownloadButton data={data} columns={columns} filename="test" formats={['excel']} {...props} />);
-  await user.click(screen.getByRole('button', { name: /Download/ }));
+  await user.click(screen.getByRole('button'));
   // The click handler's async ExcelJS work needs a tick to resolve before saveAs runs.
   await vi.waitFor(() => expect(savedBlob).not.toBeNull());
   const buf = await savedBlob!.arrayBuffer();
@@ -40,9 +40,9 @@ describe('DownloadButton Excel export', () => {
   it('opens the export menu and exposes both formats', async () => {
     const user = userEvent.setup();
     render(<DownloadButton data={data} columns={columns} filename="test" />);
-    await user.click(screen.getByRole('button', { name: 'Download' }));
-    expect(screen.getByRole('menuitem', { name: 'Export Excel' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Export PDF' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Export' }));
+    expect(screen.getByRole('menuitem', { name: 'Excel (.xlsx)' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'PDF' })).toBeInTheDocument();
   });
 
   it('writes the correct distinct header row with no title (headers at row 1)', async () => {
@@ -77,5 +77,27 @@ describe('DownloadButton Excel export', () => {
     const ws = await downloadAndParse({ title: 'Personnel Registry' });
     const dataRow = ws.getRow(4).values as unknown[];
     expect(dataRow.slice(1)).toEqual(['C1', 'Jane Doe', 'Engineering']);
+  });
+});
+
+describe('DownloadButton trigger', () => {
+  it('defaults to a labelled Export button, not an icon', () => {
+    render(<DownloadButton data={data} columns={columns} filename="test" />);
+    const trigger = screen.getByRole('button', { name: 'Export' });
+    expect(trigger.textContent).toContain('Export');
+    cleanup();
+  });
+
+  it('a single format renders its Export label with no menu', () => {
+    render(<DownloadButton data={data} columns={columns} filename="test" formats={['excel']} />);
+    expect(screen.getByRole('button').textContent).toContain('Export Excel');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    cleanup();
+  });
+
+  it('iconOnly renders an icon trigger named Export, for dense table row actions', () => {
+    render(<DownloadButton data={data} columns={columns} filename="test" iconOnly />);
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    cleanup();
   });
 });
