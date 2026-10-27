@@ -89,15 +89,11 @@ function MaintenanceContent() {
   const tile = { loading: orders.loading && !orders.loaded, unavailable: !orders.loaded && !orders.loading };
   const clear = () => { setF(NO_FILTERS); setPage(1); };
   const chosen = useMemo(() => items.filter(w => selected.has(String(w.id))), [items, selected]);
+  // Ids that no longer exist (after a delete or refetch) drop out of the live set;
+  // filter changes never prune — hidden selections stay and are counted.
+  const live = useMemo(() => pruneSelection(selected, items.map(w => String(w.id))), [selected, items]);
   const shownIds = useMemo(() => new Set(rows.map(w => String(w.id))), [rows]);
-  const hiddenCount = countHiddenSelected(selected, shownIds);
-  useEffect(() => {
-    setSelected(prev => {
-      if (prev.size === 0) return prev;
-      const next = pruneSelection(prev, items.map(w => String(w.id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [items]);
+  const hiddenCount = countHiddenSelected(live, shownIds);
   const merge = (updated?: WorkOrder) => { if (updated) orders.setItems(prev => prev.map(w => (String(w.id) === String(updated.id) ? { ...w, ...updated } : w))); else void orders.refetch(); };
   // Bell deep link (?open=<id>): land on the work order.
   const [deepNotice, setDeepNotice] = useState<string | null>(null);
@@ -201,9 +197,9 @@ function MaintenanceContent() {
             <span className="font-sans text-caption text-ink-muted">Priority:</span>
             {(Object.keys(PRIORITY) as WorkOrderPriority[]).map(p => { const on = f.priorities.includes(p); return <Button key={p} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on} onClick={() => set({ priorities: on ? f.priorities.filter(x => x !== p) : [...f.priorities, p] })}>{PRIORITY[p].label}</Button>; })}
           </div>
-          {selected.size > 0 && (
+          {live.size > 0 && (
             <BulkBar
-              selectedCount={selected.size}
+              selectedCount={live.size}
               hiddenCount={hiddenCount}
               shownCount={rows.length}
               onSelectAllShown={() => setSelected(prev => new Set([...prev, ...rows.map(w => String(w.id))]))}
