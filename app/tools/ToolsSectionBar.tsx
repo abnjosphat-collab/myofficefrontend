@@ -2,7 +2,7 @@
 // that double as the filter, then one toolbar with the result count, the other filters, the view switch and the actions.
 'use client';
 
-import { Button, FilterField, Input, MetricGrid, MetricTile, MoreMenu, SearchField, Select, Toolbar, ViewToggle, VIEW_GRID_LIST, type MoreMenuItem } from '@/components/ui-system';
+import { Button, ExportButton, FilterField, Input, MetricGrid, MetricTile, MoreMenu, SearchField, Select, Toolbar, ViewToggle, VIEW_GRID_LIST, type MoreMenuItem } from '@/components/ui-system';
 import { CATEGORIES, STATUS, type Status } from './prototype';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
@@ -22,7 +22,6 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
   const items: MoreMenuItem[] = [
     ...(tab !== 'activity' && tab !== 'employees' ? [{ label: 'Record return', icon: 'back' as const, disabled: !counts.issued, onSelect: () => w.openAction('return') }] : []),
     { label: 'Import', icon: 'upload', onSelect: () => w.openManageModal({ kind: 'import' }) },
-    { label: 'Download', icon: 'download', onSelect: () => w.setModal({ kind: 'export' }) },
   ];
   const filtered = activeRefinements > 0 || !!search;
   return (
@@ -61,6 +60,7 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
         ) : undefined}
         trailing={(
           <>
+            <ExportButton label="Export" onPress={() => w.setModal({ kind: 'export' })} />
             {tools_ && <ViewToggle value={view} onValueChange={w.setView} options={VIEW_GRID_LIST} />}
             <MoreMenu items={items} label="Actions" />
             {tab === 'employees' && <Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button>}

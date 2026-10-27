@@ -7,7 +7,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
@@ -139,10 +139,7 @@ function EmployeesContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh personnel" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            <MoreMenu pending={exporting} items={[
-              { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || exporting, onSelect: downloadRegistry },
-              { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || exporting, onSelect: downloadNecRegistry },
-              { label: 'Organised roster', icon: 'export-roster', disabled: active.length === 0, onSelect: () => setRosterOpen(true) },
+            <MoreMenu items={[
               ...(canNormalise ? [{ label: 'Normalise', icon: 'normalize' as const, disabled: active.length === 0, onSelect: () => setNormalising(true) }] : []),
             ]} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ employee: null })}>Add employee</Button>
@@ -164,6 +161,14 @@ function EmployeesContent() {
           <>
             <Select aria-label="Sort by" className="w-36" value={sortBy} onValueChange={v => setSortBy(v as SortField)} options={SORTS} />
             <IconButton icon="sort" variant="ghost" label={sortDir === 'asc' ? 'Sorted ascending, reverse' : 'Sorted descending, reverse'} onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
+            <ExportButton
+              pending={exporting}
+              items={[
+                { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || exporting, onSelect: downloadRegistry },
+                { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || exporting, onSelect: downloadNecRegistry },
+                { label: 'Organised roster', icon: 'export-roster', disabled: active.length === 0, onSelect: () => setRosterOpen(true) },
+              ]}
+            />
             <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
           </>
         )}

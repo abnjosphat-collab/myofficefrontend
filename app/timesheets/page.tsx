@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { Button, Combobox, EmptyState, Field, IconButton, Notice, PageHeader, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, MoreMenu, LoadingPulse, asString, usePersistentState } from '@/components/ui-system';
+import { Button, Combobox, EmptyState, ExportButton, Field, IconButton, Notice, PageHeader, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, MoreMenu, LoadingPulse, asString, usePersistentState } from '@/components/ui-system';
 import { BulkAssignDialog } from './BulkAssignDialog';
 import { calcEmployeeTotals, buildEarlyMorningOtDatesForEmployee, buildModuleOt15ByDateForEmployee } from './calcTotals';
 import { countPeriodCompletion } from './completion';
@@ -132,7 +132,6 @@ function TimesheetsContent() {
             <IconButton icon="refresh" label="Refresh timesheets" variant="shell" pending={loading || refreshing} disabled={loading || refreshing} onClick={() => { void load(true); }} />
             <MoreMenu items={[
               { label: 'Import scans', icon: 'documents' as const, disabled: unavailable, onSelect: () => setShowImport(true) },
-              { label: 'Download', icon: 'download', disabled: unavailable, onSelect: () => openDownload(null) },
             ]} />
             <Button variant="primary" icon="calendar" title="Fill or clear shifts for many people and days at once" disabled={unavailable || rosterEmployees.length === 0} onClick={() => setBulkOpen({ anchor: rosterEmployees[0] })}>Bulk assign shifts</Button>
           </>
@@ -179,7 +178,7 @@ function TimesheetsContent() {
               loading={loading}
             />
 
-            <Toolbar filtered={search !== ''}>
+            <Toolbar filtered={search !== ''} trailing={<ExportButton label="Export" onPress={() => openDownload(null)} disabled={unavailable} />}>
               <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" wrapperClassName="min-w-48 max-w-md flex-1" />
               <Button icon="sort" onClick={() => setSortBy(s => (s === 'name' ? 'dept' : 'name'))}>{sortBy === 'name' ? 'Sorted by name' : 'Sorted by department'}</Button>
               {search !== '' && <Button variant="ghost" icon="close" onClick={() => setSearch('')}>Clear search</Button>}
