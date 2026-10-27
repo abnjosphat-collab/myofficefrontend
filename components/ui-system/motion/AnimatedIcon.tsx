@@ -44,9 +44,15 @@ export interface AnimatedIconProps {
   label?: string;
 }
 
-const DISCRETE: Record<string, { keyframes: Record<string, number[]> }> = {
-  bounce: { keyframes: { scale: [1, 1.2, 1] } },
-  wiggle: { keyframes: { rotate: [0, -12, 10, -6, 0] } },
+/**
+ * Discrete choreography as chained two-frame springs. framer springs animate
+ * at most two keyframes, so a bounce is "out then back" and a wiggle is four
+ * swings; each leg is a real preset spring, which also keeps a re-fire
+ * mid-flight smooth (stop the old chain, start a new one — never a jerk).
+ */
+const DISCRETE_FRAMES: Record<'bounce' | 'wiggle', Array<Record<string, number>>> = {
+  bounce: [{ scale: 1.2 }, { scale: 1 }],
+  wiggle: [{ rotate: -12 }, { rotate: 10 }, { rotate: -6 }, { rotate: 0 }],
 };
 
 /** Finite repeat count; non-finite ("forever") is clamped to a single play. */
@@ -63,14 +69,37 @@ function finiteRepeat(repeat: number | undefined): number {
 
 function DiscreteIcon({ name, effect, trigger, repeat, size, weight, className, label }: AnimatedIconProps & { effect: 'bounce' | 'wiggle' }) {
   const [scope, animate] = useAnimate();
-  const mounted = useRef(false);
+  // Restraint: fire only when `trigger` changes from a previous value — never
+  // on mount, including a StrictMode double-invoked mount (a boolean "mounted"
+  // flag fires on the second pass, so the previous value is compared instead).
+  const prev = useRef(trigger);
+  const running = useRef<{ stop: () => void } | null>(null);
   const times = finiteRepeat(repeat);
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return; // restraint: discrete effects fire on change, never on mount
-    }
-    animate(scope.current, DISCRETE[effect].keyframes, { ...SPRING.snappy, repeat: times });
+    if (prev.current === trigger) return;
+    prev.current = trigger;
+    let cancelled = false;
+    running.current?.stop();
+    const run = async () => {
+      for (let r = 0; r <= times && !cancelled; r++) {
+        for (const frame of DISCRETE_FRAMES[effect]) {
+          if (cancelled) return;
+          const controls = animate(scope.current, frame, SPRING.snappy);
+          running.current = controls;
+          // Sequencing choreography, not app logic: nothing downstream waits
+          // on completion. A stopped chain rejects or dangles; both are fine.
+          try {
+            await controls;
+          } catch {
+            return;
+          }
+        }
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [trigger]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <span ref={scope} className={className} data-motion-effect={effect} style={{ display: 'inline-flex' }}>
@@ -94,8 +123,8 @@ function ConnectingBars({ active, size }: { active: boolean; size: IconSize | nu
             height={14}
             rx={2}
             initial={{ opacity: 0.35 }}
-            animate={{ opacity: [0.35, 1, 0.35] }}
-            transition={{ ...FADE, repeat: Infinity, delay: i * FADE_S }}
+            animate={{ opacity: [0.35, 1] }}
+            transition={{ ...FADE, repeat: Infinity, repeatType: 'mirror' as const, delay: i * FADE_S }}
           />
         ) : (
           <rect key={i} x={4 + i * 6} y={5} width={4} height={14} rx={2} />
@@ -169,13 +198,14 @@ export function AnimatedIcon(props: AnimatedIconProps) {
       </span>
     );
   }
+  // Loops mirror between two frames (springs animate at most two keyframes).
   const animate = effect === 'pulse'
-    ? active ? { scale: [1, 1.08, 1] } : { scale: 1 }
+    ? active ? { scale: [1, 1.08] } : { scale: 1 }
     : effect === 'rotate'
       ? active ? { rotate: 360 } : { rotate: 0 }
       : { scale: active ? 1.08 : 1 }; // scale persists while selected
   const transition = effect === 'pulse'
-    ? active ? { ...SPRING.smooth, repeat: Infinity } : SPRING.smooth
+    ? active ? { ...SPRING.smooth, repeat: Infinity, repeatType: 'mirror' as const } : SPRING.smooth
     : effect === 'rotate'
       ? active ? SPIN : FADE
       : SPRING.smooth;
