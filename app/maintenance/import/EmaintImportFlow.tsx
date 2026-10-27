@@ -339,7 +339,7 @@ export function EmaintImportFlow({ kind }: { kind: ImportKind }) {
                   <h2 id="unmatched-h" className="font-display text-section font-semibold text-ink">What was not imported</h2>
                   <p className="font-sans text-body-sm text-ink-muted">Fix the file or the register, then import again — rows already added are skipped, never duplicated.</p>
                 </div>
-                <DownloadButton data={reportData} columns={REPORT_COLUMNS} filename={exportFilename(kind === 'assets' ? 'eMaint_Assets_Unmatched' : 'eMaint_PM_Unmatched')} title={kind === 'assets' ? 'eMaint assets not imported' : 'eMaint PMs not imported'} formats={['excel']} iconOnly={false} />
+                <DownloadButton data={reportData} columns={REPORT_COLUMNS} filename={exportFilename(kind === 'assets' ? 'eMaint_Assets_Unmatched' : 'eMaint_PM_Unmatched')} title={kind === 'assets' ? 'eMaint assets not imported' : 'eMaint PMs not imported'} formats={['excel']} />
               </div>
               <DataTable caption="Rows not imported" rows={reportData} columns={REPORT_COLUMNS.map(c => ({ id: c.key, header: c.label, cell: (r: Record<string, unknown>) => <span>{str(r[c.key])}</span> }))} getRowId={r => String(r.row)} />
             </section>

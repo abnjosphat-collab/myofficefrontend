@@ -97,7 +97,7 @@ export function ManagementTab({ summary, onRetry }: {
           <div className="flex flex-col gap-2">
             <Button icon="refresh" onClick={onRetry}>Refresh all data</Button>
             {rows.length > 0
-              ? <DownloadButton data={rows} columns={SUMMARY_COLUMNS} filename={exportFilename('Compressor_Fleet_Summary')} title="Compressor fleet summary" iconOnly={false} />
+              ? <DownloadButton data={rows} columns={SUMMARY_COLUMNS} filename={exportFilename('Compressor_Fleet_Summary')} title="Compressor fleet summary" />
               : <p className="font-sans text-caption text-ink-muted">The summary has not loaded, so there is nothing to download yet.</p>}
           </div>
         </Panel>
