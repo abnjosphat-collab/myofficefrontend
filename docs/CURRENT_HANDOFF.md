@@ -320,6 +320,17 @@ Part A of the motion-and-fixes plan, no motion (full account in workspace `audit
 - Release note: every export is one labelled Export button in the toolbar; nothing hides in More.
 - Worktree note: another actor's one-line ExportButton doc-comment fix (17:55) was preserved uncommitted via stash/pop; backend's untracked reset SQL preserved, never run.
 
+## 8o. B2 auto-refresh, refresh buttons removed (Muse, 27 Oct 2026; merged to main, pushed and live 27 Oct 2026, tagged `release-2026-10-27-b2`)
+
+Part B of the motion-and-fixes plan (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B2.md`, plan `PLAN_B2.md`, choices `ASSUMPTIONS.md` B2 section). Frontend main `3a12cd5` (branch `b2-auto-refresh`, 9 commits + ledger regen); backend untouched. No schema/data changes; no live writes.
+
+- One shared `lib/useAutoRefresh.ts` driver (60 s tick while visible, visible-again after ≥30 s away, on-online; never in-flight, never while a mutation is pending via the `authFetch` counter). Base hooks gained quiet background fetch (never sets `loading`), error only after 2 consecutive quiet failures, `updatedAt`, and a `refresh` option (default on; no call site passes `false` — verified: import flows use no base hooks, editors hold local drafts, lookups keep TTL+focus).
+- 41 header/toolbar refresh buttons deleted; bespoke hooks quiet-wired (breakdown insights, reliability, sheq, training, timesheets, machine history, usage-remote); bell ×4 at 15 s (home stats ride along). sheq's opt-in auto-refresh toggle removed (always on now). Kept: 7 do-more controls (lint-allowlisted), 33 error-state Try again/Retry, DataRegion/error-shared.
+- `UpdatedCaption` ("· Updated just now / 2 min ago") on the 24 pages with a count line; `scripts/refresh-consistency.mjs` in `docs:check` + README rule. New-row insert motion + highlight and collapse-out are B4's.
+- Verified: tsc clean, eslint 0 errors, vitest 289/2190 green, coverage 46.41/43.41/37.31/50.33 (ratchet 35/34/28/38), docs:check green, build green, verify-routes 2038/0 (availabilities + timesheets specs now fire background ticks via `online`), axe 56 pass + pre-existing /issues SpareLookup nested-interactive (B5), 1440+390 renders inspected. Live: production serves B2 (`min ago` marker, absent pre-B2); 6 pages 200 with zero console errors (signed-out gate, never signed in).
+- The pre-B2 never-auto-refresh rule is superseded by this owner-approved batch (§10 updated); old `verify-*.mjs` scripts still click refresh buttons but are in no CI/gate (B5 may retire them).
+- Worktree note: the other actor's ExportButton doc-comment fix is still uncommitted — preserved, never staged; backend's untracked reset SQL preserved, never run.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
@@ -394,5 +405,5 @@ Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdo
 
 ## 10. Preserve
 
-The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; the never-auto-refresh rule;
+The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; (the old never-auto-refresh rule was superseded by owner-approved batch B2, 27 Oct 2026 — see §8o);
 the failure-state patterns; the owner's constraints in section 1.
