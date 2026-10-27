@@ -138,7 +138,6 @@ function EmployeesContent() {
         description={scope ? `Employee profiles, roles and the organisation's structure — showing ${scope} only.` : "Employee profiles, roles and the organisation's structure."}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh personnel" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <MoreMenu items={[
               ...(canNormalise ? [{ label: 'Normalise', icon: 'normalize' as const, disabled: active.length === 0, onSelect: () => setNormalising(true) }] : []),
             ]} />

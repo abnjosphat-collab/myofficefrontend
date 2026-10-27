@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -101,7 +101,6 @@ function EquipmentContent() {
         description={scope ? `Every asset with its status, location and details. — showing ${scope} only.` : 'Every asset with its status, location and details.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh equipment" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <Button icon="upload" asChild><Link href="/maintenance/import?kind=assets">Import</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
           </>
@@ -139,7 +138,7 @@ function EquipmentContent() {
           ? <EmptyState icon="search" title="No equipment matches" description="Try a different search or filter." action={<Button onClick={clear}>Clear filters</Button>} />
           : scope ? <EmptyState icon="equipment" title={`No ${scope} equipment yet`} description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} /> : <EmptyState icon="equipment" title="No equipment yet" description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} items{hasFilters ? ' (filtered)' : ''}</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} items{hasFilters ? ' (filtered)' : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {pageRows.map(i => (

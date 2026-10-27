@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
@@ -162,7 +162,6 @@ function LeavesContent() {
         description={scope ? `Apply for leave, review requests and record decisions — showing ${scope} only.` : 'Apply for leave, review requests and record decisions.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh leave requests" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button>
           </>
         )}
@@ -225,7 +224,7 @@ function LeavesContent() {
               ? <EmptyState icon="search" title="No leave requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
               : scope ? <EmptyState icon="calendar" title={`No ${scope} leave requests yet`} description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} /> : <EmptyState icon="calendar" title="No leave requests yet" description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {leaves.length} requests</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} of {leaves.length} requests<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filtered.map(l => (

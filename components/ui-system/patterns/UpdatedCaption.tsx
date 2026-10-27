@@ -12,10 +12,12 @@ import { formatUpdatedAgo } from '@/lib/format';
 export function UpdatedCaption({ at }: { at: Date | null }) {
   const [, setBeat] = useState(0);
   useEffect(() => {
-    if (at === null) return;
+    if (at == null) return;
     const timer = setInterval(() => setBeat(b => b + 1), 30_000);
     return () => clearInterval(timer);
   }, [at]);
-  if (at === null) return null;
+  // `== null` (not `=== null`): untyped hook mocks in render tests leave
+  // updatedAt undefined, and the caption must vanish, not crash.
+  if (at == null) return null;
   return <> · Updated {formatUpdatedAgo(at)}</>;
 }

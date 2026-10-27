@@ -159,7 +159,6 @@ function ArtisanContent() {
         breadcrumbs={[{ label: 'Time & Attendance' }, { label: 'Artisan timesheets' }]}
         title="Artisan timesheets"
         description={scope ? `Formal monthly daily timesheets for salaried artisans — showing ${scope} only.` : 'Formal monthly daily timesheets for salaried artisans.'}
-        actions={<IconButton icon="refresh" label="Refresh artisan timesheets" variant="ghost" pending={(staff.loading && staff.loaded) || (saved.loading && saved.loaded)} onClick={() => { void staff.refetch(); void saved.refetch(); reference.refetch(); }} />}
       />
 
       <DataRegion

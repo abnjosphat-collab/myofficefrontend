@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, Chart, ChartPanel, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, StatusBadge, chartColor, chartTheme,
+  Button, Chart, ChartPanel, DataRegion, DataTable, EmptyState, MetricGrid, MetricTile, PageHeader, StatusBadge, UpdatedCaption, chartColor, chartTheme,
   deriveDataStatus, isTransientStatus, type Column, type Tone,
 } from '@/components/ui-system';
 import { useEngineeringDashboardData, type OpenJobCard } from './useEngineeringDashboardData';
 import { priorityTone } from '@/lib/status';
-import { formatMonthYear } from '@/lib/format';
+import { formatMonthYear, latestUpdated } from '@/lib/format';
 
 const PRIORITY: Record<string, { tone: Tone; label: string }> = {
   critical: { tone: priorityTone('critical'), label: 'Critical' }, high: { tone: priorityTone('high'), label: 'High' }, medium: { tone: priorityTone('medium'), label: 'Medium' }, low: { tone: priorityTone('low'), label: 'Low' },
@@ -31,7 +31,7 @@ function EngineeringDashboardContent() {
   const jcPending = jobCards.loading && !jobCards.loaded;
   const bdPending = breakdowns.loading && !breakdowns.loaded;
   const overdue = jobCards.items.filter(j => j.overdue).length;
-  const refreshAll = () => { jobCards.refetch(); breakdowns.refetch(); };
+  const updatedAt = latestUpdated(jobCards.updatedAt, breakdowns.updatedAt);
   const monthName = formatMonthYear(new Date());
   const monthlySummary = `Breakdowns per month over the last six months: ${monthly.map(m => `${m.month} ${m.failures}`).join(', ')}.`;
   const topSummary = topFailures.length ? `Equipment with the most breakdowns in the last six months: ${topFailures.map(f => `${f.equipment} ${f.failures}`).join(', ')}.` : 'No breakdowns in the last six months.';
@@ -44,7 +44,6 @@ function EngineeringDashboardContent() {
         title="Engineering dashboard"
         description="Open job cards and breakdown activity, taken from the records in MyOffice."
         meta={monthName}
-        actions={<IconButton icon="refresh" label="Refresh dashboard" variant="shell" pending={(jobCards.loading && jobCards.loaded) || (breakdowns.loading && breakdowns.loaded)} onClick={refreshAll} />}
       />
 
       <MetricGrid compact>
@@ -98,7 +97,7 @@ function EngineeringDashboardContent() {
         </div>
         <DataRegion status={jcStatus} subject="open job cards" error={jobCards.error} onRetry={() => jobCards.refetch()} empty={<EmptyState icon="task" title="No open job cards" description="Every job card is closed." />}>
           <DataTable caption="Open job cards" rows={jobCards.items.slice(0, 10)} columns={COLUMNS} getRowId={j => j.id} />
-          {jobCards.items.length > 10 && <p className="font-sans text-caption text-ink-muted">Showing 10 of {jobCards.items.length}. Open the job cards register to see them all.</p>}
+          {jobCards.items.length > 10 && <p className="font-sans text-caption text-ink-muted">Showing 10 of {jobCards.items.length}. Open the job cards register to see them all.<UpdatedCaption at={updatedAt} /></p>}
         </DataRegion>
       </section>
     </div>

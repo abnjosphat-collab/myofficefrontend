@@ -26,5 +26,5 @@ export async function deleteDriver(id: number): Promise<void> {
 
 export function useDriversData() {
   const list = useApiList<Driver>('/api/drivers?limit=2000');
-  return { drivers: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, loadData: list.refetch };
+  return { drivers: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, loadData: list.refetch };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, formatDayMonth, formatMonth, formatMonthYear, formatShortDateTime, formatTime, formatUpdatedAgo, monthName } from './format';
+import { formatDate, formatDateTime, formatDayMonth, formatMonth, formatMonthYear, formatShortDateTime, formatTime, formatUpdatedAgo, latestUpdated, monthName } from './format';
 
 // Pins the exact shapes the app's conversions rely on (all en-GB).
 describe('shared date shapes', () => {
@@ -48,5 +48,16 @@ describe('formatUpdatedAgo', () => {
   it('falls back to the date past a day, and never goes negative', () => {
     expect(formatUpdatedAgo(ago(25 * 3_600_000), now)).toBe('26 Oct 2026');
     expect(formatUpdatedAgo(new Date(now.getTime() + 60_000), now)).toBe('just now');
+  });
+});
+
+describe('latestUpdated', () => {
+  it('picks the newest stamp and ignores nulls', () => {
+    const a = new Date(2026, 9, 27, 10, 0, 0);
+    const b = new Date(2026, 9, 27, 10, 2, 0);
+    expect(latestUpdated(a, b)).toBe(b);
+    expect(latestUpdated(b, a)).toBe(b);
+    expect(latestUpdated(null, a)).toBe(a);
+    expect(latestUpdated(null, null)).toBeNull();
   });
 });

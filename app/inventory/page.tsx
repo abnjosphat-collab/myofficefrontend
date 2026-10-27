@@ -161,7 +161,6 @@ function InventoryPageContent() {
         description="Stock levels, reorder points and locations."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh inventory" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => openEditor(null)}>Add item</Button>
           </>
         )}

@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
@@ -151,7 +151,7 @@ const EXPORT_COLUMNS: DLColumn[] = [
 function NearMissContent() {
   const confirmDelete = useConfirmDelete();
   const { scope } = useAuth();
-  const { reports, loading, loaded, error, errorStatus, refetch } = useNearMissData();
+  const { reports, loading, loaded, error, errorStatus, updatedAt, refetch } = useNearMissData();
   const [search, setSearch] = useState('');
   const [section, setSection] = useState<string>(ALL);
   const effSection = scope ?? section;
@@ -208,7 +208,6 @@ function NearMissContent() {
         description={scope ? `Report dangerous occurrences. Every report helps prevent a future incident. \u2014 showing ${scope} only.` : 'Report dangerous occurrences. Every report helps prevent a future incident.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>
           </>
         )}
@@ -263,7 +262,7 @@ function NearMissContent() {
           ? <EmptyState icon="search" title="No reports match" description="Try a different search, section or date range." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : scope ? <EmptyState icon="warning" title={`No ${scope} near miss reports yet`} description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} /> : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         <DataTable
           caption="Near miss reports"
           rows={rows}

@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select,
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select,
   StatusBadge, Tag, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -120,7 +120,6 @@ function ConditionMonitoringContent() {
         description={scope ? `Oil analysis, vibration and thermography records. — showing ${scope} only.` : 'Oil analysis, vibration and thermography records.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh readings" variant="shell" pending={loading && loaded} onClick={() => fetchReadings()} />
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>
           </>
         )}

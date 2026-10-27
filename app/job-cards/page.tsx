@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
 import {
-  Button, Checkbox, DataRegion, DataTable, EmptyState, Fact, FactList, Field, FormDialog, IconButton, Input, PageHeader, Progress, Segmented, SearchField, Select,
+  Button, Checkbox, DataRegion, DataTable, EmptyState, Fact, FactList, Field, FormDialog, Input, PageHeader, Progress, Segmented, SearchField, Select,
   StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, type Column, type Tone,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -181,11 +181,6 @@ function JobCardsContent() {
         breadcrumbs={[{ label: 'Operations and maintenance' }, { label: 'Job cards' }]}
         title="Job cards"
         description={scope ? `Work order and job card management. \u2014 showing ${scope} only.` : 'Work order and job card management.'}
-        actions={(
-          <>
-            <IconButton icon="refresh" label="Refresh job cards" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-          </>
-        )}
       />
 
       <Toolbar

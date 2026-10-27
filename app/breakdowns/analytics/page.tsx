@@ -14,7 +14,6 @@ const NONE = { from: '', to: '', department: '', machineId: '' };
 function AnalyticsContent() {
   const [draft, setDraft] = useState(NONE);
   const [applied, setApplied] = useState<InsightFilters>(NONE);
-  const [refresh, setRefresh] = useState(0);
   const filtered = Object.values(applied).some(Boolean);
   const apply = (e: FormEvent) => { e.preventDefault(); setApplied({ ...draft, department: draft.department.trim(), machineId: draft.machineId.trim() }); };
   const clear = () => { setDraft(NONE); setApplied(NONE); };
@@ -35,10 +34,9 @@ function AnalyticsContent() {
           <Field label="Machine ID" className="w-44"><Input value={draft.machineId} onChange={e => setDraft(d => ({ ...d, machineId: e.target.value }))} placeholder="Any machine" /></Field>
           <Button type="submit" variant="primary" disabled={badRange}>Apply</Button>
           {filtered && <Button variant="ghost" icon="close" onClick={clear}>Clear filters</Button>}
-          <Button icon="refresh" onClick={() => setRefresh(n => n + 1)}>Refresh</Button>
         </Toolbar>
       </form>
-      <InsightsPanel key={refresh} query={insightQuery(applied)} />
+      <InsightsPanel query={insightQuery(applied)} />
     </div>
   );
 }

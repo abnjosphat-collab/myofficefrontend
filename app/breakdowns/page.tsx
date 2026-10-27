@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -119,7 +119,6 @@ function BreakdownsContent() {
         description={scope ? `Log, track and resolve equipment failures. — showing ${scope} only.` : 'Log, track and resolve equipment failures.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh breakdowns" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button>
           </>
         )}
@@ -177,7 +176,7 @@ function BreakdownsContent() {
               ? <EmptyState icon="search" title="No breakdowns match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
               : scope ? <EmptyState icon="breakdown" title={`No ${scope} breakdowns logged yet`} description="Log the first one when a machine fails." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button>} /> : <EmptyState icon="breakdown" title="No breakdowns logged yet" description="Log the first one when a machine fails." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'breakdown' : 'breakdowns'}{matches.length !== rows.length ? ` of ${rows.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'breakdown' : 'breakdowns'}{matches.length !== rows.length ? ` of ${rows.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Breakdowns">
                 {visible.map(b => (

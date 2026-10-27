@@ -7,7 +7,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, DataTable, EmptyState, Fact, FactList, IconButton, LoadingPulse, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Panel, StatusBadge, pageSlice, type Column } from '@/components/ui-system';
+import { Button, DataTable, EmptyState, Fact, FactList, LoadingPulse, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Panel, StatusBadge, pageSlice, type Column } from '@/components/ui-system';
 import { formatCurrency, fmtDate } from '@/components/shared/utils';
 import { ApiError } from '@/lib/apiClient';
 import { priorityTone, statusTone } from '@/lib/status';
@@ -302,7 +302,6 @@ export function MachineHistoryView({ equipmentId }: { equipmentId: string }) {
         actions={(
           <>
             <Button variant="ghost" icon="back" asChild><Link href="/equipment">Register</Link></Button>
-            <IconButton icon="refresh" label="Refresh machine history" variant="shell" pending={loading} onClick={() => refetch()} />
           </>
         )}
       />

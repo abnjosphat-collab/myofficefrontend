@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, DataRegion, DataTable, EmptyState, FilterField, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
-  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows,
+  Button, DataRegion, DataTable, EmptyState, FilterField, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge,
+  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows,
   type Column, type IconMeaning, type SortState, type Tone,
   LoadingPulse,
 } from '@/components/ui-system';
@@ -110,7 +110,6 @@ function AvailabilityContent() {
         description={scope ? `Availability = (operating hours − breakdown hours) ÷ operating hours × 100. — showing ${scope} only.` : 'Availability = (operating hours − breakdown hours) ÷ operating hours × 100.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh availability" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refetch()} />
             <Button asChild variant="primary"><Link href="/breakdowns">Report breakdown</Link></Button>
           </>
         )}
@@ -155,7 +154,7 @@ function AvailabilityContent() {
             ? <EmptyState icon="search" title="No equipment matches" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
             : scope ? <EmptyState icon="equipment" title={`No ${scope} equipment yet`} description="Add equipment and record breakdowns to start tracking availability." action={<Button asChild variant="primary"><Link href="/equipment">Manage equipment</Link></Button>} /> : <EmptyState icon="equipment" title="No equipment yet" description="Add equipment and record breakdowns to start tracking availability." action={<Button asChild variant="primary"><Link href="/equipment">Manage equipment</Link></Button>} />}
         >
-          <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} of {equipment.length} equipment</p>
+          <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} of {equipment.length} equipment<UpdatedCaption at={list.updatedAt} /></p>
           <TabsContent value="overview">
             <DataTable caption="Equipment availability" rows={rows} columns={OVERVIEW} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort}
               rowActions={e => (

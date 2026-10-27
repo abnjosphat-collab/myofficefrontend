@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -78,11 +78,6 @@ function IssuesContent() {
         breadcrumbs={[{ label: 'Inventory' }, { label: 'Stock issues' }]}
         title="Stock issues"
         description={scope ? `Record the items issued to people, and look back over the cost — showing ${scope} only.` : 'Record the items issued to people, and look back over the cost.'}
-        actions={(
-          <>
-            <IconButton icon="refresh" label="Refresh stock issues" variant="shell" pending={(list.loading && list.loaded) || (stats.loading && stats.loaded)} onClick={() => refresh()} />
-          </>
-        )}
       />
 
       <div className="flex flex-col gap-3">
@@ -152,7 +147,7 @@ function IssuesContent() {
               ? <EmptyState icon="search" title="No issue records match" description="Try a different search or dates." action={<Button onClick={clearFilters}>Clear filters</Button>} />
               : scope ? <EmptyState icon="issues" title={`No ${scope} issues recorded yet`} description="Use the form above to record the first one." /> : <EmptyState icon="issues" title="No issues recorded yet" description="Use the form above to record the first one." />}
           >
-            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'}{filtered.length !== issues.length ? ` of ${issues.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'}{filtered.length !== issues.length ? ` of ${issues.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             <DataTable
               caption="Stock issue log" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort}
               onRowActivate={i => setViewingId(i.id)}

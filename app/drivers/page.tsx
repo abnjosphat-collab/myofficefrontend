@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
@@ -103,7 +103,7 @@ function DriverDialog({ driver, departments, open, onOpenChange, onSaved }: { dr
 
 function DriversContent() {
   const confirm = useConfirm();
-  const { drivers, loading, loaded, error, errorStatus, loadData } = useDriversData();
+  const { drivers, loading, loaded, error, errorStatus, updatedAt, loadData } = useDriversData();
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState<'all' | Driver['status']>('all');
@@ -157,7 +157,6 @@ function DriversContent() {
         description="Licensed personnel approved to operate mine vehicles."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh drivers" variant="shell" pending={loading && loaded} onClick={() => loadData()} />
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>
           </>
         )}
@@ -197,7 +196,7 @@ function DriversContent() {
           ? <EmptyState icon="search" title="No drivers match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setDeptFilter(ALL); setStatusFilter('all'); }}>Clear filters</Button>} />
           : <EmptyState icon="drivers" title="No drivers yet" description="Add the first authorised driver to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'driver' : 'drivers'}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'driver' : 'drivers'}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
           <div className="flex flex-col gap-5">
             {grouped.map(([department, items]) => (

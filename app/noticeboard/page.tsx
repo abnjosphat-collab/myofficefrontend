@@ -324,7 +324,6 @@ function NoticeboardContent() {
         description={viewerScope ? `Create, manage and monitor company notices and announcements. — showing ${viewerScope} only.` : 'Create, manage and monitor company notices and announcements.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh notices" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button>
           </>
         )}

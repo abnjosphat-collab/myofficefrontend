@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -139,7 +139,7 @@ function InviteDialog({ open, onOpenChange, caller, onInvited }: { open: boolean
 }
 
 function Directory({ caller }: { caller: UserProfile }) {
-  const { items: users, loading, loaded, error, errorStatus, refetch } = useApiList<UserProfile>('/api/admin/users');
+  const { items: users, loading, loaded, error, errorStatus, refetch, updatedAt } = useApiList<UserProfile>('/api/admin/users');
   const [search, setSearch] = useState('');
   const [roleF, setRoleF] = useState<string>(ALL);
   const [sort, setSort] = useState<SortState>(null);
@@ -182,7 +182,6 @@ function Directory({ caller }: { caller: UserProfile }) {
         description="User roles and section limits."
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh users" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button asChild variant="ghost"><Link href="/admin/lists">Manage shared lists</Link></Button>
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setInviteOpen(true)}>Invite user</Button>
           </>
@@ -210,7 +209,7 @@ function Directory({ caller }: { caller: UserProfile }) {
           ? <EmptyState icon="search" title="No matching users" description="Try a different search or role." action={<Button onClick={() => { setSearch(''); setRoleF(ALL); }}>Clear filters</Button>} />
           : <EmptyState icon="user" title="No users found" description="Invite the first user to get started." action={<Button variant="primary" icon="plus" onClick={() => setInviteOpen(true)}>Invite user</Button>} />}
       >
-        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'user' : 'users'}{filtered.length !== users.length ? ` of ${users.length}` : ''}</p>
+        <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'user' : 'users'}{filtered.length !== users.length ? ` of ${users.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         <DataTable
           caption="User accounts"
           rows={rows}

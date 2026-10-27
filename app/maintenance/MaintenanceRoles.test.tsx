@@ -32,7 +32,7 @@ const schedule = (over: Partial<MaintenanceSchedule> = {}): MaintenanceSchedule 
 } as MaintenanceSchedule);
 
 const listOf = (items: MaintenanceSchedule[]) => ({
-  items, setItems: vi.fn(), loading: false, loaded: true, error: null, errorStatus: null, refetch: vi.fn(),
+  items, setItems: vi.fn(), loading: false, loaded: true, error: null, errorStatus: null, updatedAt: null, refetch: vi.fn(),
 });
 
 beforeEach(() => {

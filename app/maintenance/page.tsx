@@ -10,7 +10,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
   Button, BulkBar, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, pruneSelection, toggleOne, useConfirm, useViewPreference, type Column,
+  Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, pruneSelection, toggleOne, useConfirm, useViewPreference, type Column,
   LoadingPulse,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -153,7 +153,6 @@ function MaintenanceContent() {
         description={scope ? `Raise a job, follow it to completion, and plan the recurring ones. — showing ${scope} only.` : 'Raise a job, follow it to completion, and plan the recurring ones.'}
         actions={(
           <>
-            <IconButton icon="refresh" label={tab === 'schedules' ? 'Refresh schedules' : 'Refresh work orders'} variant="shell" pending={tab === 'schedules' ? schedules.loading && schedules.loaded : orders.loading && orders.loaded} onClick={() => (tab === 'schedules' ? schedules.refetch() : orders.refetch())} />
             {headerAction}
           </>
         )}
@@ -218,7 +217,7 @@ function MaintenanceContent() {
               ? <EmptyState icon="search" title="No work orders match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
               : scope ? <EmptyState icon="wrench" title={`No ${scope} work orders yet`} description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} /> : <EmptyState icon="wrench" title="No work orders yet" description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} />}
           >
-            <p className="font-sans text-caption text-ink-muted">{rows.length} {rows.length === 1 ? 'work order' : 'work orders'}{rows.length !== items.length ? ` of ${items.length}` : ''}</p>
+            <p className="font-sans text-caption text-ink-muted">{rows.length} {rows.length === 1 ? 'work order' : 'work orders'}{rows.length !== items.length ? ` of ${items.length}` : ''}<UpdatedCaption at={orders.updatedAt} /></p>
             {view === 'cards' ? (
               <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Work orders">
                 {visible.map(w => {

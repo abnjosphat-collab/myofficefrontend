@@ -13,5 +13,5 @@ export const deleteReport = (id: string) => api.delete(`/api/nearmiss/${id}`);
 
 export function useNearMissData() {
   const list = useApiList<NearMissReport>('/api/nearmiss/', undefined, { paged: true });
-  return { reports: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, refetch: list.refetch };
+  return { reports: list.items, loading: list.loading, loaded: list.loaded, error: list.error, errorStatus: list.errorStatus, updatedAt: list.updatedAt, refetch: list.refetch };
 }

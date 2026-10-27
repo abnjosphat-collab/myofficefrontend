@@ -5,7 +5,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, Card, Chart, ChartPanel, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, PageHeader, Progress, Select, chartColor, chartTheme, deriveDataStatus,
+  Button, Card, Chart, ChartPanel, DataRegion, EmptyState, MetricGrid, MetricTile, PageHeader, Progress, Select, chartColor, chartTheme, deriveDataStatus,
   isTransientStatus, type DataStatus,
 } from '@/components/ui-system';
 import type { ApiListState } from '@/lib/useApiList';
@@ -56,7 +56,7 @@ function StatusBars({ title, subject, source, counts, icon }: { title: string; s
 }
 
 function EngineeringReportContent() {
-  const { breakdowns, jobCards, production, compliance, lube, refreshing, refetchAll } = useEngineeringReportData();
+  const { breakdowns, jobCards, production, compliance, lube } = useEngineeringReportData();
   const now = useMemo(() => new Date(), []);
   const [period, setPeriod] = useState(() => periodKey(new Date()));
   const options = useMemo(() => periodOptions(now), [now]);
@@ -81,7 +81,6 @@ function EngineeringReportContent() {
         actions={(
           <>
             <Select className="w-40" aria-label="Report period" value={period} onValueChange={setPeriod} options={options} />
-            <IconButton icon="refresh" label="Refresh report" variant="shell" pending={refreshing} onClick={() => refetchAll()} />
             <Button variant="primary" icon="print" onClick={() => window.print()}>Print or save as PDF</Button>
           </>
         )}

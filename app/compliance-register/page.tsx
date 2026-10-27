@@ -7,7 +7,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Segmented,
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented,
   StatusBadge, Tag, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { useModuleData } from '@/lib/useModuleData';
@@ -132,7 +132,6 @@ function ComplianceRegisterContent() {
         description={scope ? `Regulatory certificates and inspection tracking. — showing ${scope} only.` : 'Regulatory certificates and inspection tracking.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh register" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
             <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>
           </>
         )}

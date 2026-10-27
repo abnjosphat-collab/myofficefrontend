@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { AppShell, useRouteSidebarCollapsed } from '@/components/app-shell';
-import { Button, Drawer, EmptyState, IconButton, Notice, PageHeader, VIEW_CARDS_TABLE, useViewPreference } from '@/components/ui-system';
+import { Button, Drawer, EmptyState, Notice, PageHeader, VIEW_CARDS_TABLE, useViewPreference } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { BulkBar } from './BulkBar';
 import { BulkTagsDialog, EditFileDialog, type TagsSubject } from './FileDialogs';
@@ -119,7 +119,6 @@ function DocumentsContent() {
         description={scope ? `Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading. — showing ${scope} only.` : 'Find any document: search names, comments, tags and the words inside files. Preview, open and print without downloading.'}
         actions={(
           <>
-            <IconButton icon="refresh" label="Refresh documents" variant="shell" pending={(search.loading && search.loaded) || (overview.loading && overview.loaded)} onClick={() => { void refresh(); }} />
             <Button icon="folder-add" disabled={!overview.overview} onClick={() => setFolderTarget({ mode: 'create', parentId: place.kind === 'folder' ? place.id : null })}>New folder</Button>
             <Button variant="primary" icon="upload" disabled={!overview.overview} onClick={() => { setDropped([]); setUploading(true); }}>Upload</Button>
           </>
