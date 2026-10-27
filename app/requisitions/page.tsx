@@ -250,16 +250,6 @@ function RequisitionsContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh requisitions" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Purchase_Requisitions')}
-                title="Purchase Requisitions"
-                statusColumn="status"
-                statusColor={(_v, row) => exportStatusColor(String(row.status))}
-              />
-            )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button>
           </>
         )}
@@ -274,6 +264,16 @@ function RequisitionsContent() {
       </MetricGrid>
 
       <Toolbar
+        trailing={filtered.length > 0 && (
+          <DownloadButton
+            data={filtered as unknown as Record<string, unknown>[]}
+            columns={EXPORT_COLUMNS}
+            filename={exportFilename('Purchase_Requisitions')}
+            title="Purchase Requisitions"
+            statusColumn="status"
+            statusColor={(_v, row) => exportStatusColor(String(row.status))}
+          />
+        )}
         filtered={hasFilters} onClear={clearFilters}
         activeCount={[sectionF !== ALL, dateFrom !== '', dateTo !== ''].filter(Boolean).length}
         moreFilters={(

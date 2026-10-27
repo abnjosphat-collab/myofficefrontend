@@ -259,14 +259,6 @@ function PacheduContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh Pachedu reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Pachedu_Care_Observations')}
-                title="Pachedu Care Observations"
-              />
-            )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button>
           </>
         )}
@@ -285,6 +277,14 @@ function PacheduContent() {
         onClear={clearFilters}
         activeCount={[dateFrom, dateTo].filter(Boolean).length}
         trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('Pachedu_Care_Observations')}
+              title="Pachedu Care Observations"
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(

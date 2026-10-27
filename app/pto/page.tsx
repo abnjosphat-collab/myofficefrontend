@@ -347,16 +347,6 @@ function PTOContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh PTO reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('PTO_Reports')}
-                title="Planned Task Observation"
-                statusColumn="status"
-                statusColor={(_v, row) => exportStatusColor(String(row.status))}
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>
           </>
         )}
@@ -375,6 +365,16 @@ function PTOContent() {
         onClear={clearFilters}
         activeCount={(riskOnly ? 1 : 0) + [dateFrom, dateTo].filter(Boolean).length}
         trailing={(<>
+          {filtered.length > 0 && (
+            <DownloadButton
+              data={filtered as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('PTO_Reports')}
+              title="Planned Task Observation"
+              statusColumn="status"
+              statusColor={(_v, row) => exportStatusColor(String(row.status))}
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(

@@ -209,14 +209,6 @@ function NearMissContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh reports" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {filtered.length > 0 && (
-              <DownloadButton
-                data={filtered as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Near_Miss_Reports')}
-                title="Near Miss Reports"
-              />
-            )}
             <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>
           </>
         )}
@@ -233,6 +225,14 @@ function NearMissContent() {
       </MetricGrid>
 
       <Toolbar
+        trailing={filtered.length > 0 && (
+          <DownloadButton
+            data={filtered as unknown as Record<string, unknown>[]}
+            columns={EXPORT_COLUMNS}
+            filename={exportFilename('Near_Miss_Reports')}
+            title="Near Miss Reports"
+          />
+        )}
         filtered={hasFilters}
         onClear={clearFilters}
         activeCount={[dateFrom, dateTo].filter(Boolean).length}

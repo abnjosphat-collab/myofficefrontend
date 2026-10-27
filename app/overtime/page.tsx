@@ -260,7 +260,6 @@ function OvertimeContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh overtime" variant="shell" pending={list.loading && list.loaded} onClick={() => list.refetch()} />
-            {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
             <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Overtime for several people</Button>
             <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
           </>
@@ -292,6 +291,7 @@ function OvertimeContent() {
             activeCount={[filters.from, filters.to].filter(Boolean).length}
             trailing={(<>
               <Select aria-label="Order" className="w-36" value={order} onValueChange={v => { setOrder(v as 'asc' | 'desc'); setSort(null); }} options={ORDER} />
+              {engineering.length > 0 && <DownloadButton data={engineering as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('overtime_records')} title="Engineering Cost Centre Overtime Records" subtitle="Overtime charged to other departments is excluded." formats={['excel']} />}
               <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
             </>)}
             moreFilters={(

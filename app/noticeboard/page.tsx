@@ -325,16 +325,6 @@ function NoticeboardContent() {
         actions={(
           <>
             <IconButton icon="refresh" label="Refresh notices" variant="shell" pending={loading && loaded} onClick={() => refetch()} />
-            {notices.length > 0 && (
-              <DownloadButton
-                data={notices as unknown as Record<string, unknown>[]}
-                columns={EXPORT_COLUMNS}
-                filename={exportFilename('Noticeboard')}
-                title="Noticeboard"
-                statusColumn="priority"
-                statusColor={(_v, row) => exportPriorityColor(String(row.priority))}
-              />
-            )}
             <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button>
           </>
         )}
@@ -358,6 +348,16 @@ function NoticeboardContent() {
         onClear={clearFilters}
         activeCount={[filters.status, filters.department].filter(v => v !== ALL).length + (filters.is_pinned !== null ? 1 : 0)}
         trailing={(<>
+          {notices.length > 0 && (
+            <DownloadButton
+              data={notices as unknown as Record<string, unknown>[]}
+              columns={EXPORT_COLUMNS}
+              filename={exportFilename('Noticeboard')}
+              title="Noticeboard"
+              statusColumn="priority"
+              statusColor={(_v, row) => exportPriorityColor(String(row.priority))}
+            />
+          )}
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
         </>)}
         moreFilters={(
