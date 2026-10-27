@@ -75,7 +75,7 @@ export function scanText(rel, text) {
   const lines = rawLines.map(line => stripComments(line, commentState));
   lines.forEach((line, index) => {
     for (const match of line.matchAll(TRIGGER_RE)) {
-      const { text: tag, endLine } = openingTag(lines, index, match.index);
+      const { text: tag } = openingTag(lines, index, match.index);
       if (!ICON_ONLY_RE.test(tag)) continue;
       const context = lines.slice(Math.max(0, index - 40), index).join('\n') + '\n' + line.slice(0, match.index);
       if (!ROW_CONTEXT_RE.test(context)) {
