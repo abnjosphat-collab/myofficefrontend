@@ -73,6 +73,7 @@ const spec = {
     '/api/lookup-lists/failure_problem': [{ id: 11, value: 'Bearing failure' }],
     '/api/lookup-lists/failure_cause': [{ id: 12, value: 'Wear & tear' }],
     '/api/lookup-lists/failure_action': [{ id: 13, value: 'Replaced component' }],
+    '/api/lookup-lists/maintenance_cutover_date': [],
     '/api/equipment': [{ id: 1, name: 'Pump A', equipment_id: 'EQ-1', department: 'Mining', location: 'Pit', status: 'operational' }, { id: 2, name: 'Crusher 1', equipment_id: 'EQ-2', department: 'Plant', status: 'operational' }],
     '/api/employees': [{ id: 11, employee_id: 'C1', first_name: 'Alex', last_name: 'Smith', designation: 'Fitter' }, { id: 12, employee_id: 'C2', first_name: 'Lee', last_name: 'Jones', designation: 'Foreman' }],
   },
@@ -207,6 +208,8 @@ const spec = {
     await page.waitForTimeout(500);
     const fp = calls.filter(c => c.method === 'PATCH' && c.pathname === '/api/maintenance/work-orders/2').pop();
     check(/^data:image\/png/.test(fp?.body.foreman_sign || '') && fp.body.status === 'completed', 'the sign-off is saved with the current status', JSON.stringify(fp?.body).slice(0, 120));
+    check(await d2.getByRole('link', { name: 'Print job card' }).getAttribute('href') === '/maintenance/print?open=2', 'the detail links the printable job card');
+    check(await d2.getByRole('button', { name: 'Delete' }).isVisible(), 'a manager account is offered Delete on the detail');
     await page.keyboard.press('Escape');
 
     // edit the request: an emptied due date is cleared, not kept
@@ -293,6 +296,20 @@ const spec = {
     check(await drill.getByText('#WO-00002').isVisible(), 'a measure drills down to the jobs it counts');
     await drill.getByRole('button', { name: 'Close', exact: true }).click();
     await shot(page, 'analytics@1440');
+
+    // guide: the one-page guide and the cutover checklist
+    await page.getByRole('tab', { name: 'Guide' }).click();
+    check(await page.getByRole('heading', { name: 'How a job moves' }).isVisible() && await page.getByRole('heading', { name: 'Cutover checklist' }).isVisible(), 'the guide shows the flow and the cutover checklist');
+    check(await page.getByRole('checkbox').count() === 9, 'the checklist has nine items');
+    check(await page.getByText('0 of 9 done').isVisible(), 'the checklist starts unchecked');
+    await page.getByRole('checkbox', { name: /eMaint is read-only/ }).click();
+    check(await page.getByText('1 of 9 done').isVisible(), 'checking an item counts it');
+    await page.getByLabel('Cutover date', { exact: true }).fill('2026-11-15');
+    await page.getByRole('button', { name: 'Save the date' }).click();
+    await page.waitForTimeout(500);
+    const cutCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/lookup-lists/maintenance_cutover_date').pop();
+    check(cutCall?.body.value === '2026-11-15', 'saving the cutover date posts it to the shared list', JSON.stringify(cutCall?.body));
+    await shot(page, 'guide@1440');
   },
   create: {
     open: 'New work order', dialog: 'New work order', path: '/api/maintenance/work-orders', submit: 'Raise work order',

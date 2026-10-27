@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDashboardData } from './useDashboardData';
 import { useOperationalAlerts } from './useOperationalAlerts';
 import { useNoticeAlerts } from './useNoticeAlerts';
+import { useMyWorkAlerts } from './useMyWorkAlerts';
 import { useNotifications, type Notification } from './useNotifications';
 
 vi.mock('./useDashboardData', () => ({ useDashboardData: vi.fn() }));
@@ -11,13 +12,16 @@ vi.mock('./useOperationalAlerts', () => ({
   OP_GROUPS: ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks'],
 }));
 vi.mock('./useNoticeAlerts', () => ({ useNoticeAlerts: vi.fn() }));
+vi.mock('./useMyWorkAlerts', () => ({ useMyWorkAlerts: vi.fn() }));
 
 const dashMock = vi.mocked(useDashboardData);
 const opMock = vi.mocked(useOperationalAlerts);
 const noticeMock = vi.mocked(useNoticeAlerts);
+const myWorkMock = vi.mocked(useMyWorkAlerts);
 const reloadDash = vi.fn();
 const reloadOp = vi.fn();
 const reloadNotices = vi.fn();
+const reloadMyWork = vi.fn();
 
 const item = (id: string, group: Notification['group']) => ({
   id, group, action: id, module: 'M', icon: (() => null) as never,
@@ -26,7 +30,7 @@ const item = (id: string, group: Notification['group']) => ({
 
 const OP_TOTALS = {
   pw: { total: 1, shown: 1 }, leave: { total: 7, shown: 5 }, overtime: { total: 0, shown: 0 },
-  sheq: { total: 2, shown: 2 }, workorders: { total: 0, shown: 0 }, tasks: { total: 3, shown: 3 },
+  sheq: { total: 2, shown: 2 }, workorders: { total: 0, shown: 0 }, signoff: { total: 0, shown: 0 }, tasks: { total: 3, shown: 3 },
   feedback: { total: 0, shown: 0 },
 };
 
@@ -53,6 +57,10 @@ beforeEach(() => {
   noticeMock.mockReturnValue({
     notices: [], alerts: [item('notice-1', 'notices')], loading: false, failed: false,
     sources: [{ source: 'notices', label: 'Notices', ok: true }], reload: reloadNotices,
+  });
+  myWorkMock.mockReturnValue({
+    alerts: [], loading: false, failed: false, total: { total: 0, shown: 0 },
+    sources: [], reloadSource: reloadMyWork,
   });
 });
 
@@ -105,5 +113,29 @@ describe('useNotifications failures and retry (U3.3)', () => {
     expect(reloadOp).not.toHaveBeenCalled();
     expect(reloadDash).not.toHaveBeenCalled();
     expect(reloadNotices).not.toHaveBeenCalled();
+  });
+});
+describe('useNotifications assigned-to-me (M8)', () => {
+  it('surfaces your own jobs first, with their backlog total', () => {
+    myWorkMock.mockReturnValue({
+      alerts: [{ id: 'mine-1', group: 'mywork', action: 'mine-1', module: 'M', icon: (() => null), time: '', timestamp: 1, status: 'pending', href: '/x' }],
+      loading: false, failed: false, total: { total: 3, shown: 1 },
+      sources: [{ source: 'mywork', label: 'Assigned to me', ok: true }], reloadSource: reloadMyWork,
+    });
+    const { result } = renderHook(() => useNotifications());
+    expect(result.current.notifications.map(n => n.id)).toEqual(['mine-1', 'leave-1', 'leave-2', 'notice-1', 'wo-1']);
+    expect(result.current.totals.mywork).toEqual({ total: 3, shown: 1 });
+  });
+
+  it('names a failed mywork source first and routes its retry', () => {
+    myWorkMock.mockReturnValue({
+      alerts: [], loading: false, failed: true, total: { total: 0, shown: 0 },
+      sources: [{ source: 'mywork', label: 'Assigned to me', ok: false }], reloadSource: reloadMyWork,
+    });
+    const { result } = renderHook(() => useNotifications());
+    expect(result.current.failed).toBe(true);
+    expect(result.current.failedSources[0]).toEqual({ source: 'mywork', label: 'Assigned to me', ok: false });
+    result.current.retry('mywork');
+    expect(reloadMyWork).toHaveBeenCalledTimes(1);
   });
 });

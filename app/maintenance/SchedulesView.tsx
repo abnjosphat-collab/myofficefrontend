@@ -15,7 +15,7 @@ import type { MaintenanceSchedule, WorkOrder } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { useAuth } from '@/lib/auth-context';
 
-export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list: ApiListState<MaintenanceSchedule>; orders: WorkOrder[]; onEdit: (s: MaintenanceSchedule) => void; onNew: () => void; onRaised: () => void }) {
+export function SchedulesView({ list, orders, onEdit, onNew, onRaised, canManage }: { list: ApiListState<MaintenanceSchedule>; orders: WorkOrder[]; onEdit: (s: MaintenanceSchedule) => void; onNew: () => void; onRaised: () => void; canManage: boolean }) {
   const { scope } = useAuth();
   const confirmDelete = useConfirmDelete();
   const [search, setSearch] = useState('');
@@ -61,20 +61,20 @@ export function SchedulesView({ list, orders, onEdit, onNew, onRaised }: { list:
         status={status} subject="schedules" error={list.error} onRetry={() => list.refetch()}
         empty={q
           ? <EmptyState icon="search" title="No schedules match" description="Try a different search." action={<Button onClick={() => setSearch('')}>Clear search</Button>} />
-          : scope ? <EmptyState icon="clock" title={`No ${scope} recurring schedules yet`} description="A schedule raises work orders for you every week, month, quarter or on set dates." action={<Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button>} /> : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={<Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button>} />}
+          : scope ? <EmptyState icon="clock" title={`No ${scope} recurring schedules yet`} description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button> : undefined} /> : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button> : undefined} />}
       >
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Schedules">
           {rows.map(s => (
             <li key={s.id} className="relative">
               <RecordCard
-                eyebrow={recurrenceLabel(s)} title={s.name} subtitle={s.equipment_info} openLabel={`Edit the schedule ${s.name}`} onOpen={() => onEdit(s)}
+                eyebrow={recurrenceLabel(s)} title={s.name} subtitle={s.equipment_info} openLabel={`Edit the schedule ${s.name}`} onOpen={canManage ? () => onEdit(s) : undefined}
                 status={<StatusBadge tone={s.active ? 'success' : 'neutral'}>{s.active ? 'Active' : 'Paused'}</StatusBadge>}
                 facts={[{ label: 'Next due', value: <span className="tabular">{s.next_due_date ? fmtDate(s.next_due_date) : 'No date'}</span> }, ...(s.allocated_to ? [{ label: 'Allocated to', value: s.allocated_to }] : []), ...(s.to_department ? [{ label: 'Department', value: s.to_department }] : [])]}
                 action={(
                   <span className="inline-flex flex-wrap items-center gap-1">
                     <Button size="sm" pending={raising === s.id} onClick={() => raiseNow(s)}>Raise now</Button>
-                    <Button size="sm" variant="ghost" onClick={() => toggle(s)}>{s.active ? 'Pause' : 'Resume'}</Button>
-                    <IconButton icon="delete" size="sm" variant="ghost" label={`Delete the schedule ${s.name}`} onClick={() => remove(s)} />
+                    {canManage && <Button size="sm" variant="ghost" onClick={() => toggle(s)}>{s.active ? 'Pause' : 'Resume'}</Button>}
+                    {canManage && <IconButton icon="delete" size="sm" variant="ghost" label={`Delete the schedule ${s.name}`} onClick={() => remove(s)} />}
                   </span>
                 )}
               />

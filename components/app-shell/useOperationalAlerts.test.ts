@@ -149,7 +149,7 @@ describe('useOperationalAlerts totals and groups (U3.2)', () => {
 });
 
 describe('useOperationalAlerts sources and retry (U3.3)', () => {
-  it('lists all seven sources as asked for an admin', async () => {
+  it('lists all eight sources as asked for an admin', async () => {
     const { result } = renderHook(() => useOperationalAlerts());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.sources).toEqual([
@@ -158,6 +158,7 @@ describe('useOperationalAlerts sources and retry (U3.3)', () => {
       { source: 'overtime', label: 'Overtime approvals', ok: true },
       { source: 'sheq', label: 'SHEQ follow-ups', ok: true },
       { source: 'workorders', label: 'Overdue work orders', ok: true },
+      { source: 'signoff', label: 'Waiting for sign-off', ok: true },
       { source: 'tasks', label: 'Overdue tasks', ok: true },
       { source: 'feedback', label: 'Feedback', ok: true },
     ]);
@@ -167,7 +168,7 @@ describe('useOperationalAlerts sources and retry (U3.3)', () => {
     authMock.mockReturnValue({ isAtLeast: (role: string) => role === 'manager' } as never);
     const { result } = renderHook(() => useOperationalAlerts());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.sources.map(s => s.source)).toEqual(['leave', 'overtime', 'sheq', 'workorders', 'tasks']);
+    expect(result.current.sources.map(s => s.source)).toEqual(['leave', 'overtime', 'sheq', 'workorders', 'signoff', 'tasks']);
     expect(result.current.failed).toBe(false);
   });
 
@@ -251,5 +252,48 @@ describe('useOperationalAlerts feedback', () => {
     expect(remoteMock).not.toHaveBeenCalled();
     expect(result.current.alerts.some(a => a.group === 'feedback')).toBe(false);
     expect(result.current.sources.map(s => s.source)).not.toContain('feedback');
+  });
+});
+describe('useOperationalAlerts sign-off and overdue slices (M8)', () => {
+  // The two work-order URLs share a prefix; the slice flags tell them apart.
+  const bySlice = (overdue: unknown[], signoff: unknown[]) =>
+    (async (url: string) => {
+      const u = String(url);
+      if (u.includes('awaiting_signoff=true')) return signoff;
+      if (u.includes('overdue=true')) return overdue;
+      return [];
+    });
+
+  it('surfaces completed-but-unsigned jobs as sign-off alerts', async () => {
+    fetchMock.mockImplementation(bySlice([], [
+      { id: 44, work_order_number: 'WO-1', status: 'completed', foreman_sign: '', completed_at: '2026-10-25T10:00:00Z' },
+      { id: 45, work_order_number: 'WO-2', status: 'completed', foreman_sign: 'data:image/png,AAA', completed_at: '2026-10-25T10:00:00Z' },
+      { id: 46, work_order_number: 'WO-3', status: 'pending', foreman_sign: '', date_raised: '2026-10-25' },
+    ]));
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const item = result.current.alerts.find(a => a.id === 'wo-signoff-44');
+    expect(item?.action).toBe('Work order waiting for sign-off — #WO-1');
+    expect(item?.group).toBe('signoff');
+    expect(item?.href).toBe('/maintenance?open=44');
+    expect(item?.status).toBe('pending');
+    expect(result.current.alerts.some(a => a.id === 'wo-signoff-45')).toBe(false);
+    expect(result.current.alerts.some(a => a.id === 'wo-signoff-46')).toBe(false);
+    expect(result.current.totals.signoff).toEqual({ total: 1, shown: 1 });
+    expect(result.current.failed).toBe(false);
+  });
+
+  it('keeps terminal jobs out of the overdue slice but counts postponed ones', async () => {
+    fetchMock.mockImplementation(bySlice([
+      { id: 1, work_order_number: 'WO-1', status: 'completed', due_date: '2020-01-01' },
+      { id: 2, work_order_number: 'WO-2', status: 'cancelled', due_date: '2020-01-01' },
+      { id: 3, work_order_number: 'WO-3', status: 'not-done', due_date: '2020-01-01' },
+      { id: 4, work_order_number: 'WO-4', status: 'postponed', due_date: '2020-01-01' },
+      { id: 5, work_order_number: 'WO-5', status: 'pending' },
+    ], []));
+    const { result } = renderHook(() => useOperationalAlerts());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.totals.workorders).toEqual({ total: 1, shown: 1 });
+    expect(result.current.alerts.find(a => a.id === 'wo-overdue-4')?.status).toBe('critical');
   });
 });

@@ -11,14 +11,16 @@ import { BellBadge, Button, Glyph, IconButton, Notice, Popover, PopoverContent, 
 import { useNotifications, type BellGroup, type Notification } from './useNotifications';
 import type { SourceResult } from './useDashboardData';
 
-/** Source order, not alphabetical: approvals first, notices next — the merged feed's own order. */
-const GROUP_ORDER: BellGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks', 'feedback', 'notices'];
+/** Source order, not alphabetical: your own jobs first, then approvals, notices next — the merged feed's own order. */
+const GROUP_ORDER: BellGroup[] = ['mywork', 'pw', 'leave', 'overtime', 'sheq', 'workorders', 'signoff', 'tasks', 'feedback', 'notices'];
 const GROUP_META: Record<BellGroup, { title: string; viewAll: string }> = {
   pw: { title: 'Password resets', viewAll: '/admin' },
   leave: { title: 'Leave approvals', viewAll: '/leaves?status=pending' },
   overtime: { title: 'Overtime approvals', viewAll: '/overtime?status=pending' },
   sheq: { title: 'SHEQ follow-ups', viewAll: '/sheq_inspection' },
   workorders: { title: 'Overdue work orders', viewAll: '/maintenance' },
+  signoff: { title: 'Waiting for sign-off', viewAll: '/maintenance' },
+  mywork: { title: 'Assigned to me', viewAll: '/maintenance' },
   tasks: { title: 'Overdue tasks', viewAll: '/tasks-events' },
   feedback: { title: 'Feedback', viewAll: '/usage-analyzer#feedback' },
   notices: { title: 'Notices', viewAll: '/noticeboard' },

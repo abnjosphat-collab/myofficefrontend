@@ -14,7 +14,7 @@ const n = (id: string, group: Notification['group']): Notification => ({
 
 const emptyTotals = (): BellTotals => ({
   pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
-  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
+  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, signoff: { total: 0, shown: 0 }, mywork: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
   notices: { total: 0, shown: 0 }, feedback: { total: 0, shown: 0 },
 });
 
@@ -28,6 +28,11 @@ describe('groupBellItems', () => {
 
   it('returns no groups for activity-only items', () => {
     expect(groupBellItems([n('wo-1', 'activity'), n('bd-2', undefined)])).toEqual([]);
+  });
+
+  it('puts your own jobs first, then approvals and sign-off (M8)', () => {
+    const items = [n('leave-1', 'leave'), n('mine-1', 'mywork'), n('sign-1', 'signoff'), n('od-1', 'workorders')];
+    expect(groupBellItems(items).map(g => g.group)).toEqual(['mywork', 'leave', 'workorders', 'signoff']);
   });
 });
 

@@ -200,6 +200,40 @@ full list lives in `M7_REPORT.md`.
   M1 file has run (names before that); asset rows store Manufacturer and
   Criticality once the register grows those columns.
 
+## Go-live readiness (M8, 27 Oct 2026)
+
+**Who may do what.** Any signed-in user raises jobs (including from a
+schedule with Raise now), closes them (Done, single or bulk) and records
+downtime. Managers and above sign jobs off (the foreman name/signature/date
+block), delete jobs, and create, edit, pause and delete schedules. The
+server refuses the rest (403): the foreman block on PATCH, DELETE
+work-orders, every schedule write, and the PM import commit. The pages hide
+those controls (or show the sign-off read-only) for anyone else, as a
+courtesy — the server is the rule. The asset import stays open to everyone
+signed in, like the register's own create: it only adds rows that match
+nothing, never overwrites.
+
+**Notifications.** The bell carries three maintenance queues: Assigned to
+me (your own open jobs, every role), Overdue work orders and Waiting for
+sign-off (both manager-only, like the other approval queues). The server
+slices them (`GET /api/maintenance/work-orders?overdue|awaiting_signoff|mine`,
+composable, oldest-due first for overdue, and never cached for mine (cache keys vary by scope, not by caller)); the client re-asserts each slice
+so a backend from before M8 answers honestly too. "Mine" matches
+allocated_to/artisan_name against the session name and full email exactly
+(one space between words, lower-cased) — a bare first name matches nobody.
+
+**Printable job card.** `/maintenance/print?open=<id>` renders one job as
+a clean card (request, artisan report, foreman sign-off, downtime for
+breakdowns, handwritten signature lines), own chrome so paper shows the card
+only. Reached from the work-order detail's Print job card link.
+
+**Guide and cutover.** The Guide tab holds the one-page guide (how a job
+moves, who does what, where things live) and the cutover checklist: nine
+items with per-browser checkmarks, and the shared cutover date — one value
+in the `maintenance_cutover_date` lookup list (the lowest valid id wins),
+manager-set, never in Admin > Shared lists. The date is a setting only: no
+behavior keys off it.
+
 ## Links and lifecycle timestamps (M1, 26 Oct 2026)
 
 Equipment is the register's `equipment.id`, not a typed name. Free text (`equipment_info`) stays for machines not on the register.
@@ -221,6 +255,7 @@ Stamps are written once and never cleared or overwritten (reopening keeps histor
 | API | backend repo `app/routers/maintenance.py` — CRUD, stats, dashboard aggregates; `app/routers/schedules.py` — schedules and generation; `app/routers/equipment.py` — the register plus `GET /{id}/history` (M6); `app/machine_history.py` — the pure history computation |
 | UI module | `app/maintenance/` — `page.tsx`, `types.ts`, `api.ts`, `helpers.ts`, `WorkOrderForm.tsx`, `WorkOrderDetail.tsx`, `QuickCloseDialog.tsx`, `SchedulesView.tsx`, `ScheduleForm.tsx`, `AnalyticsView.tsx`, `ArtisanReportForm.tsx`, `ForemanSignoff.tsx`, `MachinePicker.tsx`, `PhraseField.tsx`, `phrases.ts`, `SignOffField.tsx`, `meta.ts`, `useMaintenanceData.ts` |
 | Machine history (M6) | `app/equipment/history/page.tsx`, `app/equipment/history/MachineHistoryView.tsx`, `app/equipment/historyTypes.ts`, `app/equipment/api.ts` (`fetchMachineHistory`); History links on `app/equipment/page.tsx` (cards, table, detail) |
+| Go-live (M8) | `app/maintenance/print/page.tsx`, `app/maintenance/print/PrintJobCardView.tsx`; `app/maintenance/GuideView.tsx` (the Guide tab); role gating in `page.tsx`, `WorkOrderDetail.tsx`, `ForemanSignoff.tsx`, `SchedulesView.tsx`; bell queues in `components/app-shell/useMyWorkAlerts.ts` plus the `signoff` group in `useOperationalAlerts.ts`; server slices and the sign-off gate in backend `app/routers/maintenance.py` |
 | eMaint import (M7) | `app/maintenance/import/page.tsx`, `app/maintenance/import/EmaintImportFlow.tsx`, `app/maintenance/import/emaintImport.ts`; entry links on `app/equipment/page.tsx` and `app/maintenance/page.tsx` (schedules tab); backend `app/emaint_import.py` + `app/routers/emaint_import.py` (`/api/emaint-import`) |
 | Related ops | Breakdowns, requisitions, spares, equipment pages may link or reference maintenance context — grep before assuming isolation |
 

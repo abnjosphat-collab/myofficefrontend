@@ -19,6 +19,7 @@ import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
 import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
 import { deleteWorkOrder, fetchWorkOrderById, uploadStrandedLocalFields, uploadStrandedSchedules } from './api';
+import { GuideView } from './GuideView';
 import { AnalyticsView } from './AnalyticsView';
 import { QuickCloseDialog, type QuickCloseRequest } from './QuickCloseDialog';
 import { NO_FILTERS, bulkCloseRefusal, countByStatus, filterOrders, isAwaitingSignoff, isClosable, isFiltered, isOverdue, type OrderFilters, type SortKey } from './helpers';
@@ -47,7 +48,8 @@ const PAGE_SIZE = 25;
 
 function MaintenanceContent() {
   const confirm = useConfirm();
-  const { scope } = useAuth();
+  const { scope, isAtLeast } = useAuth();
+  const canManage = isAtLeast('manager');
   const confirmDelete = useConfirmDelete();
   const orders = useWorkOrders();
   const schedules = useSchedules();
@@ -131,7 +133,7 @@ function MaintenanceContent() {
     { id: 'progress', header: 'Progress', cell: w => <div className="min-w-32"><Progress value={w.progress ?? 0} label={`${w.equipment_info} progress`} /></div> },
   ];
   const headerAction = tab === 'schedules'
-    ? <><Button icon="upload" asChild><Link href="/maintenance/import?kind=schedules">Import</Link></Button><Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button></>
+    ? <><Button icon="upload" asChild><Link href="/maintenance/import?kind=schedules">Import</Link></Button>{canManage && <Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button>}</>
     : tab === 'orders' ? <Button variant="primary" icon="plus" disabled={!orders.loaded} onClick={() => setFormFor({ order: null })}>New work order</Button> : null;
 
   return (
@@ -168,6 +170,7 @@ function MaintenanceContent() {
           <TabsTrigger value="orders" icon="wrench">Work orders</TabsTrigger>
           <TabsTrigger value="schedules" icon="clock" count={schedules.loaded ? schedules.items.filter(s => s.active).length : undefined}>Schedules</TabsTrigger>
           <TabsTrigger value="analytics" icon="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="guide" icon="help">Guide</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="mt-4 flex flex-col gap-4">
@@ -189,7 +192,7 @@ function MaintenanceContent() {
             <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-action-soft/50 px-4 py-2.5" role="region" aria-label="Bulk actions">
               <span className="font-sans text-label font-semibold text-ink">{selected.size} selected</span>
               <Button size="sm" variant="primary" icon="check" disabled={chosen.every(w => bulkCloseRefusal(w))} onClick={() => setClosing({ kind: 'bulk', orders: chosen })}>Mark done</Button>
-              <Button size="sm" variant="danger" icon="delete" onClick={removeMany}>Delete selected</Button>
+              {canManage && <Button size="sm" variant="danger" icon="delete" onClick={removeMany}>Delete selected</Button>}
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>Clear selection</Button>
             </div>
           )}
@@ -225,7 +228,11 @@ function MaintenanceContent() {
         </TabsContent>
 
         <TabsContent value="schedules" className="mt-4">
-          <SchedulesView list={schedules} orders={items} onEdit={s => setSchedFor({ schedule: s })} onNew={() => setSchedFor({ schedule: null })} onRaised={() => void orders.refetch()} />
+          <SchedulesView list={schedules} orders={items} onEdit={s => setSchedFor({ schedule: s })} onNew={() => setSchedFor({ schedule: null })} onRaised={() => void orders.refetch()} canManage={canManage} />
+        </TabsContent>
+
+        <TabsContent value="guide" className="mt-4">
+          <GuideView canManage={canManage} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">
@@ -235,7 +242,7 @@ function MaintenanceContent() {
         </TabsContent>
       </Tabs>
 
-      <WorkOrderDetail order={viewing} onClose={() => setViewingId(null)} onEdit={w => { setViewingId(null); setFormFor({ order: w }); }} onDelete={remove} onSaved={merge} onDone={w => setClosing({ kind: 'single', order: w })} />
+      <WorkOrderDetail order={viewing} onClose={() => setViewingId(null)} onEdit={w => { setViewingId(null); setFormFor({ order: w }); }} onDelete={remove} onSaved={merge} onDone={w => setClosing({ kind: 'single', order: w })} canManage={canManage} />
       <QuickCloseDialog
         request={closing} onOpenChange={o => { if (!o) setClosing(null); }} onStale={() => void orders.refetch()}
         onClosed={updated => { merge(updated); setClosing(null); }}

@@ -1,8 +1,9 @@
 // components/app-shell/useOperationalAlerts.ts — real, actionable alerts pulled from
 // the same backend the leaves/overtime/SHEQ/maintenance pages themselves use: pending
 // leave and overtime applications, unresolved SHEQ inspections, overdue work
-// orders, and recent feedback for admins. Merged into the bell dropdown alongside useDashboardData's work-order/
-// breakdown activity feed (useNotifications does the merging).
+// orders (every open status, not just pending), jobs waiting for foreman
+// sign-off, and recent feedback for admins. Merged into the bell dropdown alongside useDashboardData's work-order/
+// breakdown activity feed (useNotifications does the merging; "assigned to me" is every user's own hook, useMyWorkAlerts).
 //
 // Manager+ only: these are approval/response-owner items a viewer can't act on, and
 // leaves/overtime require a signed-in token anyway (GET /api/leaves and /api/overtime
@@ -13,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
 import { fetchRemoteEvents, type EnrichedUsageEvent } from '@/lib/usage';
-import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, MessageSquare, type LucideIcon } from '@/components/ui-system';
+import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, MessageSquare, PenLine, type LucideIcon } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
 import { timeAgo, type ActivityItem, type AlertGroup, type SourceResult } from './useDashboardData';
 
@@ -21,18 +22,18 @@ import { timeAgo, type ActivityItem, type AlertGroup, type SourceResult } from '
 interface LeaveRow { id: number | string; employee_name?: string; leave_type?: string; total_days?: number; applied_date?: string | null }
 interface OvertimeRow { id: number | string; employee_name?: string; date?: string; applied_date?: string | null }
 interface SheqRow { id: number | string; status?: string | null; title?: string; date?: string | null }
-interface WorkOrderRow { id: number | string; work_order_number?: string | null; due_date?: string | null; requested_by?: string }
+interface WorkOrderRow { id: number | string; work_order_number?: string | null; due_date?: string | null; requested_by?: string; status?: string | null; foreman_sign?: string | null; completed_at?: string | null; artisan_date?: string | null; date_raised?: string | null; created_at?: string | null }
 interface TaskEventRow { id: number | string; task_type?: string | null; title?: string; due_date?: string | null; responsible_people?: string[] | null }
 interface PwRequestRow { id: number | string; identifier?: string; created_at?: string | null }
 interface FeedbackBellRow { ts: number; page: string; text: string; userEmail: string | null }
 
-/** The seven backlog sources this hook fetches (notices and the activity feed have their own producers). */
-export type OpGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'tasks' | 'feedback';
-export const OP_GROUPS: readonly OpGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'tasks', 'feedback'];
+/** The eight backlog sources this hook fetches (notices, assigned-to-me and the activity feed have their own producers). */
+export type OpGroup = 'pw' | 'leave' | 'overtime' | 'sheq' | 'workorders' | 'signoff' | 'tasks' | 'feedback';
+export const OP_GROUPS: readonly OpGroup[] = ['pw', 'leave', 'overtime', 'sheq', 'workorders', 'signoff', 'tasks', 'feedback'];
 /** Bell-facing names, one per source: the failure warning reads these, so they match the group headers. */
 export const OP_LABELS: Record<OpGroup, string> = {
   pw: 'Password resets', leave: 'Leave approvals', overtime: 'Overtime approvals',
-  sheq: 'SHEQ follow-ups', workorders: 'Overdue work orders', tasks: 'Overdue tasks',
+  sheq: 'SHEQ follow-ups', workorders: 'Overdue work orders', signoff: 'Waiting for sign-off', tasks: 'Overdue tasks',
   feedback: 'Feedback',
 };
 /** What the bell shows per group: the backlog behind the slice, and what survived into the list. */
@@ -40,9 +41,14 @@ export interface GroupTotal { total: number; shown: number }
 export type OpTotals = Record<OpGroup, GroupTotal>;
 const EMPTY_TOTALS: OpTotals = {
   pw: { total: 0, shown: 0 }, leave: { total: 0, shown: 0 }, overtime: { total: 0, shown: 0 },
-  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
+  sheq: { total: 0, shown: 0 }, workorders: { total: 0, shown: 0 }, signoff: { total: 0, shown: 0 }, tasks: { total: 0, shown: 0 },
   feedback: { total: 0, shown: 0 },
 };
+
+/** Terminal work-order statuses (WORK_ORDERS.md): never overdue, never in a backlog. */
+export function isTerminalWorkOrder(status: string | null | undefined): boolean {
+  return status === 'completed' || status === 'cancelled' || status === 'not-done';
+}
 
 function toItem(id: string, action: string, module: string, icon: LucideIcon, iso: string | null | undefined, status: ActivityItem['status'], href: string, group: AlertGroup, user?: string, actionLabel?: string): ActivityItem {
   return { id, action, module, icon, time: timeAgo(iso), timestamp: new Date(iso || 0).getTime(), status, user, href, actionLabel, group };
@@ -53,7 +59,8 @@ const OP_URLS: Record<OpGroup, string> = {
   leave: `${API_BASE}/api/leaves?status=pending`,
   overtime: `${API_BASE}/api/overtime?status=pending`,
   sheq: `${API_BASE}/api/sheq?status=open`,
-  workorders: `${API_BASE}/api/maintenance/work-orders?status=pending&limit=50`,
+  workorders: `${API_BASE}/api/maintenance/work-orders?overdue=true&limit=250`,
+  signoff: `${API_BASE}/api/maintenance/work-orders?awaiting_signoff=true&limit=100`,
   tasks: `${API_BASE}/api/tasks-events?status=pending`,
   feedback: `${API_BASE}/api/usage/events`,
 };
@@ -66,6 +73,7 @@ const OP_FETCH: Record<OpGroup, () => Promise<unknown[] | null>> = {
   overtime: () => fetchOrNull<OvertimeRow[]>(OP_URLS.overtime),
   sheq: () => fetchOrNull<SheqRow[]>(OP_URLS.sheq),
   workorders: () => fetchOrNull<WorkOrderRow[]>(OP_URLS.workorders),
+  signoff: () => fetchOrNull<WorkOrderRow[]>(OP_URLS.signoff),
   tasks: () => fetchOrNull<TaskEventRow[]>(OP_URLS.tasks),
   feedback: async () => {
     // Last-30-days feedback for the admin bell (the analyzer keeps the full view).
@@ -94,10 +102,11 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
   const overtime = raw.overtime as OvertimeRow[] | null;
   const sheq = raw.sheq as SheqRow[] | null;
   const workOrders = raw.workorders as WorkOrderRow[] | null;
+  const signoffRows = raw.signoff as WorkOrderRow[] | null;
   const tasksEvents = raw.tasks as TaskEventRow[] | null;
   const feedbackRows = raw.feedback as FeedbackBellRow[] | null;
   // fetchOrNull returns null when a request fails; an empty list is a real answer.
-  const failed = [leaves, overtime, sheq, workOrders, tasksEvents, pwRequests, feedbackRows].some(r => r === null);
+  const failed = [leaves, overtime, sheq, workOrders, signoffRows, tasksEvents, pwRequests, feedbackRows].some(r => r === null);
 
   const now = Date.now();
   // The backlog behind each bell slice: filtered (open/overdue only) but
@@ -108,7 +117,10 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     leave: Array.isArray(leaves) ? leaves : [],
     overtime: Array.isArray(overtime) ? overtime : [],
     sheq: Array.isArray(sheq) ? sheq.filter(s => s.status && s.status !== 'closed') : [],
-    workorders: Array.isArray(workOrders) ? workOrders.filter(w => w.due_date && new Date(w.due_date).getTime() < now) : [],
+    // The server already sliced these (M8 filters), but a backend from before M8 answers the same URLs with
+    // unfiltered rows — so the client re-asserts the slice. That keeps the bell honest on a preview build too.
+    workorders: Array.isArray(workOrders) ? workOrders.filter(w => !isTerminalWorkOrder(w.status) && w.due_date && new Date(w.due_date).getTime() < now) : [],
+    signoff: Array.isArray(signoffRows) ? signoffRows.filter(w => w.status === 'completed' && !(w.foreman_sign || '').trim()) : [],
     tasks: Array.isArray(tasksEvents) ? tasksEvents.filter(te => te.due_date && new Date(te.due_date).getTime() < now) : [],
     feedback: Array.isArray(feedbackRows) ? feedbackRows : [],
   };
@@ -133,6 +145,11 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     'SHEQ', ShieldAlert, s.date, 'critical', `/sheq_inspection?open=${s.id}`, 'sheq',
   ));
 
+  const signoffItems: ActivityItem[] = backlog.signoff.slice(0, 5).map(w => toItem(
+    `wo-signoff-${w.id}`, `Work order waiting for sign-off — ${w.work_order_number ? `#${w.work_order_number}` : `#${w.id}`}`,
+    'Maintenance', PenLine, w.completed_at || w.artisan_date || w.date_raised || w.created_at, 'pending', `/maintenance?open=${w.id}`, 'signoff', w.requested_by,
+  ));
+
   const overdueItems: ActivityItem[] = backlog.workorders.slice(0, 5).map(w => toItem(
     `wo-overdue-${w.id}`, `Work order overdue — ${w.work_order_number ? `#${w.work_order_number}` : `#${w.id}`}`,
     'Maintenance', AlertTriangle, w.due_date, 'critical', `/maintenance?open=${w.id}`, 'workorders', w.requested_by,
@@ -151,7 +168,7 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     );
   });
 
-  const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...overdueTaskItems, ...feedbackItems]
+  const merged = [...pwItems, ...leaveItems, ...otItems, ...sheqItems, ...overdueItems, ...signoffItems, ...overdueTaskItems, ...feedbackItems]
     .filter(i => i.timestamp > 0)
     .sort((a, b) => b.timestamp - a.timestamp);
 
@@ -164,6 +181,7 @@ export function buildOpAlerts(raw: OpRaw): { alerts: ActivityItem[]; failed: boo
     overtime: { total: backlog.overtime.length, shown: alive(otItems) },
     sheq: { total: backlog.sheq.length, shown: alive(sheqItems) },
     workorders: { total: backlog.workorders.length, shown: alive(overdueItems) },
+    signoff: { total: backlog.signoff.length, shown: alive(signoffItems) },
     tasks: { total: backlog.tasks.length, shown: alive(overdueTaskItems) },
     feedback: { total: backlog.feedback.length, shown: alive(feedbackItems) },
   };
@@ -204,13 +222,13 @@ export function useOperationalAlerts() {
       // Reset asks are admin-only server-side, and the feedback bell source is admin-only by decision
       // (managers read the same feedback in the analyzer instead). A manager asks for
       // nothing rather than a 403 that would read as failure.
-      const [leave, overtime, sheq, workorders, tasks, pw, feedback] = await Promise.all([
-        OP_FETCH.leave(), OP_FETCH.overtime(), OP_FETCH.sheq(), OP_FETCH.workorders(), OP_FETCH.tasks(),
+      const [leave, overtime, sheq, workorders, signoff, tasks, pw, feedback] = await Promise.all([
+        OP_FETCH.leave(), OP_FETCH.overtime(), OP_FETCH.sheq(), OP_FETCH.workorders(), OP_FETCH.signoff(), OP_FETCH.tasks(),
         isAdmin ? OP_FETCH.pw() : Promise.resolve<unknown[] | null>([]),
         isAdmin ? OP_FETCH.feedback() : Promise.resolve<unknown[] | null>([]),
       ]);
       if (cancelled) return;
-      applyRaw({ leave, overtime, sheq, workorders, tasks, pw, feedback }, isAdmin);
+      applyRaw({ leave, overtime, sheq, workorders, signoff, tasks, pw, feedback }, isAdmin);
     }
 
     load();
