@@ -1,8 +1,10 @@
 'use client';
 
+import { useRef } from 'react';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
+import { SlidingIndicator, useSlidingIndicator } from '../motion';
 import { oneOf, usePersistentState } from '../hooks/usePersistentState';
 
 export type ViewOption<T extends string> = { value: T; label: string; icon: IconMeaning };
@@ -17,15 +19,23 @@ export const VIEW_CARDS_TABLE = [
   { value: 'table', label: 'Table view', icon: 'table-view' },
 ] as const satisfies ReadonlyArray<ViewOption<string>>;
 
-/** Segmented control for switching how the same records are presented. */
+/**
+ * Segmented control for switching how the same records are presented. The
+ * selected fill is a pill that slides between options on the smooth spring
+ * (instant under reduced motion); before it can measure, the pressed option
+ * carries its own fill.
+ */
 export function ViewToggle<T extends string>({ value, onValueChange, options, className }: {
   value: T;
   onValueChange: (value: T) => void;
   options: ReadonlyArray<ViewOption<T>>;
   className?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const pill = useSlidingIndicator(containerRef, { selector: '[aria-pressed="true"]', activeKey: value });
   return (
-    <div role="group" aria-label="View" className={cn('inline-flex shrink-0 rounded-control border border-line bg-transparent p-0.5', className)}>
+    <div ref={containerRef} role="group" aria-label="View" className={cn('relative inline-flex shrink-0 rounded-control border border-line bg-transparent p-0.5', className)}>
+      <SlidingIndicator rect={pill} variant="pill" className="bg-action" />
       {options.map(option => (
         <button
           key={option.value}
@@ -34,7 +44,11 @@ export function ViewToggle<T extends string>({ value, onValueChange, options, cl
           title={option.label}
           aria-pressed={value === option.value}
           onClick={() => onValueChange(option.value)}
-          className="focus-ring touch-target inline-flex size-8 items-center justify-center rounded-sm text-ink-muted transition-colors duration-[var(--mo-duration-base)] hover:text-ink aria-pressed:bg-action aria-pressed:text-action-ink"
+          className={cn(
+            // Static fill until the sliding pill can position itself (and if it never can).
+            pill ? 'aria-pressed:bg-transparent' : 'aria-pressed:bg-action',
+            'focus-ring touch-target relative inline-flex size-8 items-center justify-center rounded-sm text-ink-muted transition-colors duration-[var(--mo-duration-base)] aria-[pressed=false]:hover:text-ink aria-pressed:text-action-ink',
+          )}
         >
           <Icon name={option.icon} size="md" weight={value === option.value ? 'emphasis' : 'control'} />
         </button>

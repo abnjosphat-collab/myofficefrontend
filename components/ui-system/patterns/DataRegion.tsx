@@ -7,6 +7,7 @@ import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Button, Spinner } from '../primitives/Button';
 import { LoadingPulse } from './LoadingPulse';
+import { Presence } from '../motion';
 import type { DataStatus } from './dataStatus';
 
 export interface EmptyStateProps {
@@ -91,6 +92,8 @@ export interface DataRegionProps {
  * One place that decides how a list/table/grid presents loading, refreshing,
  * retrying, empty, unauthorized and failure. Records already on screen stay
  * visible through refreshes and failed refreshes. A failure is never an empty list.
+ * Loading swaps to content with a 0.15 s crossfade (same in both motion modes);
+ * later refreshes never animate.
  */
 export function DataRegion({ status, subject, error, onRetry, empty, children, loadingDetail, loadingContent, className }: DataRegionProps) {
   const cap = subject.charAt(0).toUpperCase() + subject.slice(1);
@@ -114,34 +117,41 @@ export function DataRegion({ status, subject, error, onRetry, empty, children, l
 
   // Retrying looks like loading until the 20 s mark above; if the retries run out
   // the status becomes error, which says plainly what went wrong and offers Try again.
-  if (status === 'loading' || status === 'retrying') {
-    return (
-      <div className={className}>
-        {loading}
-        {status === 'retrying' && slowRetry && <StatusLine tone="warning" action={retry}>Still trying to reach the server.</StatusLine>}
-      </div>
-    );
-  }
+  const loadingPhase = status === 'loading' || status === 'retrying';
+  const listPhase = status === 'ready' || status === 'refreshing' || status === 'stale-error';
+  let settled: ReactNode;
   if (status === 'unauthorized') {
-    return <EmptyState icon="lock" title={`You do not have access to ${subject}`} description={error ?? 'Ask an administrator to grant access, or sign in with a different account.'} className={className} />;
-  }
-  if (status === 'error') {
-    return (
-      <div className={className}>
-        <Notice tone="danger" icon="warning" title={`${cap} could not be loaded`} action={retry}>
-          {error ?? 'Something went wrong. Your records are safe; nothing was changed.'}
-        </Notice>
+    settled = <EmptyState icon="lock" title={`You do not have access to ${subject}`} description={error ?? 'Ask an administrator to grant access, or sign in with a different account.'} />;
+  } else if (status === 'error') {
+    settled = (
+      <Notice tone="danger" icon="warning" title={`${cap} could not be loaded`} action={retry}>
+        {error ?? 'Something went wrong. Your records are safe; nothing was changed.'}
+      </Notice>
+    );
+  } else if (status === 'empty') {
+    settled = empty ?? <EmptyState title={`No ${subject} yet`} />;
+  } else if (listPhase) {
+    settled = (
+      <div className="flex flex-col gap-3">
+        {status === 'stale-error' && <StatusLine tone="warning" action={retry}><strong className="font-medium text-ink">{cap} may be out of date.</strong> {error ?? 'The latest refresh failed. Showing the last records received.'}</StatusLine>}
+        {status === 'refreshing' && (
+          <p role="status" className="flex items-center gap-2 font-sans text-caption text-ink-muted"><Spinner className="size-3.5" />Refreshing {subject}…</p>
+        )}
+        {children}
       </div>
     );
   }
-  if (status === 'empty') return <div className={className}>{empty ?? <EmptyState title={`No ${subject} yet`} />}</div>;
+  const loadingBlock = (
+    <>
+      {loading}
+      {status === 'retrying' && slowRetry && <StatusLine tone="warning" action={retry}>Still trying to reach the server.</StatusLine>}
+    </>
+  );
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
-      {status === 'stale-error' && <StatusLine tone="warning" action={retry}><strong className="font-medium text-ink">{cap} may be out of date.</strong> {error ?? 'The latest refresh failed. Showing the last records received.'}</StatusLine>}
-      {status === 'refreshing' && (
-        <p role="status" className="flex items-center gap-2 font-sans text-caption text-ink-muted"><Spinner className="size-3.5" />Refreshing {subject}…</p>
-      )}
-      {children}
+    <div className={className}>
+      <Presence visible fadeOnly swapKey={loadingPhase ? 'loading' : 'settled'}>
+        {loadingPhase ? loadingBlock : settled}
+      </Presence>
     </div>
   );
 }

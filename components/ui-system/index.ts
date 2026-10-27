@@ -99,6 +99,10 @@ export type { PickedPerson, EmployeeOption } from './patterns/PeoplePicker';
 export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/BulkEdit';
 export type { BulkField } from './patterns/BulkEdit';
 
+// Motion (the one motion layer; see ./motion and the README "Motion" section)
+export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING, MotionProvider, useIsReducedMotion, useMotionSafe, AnimatedIcon, IconSwap, NumberTransition, MotionList, MotionListItem, Presence, presenceMotion, SlidingIndicator, useSlidingIndicator, DrawerDragPanel } from './motion';
+export type { SpringName, SpringPreset, AnimatedIconEffect, AnimatedIconProps, IconSwapProps, NumberTransitionProps, MotionListItemProps, MotionListProps, PresenceProps, IndicatorRect, SlidingIndicatorProps, DrawerDragPanelProps } from './motion';
+
 // Hooks
 export { usePersistentState, oneOf, asString, readStored, storeValue } from './hooks/usePersistentState';
 export { useMediaQuery, DESKTOP_QUERY } from './hooks/useMediaQuery';

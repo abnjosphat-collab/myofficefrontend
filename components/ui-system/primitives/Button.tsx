@@ -14,7 +14,7 @@ export const buttonVariants = cva(
   [
     'focus-ring touch-target inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap',
     'rounded-control border font-sans text-label font-medium',
-    'transition-[background-color,border-color,color,box-shadow] duration-[var(--mo-duration-base)] ease-standard',
+    'transition-[background-color,border-color,color,box-shadow,transform] duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy active:scale-[0.98] motion-reduce:active:scale-100',
     'disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45',
   ],
   {
@@ -102,7 +102,7 @@ export const floatingActionClass = 'fixed bottom-[max(1.25rem,var(--mo-safe-bott
 export const iconButtonVariants = cva(
   [
     'focus-ring touch-target inline-flex shrink-0 items-center justify-center rounded-control border',
-    'transition-[background-color,border-color,color] duration-[var(--mo-duration-base)] ease-standard',
+    'transition-[background-color,border-color,color,transform] duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy active:scale-[0.98] motion-reduce:active:scale-100',
     'disabled:pointer-events-none disabled:opacity-45',
   ],
   {

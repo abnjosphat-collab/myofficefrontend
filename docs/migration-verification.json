@@ -336,6 +336,12 @@
       "date": "2026-10-25",
       "scope": "Rendered with a fixture session and mocked API at 1440 and 390 px (screenshots inspected); ready, empty and failed-load states; the restore post and list reload. No live data.",
       "note": "Manager-only trash list with a per-row Restore that re-inserts through the server."
+    },
+    "/dev/motion": {
+      "status": "verified",
+      "date": "2026-10-28",
+      "scope": "Route spec (all 10 sections, simulation switch both halves, dialog+drawer demos, no nav link, no errors at 1440/390/tablet/phone-landscape) plus a11y 0 serious/critical plus a coarse-pointer drag probe (snap-back + fling close).",
+      "note": "Motion gallery (B3): every motion piece and matrix row with a simulated reduce-motion switch. Signed-in admin only via lib/roles.ts; never in the nav."
     }
   }
 }

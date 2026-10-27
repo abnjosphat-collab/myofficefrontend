@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, type ReactNode } from 'react';
+import { SlidingIndicator, useSlidingIndicator } from '../motion';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '../foundations/cn';
 import { IconButton } from '../primitives/Button';
@@ -14,7 +15,7 @@ const STRIP_HEIGHT = 'calc(57px + var(--mo-safe-top))';
  * The navigation, laid out as the Tools sidebar.
  *
  * - **Desktop (821 px and up):** a full-height sticky column, 216 px wide or a 68 px icon rail (width eases over
- *   0.22 s). Top row: the `spotlight` header slot (whatever mark the caller owns) and a collapse chevron. Below it a bordered, rounded
+ *   the slow token). Top row: the `spotlight` header slot (whatever mark the caller owns) and a collapse chevron. Below it a bordered, rounded
  *   panel holds `children` (the destinations) and an optional `footer` toggle.
  * - **Below 821 px:** a sticky horizontal `strip` (the caller supplies a menu button that opens the drawer,
  *   Home and shortcut icons). The full navigation opens in an accessible drawer (Radix Dialog: focus
@@ -46,12 +47,22 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   const desktop = useMediaQuery(DESKTOP_QUERY, true);
   // The drawer is opened by a button elsewhere (not a Radix trigger), so remember the opener and give it focus back.
   const opener = useRef<HTMLElement | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  // The active destination's marker slides between rows on the smooth spring
+  // (instant under reduced motion). First aria-current wins; the rest keep
+  // their static fill (Recent and category lists can mark the same href).
+  const navBar = useSlidingIndicator(panelRef, { selector: '[aria-current="page"]' });
+  const stripBar = useSlidingIndicator(stripRef, { selector: '[aria-current="page"]' });
 
   const panel = (
     <nav aria-label={label} className="flex min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-surface">
       {/* The panel hugs its content (as in Tools) and only scrolls when the viewport is shorter than the list. */}
       {search && !(collapsed && desktop) && <div className="shrink-0 border-b border-line-subtle p-2">{search}</div>}
-      <div className="flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">{children}</div>
+      <div ref={panelRef} className="relative flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">
+        <SlidingIndicator rect={navBar} variant="bar" orientation="vertical" className="bg-action" testId="nav-indicator" />
+        {children}
+      </div>
       {footer && <div className="shrink-0 border-t border-line">{footer}</div>}
     </nav>
   );
@@ -63,7 +74,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
         data-collapsed={collapsed || undefined}
         className={cn(
           'sticky top-0 z-sidebar flex h-dvh shrink-0 flex-col border-r border-line bg-surface py-[18px]',
-          'transition-[width] duration-[220ms] ease-[ease]',
+          'transition-[width] duration-[var(--mo-duration-slow)] ease-[ease]',
           // The left safe area (a landscape notch) widens the column so the content keeps its full width.
           collapsed ? 'w-[calc(var(--mo-sidebar-collapsed)+var(--mo-safe-left))] pl-[calc(0.5rem+var(--mo-safe-left))] pr-2' : 'w-[calc(var(--mo-sidebar-width)+var(--mo-safe-left))] pl-[calc(0.75rem+var(--mo-safe-left))] pr-3',
         )}
@@ -90,9 +101,11 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
     <>
       <div
         data-nav-strip=""
+        ref={stripRef}
         className="sticky top-0 z-sidebar flex items-center gap-1.5 overflow-x-auto border-b border-line bg-surface pt-[var(--mo-safe-top)]"
         style={{ height: STRIP_HEIGHT, paddingLeft: 'max(0.75rem, var(--mo-safe-left))', paddingRight: 'max(0.75rem, var(--mo-safe-right))' }}
       >
+        <SlidingIndicator rect={stripBar} variant="bar" orientation="horizontal" className="bg-action" testId="strip-indicator" />
         {strip}
       </div>
       <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
