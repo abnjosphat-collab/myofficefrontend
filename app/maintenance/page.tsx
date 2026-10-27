@@ -90,7 +90,7 @@ function MaintenanceContent() {
   const clear = () => { setF(NO_FILTERS); setPage(1); };
   const chosen = useMemo(() => items.filter(w => selected.has(String(w.id))), [items, selected]);
   // Ids that no longer exist (after a delete or refetch) drop out of the live set;
-  // filter changes never prune — hidden selections stay and are counted.
+  // filter changes never prune â€” hidden selections stay and are counted.
   const live = useMemo(() => pruneSelection(selected, items.map(w => String(w.id))), [selected, items]);
   const shownIds = useMemo(() => new Set(rows.map(w => String(w.id))), [rows]);
   const hiddenCount = countHiddenSelected(live, shownIds);
