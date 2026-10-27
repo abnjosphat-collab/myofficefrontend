@@ -12,6 +12,16 @@
 // this; only use it for writes.
 import { supabase } from './supabase';
 
+// Writes in flight through this helper (the one transport for main-app reads
+// and writes). `useAutoRefresh` skips a background tick while one is pending,
+// so a refresh can never land between an optimistic change and its write.
+let mutationsInFlight = 0;
+
+/** True while any POST/PUT/PATCH/DELETE through `authFetch` has not settled. */
+export function isMutationInFlight(): boolean {
+  return mutationsInFlight > 0;
+}
+
 export async function authFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -20,5 +30,12 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${session.access_token}`);
   }
 
-  return fetch(input, { ...init, headers });
+  const method = init.method === undefined ? 'GET' : init.method.toUpperCase();
+  const mutating = method !== 'GET' && method !== 'HEAD';
+  if (mutating) mutationsInFlight += 1;
+  try {
+    return await fetch(input, { ...init, headers });
+  } finally {
+    if (mutating) mutationsInFlight -= 1;
+  }
 }

@@ -6,7 +6,9 @@
 // - Non-2xx responses throw an ApiError with a human-readable message extracted from
 //   the backend's JSON `detail` (string, or FastAPI's validation-array form).
 // - 204 / empty bodies resolve to undefined.
-import { authFetch } from '@/lib/api';
+import { authFetch, isMutationInFlight } from '@/lib/api';
+
+export { isMutationInFlight };
 import { API_BASE } from '@/lib/config';
 import { notifyMfaRequired } from '@/lib/mfa';
 import { toast } from 'sonner';
