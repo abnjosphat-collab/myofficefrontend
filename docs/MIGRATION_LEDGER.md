@@ -4,7 +4,7 @@
 > "Browser verified" comes only from [`migration-verification.json`](./migration-verification.json), which is edited
 > by hand after a page has actually been rendered and inspected. See [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md).
 
-**63 routes.** Migrated: 52. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 7. Browser verified: 54.
+**64 routes.** Migrated: 53. Legacy page body on the new shell: 0. Redirects: 4. Own chrome: 7. Browser verified: 54.
 
 | Column | Meaning |
 |---|---|
@@ -32,6 +32,7 @@
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
 | `/deep-space-preview` | Own chrome | Yes | No | Not checked | standalone prototype (glass card over 3D particles; own layout, no shell) |
+| `/dev/motion` | Migrated | Yes | 1 | unverified (2026-10-27) | Motion gallery (B3): every motion piece and matrix row with a simulated reduce-motion switch. Signed-in admin only via lib/roles.ts; never in the nav. |
 | `/documents` | Migrated | Yes | 3 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
 | `/drivers` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by department, table, add/edit/delete. |
 | `/employees` | Migrated | Yes | 5 | Yes, 2026-10-22 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
