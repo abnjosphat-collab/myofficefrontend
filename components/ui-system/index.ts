@@ -58,7 +58,7 @@ export { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel } fr
 export { LoadingPulse } from './patterns/LoadingPulse';
 export { PageHeader, Toolbar, FilterField } from './patterns/PageHeader';
 export { MoreMenu, type MoreMenuItem } from './patterns/MoreMenu';
-export { ExportButton, type ExportMenuItem } from './patterns/ExportButton';
+export { ExportButton, type ExportButtonCommon, type ExportMenuItem } from './patterns/ExportButton';
 export type { Crumb } from './patterns/PageHeader';
 export { MetricTile, MetricGrid } from './patterns/MetricTile';
 export { RecordCard } from './patterns/RecordCard';

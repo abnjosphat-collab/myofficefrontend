@@ -14,7 +14,8 @@ export interface ExportMenuItem {
   hint?: ReactNode;
 }
 
-type ExportButtonCommon = {
+/** Shared trigger options; `ExportButtonProps` adds exactly one of `items` or `onPress` + `label`. */
+export type ExportButtonCommon = {
   /** Leading icon. The export action everywhere; a file-type glyph only inside the menu. */
   icon?: IconMeaning;
   disabled?: boolean;
