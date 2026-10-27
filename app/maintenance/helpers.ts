@@ -268,6 +268,13 @@ export function bulkCloseRefusal(w: WorkOrder): string | null {
   return null;
 }
 
+/** How many selected ids the current filters hide. Selection survives filtering; the bulk bar says so. */
+export function countHiddenSelected(selected: ReadonlySet<string>, shownIds: ReadonlySet<string>): number {
+  let n = 0;
+  selected.forEach(id => { if (!shownIds.has(id)) n += 1; });
+  return n;
+}
+
 // ── Schedules ────────────────────────────────────────────────────────────────────────────────────────────
 export interface ScheduleDraft {
   name: string; equipment_info: string; to_department: string; allocated_to: string; authorising_foreman: string; estimated_hours: string; job_request_details: string; job_instructions: string;
