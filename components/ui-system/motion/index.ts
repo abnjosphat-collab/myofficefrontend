@@ -10,3 +10,7 @@ export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING } from './presets';
 export type { SpringName, SpringPreset } from './presets';
 export { MotionProvider } from './MotionProvider';
 export { useIsReducedMotion, useMotionSafe } from './useMotionSafe';
+export { AnimatedIcon } from './AnimatedIcon';
+export type { AnimatedIconEffect, AnimatedIconProps } from './AnimatedIcon';
+export { IconSwap } from './IconSwap';
+export type { IconSwapProps } from './IconSwap';

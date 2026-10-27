@@ -100,8 +100,8 @@ export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/Bu
 export type { BulkField } from './patterns/BulkEdit';
 
 // Motion (the one motion layer; see ./motion and the README "Motion" section)
-export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING, MotionProvider, useIsReducedMotion, useMotionSafe } from './motion';
-export type { SpringName, SpringPreset } from './motion';
+export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING, MotionProvider, useIsReducedMotion, useMotionSafe, AnimatedIcon, IconSwap } from './motion';
+export type { SpringName, SpringPreset, AnimatedIconEffect, AnimatedIconProps, IconSwapProps } from './motion';
 
 // Hooks
 export { usePersistentState, oneOf, asString, readStored, storeValue } from './hooks/usePersistentState';
