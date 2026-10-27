@@ -57,6 +57,7 @@ const spec = {
     'PATCH /api/maintenance/work-orders/1': patchOf(1), 'PATCH /api/maintenance/work-orders/2': patchOf(2),
     'POST /api/maintenance/work-orders/1/close': request => ({ ...ORDERS.find(o => o.id === 1), ...request.postDataJSON(), id: 1, status: 'completed', progress: 100, updated_at: new Date().toISOString() }),
     'POST /api/maintenance/work-orders/bulk-close': { closed: [1, 4], skipped: [] },
+    'POST /api/maintenance/work-orders/bulk-delete': { deleted: [1, 2, 3, 5], failed: [{ id: 4, reason: 'Manager role required (fixture)' }] },
     'POST /api/maintenance/work-orders/2/close': request => ({ ...ORDERS.find(o => o.id === 2), ...request.postDataJSON(), id: 2, status: 'completed', progress: 100, updated_at: new Date().toISOString() }),
     'DELETE /api/maintenance/work-orders/4': { __status: 403, body: { detail: 'Manager role required (fixture)' } },
     'DELETE /api/maintenance/work-orders/1': {}, 'DELETE /api/maintenance/work-orders/2': {}, 'DELETE /api/maintenance/work-orders/3': {}, 'DELETE /api/maintenance/work-orders/5': {},
@@ -94,6 +95,23 @@ const spec = {
     check(await cards.count() === 1, 'a priority button narrows the register');
     await page.getByRole('button', { name: 'Clear filters' }).click();
 
+    // cards + bulk bar: card checkboxes select without opening; selection is shared and survives filters
+    const bar = page.getByRole('region', { name: 'Bulk actions' });
+    await page.getByRole('checkbox', { name: 'Select work order WO-00001' }).check();
+    await page.getByRole('checkbox', { name: 'Select work order WO-00002' }).check();
+    check(await bar.getByText('2 selected').isVisible(), 'ticking two cards shows the bulk bar with the count');
+    check(await page.getByRole('dialog').count() === 0, 'checking a card does not open it');
+    await bar.getByRole('button', { name: 'Select all shown (5)' }).click();
+    check(await bar.getByText('5 selected').isVisible(), 'select-all-shown ticks every filtered row');
+    await page.getByRole('button', { name: 'Table view' }).click();
+    check(await bar.getByText('5 selected').isVisible(), 'the selection survives switching views');
+    await page.getByRole('button', { name: 'Card view' }).click();
+    await page.getByRole('searchbox').fill('crusher');
+    check(await bar.getByText('5 selected (4 hidden by filters)').isVisible(), 'filtering keeps the selection and says what it hides');
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await bar.getByRole('button', { name: 'Clear' }).click();
+    check(await bar.count() === 0, 'Clear empties the selection and the bar leaves');
+
     // tiles: the foreman's sign-off list and the missed planned jobs
     await page.getByRole('button', { name: /^Awaiting sign-off\s*\d/ }).click();
     check(await cards.count() === 1, 'the Awaiting sign-off tile shows finished-but-unsigned jobs');
@@ -117,7 +135,7 @@ const spec = {
     const qcCall = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/1/close').pop();
     check(qcCall?.body.work_done_details === 'Seal replaced.' && qcCall?.body.time_work_started === '08:00' && qcCall?.body.time_work_finished === '10:30' && typeof qcCall?.body.expected_updated_at === 'string', 'closing sends the note, the times and the row version', JSON.stringify(qcCall?.body).slice(0, 160));
 
-    // table + bulk delete: confirm first, report a refused one with the server's reason
+    // table + bulk delete: confirm first, one server call, a refused row named with the server's reason
     await page.getByRole('button', { name: 'Table view' }).click();
     const table = page.getByRole('table', { name: 'Work orders' });
     check(await table.getByRole('row').count() === 6, 'table view lists the work orders');
@@ -127,11 +145,12 @@ const spec = {
     const c0 = page.getByRole('alertdialog');
     await c0.waitFor({ timeout: 5000 });
     await c0.getByRole('button', { name: 'Cancel' }).click();
-    check(!calls.some(c => c.method === 'DELETE'), 'cancelling the confirmation deletes nothing');
+    check(!calls.some(c => c.method === 'DELETE' || (c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/bulk-delete')), 'cancelling the confirmation deletes nothing');
     await page.getByRole('button', { name: 'Delete selected' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete 5' }).click();
-    await page.getByText(/1 could not be deleted: Manager role required/).waitFor({ timeout: 5000 }).catch(() => {});
-    check(await page.getByText(/1 could not be deleted: Manager role required/).isVisible() && calls.filter(c => c.method === 'DELETE').length === 5, 'a refused delete shows the server\'s reason while the others go through');
+    await page.getByText(/1 could not be deleted: WO-00004: Manager role required/).waitFor({ timeout: 5000 }).catch(() => {});
+    const delCalls = calls.filter(c => c.method === 'POST' && c.pathname === '/api/maintenance/work-orders/bulk-delete');
+    check(await page.getByText(/1 could not be deleted: WO-00004: Manager role required/).isVisible() && delCalls.length === 1 && JSON.stringify([...delCalls[0].body.ids].sort()) === '[1,2,3,4,5]', 'one bulk-delete call carries every id and a refused row is named with the server\'s reason');
     // bulk mark-done: the batch names who cannot join and sends only the rest (the delete above reloaded the list, so WO-00001 is pending again)
     await table.getByRole('checkbox', { name: 'Select all rows on this page' }).check();
     await page.getByRole('button', { name: 'Mark done' }).click();
