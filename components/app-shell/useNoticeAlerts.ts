@@ -12,8 +12,9 @@
 // shown to everyone rather than faking targeting the data model can't support.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { Bell, Pin, type LucideIcon } from '@/components/ui-system';
 import { timeAgo, type ActivityItem, type SourceResult } from './useDashboardData';
 import { getAllNotices } from '@/app/noticeboard/useNoticeboardData';
@@ -76,11 +77,22 @@ export function useNoticeAlerts() {
   const [failed, setFailed] = useState(false);
   // A retry re-runs the load below (same cancelled-guard, same shaping); single source, no per-source routing needed.
   const [reloadTick, setReloadTick] = useState(0);
-  const reload = useCallback(() => setReloadTick(t => t + 1), []);
+  /** The pending reload is a silent background tick, not a manual retry. */
+  const quietPending = useRef(false);
+  /** Consecutive quiet failures; the bell warning waits for the second one. */
+  const quietFails = useRef(0);
+  const reload = useCallback((quiet = false) => { quietPending.current = quiet; setReloadTick(t => t + 1); }, []);
   const sources: SourceResult[] = user ? [{ source: 'notices', label: 'Notices', ok: !failed }] : [];
+
+  // The bell re-reads every 15 s (its own pace, not the 60 s list pace).
+  const quietReload = useCallback(() => reload(true), [reload]);
+  useAutoRefresh(quietReload, { every: 15_000, enabled: !!user });
 
   useEffect(() => {
     if (!user) { setNotices([]); setAlerts([]); setLoading(false); return; }
+    const quiet = quietPending.current;
+    quietPending.current = false;
+    if (!quiet) quietFails.current = 0;
     let cancelled = false;
 
     async function load() {
@@ -91,8 +103,15 @@ export function useNoticeAlerts() {
         setNotices(built.notices);
         setAlerts(built.alerts);
         setFailed(false);
+        quietFails.current = 0;
       } catch {
-        if (!cancelled) { setNotices([]); setAlerts([]); setFailed(true); }
+        // A failed background refresh keeps the shown notices and stays silent
+        // the first time; from the second failure in a row the bell says so.
+        if (cancelled) return;
+        if (!quiet || ++quietFails.current >= 2) {
+          setFailed(true);
+          if (!quiet) { setNotices([]); setAlerts([]); }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

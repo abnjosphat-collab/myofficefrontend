@@ -128,4 +128,28 @@ describe('useMyWorkAlerts', () => {
     await waitFor(() => expect(result.current.failed).toBe(false));
     expect(result.current.alerts.map(a => a.id)).toEqual(['wo-mine-1']);
   });
+
+  it('re-reads on the 15 s bell tick, silently through a first failure and failed on the second', async () => {
+    vi.useFakeTimers();
+    try {
+      authMock.mockReturnValue({
+        user: { email: 'alex@mine.test', user_metadata: {} }, profile: { full_name: 'Alex Moyo' }, loading: false,
+      } as never);
+      fetchMock.mockResolvedValue([row({ id: 1 })]);
+      const { result } = renderHook(() => useMyWorkAlerts());
+      await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+      expect(result.current.alerts.map(a => a.id)).toEqual(['wo-mine-1']);
+      fetchMock.mockResolvedValue([row({ id: 1 }), row({ id: 2, allocated_to: 'Alex Moyo' })]);
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(result.current.alerts.map(a => a.id)).toEqual(['wo-mine-1', 'wo-mine-2']);
+      fetchMock.mockResolvedValue(null);
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(result.current.failed).toBe(false); // first quiet failure: silent, items kept
+      expect(result.current.alerts.map(a => a.id)).toEqual(['wo-mine-1', 'wo-mine-2']);
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      expect(result.current.failed).toBe(true); // second in a row: the bell says so
+      expect(result.current.alerts.map(a => a.id)).toEqual(['wo-mine-1', 'wo-mine-2']);
+    } finally { vi.useRealTimers(); }
+  });
 });

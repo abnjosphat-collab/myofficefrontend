@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
 import { getAllPages } from '@/lib/paged';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { toast } from 'sonner';
 import type { RawData, Rec } from './types';
 
@@ -72,29 +73,50 @@ export function useSheqDashboardData() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const requestRef = useRef(0);
   const hasLoadedRef = useRef(false);
+  /** True while a load is unsettled; ticks skip while it holds. */
+  const busyRef = useRef(false);
+  /** Consecutive quiet failures; the banner and error surface from the second one. */
+  const quietFails = useRef(0);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (quiet = false) => {
     const requestId = ++requestRef.current;
-    if (hasLoadedRef.current) setRefreshing(true); else setLoading(true);
-    setLoadError('');
-    setFailedSources([]);
+    if (!quiet) {
+      quietFails.current = 0;
+      if (hasLoadedRef.current) setRefreshing(true); else setLoading(true);
+      setLoadError('');
+      setFailedSources([]);
+    }
+    busyRef.current = true;
     try {
       const next = await retryTransient(fetchAllModules);
       if (requestId !== requestRef.current) return;
       // A source that failed keeps its previous rows (nothing on the first load);
       // the banner names it, so its panel never goes quietly empty or quietly stale.
       setRaw(prev => ({ ...prev, ...next.rows }));
-      setFailedSources(next.failed.map(k => SHEQ_SOURCE_LABELS[k]));
+      if (!quiet || next.failed.length === 0) {
+        setFailedSources(next.failed.map(k => SHEQ_SOURCE_LABELS[k]));
+        setLoadError('');
+        quietFails.current = 0;
+      } else if (++quietFails.current >= 2) {
+        // The answered sources still updated above; only the naming waited.
+        setFailedSources(next.failed.map(k => SHEQ_SOURCE_LABELS[k]));
+      }
       setLastUpdated(new Date());
       hasLoadedRef.current = true;
     }
     catch (error) {
       if (requestId !== requestRef.current) return;
-      setLoadError(error instanceof Error ? error.message : 'Could not load SHEQ dashboard data.');
-      toast.error('Failed to load dashboard data');
+      // A failed background refresh keeps the figures and stays silent the
+      // first time (no banner, no toast); from the second failure in a row the
+      // dashboard says so, exactly like a failed manual refresh.
+      if (!quiet || ++quietFails.current >= 2) {
+        setLoadError(error instanceof Error ? error.message : 'Could not load SHEQ dashboard data.');
+        if (!quiet) toast.error('Failed to load dashboard data');
+      }
     }
     finally {
       if (requestId === requestRef.current) {
+        busyRef.current = false;
         setLoading(false);
         setRefreshing(false);
       }
@@ -102,6 +124,9 @@ export function useSheqDashboardData() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  const quietRefresh = useCallback(() => { void refresh(true); }, [refresh]);
+  useAutoRefresh(quietRefresh, { isLoading: () => busyRef.current });
 
   return { raw, loading, refreshing, loadError, failedSources, lastUpdated, refresh };
 }

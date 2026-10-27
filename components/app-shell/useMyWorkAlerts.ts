@@ -7,9 +7,10 @@
 // first by useNotifications — your own jobs outrank every other queue.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { UserCheck } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
 import { isTerminalWorkOrder } from './useOperationalAlerts';
@@ -76,13 +77,29 @@ export function useMyWorkAlerts() {
   const signedIn = !!user;
   const [loaded, setLoaded] = useState<{ items: ActivityItem[]; total: number; shown: number } | null>(null);
   const [failed, setFailed] = useState(false);
+  /** Consecutive quiet failures; the bell warning waits for the second one. */
+  const quietFails = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) quietFails.current = 0;
     const raw = await fetchOrNull<unknown>(MYWORK_URL);
-    if (raw === null) { setFailed(true); setLoaded({ items: [], total: 0, shown: 0 }); return; }
+    if (raw === null) {
+      // A failed background refresh keeps the shown items and stays silent the
+      // first time; from the second failure in a row the bell says so.
+      if (!quiet || ++quietFails.current >= 2) {
+        setFailed(true);
+        if (!quiet) setLoaded({ items: [], total: 0, shown: 0 });
+      }
+      return;
+    }
+    quietFails.current = 0;
     setFailed(false);
     setLoaded(buildMyWorkItems(raw, myIdentities(profile?.full_name, user?.email)));
   }, [profile?.full_name, user?.email]);
+
+  // The bell re-reads every 15 s (its own pace, not the 60 s list pace).
+  const quietLoad = useCallback(() => load(true), [load]);
+  useAutoRefresh(quietLoad, { every: 15_000, enabled: signedIn });
 
   useEffect(() => {
     if (authLoading || !signedIn) return;

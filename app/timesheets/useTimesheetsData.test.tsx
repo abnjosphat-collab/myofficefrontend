@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, useTimesheetsData } from './useTimesheetsData';
 import type { Employee, Period } from './types';
 import { ApiError, api as apiClient } from '@/lib/apiClient';
+import { toast } from 'sonner';
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
@@ -123,7 +124,8 @@ describe('automatic timesheet recovery', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     const oldSignal = vi.mocked(api.timesheets).mock.calls[0][2];
     rerender({ period: september });
-    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    // Just under the 60 s background tick, so the obsolete-retry assertions below see only the period load.
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_000); });
     expect(oldSignal?.aborted).toBe(true);
     expect(leaves).toHaveBeenCalledTimes(2);
     expect(result.current.loading).toBe(false);
@@ -156,5 +158,29 @@ describe('automatic timesheet recovery', () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(leaves).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('reloads on the background tick without UI flags, silently through a first failure', async () => {
+    vi.useFakeTimers();
+    vi.mocked(toast.error).mockClear();
+    mockReads();
+    const { result } = renderHook(() => useTimesheetsData(september));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.loading).toBe(false);
+    const calls = vi.mocked(api.employees).mock.calls.length;
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(vi.mocked(api.employees).mock.calls.length).toBe(calls + 1);
+    expect(result.current.refreshing).toBe(false);
+    expect(result.current.retrying).toBe(false);
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.allEmployees).toEqual([employee]);
+    vi.mocked(api.employees).mockRejectedValue(new ApiError('Access denied', 403));
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(result.current.allEmployees).toEqual([employee]); // the grid stands
+    expect(result.current.loadError).toBeNull();
+    expect(toast.error).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+    expect(result.current.loadError).toBe('Access denied'); // second in a row: the page says so
+    expect(result.current.allEmployees).toEqual([employee]);
   });
 });

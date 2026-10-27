@@ -5,9 +5,10 @@
 // "decompose on touch" convention.
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import type { Certification, ComplianceReport, RefresherItem } from './types';
 
 export async function createCertification(fd: FormData) {
@@ -30,20 +31,43 @@ export function useTrainingData() {
   const [registerUnavailable, setRegisterUnavailable] = useState(false);
   const [complianceUnavailable, setComplianceUnavailable] = useState(false);
   const [refreshersUnavailable, setRefreshersUnavailable] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  /** True while a load is unsettled; ticks skip while it holds. */
+  const busyRef = useRef(false);
+  /** Newer request wins (a manual read started during a background one). */
+  const requestRef = useRef(0);
+  /** Consecutive background failures; the error surfaces from the second one. */
+  const quietFails = useRef(0);
 
-  const fetchAll = useCallback(async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    setRefreshing(true);
+  const fetchAll = useCallback(async (quiet = false, background = false) => {
+    const requestId = ++requestRef.current;
+    if (!background) {
+      quietFails.current = 0;
+      if (!quiet) setLoading(true);
+      setRefreshing(true);
+    }
+    busyRef.current = true;
     try {
       const [certsRes, rateRes, refreshRes] = await Promise.allSettled([
         retryTransient(() => api.get<Certification[]>('/api/training')),
         retryTransient(() => api.get<ComplianceReport>('/api/training/reports/compliance_rate')),
         retryTransient(() => api.get<RefresherItem[]>('/api/training/reports/due_refreshers')),
       ]);
+      if (requestId !== requestRef.current) return;
       if (certsRes.status === 'fulfilled') setCerts(certsRes.value);
-      setRegisterUnavailable(certsRes.status === 'rejected');
-      setComplianceUnavailable(rateRes.status === 'rejected');
-      setRefreshersUnavailable(refreshRes.status === 'rejected');
+      const failures = [certsRes, rateRes, refreshRes]
+        .map((result, index) => result.status === 'rejected' ? {
+          name: ['certifications', 'compliance', 'refreshers'][index],
+          message: result.reason instanceof Error ? result.reason.message : String(result.reason),
+        } : null)
+        .filter((failure): failure is { name: string; message: string } => failure !== null);
+      if (!background || failures.length === 0 || ++quietFails.current >= 2) {
+        setRegisterUnavailable(certsRes.status === 'rejected');
+        setComplianceUnavailable(rateRes.status === 'rejected');
+        setRefreshersUnavailable(refreshRes.status === 'rejected');
+        setError(failures.length ? `Could not load ${failures.map(failure => failure.name).join(', ')}: ${[...new Set(failures.map(failure => failure.message))].join('; ')}` : '');
+      }
+      if (failures.length === 0) quietFails.current = 0;
       // Merge onto the safe defaults instead of replacing outright — a response
       // succeeding with compliance_rate missing (not a full outage, already
       // reported separately) otherwise left compliance_rate undefined,
@@ -51,18 +75,18 @@ export function useTrainingData() {
       // live, 2026-08-29 UI audit).
       if (rateRes.status === 'fulfilled') setCompliance(prev => ({ ...prev, ...rateRes.value }));
       if (refreshRes.status === 'fulfilled') setRefreshers(refreshRes.value);
-      const failures = [certsRes, rateRes, refreshRes]
-        .map((result, index) => result.status === 'rejected' ? {
-          name: ['certifications', 'compliance', 'refreshers'][index],
-          message: result.reason instanceof Error ? result.reason.message : String(result.reason),
-        } : null)
-        .filter((failure): failure is { name: string; message: string } => failure !== null);
-      setError(failures.length ? `Could not load ${failures.map(failure => failure.name).join(', ')}: ${[...new Set(failures.map(failure => failure.message))].join('; ')}` : '');
-    } catch (e) { setError(`Failed to load: ${(e as Error).message}`); }
-    finally { setLoading(false); setRefreshing(false); }
+      setUpdatedAt(new Date());
+    } catch (e) {
+      if (requestId !== requestRef.current) return;
+      if (!background || ++quietFails.current >= 2) setError(`Failed to load: ${(e as Error).message}`);
+    }
+    finally { if (requestId === requestRef.current) { busyRef.current = false; setLoading(false); setRefreshing(false); } }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  return { certs, refreshers, compliance, loading, refreshing, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, fetchAll };
+  const backgroundFetch = useCallback(() => { void fetchAll(true, true); }, [fetchAll]);
+  useAutoRefresh(backgroundFetch, { isLoading: () => busyRef.current });
+
+  return { certs, refreshers, compliance, loading, refreshing, error, setError, registerUnavailable, complianceUnavailable, refreshersUnavailable, updatedAt, fetchAll };
 }

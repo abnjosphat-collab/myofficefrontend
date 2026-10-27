@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { fetchOrNull } from './fetchOrNull';
 import {
   ClipboardPlus, AlertTriangle, type LucideIcon,
@@ -246,6 +247,33 @@ export function useDashboardData() {
       applyRaw({ ...prev, breakdowns: await DASH_FETCH.breakdowns() });
     }
   }, [applyRaw]);
+
+  /** Consecutive quiet failures per endpoint; a source is named from its second one. */
+  const quietFails = useRef<Record<string, number>>({});
+
+  /** Re-fetch every endpoint (a background tick): successes merge over the last
+   *  good answers, failures keep them — until the second failure in a row, when
+   *  the source is honestly named as failed. */
+  const reloadAllQuiet = useCallback(async () => {
+    const prev = dataRef.current;
+    if (!prev) return;
+    const { raw } = await loadDashboardData();
+    const next: DashRaw = { ...prev };
+    (Object.keys(raw) as (keyof DashRaw)[]).forEach(k => {
+      if (raw[k] !== null && raw[k] !== undefined) {
+        next[k] = raw[k];
+        quietFails.current[k] = 0;
+      } else {
+        quietFails.current[k] = (quietFails.current[k] ?? 0) + 1;
+        if (quietFails.current[k] >= 2) next[k] = null;
+      }
+    });
+    applyRaw(next);
+  }, [applyRaw]);
+
+  // The bell re-reads every 15 s (its own pace, not the 60 s list pace). The
+  // home stats ride the same hook, so they refresh at 15 s too.
+  useAutoRefresh(reloadAllQuiet, { every: 15_000 });
 
   useEffect(() => {
     let cancelled = false;

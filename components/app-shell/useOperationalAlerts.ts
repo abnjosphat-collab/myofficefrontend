@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { useAuth } from '@/lib/auth-context';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { fetchRemoteEvents, type EnrichedUsageEvent } from '@/lib/usage';
 import { CalendarDays, Clock, Key, ShieldAlert, AlertTriangle, ListTodo, MessageSquare, PenLine, type LucideIcon } from '@/components/ui-system';
 import { fetchOrNull } from './fetchOrNull';
@@ -213,6 +214,33 @@ export function useOperationalAlerts() {
     const next: OpRaw = { ...prev, [group]: fresh };
     applyRaw(next, isAdmin);
   }, [canView, isAdmin, applyRaw]);
+
+  /** Consecutive quiet failures per source; a source is named from its second one. */
+  const quietFails = useRef<Record<string, number>>({});
+
+  /** Re-fetch every asked source (a background tick): successes merge over the
+   *  last good answers, failures keep them — until the second failure in a
+   *  row, when the source is honestly named as failed. Unasked stays unasked. */
+  const reloadAllQuiet = useCallback(async () => {
+    const prev = dataRef.current;
+    if (!canView || !prev) return;
+    const asked = OP_GROUPS.filter(g => (g !== 'pw' && g !== 'feedback') || isAdmin);
+    const fresh = await Promise.all(asked.map(g => OP_FETCH[g]()));
+    const next: OpRaw = { ...prev };
+    asked.forEach((g, i) => {
+      if (fresh[i] !== null) {
+        next[g] = fresh[i];
+        quietFails.current[g] = 0;
+      } else {
+        quietFails.current[g] = (quietFails.current[g] ?? 0) + 1;
+        if (quietFails.current[g] >= 2) next[g] = null;
+      }
+    });
+    applyRaw(next, isAdmin);
+  }, [canView, isAdmin, applyRaw]);
+
+  // The bell re-reads every 15 s (its own pace, not the 60 s list pace).
+  useAutoRefresh(reloadAllQuiet, { every: 15_000, enabled: canView });
 
   useEffect(() => {
     if (!canView) return; // nothing to fetch; the values below say "no alerts" without touching state

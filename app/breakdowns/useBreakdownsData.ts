@@ -2,11 +2,12 @@
 // writes (they throw, so a dialog shows the reason and keeps what was typed), and the server's analytics for the current selection.
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { unwrapRows } from '@/lib/paged';
 import { isTransientError, retryDelay } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { toPayload } from './breakdownLogic';
 import type { HeatmapData } from './insights/types';
 import type { Breakdown, BreakdownFormData, CreateBreakdownResult, RaiseWorkOrderResult } from './types';
@@ -60,30 +61,58 @@ export function insightQuery(f: InsightFilters): string {
 }
 
 interface Settled { key: string; data: HeatmapData | null; error: string | null; status: number | null }
-/** The analytics for `query`. A new query starts from nothing (the old charts are never shown under new filters) and a failure is never an empty chart. */
+/** The analytics for `query`. A new query starts from nothing (the old charts are never shown under new filters) and a failure is never an empty chart. The answer also refreshes on a silent background tick that keeps the old charts while it fetches. */
 export function useBreakdownInsights(query: string, enabled = true) {
   const [tick, setTick] = useState(0);
   const [settled, setSettled] = useState<Settled>({ key: '', data: null, error: null, status: null });
+  const quietFails = useRef(0);
+  const busyRef = useRef(false);
   const key = `${query}|${tick}`;
+  const keyRef = useRef(key);
+  const queryRef = useRef(query);
+  useEffect(() => { keyRef.current = key; queryRef.current = query; });
   useEffect(() => {
     if (!enabled) return;
+    busyRef.current = true;
     let current = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const attempt = (n: number) => {
       api.get<HeatmapData>(`/api/breakdowns/analytics/heatmap?${query}`).then(json => {
         if (!current) return;
+        busyRef.current = false;
         if (!json?.success) throw new Error('The analytics response was unavailable.');
         setSettled({ key, data: json, error: null, status: null });
       }).catch(e => {
         if (!current) return;
         // A slow or waking service is waited out (the analytics keep loading); anything else is reported now.
         if (isTransientError(e)) { timer = setTimeout(() => attempt(n + 1), retryDelay(n)); return; }
+        busyRef.current = false;
         setSettled({ key, data: null, error: e instanceof Error ? e.message : 'The analytics could not be loaded.', status: e instanceof ApiError ? e.status : null });
       });
     };
     attempt(0);
-    return () => { current = false; if (timer) clearTimeout(timer); };
+    return () => { current = false; busyRef.current = false; if (timer) clearTimeout(timer); };
   }, [query, enabled, key]);
+  // A background tick swaps the answer silently: the old charts stay while it
+  // fetches, a first failure is silent, and the error surfaces from the second
+  // failure in a row. A waking service waits for the next tick, uncounted.
+  // Results landing for a stale key (filters moved on) are dropped.
+  const quietFetch = useCallback(() => {
+    const atCall = keyRef.current;
+    return api.get<HeatmapData>(`/api/breakdowns/analytics/heatmap?${queryRef.current}`).then(json => {
+      if (!json?.success) throw new Error('The analytics response was unavailable.');
+      quietFails.current = 0;
+      setSettled(s => (s.key === atCall ? { ...s, data: json, error: null, status: null } : s));
+    }).catch(e => {
+      if (isTransientError(e)) return;
+      if (++quietFails.current >= 2) {
+        const error = e instanceof Error ? e.message : 'The analytics could not be loaded.';
+        const status = e instanceof ApiError ? e.status : null;
+        setSettled(s => (s.key === atCall ? { ...s, error, status } : s));
+      }
+    });
+  }, []);
+  useAutoRefresh(quietFetch, { enabled, isLoading: () => busyRef.current });
   const mine = settled.key === key ? settled : null;
   return { data: mine?.data ?? null, error: mine?.error ?? null, errorStatus: mine?.status ?? null, loading: enabled && !mine, refetch: () => setTick(t => t + 1) };
 }

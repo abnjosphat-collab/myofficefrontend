@@ -93,4 +93,34 @@ describe('SHEQ dashboard loading', () => {
     });
     expect(result.current.raw.nm[0]?.id).toBe('nm-current');
   });
+
+  it('merges a background tick silently and names a source only after two quiet failures', async () => {
+    vi.useFakeTimers();
+    try {
+      queueLoad('first');
+      const { result } = renderHook(() => useSheqDashboardData());
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(result.current.lastUpdated).not.toBeNull();
+      // Quiet tick: five sources answer new rows, Near Miss blips once — the
+      // rows merge, the banner stays down, no flags flip.
+      vi.mocked(api.get).mockRejectedValueOnce(new Error('Blip'));
+      for (const rows of [[{ id: 'ws-new' }], [{ id: 'vfl-new' }], [{ id: 'pto-new' }], [{ id: 'insp-new' }], [{ id: 'pach-new' }]]) {
+        vi.mocked(api.get).mockResolvedValueOnce(rows);
+      }
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.raw.ws[0]?.id).toBe('ws-new');
+      expect(result.current.raw.nm[0]?.id).toBe('nm-first');
+      expect(result.current.failedSources).toEqual([]);
+      expect(result.current.refreshing).toBe(false);
+      expect(result.current.loadError).toBe('');
+      expect(toast.error).not.toHaveBeenCalled();
+      // Near Miss fails again on the next tick: now it is named, and the old rows stay.
+      vi.mocked(api.get).mockRejectedValueOnce(new Error('Blip'));
+      for (let index = 0; index < 5; index += 1) vi.mocked(api.get).mockResolvedValueOnce([]);
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.failedSources).toEqual(['Near Miss']);
+      expect(result.current.raw.nm[0]?.id).toBe('nm-first');
+      expect(toast.error).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
 });

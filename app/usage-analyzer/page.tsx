@@ -4,7 +4,7 @@
 // durable cross-device copy including anonymous visitors.
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -14,6 +14,7 @@ import {
   fetchRemoteEvents, topUsers, signedInVsAnonymous, byModule, moduleKeyOf, type UsageEvent, type Granularity, type EnrichedUsageEvent,
 } from '@/lib/usage';
 import { formatFullDate, formatShortDateTime } from '@/lib/format';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const PERIODS: Record<Granularity, number> = { day: 30, week: 12, month: 12 };
@@ -59,15 +60,25 @@ function UsageAnalyzerContent() {
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const [remoteError, setRemoteError] = useState<string | null>(null);
+  /** Consecutive quiet failures; the error surfaces from the second one. */
+  const quietFails = useRef(0);
 
-  const loadRemote = () => {
-    setRemoteLoading(true);
-    setRemoteError(null);
-    fetchRemoteEvents(180)
-      .then(events => { setRemoteEvents(events); setRemoteLoaded(true); })
-      .catch((e: Error & { status?: number }) => setRemoteError(e.status === 401 || e.status === 403 ? 'You need the manager role to view activity across all users.' : 'Activity across all users could not be loaded right now.'))
-      .finally(() => setRemoteLoading(false));
-  };
+  const loadRemote = useCallback((quiet = false) => {
+    if (!quiet) { quietFails.current = 0; setRemoteLoading(true); setRemoteError(null); }
+    return fetchRemoteEvents(180)
+      .then(events => { quietFails.current = 0; setRemoteEvents(events); setRemoteLoaded(true); setRemoteError(null); })
+      .catch((e: Error & { status?: number }) => {
+        if (!quiet || ++quietFails.current >= 2) {
+          setRemoteError(e.status === 401 || e.status === 403 ? 'You need the manager role to view activity across all users.' : 'Activity across all users could not be loaded right now.');
+        }
+      })
+      .finally(() => { if (!quiet) setRemoteLoading(false); });
+  }, []);
+
+  // The server copy refreshes on a background tick (the device copy is already
+  // live through its event listeners). Rows on screen stay through failures.
+  const quietRemote = useCallback(() => loadRemote(true), [loadRemote]);
+  useAutoRefresh(quietRemote, { enabled: canViewAll, isLoading: remoteLoading });
 
   const switchSource = (next: 'local' | 'all') => {
     setDataSource(next);

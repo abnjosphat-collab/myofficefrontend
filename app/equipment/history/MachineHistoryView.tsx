@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, DataTable, EmptyState, Fact, FactList, IconButton, LoadingPulse, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Panel, StatusBadge, pageSlice, type Column } from '@/components/ui-system';
 import { formatCurrency, fmtDate } from '@/components/shared/utils';
 import { ApiError } from '@/lib/apiClient';
@@ -15,6 +15,7 @@ import { minutesToDisplay } from '../../breakdowns/calcBreakdowns';
 import { priorityMeta as bdPriorityMeta, statusMeta as bdStatusMeta, typeMeta as bdTypeMeta } from '../../breakdowns/breakdownMeta';
 import { RECURRENCES, classificationLabel, priorityMeta as woPriorityMeta, statusMeta as woStatusMeta } from '../../maintenance/meta';
 import type { MaintenanceSchedule, WorkOrder } from '../../maintenance/types';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { fetchMachineHistory } from '../api';
 import { STATUS_LABELS, calcAge } from '../equipmentLogic';
 import type { HistoryBreakdown, MachineHistoryPayload } from '../historyTypes';
@@ -23,20 +24,35 @@ import type { EquipmentItem } from '../types';
 const dash = (v: number | null, unit: string) => (v === null ? 'No data' : `${v}${unit}`);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** One machine's history from the server. A failed read is flagged with a retry, never zeros. */
+/** One machine's history from the server. A failed read is flagged with a retry, never zeros. The payload also refreshes on a silent background tick that keeps the shown history while it fetches. */
 export function useMachineHistory(equipmentId: string) {
   const [tick, setTick] = useState(0);
   const [settled, setSettled] = useState<{ payload: MachineHistoryPayload | null; failed: boolean; notFound: boolean }>(
     { payload: null, failed: false, notFound: false },
   );
+  const busyRef = useRef(false);
+  const idRef = useRef(equipmentId);
+  useEffect(() => { idRef.current = equipmentId; });
   useEffect(() => {
     let current = true;
+    busyRef.current = true;
     fetchMachineHistory(equipmentId).then(
-      payload => { if (current) setSettled({ payload, failed: false, notFound: false }); },
-      (e: unknown) => { if (current) setSettled({ payload: null, failed: true, notFound: e instanceof ApiError && e.status === 404 }); },
+      payload => { if (current) { busyRef.current = false; setSettled({ payload, failed: false, notFound: false }); } },
+      (e: unknown) => { if (current) { busyRef.current = false; setSettled({ payload: null, failed: true, notFound: e instanceof ApiError && e.status === 404 }); } },
     );
-    return () => { current = false; };
+    return () => { current = false; busyRef.current = false; };
   }, [equipmentId, tick]);
+  // A background tick swaps the payload silently and keeps showing the last
+  // good one through failures (a detail view must not blank); the foreground
+  // load and its retry still surface failures as before.
+  const quietFetch = useCallback(() => {
+    const atCall = idRef.current;
+    return fetchMachineHistory(atCall).then(
+      payload => { if (idRef.current === atCall) setSettled({ payload, failed: false, notFound: false }); },
+      () => {},
+    );
+  }, []);
+  useAutoRefresh(quietFetch, { isLoading: () => busyRef.current });
   const refetch = () => { setSettled({ payload: null, failed: false, notFound: false }); setTick(t => t + 1); };
   const [seen, setSeen] = useState(equipmentId);
   if (seen !== equipmentId) { setSeen(equipmentId); setSettled({ payload: null, failed: false, notFound: false }); }

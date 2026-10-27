@@ -1,5 +1,6 @@
-// app/leaves/useLeavesData.test.tsx — the register loads once and stays put while it is read: no background
-// polling and no refetch on tab switches. Refresh happens on demand (the caller's refetch) and after writes.
+// app/leaves/useLeavesData.test.tsx — the register keeps itself fresh on the shared background tick
+// (lists re-read; the silence contract lives in lib/useAutoRefresh.ts + lib/autoRefreshSilence.test.tsx).
+// A manual refetch still works, and writes still refresh through their own refetch.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { api } from '@/lib/apiClient';
@@ -39,19 +40,21 @@ const load = async () => {
 };
 
 describe('useLeaves', () => {
-  it('loads once and never polls while it is read', async () => {
+  it('re-reads on the shared background tick', async () => {
     const { result } = await load();
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(result.current.items).toHaveLength(1);
+    vi.mocked(api.get).mockResolvedValue([row(), row({ id: '2', employee_name: 'Ben Beta' })]);
     await act(async () => { await vi.advanceTimersByTimeAsync(10 * 60 * 1000); });
-    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(api.get).toHaveBeenCalledTimes(11); // the load plus one tick a minute
+    expect(result.current.items).toHaveLength(2);
+    expect(result.current.loading).toBe(false);
   });
 
-  it('does not refetch when the tab regains visibility', async () => {
+  it('refetches when the network comes back', async () => {
     await load();
-    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(60 * 1000); });
-    expect(api.get).toHaveBeenCalledTimes(1);
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    expect(api.get).toHaveBeenCalledTimes(2);
   });
 
   it('still refreshes on demand through refetch', async () => {

@@ -48,4 +48,25 @@ describe('useBreakdownInsights', () => {
     expect(result.current.data).toBeNull();
     expect(result.current.loading).toBe(true);
   });
+  it('swaps the answer on the background tick without flashing loading, silently through a first failure', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(api.get).mockResolvedValueOnce({ success: true, summary: { total_breakdowns: 1 } });
+      const { result } = renderHook(() => useBreakdownInsights('priority=high'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(result.current.loading).toBe(false);
+      vi.mocked(api.get).mockResolvedValue({ success: true, summary: { total_breakdowns: 2 } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.data?.summary).toEqual({ total_breakdowns: 2 });
+      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBeNull();
+      vi.mocked(api.get).mockRejectedValue(new Error('Down'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.error).toBeNull();
+      expect(result.current.data?.summary).toEqual({ total_breakdowns: 2 });
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
+      expect(result.current.error).toBe('Down');
+      expect(result.current.data?.summary).toEqual({ total_breakdowns: 2 });
+    } finally { vi.useRealTimers(); }
+  });
 });

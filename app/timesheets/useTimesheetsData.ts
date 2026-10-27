@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api as apiClient } from '@/lib/apiClient';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { toast } from 'sonner';
 import { toLocalISODate } from '@/lib/dates';
 import type { ShiftAssignment } from '@/app/shifts/types';
@@ -84,13 +85,20 @@ export function useTimesheetsData(activePeriod: Period) {
   const [retrying, setRetrying] = useState(false);
   const requestId = useRef(0);
   const activeLoad = useRef<AbortController | null>(null);
+  /** True while a load is unsettled; ticks skip while it holds. */
+  const busyRef = useRef(false);
+  /** Consecutive background failures; the error surfaces from the second one. */
+  const quietFails = useRef(0);
 
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (quiet = false, background = false) => {
     const currentRequest = ++requestId.current;
     activeLoad.current?.abort();
     const controller = new AbortController();
     activeLoad.current = controller;
-    if (quiet) setRefreshing(true); else setLoading(true);
+    if (!background) {
+      quietFails.current = 0;
+      if (quiet) setRefreshing(true); else setLoading(true);
+    }
     if (!quiet) {
       setAllEmployees([]);
       setTimesheets([]);
@@ -98,10 +106,13 @@ export function useTimesheetsData(activePeriod: Period) {
       setApprovedOvertime([]);
       setShiftAssignments([]);
     }
-    setLoadError(null);
-    setRetrying(false);
+    if (!background) {
+      setLoadError(null);
+      setRetrying(false);
+    }
+    busyRef.current = true;
     const read = <T,>(operation: (signal: AbortSignal) => Promise<T>) => retryTimesheetRead(operation, controller.signal, () => {
-      if (currentRequest === requestId.current) setRetrying(true);
+      if (!background && currentRequest === requestId.current) setRetrying(true);
     });
     try {
       const [emps, sheets, leaves, ot, shifts] = await Promise.all([
@@ -118,6 +129,8 @@ export function useTimesheetsData(activePeriod: Period) {
       setApprovedLeaves(leaves);
       setApprovedOvertime(ot);
       setShiftAssignments(shifts);
+      quietFails.current = 0;
+      if (background) setLoadError(null);
     } catch (e) {
       if (currentRequest !== requestId.current || controller.signal.aborted) return;
       controller.abort();
@@ -129,10 +142,15 @@ export function useTimesheetsData(activePeriod: Period) {
         setApprovedOvertime([]);
         setShiftAssignments([]);
       }
-      setLoadError(msg);
-      toast.error('Failed to load: ' + msg);
+      // A failed background refresh keeps the grid and stays silent the first
+      // time (no notice, no toast); from the second failure in a row the page
+      // says so, exactly like a failed manual refresh.
+      if (!background || ++quietFails.current >= 2) {
+        setLoadError(msg);
+        if (!background) toast.error('Failed to load: ' + msg);
+      }
     }
-    finally { if (currentRequest === requestId.current) { setLoading(false); setRefreshing(false); setRetrying(false); } }
+    finally { if (currentRequest === requestId.current) { busyRef.current = false; setLoading(false); setRefreshing(false); setRetrying(false); } }
   }, [activePeriod]);
 
   useEffect(() => {
@@ -140,6 +158,9 @@ export function useTimesheetsData(activePeriod: Period) {
     void load();
     return () => { ++activeRequest.current; activeLoad.current?.abort(); };
   }, [load]);
+
+  const backgroundLoad = useCallback(() => { void load(true, true); }, [load]);
+  useAutoRefresh(backgroundLoad, { isLoading: () => busyRef.current });
 
   return {
     allEmployees, timesheets, setTimesheets, approvedLeaves, approvedOvertime, shiftAssignments,
