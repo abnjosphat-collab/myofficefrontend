@@ -102,7 +102,7 @@ const MATRIX: MatrixRow[] = [
   { effect: 'replace', means: 'the state of this control flipped', where: '§ Icon swap (download, export, mute, copy)' },
   { effect: 'appear / disappear', means: 'it came or went', where: '§ Animated icons + § Presence and lists' },
   { effect: 'number roll', means: 'the value changed', where: '§ Numbers' },
-  { effect: 'zoom', means: 'this became that', where: 'Lands with B4 — card → detail continuity (not built here)' },
+  { effect: 'zoom', means: 'this became that', where: '§ Zoom (card → dialog, button → form, drawer, fallback)' },
 ];
 
 export function MatrixSection() {

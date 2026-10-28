@@ -65,7 +65,7 @@ export function PresenceSection() {
         </MotionList>
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <p className="mr-auto font-sans text-label font-medium text-ink">Fade-only rows (tables stay crisp; DataTable wiring is B4)</p>
+            <p className="mr-auto font-sans text-label font-medium text-ink">Fade-only rows (tables stay crisp; DataTable wires this internally)</p>
             <Button size="sm" variant="ghost" onClick={() => setFadeItems(list => [...list, (list[list.length - 1] ?? 0) + 1])}>Add fade row</Button>
           </div>
           <MotionList className="flex flex-col overflow-hidden rounded-card border border-line">

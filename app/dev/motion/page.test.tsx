@@ -12,9 +12,12 @@ const replace = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
 }));
-vi.mock('@/components/app-shell', () => ({
-  AppShell: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
+vi.mock('@/components/app-shell', async () => {
+  // The Zoom section mounts a FormDialog, which needs the confirm context the
+  // root Providers supply in the real tree.
+  const { ConfirmProvider } = await import('@/components/ui-system');
+  return { AppShell: ({ children }: { children: ReactNode }) => <ConfirmProvider>{children}</ConfirmProvider> };
+});
 
 import MotionGalleryPage from './page';
 
@@ -24,7 +27,7 @@ describe('Motion gallery gate', () => {
     authState.loading = false;
     render(<MotionGalleryPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Motion gallery' })).toBeInTheDocument();
-    for (const name of ['Springs', 'Animated icons', 'Icon swap', 'Numbers', 'Presence and lists', 'Data loading', 'Selection indicators', 'Overlays', 'Press', 'Effect matrix']) {
+    for (const name of ['Springs', 'Animated icons', 'Icon swap', 'Numbers', 'Presence and lists', 'Data loading', 'Selection indicators', 'Overlays', 'Press', 'Zoom', 'Effect matrix']) {
       expect(screen.getByRole('heading', { name }), name).toBeInTheDocument();
     }
     expect(screen.getByRole('checkbox', { name: 'Simulate reduced motion' })).toBeInTheDocument();

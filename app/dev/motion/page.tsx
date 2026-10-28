@@ -14,6 +14,7 @@ import { roleAtLeast } from '@/lib/roles';
 import { AnimatedIconSection, IconSwapSection, SpringsSection } from './icons';
 import { DataRegionSection, NumberSection, PresenceSection } from './values';
 import { IndicatorSection, MatrixSection, OverlaySection, PressSection } from './chrome';
+import { ZoomSection } from './zoom';
 
 export default function MotionGalleryPage() {
   const { profile, loading } = useAuth();
@@ -65,6 +66,7 @@ export default function MotionGalleryPage() {
               <IndicatorSection />
               <OverlaySection />
               <PressSection />
+              <ZoomSection />
               <MatrixSection />
             </div>
           </MotionProvider>
