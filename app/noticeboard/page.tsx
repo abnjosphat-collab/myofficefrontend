@@ -5,7 +5,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
@@ -104,7 +104,7 @@ export function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?:
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={notice ? 'Edit notice' : 'Create notice'} description="Title, content, publish date and category are required." submitLabel={notice ? 'Save changes' : 'Create notice'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={notice ? 'Edit notice' : 'Create notice'} description="Title, content, publish date and category are required." submitLabel={notice ? 'Save changes' : 'Create notice'} onSubmit={submit} size="lg" zoomId={notice ? undefined : 'noticeboard:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><Field label="Title" required error={touched && !form.title.trim() ? 'Enter a title.' : undefined}><Input value={form.title} onChange={e => set({ title: e.target.value })} placeholder="Enter notice title" /></Field></div>
         <div className="sm:col-span-2"><Field label="Content" required error={touched && !form.content.trim() ? 'Enter the notice content.' : undefined}><Textarea rows={5} value={form.content} onChange={e => set({ content: e.target.value })} placeholder="Enter notice content" /></Field></div>
@@ -162,6 +162,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
       title={notice?.title ?? 'Notice'}
       description={notice ? `${notice.author || 'Unknown author'}, ${formatDate(notice.date)}` : undefined}
       size="lg"
+      zoomId={notice ? `noticeboard:rec:${notice.id}` : undefined}
       footer={notice && (
         <DetailActions onDelete={() => onDelete(notice)} onClose={onClose} onEdit={() => onEdit(notice)} editLabel="Edit notice" />
       )}
@@ -249,6 +250,7 @@ function NoticeboardContent() {
   const pinned = shown.filter(n => n.is_pinned);
   const regular = shown.filter(n => !n.is_pinned);
   const rows = useMemo(() => sortRows([...pinned, ...regular], sort, (n, id) => String(n[id as keyof Notice] ?? '').toLowerCase()), [pinned, regular, sort]);
+  const listCalm = JSON.stringify([search, filters, hideExpired]);
   const byPriority = PRIORITIES.map(p => ({ name: p, value: shown.filter(n => n.priority === p).length })).filter(r => r.value > 0);
 
   const hasFilters = !!search.trim() || filters.category !== ALL || filters.priority !== ALL || filters.status !== ALL || filters.department !== ALL || filters.is_pinned !== null;
@@ -298,8 +300,8 @@ function NoticeboardContent() {
   const card = (n: Notice) => {
     const ex = expiry(n, now);
     return (
+      <ZoomLink zoomId={`noticeboard:rec:${n.id}`}>
       <RecordCard
-        key={n.id}
         eyebrow={`${n.author || 'Not specified'} · ${formatDate(n.date)}`}
         title={n.title}
         status={<PriorityTag priority={n.priority} />}
@@ -313,6 +315,7 @@ function NoticeboardContent() {
         onOpen={() => setViewingId(n.id)}
         openLabel={`View notice ${n.title}`}
       />
+      </ZoomLink>
     );
   };
 
@@ -324,7 +327,7 @@ function NoticeboardContent() {
         description={viewerScope ? `Create, manage and monitor company notices and announcements. — showing ${viewerScope} only.` : 'Create, manage and monitor company notices and announcements.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button>
+            <ZoomLink zoomId="noticeboard:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>Create notice</Button></ZoomLink>
           </>
         )}
       />
@@ -379,12 +382,12 @@ function NoticeboardContent() {
         onRetry={() => refetch()}
         empty={hasFilters || hideExpired
           ? <EmptyState icon="search" title="No notices match" description="Try a different search or filter." action={<Button onClick={() => { clearFilters(); setHideExpired(false); }}>Clear filters</Button>} />
-          : viewerScope ? <EmptyState icon="notice" title={`No ${viewerScope} notices yet`} description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} /> : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button>} />}
+          : viewerScope ? <EmptyState icon="notice" title={`No ${viewerScope} notices yet`} description="Create the first notice to get started." action={<ZoomLink zoomId="noticeboard:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button></ZoomLink>} /> : <EmptyState icon="notice" title="No notices yet" description="Create the first notice to get started." action={<ZoomLink zoomId="noticeboard:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Create your first notice</Button></ZoomLink>} />}
       >
         {view === 'cards' ? (
           <div className="flex flex-col gap-5">
-            {pinned.length > 0 && <section aria-labelledby="nb-pinned"><h2 id="nb-pinned" className="mb-3 font-display text-section font-semibold text-ink">Pinned notices <span className="font-sans text-label font-normal text-ink-muted">{pinned.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{pinned.map(card)}</div></section>}
-            {regular.length > 0 && <section aria-labelledby="nb-all"><h2 id="nb-all" className="mb-3 font-display text-section font-semibold text-ink">{pinned.length ? 'Other notices' : 'All notices'} <span className="font-sans text-label font-normal text-ink-muted">{regular.length}</span></h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{regular.map(card)}</div></section>}
+            {pinned.length > 0 && <section aria-labelledby="nb-pinned"><h2 id="nb-pinned" className="mb-3 font-display text-section font-semibold text-ink">Pinned notices <span className="font-sans text-label font-normal text-ink-muted">{pinned.length}</span></h2><MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{pinned.map(n => <MotionListItem key={n.id}>{card(n)}</MotionListItem>)}</MotionList></section>}
+            {regular.length > 0 && <section aria-labelledby="nb-all"><h2 id="nb-all" className="mb-3 font-display text-section font-semibold text-ink">{pinned.length ? 'Other notices' : 'All notices'} <span className="font-sans text-label font-normal text-ink-muted">{regular.length}</span></h2><MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{regular.map(n => <MotionListItem key={n.id}>{card(n)}</MotionListItem>)}</MotionList></section>}
           </div>
         ) : (
           <DataTable
@@ -394,6 +397,7 @@ function NoticeboardContent() {
             getRowId={n => n.id}
             sort={sort}
             onSortChange={setSort}
+            stillKey={JSON.stringify([listCalm, sort])}
             onRowActivate={n => setViewingId(n.id)}
             rowActions={n => (
               <RowActions subject={`${n.title}`} onEdit={() => openEditor(n)} onDelete={() => remove(n)} />

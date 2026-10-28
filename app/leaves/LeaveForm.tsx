@@ -75,7 +75,7 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
   const type = LEAVE_TYPES[form.leave_type || 'annual'];
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={leave ? 'Edit leave request' : 'New leave request'} description="Who is going on leave, when, and how to reach them." submitLabel={leave ? 'Update request' : 'Submit request'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={leave ? 'Edit leave request' : 'New leave request'} description="Who is going on leave, when, and how to reach them." submitLabel={leave ? 'Update request' : 'Submit request'} onSubmit={submit} size="lg" zoomId={leave ? undefined : 'leaves:new'}>
       <div className="flex flex-col gap-4">
         <Field label="Employee" required error={err(bad.employee, 'Choose the employee.')}>
           <PersonPicker label="Employee" name={form.employee_name} employeeId={form.employee_id} onPick={pick} disabled={!!leave} placeholder="Search by name or employee ID" autoFocusSearch={!leave} />

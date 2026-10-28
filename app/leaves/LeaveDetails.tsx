@@ -34,7 +34,7 @@ export function LeaveDetails({ leave, onClose, onEdit, onDelete, onStatus, initi
     <>
       <Dialog
         open={!!leave} onOpenChange={o => { if (!o) onClose(); }}
-        title={leave ? `Leave request #${leave.id}` : 'Leave request'} description={leave ? `${leave.employee_name}, ${type?.name}` : undefined} size="lg"
+        title={leave ? `Leave request #${leave.id}` : 'Leave request'} description={leave ? `${leave.employee_name}, ${type?.name}` : undefined} size="lg" zoomId={leave ? `leaves:rec:${leave.id}` : undefined}
         footer={leave && (
           <DetailActions onDelete={() => onDelete(leave)} onEdit={() => onEdit(leave)}>
             <Menu>

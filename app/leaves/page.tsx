@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Panel, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, FilterField, LoadingPulse, RowActions, ZoomLink } from '@/components/ui-system';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, fmtDateTime } from '@/components/shared/utils';
@@ -97,6 +97,7 @@ function LeavesContent() {
   const unmatched = useMemo(() => leaves.filter(l => register.matchOf(l) !== 'linked'), [leaves, register]);
   const deletableUnmatched = useMemo(() => unmatched.filter(l => l.status !== 'approved'), [unmatched]);
   const filtered = useMemo(() => filterLeaves(unmatchedOnly ? unmatched : leaves, f), [leaves, unmatched, unmatchedOnly, f]);
+  const listCalm = JSON.stringify([f, unmatchedOnly]);
   const stats = useMemo(() => statsFromLeaves(leaves, todayLocal()), [leaves]);
   const byType = useMemo(() => summariseByType(leaves, Object.keys(LEAVE_TYPES)), [leaves]);
   const byEmployee = useMemo(() => summariseByEmployee(leaves), [leaves]);
@@ -162,7 +163,7 @@ function LeavesContent() {
         description={scope ? `Apply for leave, review requests and record decisions — showing ${scope} only.` : 'Apply for leave, review requests and record decisions.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button>
+            <ZoomLink zoomId="leaves:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New leave request</Button></ZoomLink>
           </>
         )}
       />
@@ -222,14 +223,15 @@ function LeavesContent() {
             status={status} subject="leave requests" error={list.error} onRetry={() => list.refetch()}
             empty={hasFilters
               ? <EmptyState icon="search" title="No leave requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
-              : scope ? <EmptyState icon="calendar" title={`No ${scope} leave requests yet`} description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} /> : <EmptyState icon="calendar" title="No leave requests yet" description="Create the first request." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button>} />}
+              : scope ? <EmptyState icon="calendar" title={`No ${scope} leave requests yet`} description="Create the first request." action={<ZoomLink zoomId="leaves:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button></ZoomLink>} /> : <EmptyState icon="calendar" title="No leave requests yet" description="Create the first request." action={<ZoomLink zoomId="leaves:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>New leave request</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {leaves.length} requests<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filtered.map(l => (
+                  <MotionListItem key={l.id}>
+                  <ZoomLink zoomId={`leaves:rec:${l.id}`}>
                   <RecordCard
-                    key={l.id}
                     eyebrow={`${fmtDate(l.start_date)} to ${fmtDate(l.end_date)}`}
                     title={l.employee_name}
                     subtitle={[l.position, l.employee_id].filter(Boolean).join(' · ')}
@@ -244,11 +246,13 @@ function LeavesContent() {
                     onOpen={() => setViewingId(l.id)}
                     openLabel={`View the leave request for ${l.employee_name}, ${fmtDate(l.start_date)}`}
                   />
+                  </ZoomLink>
+                  </MotionListItem>
                 ))}
-              </div>
+              </MotionList>
             ) : (
               <DataTable
-                caption="Leave requests" rows={filtered} columns={COLUMNS} getRowId={l => l.id}
+                caption="Leave requests" rows={filtered} columns={COLUMNS} getRowId={l => l.id} stillKey={listCalm}
                 selected={selected} onSelectedChange={setSelected} onRowActivate={l => setViewingId(l.id)}
                 rowActions={l => (
                   <RowActions subject={`the leave request for ${l.employee_name}`} onEdit={() => openForm(l)} onDelete={() => remove(l)} />
