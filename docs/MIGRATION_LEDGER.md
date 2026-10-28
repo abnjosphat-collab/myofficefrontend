@@ -35,7 +35,7 @@
 | `/dev/motion` | Migrated | Yes | 1 | Yes, 2026-10-28 | Motion gallery (B3): every motion piece and matrix row with a simulated reduce-motion switch. Signed-in admin only via lib/roles.ts; never in the nav. |
 | `/documents` | Migrated | Yes | 3 | Yes, 2026-10-04 | Hub pattern. Files saved at a category's top level are now listed; bulk delete confirms; deleting a folder is refused while it holds files (the server deletes only the folder row). |
 | `/drivers` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by department, table, add/edit/delete. |
-| `/employees` | Migrated | Yes | 5 | Yes, 2026-10-22 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
+| `/employees` | Migrated | Yes | 6 | Yes, 2026-10-22 | Register pattern with section and trade groups. The form is one scrolling form (the old four tabs hid errors on other tabs). |
 | `/employees-preview` | Redirect | No | No | Yes, 2026-10-04 | Retired sandbox (owner decision 4 Oct 2026); its components and grouping module were deleted, the register's own grouping is now the single one. |
 | `/engineering_report` | Migrated | Yes | No | Yes, 2026-10-03 | Monthly report; each source fails independently; report targets are hard-coded policy numbers to confirm. |
 | `/engineering-dashboard` | Migrated | Yes | No | Yes, 2026-10-03 | Only real figures; invented KPIs removed. |
