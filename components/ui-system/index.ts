@@ -24,7 +24,7 @@ export type { Appearance, AppearanceFont } from './appearance/appearance';
 
 // Primitives
 export { Button, IconButton, Spinner, buttonVariants, floatingActionClass, iconButtonVariants } from './primitives/Button';
-export type { ButtonProps, ButtonSize, ButtonVariant, IconButtonProps } from './primitives/Button';
+export type { ButtonProps, ButtonSize, ButtonVariant, ButtonIconSwap, IconButtonProps } from './primitives/Button';
 export { StatusBadge, Tag, CountBadge } from './primitives/Badge';
 export type { Tone } from './primitives/Badge';
 export { Field, FieldGroup, useFieldProps, useMarkDirty, MarkDirtyProvider, controlClasses } from './primitives/Field';

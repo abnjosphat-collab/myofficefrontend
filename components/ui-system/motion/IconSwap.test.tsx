@@ -26,6 +26,14 @@ describe('IconSwap (reduced motion)', () => {
     }
   });
 
+  it('renders without a label for Buttons, which already carry the name', () => {
+    const { container } = render(
+      <button type="button">Export<IconSwap from="download" to="check" swapped /></button>,
+    );
+    expect(container.querySelector('[data-motion-swap="replace"]')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+  });
+
   it('draws the slash statically for slash pairs', () => {
     const { container, rerender } = render(
       <IconSwap from="sound-on" to="sound-off" swapped={false} slash label="Mute" />,

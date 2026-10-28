@@ -13,8 +13,8 @@ export interface IconSwapProps {
   to: IconMeaning;
   /** Whether the flipped state is showing. */
   swapped: boolean;
-  /** The control's current accessible name (the caller derives it from state). Rendered sr-only, so the owning control's name follows the state. */
-  label: string;
+  /** The control's current accessible name (the caller derives it from state). Rendered sr-only, so the owning control's name follows the state. Omit it on Buttons and IconButtons, which already carry the name. */
+  label?: string;
   /** Replace direction: down-up after an input (default), up-up for forward progress. */
   direction?: 'down-up' | 'up-up';
   /** Magic replace for slash pairs (mute, hide): the base glyph stays and a slash draws on or off instead of swapping the whole icon. */
@@ -31,7 +31,7 @@ export interface IconSwapProps {
  * (up-up, for forward progress). Under reduced motion the icon changes
  * instantly — the accessible name always follows the state.
  */
-export function IconSwap({ from, to, swapped, label, direction = 'down-up', slash = false, size, weight, className }: IconSwapProps) {
+export function IconSwap({ from, to, swapped, label = '', direction = 'down-up', slash = false, size, weight, className }: IconSwapProps) {
   const reduce = useIsReducedMotion();
   const px = typeof size === 'number' ? size : 18;
 

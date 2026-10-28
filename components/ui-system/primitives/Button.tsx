@@ -9,6 +9,7 @@ import type { IconMeaning } from '../foundations/icon-meanings';
 import { Tooltip } from '../overlays/Tooltip';
 import { closeTurn } from '../foundations/gestures';
 import { AnimatedIcon } from '../motion/AnimatedIcon';
+import { IconSwap } from '../motion/IconSwap';
 
 /** The one button. Hierarchy: primary (one per view) → secondary → ghost; danger only after confirmation. */
 export const buttonVariants = cva(
@@ -45,6 +46,18 @@ export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>['size']
 
 const ICON_FOR_SIZE: Record<ButtonSize, IconSize> = { sm: 'sm', md: 'sm', lg: 'md', shell: 'md' };
 
+/** A state flip on the button's own icon (star/pin, copy → copied): the label follows the caller's state. */
+export interface ButtonIconSwap {
+  /** The icon after the state flips. */
+  to: IconMeaning;
+  /** Whether the flipped state is showing. */
+  swapped: boolean;
+  /** Replace direction: down-up after an input (default), up-up for forward progress. */
+  direction?: 'down-up' | 'up-up';
+  /** Magic replace for slash pairs (mute, hide): the base glyph stays and the slash draws on or off. */
+  slash?: boolean;
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   /** Semantic icon shown before the label. */
   icon?: IconMeaning;
@@ -52,20 +65,31 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, Va
   iconAfter?: IconMeaning;
   /** Shows a spinner, blocks repeat activation and announces busy state. */
   pending?: boolean;
+  /** Shows the check (swapped up-up from the icon): the action finished. Blocks repeat activation while shown. */
+  success?: boolean;
+  /** Swaps the leading icon between `icon` and `to` instead of rendering it statically. Ignored without `icon`. */
+  iconSwap?: ButtonIconSwap;
   /** Render the child element (e.g. a Next <Link>) with button styling. */
   asChild?: boolean;
   children?: ReactNode;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant, size, fullWidth, icon, iconAfter, pending = false, asChild = false, disabled, children, type, onClick, ...rest },
+  { className, variant, size, fullWidth, icon, iconAfter, pending = false, success = false, iconSwap, asChild = false, disabled, children, type, onClick, ...rest },
   ref,
 ) {
   const Comp = asChild ? Slot : 'button';
   const iconSize = ICON_FOR_SIZE[size ?? 'md'];
+  // Leading-icon priority: the spinner is instant (it is not an icon to swap);
+  // success swaps up-up to the check; a state flip swaps the icon in place.
+  const leading = pending ? <Spinner />
+    : success ? <IconSwap from={icon ?? 'pending'} to="check" swapped direction="up-up" size={iconSize} />
+    : iconSwap && icon ? <IconSwap from={icon} to={iconSwap.to} swapped={iconSwap.swapped} direction={iconSwap.direction} slash={iconSwap.slash} size={iconSize} />
+    : icon ? <Icon name={icon} size={iconSize} />
+    : null;
   const content = (
     <>
-      {pending ? <Spinner /> : icon ? <Icon name={icon} size={iconSize} /> : null}
+      {leading}
       {children}
       {iconAfter && !pending ? <Icon name={iconAfter} size={iconSize} /> : null}
     </>
@@ -79,7 +103,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={asChild ? undefined : disabled || pending}
       aria-disabled={asChild && (disabled || pending) ? true : undefined}
       aria-busy={pending || undefined}
-      onClick={pending ? undefined : onClick}
+      onClick={pending || success ? undefined : onClick}
       {...rest}
     >
       {asChild ? children : content}
@@ -134,11 +158,15 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   pressed?: boolean;
   /** Bounce the icon when this changes (the bell, when the unread count rises). Omitted = a static icon. */
   bounceTrigger?: unknown;
+  /** Shows the check (swapped up-up from the icon): the action finished. Blocks repeat activation while shown. */
+  success?: boolean;
+  /** Swaps the icon between `icon` and `to` instead of rendering it statically. The `label` follows the caller's state. */
+  iconSwap?: ButtonIconSwap;
 }
 
 /** Icon-only action. The label is mandatory so the control is never unnamed, and it shows as a tooltip on hover and focus. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon, label, tooltip, tooltipSide = 'bottom', badge, variant, size, pending = false, pressed, bounceTrigger, className, disabled, type, ...rest },
+  { icon, label, tooltip, tooltipSide = 'bottom', badge, variant, size, pending = false, pressed, bounceTrigger, success = false, iconSwap, className, disabled, type, onClick, ...rest },
   ref,
 ) {
   const button = (
@@ -150,9 +178,14 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       aria-busy={pending || undefined}
       disabled={disabled || pending}
       className={cn(iconButtonVariants({ variant, size }), badge != null && 'relative', icon === 'close' && closeTurn, pressed && 'bg-action-soft text-action', className)}
+      onClick={pending || success ? undefined : onClick}
       {...rest}
     >
-      {pending ? <Spinner /> : bounceTrigger !== undefined ? <AnimatedIcon name={icon} effect="bounce" trigger={bounceTrigger} size={size === 'lg' ? 'lg' : 'md'} /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
+      {pending ? <Spinner />
+        : success ? <IconSwap from={icon} to="check" swapped direction="up-up" size={size === 'lg' ? 'lg' : 'md'} />
+        : iconSwap ? <IconSwap from={icon} to={iconSwap.to} swapped={iconSwap.swapped} direction={iconSwap.direction} slash={iconSwap.slash} size={size === 'lg' ? 'lg' : 'md'} />
+        : bounceTrigger !== undefined ? <AnimatedIcon name={icon} effect="bounce" trigger={bounceTrigger} size={size === 'lg' ? 'lg' : 'md'} />
+        : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
       {badge === '' ? (
         <span aria-hidden="true" className="absolute right-1 top-1 size-2 rounded-full bg-action" />
       ) : badge != null && (
