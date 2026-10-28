@@ -353,6 +353,16 @@ Motion-and-fixes plan 5.4 slice 1 of 3 (full account in workspace `audit/motion-
 - Verified: tsc clean, eslint 0 errors, vitest 322/2329 green, docs:check green, build green, dev-motion (35) + maintenance (79) specs ALL PASS, axe 0, 1440+390 renders inspected. Live: production serves the slice (chunk marker); touched pages 200 with zero console errors (signed-out, never signed in).
 - Worktree note: the other actor's ExportButton doc one-liner was absorbed verbatim into `612cc5e` (same file); backend's untracked reset SQL preserved, never run. Slice 2 continues on `b4-motion-rollout`.
 
+## 8r. B4 motion rollout slice 2: page rollout (Muse, 28 Oct 2026; merged to main, pushed and live 28 Oct 2026, tagged `release-2026-10-28-b4-2`)
+
+Motion-and-fixes plan 5.4 slice 2 of 3 (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B4.md`, plan `PLAN_B4.md`, choices `ASSUMPTIONS.md` B4-19–B4-27). Frontend main `14ce535` (branch `b4-motion-rollout`, 21 commits: 20 inherited + the trace-script pagination fix); backend untouched. No schema/data changes; no live writes. Release-only run.
+
+- Every card page: MotionList + calmKey + card ZoomLink + detail zoomId; every New button zooms into its (create-only) form; every filtered/sorted DataTable has stillKey; documents local BulkBar presence + rolling counts; copy buttons show the success check; bespoke exports drive pending→check (dialogs that close hold 0.25 s then close).
+- Verified: tsc clean, eslint 0 errors, vitest 323/2334 green (1 environmental worker-start flake re-ran 51/51 alone), docs:check green, build green (68 pages), FULL route suite 2041 pass with 7 exonerated (1 load flake passing alone, /ppe Reset timeout + /tools hydration #418×5 proven pre-existing on a main-worktree build), a11y 57 pass (+ pre-existing /issues nested-interactive, B5), 1440+390 renders inspected (0px overflow), zoom path proven (data-zoom-mode + spec asserts). Live: production serves the slice (chunk marker); 8 touched pages 200 with zero console errors (signed-out, never signed in).
+- Perf trace RECORDED RED, motion exonerated: 100-record register at 4× CPU shows 8 tasks over 50 ms, but CDP attribution puts them all in click-dispatch React render + Radix autofocus + full-page layout recalc, and a reduced-motion control (zoom off) shows the same-or-worse profile — the zoom springs contribute nothing measurable. The literal bar includes click-to-paint, so no dialog open can pass it as scripted; B5 may narrow the window to the flight. Numbers and analysis in HANDOFF_B4.md.
+- Worktree note: backend's untracked reset SQL preserved, never run; other sessions' worktrees/server left alone. Slice 3 continues on `b4-motion-rollout` (== main).
+- Release note: cards grow into their detail and New buttons into their forms everywhere; exports and copies confirm with a check.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
