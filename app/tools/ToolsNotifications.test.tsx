@@ -35,28 +35,30 @@ describe('ToolsNotifications feedback', () => {
 });
 
 describe('ToolsNotifications badge tone', () => {
+  // The count rolls (sr-only final value + visible strip); the tone lives on the badge around them.
+  const badgeFor = (text: string) => screen.getByText(text, { selector: '[aria-hidden="true"]' }).closest('span[class*="bg-"]');
   it('is red when a return is overdue', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, overdue: 1 }} unread={1} />);
-    expect(screen.getByText('1').className).toContain('bg-danger');
+    expect(badgeFor('1')?.className).toContain('bg-danger');
   });
 
   it('is red when an investigation is overdue', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, investigationsOverdue: 2 }} unread={2} />);
-    expect(screen.getByText('2').className).toContain('bg-danger');
+    expect(badgeFor('2')?.className).toContain('bg-danger');
   });
 
   it('is dark green for scheduled checks alone', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, inspectionDue: 2 }} unread={2} />);
-    expect(screen.getByText('2').className).toContain('bg-action');
+    expect(badgeFor('2')?.className).toContain('bg-action');
   });
 
   it('is dark green for password requests alone', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, passwordRequests: 1 }} unread={1} />);
-    expect(screen.getByText('1').className).toContain('bg-action');
+    expect(badgeFor('1')?.className).toContain('bg-action');
   });
 
   it('caps a large unread value at 9+', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, inspectionDue: 12 }} unread={12} />);
-    expect(screen.getByText('9+')).toBeInTheDocument();
+    expect(screen.getByText('9+', { selector: '.sr-only' })).toBeInTheDocument();
   });
 });

@@ -17,7 +17,6 @@ describe('motion-consistency', () => {
     for (const rel of [
       'app/compressors/page.tsx',
       'components/shared/floor/motion.tsx',
-      'components/app-shell/ActiveNoticesPopup.tsx',
       'components/ui-system/patterns/LoadingPulse.tsx',
       'components/home/useTypewriterPlaceholder.ts',
       'app/test-homepage/page.tsx',

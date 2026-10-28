@@ -44,7 +44,7 @@ function springCss({ name, visualDuration, bounce }) {
   return { name, ms, curve };
 }
 
-function buildBlock() {
+function buildBlock(joiner = '\n') {
   const lines = [START];
   for (const preset of readPresets()) {
     const { name, ms, curve } = springCss(preset);
@@ -52,7 +52,7 @@ function buildBlock() {
     lines.push(`  --mo-spring-${name}-duration: ${ms}ms;`);
   }
   lines.push(`  ${END}`);
-  return lines.join('\n');
+  return lines.join(joiner);
 }
 
 function currentBlock() {
@@ -65,7 +65,9 @@ function currentBlock() {
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
-  const fresh = buildBlock();
+  // The block takes the file's own line endings, so --check agrees on Windows (CRLF) and Linux (LF) checkouts alike.
+  const text = readFileSync(TOKENS, 'utf8');
+  const fresh = buildBlock(text.includes('\r\n') ? '\r\n' : '\n');
   if (process.argv.includes('--check')) {
     if (currentBlock() !== fresh) {
       console.error('tokens.css spring block is stale. Run `node scripts/gen-spring-css.mjs` and commit the result.');
@@ -73,7 +75,6 @@ if (invokedDirectly) {
     }
     console.log('spring CSS is current.');
   } else {
-    const text = readFileSync(TOKENS, 'utf8');
     const start = text.indexOf(START);
     const end = text.indexOf(END);
     if (start < 0 || end < 0) throw new Error('generated spring block markers not found in tokens.css');

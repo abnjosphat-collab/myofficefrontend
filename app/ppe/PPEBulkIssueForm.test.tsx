@@ -2,7 +2,7 @@
 // a full submit posts one record per person with each person's register details, and a partial failure keeps the
 // refused people with the reason while the saved ones leave.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmProvider } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
@@ -54,7 +54,8 @@ describe('PPEBulkIssueForm', () => {
     expect(createMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ employee_id: 'C400', employee_name: 'Dee Delta', position: 'Welder', mine_section: 'Mechanical', item_name: 'Visor' }));
     expect(createMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ employee_id: 'C100', employee_name: 'Ann Alpha', position: 'Fitter', mine_section: 'Mechanical' }));
     expect(onCreated).toHaveBeenCalledTimes(1);
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // The form holds the saved check before closing.
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
   it('keeps refused people with the reason while the saved ones leave', async () => {
