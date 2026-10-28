@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useAnimate, usePresence } from 'framer-motion';
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type Ref } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { FADE, SPRING } from './presets';
 import { useIsReducedMotion } from './useMotionSafe';
 import { consumeZoomSource, lookupZoomSource, markZoomSourceUsed, registerZoomSource, unregisterZoomSource } from './zoomRegistry';
@@ -81,6 +81,8 @@ export interface ZoomTargetProps {
   children: ReactNode;
   className?: string;
   id?: string;
+  /** Merged under the zoom's own transform origin. Carries Radix Slot styles (pointer-events) — never drop it. */
+  style?: CSSProperties;
 }
 
 type ZoomMode = 'zoom' | 'fallback' | 'reduce';
@@ -93,7 +95,7 @@ type ZoomMode = 'zoom' | 'fallback' | 'reduce';
  * normal open). Must render inside a ZoomBoundary with a stable key.
  */
 export const ZoomTarget = forwardRef<HTMLDivElement, ZoomTargetProps>(function ZoomTarget(
-  { zoomId, placement = 'center', className, children, ...rest },
+  { zoomId, placement = 'center', className, style, children, ...rest },
   forwarded,
 ) {
   const reduce = useIsReducedMotion();
@@ -199,7 +201,7 @@ export const ZoomTarget = forwardRef<HTMLDivElement, ZoomTargetProps>(function Z
       data-zoom-panel={zoomId}
       data-zoom-mode={mode}
       data-zoom-fallback={mode === 'fallback' ? 'true' : undefined}
-      style={{ transformOrigin: 'center' }}
+      style={{ ...style, transformOrigin: 'center' }}
     >
       {children}
     </motion.div>

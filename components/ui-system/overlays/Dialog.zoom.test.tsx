@@ -20,6 +20,15 @@ describe('Dialog zoomId', () => {
     expect(screen.getByRole('dialog', { name: 'Work order' })).toBeInTheDocument();
   });
 
+  it('keeps the panel clickable (Radix pointer-events survive the Slot)', () => {
+    render(<Dialog open onOpenChange={() => {}} title="Clickable" zoomId="test:dialog:click"><p>Body.</p></Dialog>);
+    // Radix locks the body to pointer-events:none while a modal is open and
+    // re-enables the layer inline; the zoom target must merge that style.
+    const panel = document.querySelector('[data-zoom-panel="test:dialog:click"]') as HTMLElement;
+    expect(panel.style.pointerEvents).toBe('auto');
+    expect(panel.style.transformOrigin).toBe('center');
+  });
+
   it('leaves the default path alone when omitted', () => {
     render(<Dialog open onOpenChange={() => {}} title="Plain dialog"><p>Body.</p></Dialog>);
     expect(document.querySelector('[data-zoom-panel]')).toBeNull();
