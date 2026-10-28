@@ -2,7 +2,7 @@
 // offers its actions in a menu: view, edit, mark not required (or active again), archive (or restore), add to the order list, delete.
 'use client';
 
-import { Button, Dialog, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions, ZoomLink } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
@@ -42,8 +42,8 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
   const items = e ? [...e.records].sort((a, b) => (a.expiry_date ?? '9999').localeCompare(b.expiry_date ?? '9999')) : [];
   return (
     <Dialog
-      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e?.employee_name ?? 'Employee'} description={e ? [formatMineNumber(e.employee_id), e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
-      footer={e && (readOnly ? (<DetailActions onClose={onClose} />) : (<DetailActions onClose={onClose}><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></DetailActions>))}
+      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={e ? `ppe:holder:${e.employee_id}` : undefined} title={e?.employee_name ?? 'Employee'} description={e ? [formatMineNumber(e.employee_id), e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
+      footer={e && (readOnly ? (<DetailActions onClose={onClose} />) : (<DetailActions onClose={onClose}><ZoomLink zoomId="ppe:new" inline><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></ZoomLink></DetailActions>))}
     >
       {e && (
         <>
@@ -56,7 +56,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
                 <p className="font-sans text-caption text-ink-muted tabular">{r.item_name}{r.item_name && ', '}issued {fmtDate(r.issue_date)}{r.expiry_date ? `, expires ${fmtDate(r.expiry_date)}` : ', no expiry'}</p>
               </div>
               <StandingBadge r={r} />
-              {readOnly ? <IconButton icon="eye" size="sm" variant="ghost" label={`View details for ${r.item_name || typeName(r.ppe_type)}, ${r.employee_name}`} onClick={() => actions.onView(r)} /> : <ItemMenu r={r} a={actions} />}
+              {readOnly ? <ZoomLink zoomId={`ppe:item:${r.id}`} inline><IconButton icon="eye" size="sm" variant="ghost" label={`View details for ${r.item_name || typeName(r.ppe_type)}, ${r.employee_name}`} onClick={() => actions.onView(r)} /></ZoomLink> : <ItemMenu r={r} a={actions} />}
             </li>
           ))}
         </ul>}
@@ -69,7 +69,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
 export function PPEItemDetail({ item: r, onClose, onEdit, readOnly = false }: { item: PPERecord | null; onClose: () => void; onEdit: (r: PPERecord) => void; readOnly?: boolean }) {
   const cond = r ? conditionMeta(r.condition) : null;
   return (
-    <Dialog open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="md" title={r ? typeName(r.ppe_type) : 'PPE item'} description={r ? `${r.employee_name}, ${r.employee_id}` : undefined}
+    <Dialog open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="md" zoomId={r ? `ppe:item:${r.id}` : undefined} title={r ? typeName(r.ppe_type) : 'PPE item'} description={r ? `${r.employee_name}, ${r.employee_id}` : undefined}
       footer={r && (<DetailActions onClose={onClose} onEdit={readOnly ? undefined : () => onEdit(r)} />)}>
       {r && cond && (
         <div className="flex flex-col gap-4">

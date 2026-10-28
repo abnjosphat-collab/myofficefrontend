@@ -8,9 +8,9 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, UpdatedCaption,
+  Button, DataRegion, EmptyState, IconButton, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, UpdatedCaption,
   deriveDataStatus, isTransientStatus, useConfirm, MoreMenu, type MoreMenuItem,
-  LoadingPulse,
+  LoadingPulse, ZoomLink,
 } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { todayLocal } from '@/lib/dates';
@@ -119,6 +119,7 @@ function PPEContent() {
   const unmatched = useMemo(() => holders.filter(h => register.matchOf(h) !== 'linked'), [holders, register]);
   const unmatchedRecordIds = useMemo(() => unmatched.flatMap(h => h.records.map(r => r.id)), [unmatched]);
   const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, effF), [visibleHolders, unmatched, unmatchedOnly, effF]);
+  const listCalm = JSON.stringify([effF, unmatchedOnly, showArchived]);
   const stats = useMemo(() => summarise(visibleRecords, visibleHolders), [visibleRecords, visibleHolders]);
   const scoped = useMemo(() => summarise(sectionRecords.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), inSection), [sectionRecords, inSection, typeFilter]);
   const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(h => normalizeEmployeeId(h.employee_id))); return records.filter(r => r.status === 'active' && !arch.has(normalizeEmployeeId(r.employee_id))); }, [records, holders]);
@@ -257,8 +258,8 @@ function PPEContent() {
         actions={(
           <>
             <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
-            <Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button>
-            <Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button>
+            <ZoomLink zoomId="ppe:new-bulk" className="inline-block"><Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button></ZoomLink>
+            <ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>
           </>
         )}
       />
@@ -294,20 +295,22 @@ function PPEContent() {
               ? <EmptyState icon="search" title="No one matches" description="Try fewer filters." action={<Button onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>} />
               : hiddenAllArchived
               ? <EmptyState icon="archive" title="Everyone with PPE is archived" description="Show them to look through their records." action={<Button onClick={() => setShowArchived(true)}>Show archived</Button>} />
-              : scope ? <EmptyState icon="ppe" title={`No ${scope} PPE issued yet`} description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} /> : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button>} />}
+              : scope ? <EmptyState icon="ppe" title={`No ${scope} PPE issued yet`} description="Issue PPE to an employee to get started." action={<ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>} /> : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}<UpdatedCaption at={latestUpdated(recs.updatedAt, roster.updatedAt)} /></p>
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
+            <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
               {shown.map(h => (
-                <li key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">
+                <MotionListItem as="li" key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">
+                  <ZoomLink zoomId={`ppe:holder:${h.employee_id}`}>
                   <RecordCard
                     eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
                     facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
-                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} />}</div>}
+                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
                   />
-                </li>
+                  </ZoomLink>
+                </MotionListItem>
               ))}
-            </ul>
+            </MotionList>
           </DataRegion>
         </TabsContent>
 

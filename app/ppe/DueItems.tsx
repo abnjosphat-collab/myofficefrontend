@@ -35,6 +35,7 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
   const filtered = typeFilter.types.length > 0 || sizeChoice !== ALL || f.search !== '' || f.from !== '' || f.to !== '';
   const localActive = sizeChoice !== ALL || f.search !== '' || f.from !== '' || f.to !== ''; // Clear is for these; the shared lens has its own Reset
   const chosen = rows.filter(r => selected.has(String(r.id)));
+  const listCalm = JSON.stringify([mode, f, typeFilter]);
 
   const COLUMNS: Column<PPERecord>[] = [
     { id: 'who', header: 'Employee', sticky: true, cell: r => <div className="min-w-0"><p className="font-medium text-ink">{r.employee_name}</p><p className="text-caption text-ink-muted">{[r.employee_id, r.position].filter(Boolean).join(', ')}</p></div> },
@@ -76,7 +77,7 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
       ) : (
         <>
           <p className="font-sans text-caption text-ink-muted" role="status">{rows.length} {rows.length === 1 ? 'item' : 'items'}</p>
-          <DataTable caption={mode === 'overdue' ? 'Overdue PPE' : 'PPE expiring soon'} rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} selected={selected} onSelectedChange={setSelected} onRowActivate={actions.onView} rowActions={r => <ItemMenu r={r} a={actions} />} />
+          <DataTable caption={mode === 'overdue' ? 'Overdue PPE' : 'PPE expiring soon'} rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} stillKey={listCalm} selected={selected} onSelectedChange={setSelected} onRowActivate={actions.onView} rowActions={r => <ItemMenu r={r} a={actions} />} />
           <Notice tone="info" title="About the list">Items past their replacement interval are listed even when they do not need replacing. Mark those not required and they leave the counts; you can put them back.</Notice>
         </>
       )}

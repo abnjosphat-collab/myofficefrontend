@@ -90,7 +90,7 @@ export function OvertimeForm({ open, record, records, onOpenChange, onSave }: {
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit overtime request' : 'New overtime request'} description={editing ? `${record.employee_name}, ${fmtDate(record.date)}` : 'Employee, date and time are required.'} submitLabel={editing ? 'Save changes' : 'Submit request'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit overtime request' : 'New overtime request'} description={editing ? `${record.employee_name}, ${fmtDate(record.date)}` : 'Employee, date and time are required.'} submitLabel={editing ? 'Save changes' : 'Submit request'} onSubmit={submit} zoomId={editing ? undefined : 'overtime:new'}>
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Pick an employee" optional description="Fills the name, ID, position and phone." className="sm:col-span-2">

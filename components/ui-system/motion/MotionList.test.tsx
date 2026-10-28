@@ -2,6 +2,7 @@
 // calm key (filter/sort/page changes never animate). Reduced mode renders
 // the same structure instantly; the wash is opacity-only in both modes.
 import { render } from '@testing-library/react';
+import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import { MotionList, MotionListItem } from './Presence';
 
@@ -50,6 +51,16 @@ describe('MotionList (B4)', () => {
     const list = view.container.querySelector('ul');
     expect(list).toHaveAttribute('id', 'grp');
     expect(list).toHaveAttribute('aria-label', 'People');
+  });
+
+  it('hands the row element to a ref (scroll targets)', () => {
+    const target = createRef<HTMLLIElement>();
+    const view = render(
+      <MotionList as="ul">
+        <MotionListItem key="a" as="li" ref={target}><p>Row a</p></MotionListItem>
+      </MotionList>,
+    );
+    expect(target.current).toBe(view.container.querySelector('li'));
   });
 
   it('leaves non-item children alone', () => {

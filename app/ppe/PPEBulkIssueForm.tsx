@@ -62,7 +62,7 @@ export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreate
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Issue to several people" description="One record per person, all with these details." submitLabel={people.length > 0 ? `Issue to ${people.length} ${people.length === 1 ? 'person' : 'people'}` : 'Issue PPE'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Issue to several people" description="One record per person, all with these details." zoomId="ppe:new-bulk" submitLabel={people.length > 0 ? `Issue to ${people.length} ${people.length === 1 ? 'person' : 'people'}` : 'Issue PPE'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
         <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone getting this item.'} />
         {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}

@@ -61,7 +61,7 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit PPE record' : 'Issue PPE'} description={editing ? `${record.employee_name}, ${record.item_name}` : 'Who it is for, what it is and the size.'} submitLabel={editing ? 'Save changes' : 'Issue PPE'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit PPE record' : 'Issue PPE'} description={editing ? `${record.employee_name}, ${record.item_name}` : 'Who it is for, what it is and the size.'} submitLabel={editing ? 'Save changes' : 'Issue PPE'} onSubmit={submit} zoomId={editing ? undefined : 'ppe:new'}>
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={personLabel} required error={err('employee_id')} description={personHint} className="sm:col-span-2">

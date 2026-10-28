@@ -5,7 +5,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse } from '@/components/ui-system';
+import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, sortRows, useViewPreference, type Column, type SortState, FilterField, LoadingPulse, ZoomLink } from '@/components/ui-system';
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -126,6 +126,7 @@ function OvertimeContent() {
   const matches = useMemo(() => filterRecords(unmatchedOnly ? unmatched : records, effective, order), [records, unmatched, unmatchedOnly, effective, order]);
   const rows = useMemo(() => sortRows(matches, sort, (r, id) => (id === 'hours' ? recordHours(r) : id === 'date' ? r.date : id === 'employee' ? r.employee_name.toLowerCase() : String(r[id as keyof OTRecord] ?? '').toLowerCase())), [matches, sort]);
   const visible = pageSlice(rows, page, pageSize);
+  const listCalm = JSON.stringify([effective, order, unmatchedOnly]);
   const stats = useMemo(() => summarise(records), [records]);
   const months = useMemo(() => monthOptions(records), [records]);
   const activeMonth = months.find(m => m.from === filters.from && m.to === filters.to)?.key ?? null;
@@ -259,8 +260,8 @@ function OvertimeContent() {
         description={scope ? `Submit overtime, approve it with a signature, and see where the hours go — showing ${scope} only.` : 'Submit overtime, approve it with a signature, and see where the hours go.'}
         actions={(
           <>
-            <Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Overtime for several people</Button>
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button>
+            <ZoomLink zoomId="overtime:new-bulk" className="inline-block"><Button variant="secondary" icon="employees" disabled={!list.loaded} onClick={() => setBulkOpen(true)}>Overtime for several people</Button></ZoomLink>
+            <ZoomLink zoomId="overtime:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New request</Button></ZoomLink>
           </>
         )}
       />
@@ -336,27 +337,29 @@ function OvertimeContent() {
             status={status} subject="overtime requests" error={list.error} onRetry={() => list.refetch()}
             empty={filtered
               ? <EmptyState icon="search" title="No overtime requests match" description="Try different filters." action={<Button onClick={clear}>Clear filters</Button>} />
-              : scope ? <EmptyState icon="clock" title={`No ${scope} overtime requests yet`} description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} /> : <EmptyState icon="clock" title="No overtime requests yet" description="Submit the first request." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button>} />}
+              : scope ? <EmptyState icon="clock" title={`No ${scope} overtime requests yet`} description="Submit the first request." action={<ZoomLink zoomId="overtime:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button></ZoomLink>} /> : <EmptyState icon="clock" title="No overtime requests yet" description="Submit the first request." action={<ZoomLink zoomId="overtime:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New request</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'request' : 'requests'}{matches.length !== records.length ? ` of ${records.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overtime requests">
+              <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Overtime requests">
                 {visible.map(r => {
                   const s = statusMeta(r.status); const h = recordHours(r);
                   return (
-                    <li key={String(r.id)} className="relative">
+                    <MotionListItem as="li" key={String(r.id)} className="relative">
+                      <ZoomLink zoomId={`overtime:rec:${r.id}`}>
                       <RecordCard
                         eyebrow={fmtDate(r.date)} title={r.employee_name} subtitle={[r.employee_id, r.position].filter(Boolean).join(', ')} openLabel={`Open the request from ${r.employee_name}, ${fmtDate(r.date)}`} onOpen={() => setViewingId(String(r.id))}
                         status={<><StatusBadge tone={s.tone}>{s.label}</StatusBadge><RegisterFlag match={register.matchOf(r)} /></>}
                         facts={[{ label: 'Type', value: <span className="flex flex-wrap gap-1"><Badges r={r} /></span> }, { label: 'Time', value: <span className="tabular">{timeSpan(r)}{h > 0 && <span className="font-semibold">, {h.toFixed(1)}h</span>}</span> }, { label: 'Cost centre', value: overtimeCostCentre(r) }, ...(r.reason ? [{ label: 'Reason', value: <span className="line-clamp-2">{r.reason}</span> }] : [])]}
                         action={actionsOf(r)}
                       />
-                    </li>
+                      </ZoomLink>
+                    </MotionListItem>
                   );
                 })}
-              </ul>
+              </MotionList>
             ) : (
-              <DataTable caption="Overtime requests" rows={visible} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} selected={selected} onSelectedChange={setSelected} onRowActivate={r => setViewingId(String(r.id))} rowActions={actionsOf} />
+              <DataTable caption="Overtime requests" rows={visible} columns={COLUMNS} getRowId={r => String(r.id)} stillKey={listCalm} sort={sort} onSortChange={setSort} selected={selected} onSelectedChange={setSelected} onRowActivate={r => setViewingId(String(r.id))} rowActions={actionsOf} />
             )}
             {rows.length > 25 && (
               <div className="flex flex-wrap items-center justify-between gap-3">

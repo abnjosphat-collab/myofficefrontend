@@ -22,7 +22,7 @@ export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, 
   const payout = r ? payoutMeta(r.payout_method) : null;
   return (
     <Dialog
-      open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="lg"
+      open={!!r} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={r ? `overtime:rec:${r.id}` : undefined}
       title={r ? `${r.employee_name}` : 'Overtime request'} description={r ? [r.employee_id, r.position].filter(Boolean).join(', ') : undefined}
       footer={r && (
         <DetailActions onDelete={() => onDelete(r)} onClose={onClose} onEdit={() => onEdit(r)}>

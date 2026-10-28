@@ -68,7 +68,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Overtime for several people" description="One request per person, all with these details." submitLabel={people.length > 0 ? `Submit ${people.length} ${people.length === 1 ? 'request' : 'requests'}` : 'Submit'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Overtime for several people" description="One request per person, all with these details." zoomId="overtime:new-bulk" submitLabel={people.length > 0 ? `Submit ${people.length} ${people.length === 1 ? 'request' : 'requests'}` : 'Submit'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
         <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone who worked the same overtime.'} />
         {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}

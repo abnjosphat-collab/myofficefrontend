@@ -5,7 +5,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, DataTable, DataRegion, EmptyState, Icon, MoreMenu, MultiSelectFilter, Notice, SearchField, Select, StatusBadge, useConfirm, type Column, type FilterOption } from '@/components/ui-system';
+import { Button, DataTable, DataRegion, EmptyState, Icon, MoreMenu, MultiSelectFilter, Notice, SearchField, Select, StatusBadge, useConfirm, ZoomLink, type Column, type FilterOption } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -79,7 +79,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   ];
   const rowActions = (l: BasketLine) => (
     <span className="inline-flex gap-1">
-      {l.origin !== 'free' && <Button size="sm" icon="plus" onClick={() => onIssue(l)}>Issue</Button>}
+      {l.origin !== 'free' && <ZoomLink zoomId="ppe:new" inline><Button size="sm" icon="plus" onClick={() => onIssue(l)}>Issue</Button></ZoomLink>}
       {l.origin === 'auto' && <Button size="sm" variant="ghost" onClick={() => onExclude(l)}>Exclude</Button>}
       {l.origin !== 'auto' && <Button size="sm" variant="ghost" onClick={() => setEditing(l)}>Edit</Button>}
       {l.origin !== 'auto' && <Button size="sm" variant="ghost" onClick={() => onRemove(l.record_id)}>Remove</Button>}

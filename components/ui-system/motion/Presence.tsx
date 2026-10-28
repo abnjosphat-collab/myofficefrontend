@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Children, cloneElement, isValidElement, useState, type Key, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useState, type Key, type ReactElement, type ReactNode, type Ref } from 'react';
 import { cn } from '../foundations/cn';
 import { FADE, HIGHLIGHT_WASH_S, SPRING } from './presets';
 import { useIsReducedMotion } from './useMotionSafe';
@@ -176,17 +176,19 @@ export interface MotionListItemProps {
   highlight?: boolean;
   /** Collapse the row's height on exit (default true). False = fade only, for DataTable rows, which stay crisp. */
   collapse?: boolean;
+  /** The row element, for scroll targets (a deep-linked card). Matches `as`. */
+  ref?: Ref<HTMLDivElement | HTMLLIElement>;
 }
 
 /** One row inside a MotionList. Key it by record id so exits track the right row. */
-export function MotionListItem({ children, className, as = 'div', highlight = false, collapse = true }: MotionListItemProps) {
+export function MotionListItem({ children, className, as = 'div', highlight = false, collapse = true, ref }: MotionListItemProps) {
   const reduce = useIsReducedMotion();
   const enter = collapse ? presenceMotion.enter : presenceMotion.enterFadeOnly;
   const exit = collapse ? presenceMotion.exitCollapse : presenceMotion.exitFadeOnly;
   if (reduce) {
     const Item = as;
     return (
-      <Item className={cn('relative', className)}>
+      <Item ref={ref as (el: HTMLDivElement | HTMLLIElement | null) => void} className={cn('relative', className)}>
         {highlight ? <HighlightWash key="wash" /> : null}
         {children}
       </Item>
@@ -195,6 +197,7 @@ export function MotionListItem({ children, className, as = 'div', highlight = fa
   const Item = motion[as];
   return (
     <Item
+      ref={ref as (el: HTMLDivElement | HTMLLIElement | null) => void}
       data-testid="motion-list-item"
       className={cn('relative', className)}
       style={collapse ? { overflow: 'hidden' } : undefined}
