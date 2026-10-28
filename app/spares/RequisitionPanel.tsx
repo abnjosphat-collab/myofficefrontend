@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Combobox, DataRegion, Drawer, EXPORT_CHECK_MS, Field, FieldGroup, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus, useConfirm } from '@/components/ui-system';
+import { Button, Combobox, DataRegion, Drawer, EXPORT_CHECK_MS, Field, FieldGroup, IconButton, Input, Notice, Segmented, Select, Textarea, deriveDataStatus, isTransientStatus, useActionFeedback, useConfirm } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import type { ApiListState } from '@/lib/useApiList';
@@ -55,12 +55,13 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
   const copiedTimer = useRef<number | null>(null);
   useEffect(() => () => { if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); }, []);
   const copy = async () => { try { await navigator.clipboard.writeText(requisitionText(lines, formatCurrency)); toast.success('Requisition copied.'); setCopied(true); if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); copiedTimer.current = window.setTimeout(() => setCopied(false), EXPORT_CHECK_MS); } catch { toast.error('The browser would not let this page copy. Download the PDF instead.'); } };
-  const pdf = async () => { try { await downloadRequisitionPdf(header, lines); toast.success('PDF downloaded.'); } catch (e) { toast.error(`The PDF failed: ${(e as Error).message}`); } };
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
+  const pdf = () => fb.run(async () => { try { await downloadRequisitionPdf(header, lines); toast.success('PDF downloaded.'); } catch (e) { toast.error(`The PDF failed: ${(e as Error).message}`); throw e; } });
 
   return (
     <Drawer
       open={open} onOpenChange={onOpenChange} title="Parts requisition" description="Build a list of parts, then save, copy or download it."
-      footer={<><Button variant="ghost" onClick={() => { onLines([]); onHeader({ requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' }); }} disabled={lines.length === 0}>Clear</Button><Button icon="documents" onClick={copy} disabled={usable === 0} success={copied}>Copy</Button><Button variant="primary" icon="pdf" onClick={pdf} disabled={usable === 0}>Export PDF</Button></>}
+      footer={<><Button variant="ghost" onClick={() => { onLines([]); onHeader({ requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' }); }} disabled={lines.length === 0}>Clear</Button><Button icon="documents" onClick={copy} disabled={usable === 0} success={copied}>Copy</Button><Button variant="primary" icon="pdf" onClick={pdf} disabled={usable === 0} pending={fb.pending} success={fb.success}>Export PDF</Button></>}
     >
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

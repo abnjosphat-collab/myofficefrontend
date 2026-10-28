@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, Combobox, DataRegion, DataTable, EmptyState, Field, IconButton, Notice, PageHeader, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm, type Column, FilterField
+  Button, Combobox, DataRegion, DataTable, EmptyState, EXPORT_CHECK_MS, Field, IconButton, Notice, PageHeader, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useActionFeedback, useConfirm, type Column, FilterField
 } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { ArtisanEditor } from './ArtisanEditor';
@@ -45,7 +45,8 @@ function ArtisanContent() {
   const [editor, setEditor] = useState<Open | null>(null);
   const [opening, setOpening] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
+  const [exportFormat, setExportFormat] = useState<'excel' | 'pdf' | null>(null);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const dirty = isDirty(editor?.draft ?? null, editor?.baseline ?? '');
@@ -128,7 +129,7 @@ function ArtisanContent() {
     finally { setSaving(false); }
   };
   // A settled draft saves itself quietly; the Saved badge is the only feedback.
-  useAutosave({ draft: editor?.draft ?? null, dirty, busy: saving || opening || exporting !== null, paused: saveError !== null || blocked.length > 0, onSave: () => { void save({ silent: true }); } });
+  useAutosave({ draft: editor?.draft ?? null, dirty, busy: saving || opening || fb.pending || fb.success, paused: saveError !== null || blocked.length > 0, onSave: () => { void save({ silent: true }); } });
   const remove = async (r: ArtisanTimesheetSummary) => {
     if (!await confirm({ title: 'Delete this saved timesheet?', message: `${r.employee_name}, ${periodLabel(r.year, r.month)}. This cannot be undone.`, confirmLabel: 'Delete', destructive: true })) return;
     try {
@@ -137,15 +138,16 @@ function ArtisanContent() {
       toast.success('Timesheet deleted.'); await saved.refetch();
     } catch (e) { toast.error(`The timesheet was not deleted: ${(e as Error).message}`); }
   };
-  const exportAs = async (format: 'excel' | 'pdf') => {
+  const exportAs = (format: 'excel' | 'pdf') => {
     if (!editor) return;
-    setExporting(format);
-    try {
-      const record = { id: editor.recordId ?? 0, ...draftToPayload(editor.draft) } as ArtisanTimesheetRecord;
-      if (format === 'excel') await downloadArtisanTimesheetExcel(record); else await downloadArtisanTimesheetPdf(record);
-      toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} downloaded.`);
-    } catch (e) { toast.error(`The ${format === 'excel' ? 'Excel file' : 'PDF'} could not be made: ${(e as Error).message}`); }
-    finally { setExporting(null); }
+    setExportFormat(format);
+    void fb.run(async () => {
+      try {
+        const record = { id: editor.recordId ?? 0, ...draftToPayload(editor.draft) } as ArtisanTimesheetRecord;
+        if (format === 'excel') await downloadArtisanTimesheetExcel(record); else await downloadArtisanTimesheetPdf(record);
+        toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} downloaded.`);
+      } catch (e) { toast.error(`The ${format === 'excel' ? 'Excel file' : 'PDF'} could not be made: ${(e as Error).message}`); throw e; }
+    });
   };
 
   const COLUMNS: Column<ArtisanTimesheetSummary>[] = [
@@ -182,7 +184,7 @@ function ArtisanContent() {
 
           <TabsContent value="editor" className="mt-4">
             {editor
-              ? <ArtisanEditor draft={editor.draft} onChange={draft => { setSaveError(null); setBlocked([]); setEditor({ ...editor, draft }); }} saved={editor.recordId !== null} dirty={dirty} blocked={blocked} sourcesFailed={reference.failed} saveError={saveError} saving={saving} exporting={exporting} sources={reference.sources} onRefresh={refreshFromSystem} onSave={save} onExport={exportAs} />
+              ? <ArtisanEditor draft={editor.draft} onChange={draft => { setSaveError(null); setBlocked([]); setEditor({ ...editor, draft }); }} saved={editor.recordId !== null} dirty={dirty} blocked={blocked} sourcesFailed={reference.failed} saveError={saveError} saving={saving} exporting={fb.pending ? exportFormat : null} exportDone={fb.success ? exportFormat : null} sources={reference.sources} onRefresh={refreshFromSystem} onSave={save} onExport={exportAs} />
               : <EmptyState icon="calendar" title="Open a month to begin" description="Choose an artisan to open their month. A saved timesheet opens as it was saved; a new one is filled from leave, overtime, standby and public holidays. Change the month or year, then Open month to reopen." />}
           </TabsContent>
 

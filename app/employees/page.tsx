@@ -7,7 +7,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
@@ -56,7 +56,7 @@ function EmployeesContent() {
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [formFor, setFormFor] = useState<{ employee: Employee | null } | null>(null);
   const [viewingId, setViewingId] = useState<number | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
   const [normalising, setNormalising] = useState(false);
   const [rosterOpen, setRosterOpen] = useState(false);
   const set = (patch: Partial<RosterFilters>) => { setF(prev => ({ ...prev, ...patch })); setPage(1); };
@@ -85,20 +85,16 @@ function EmployeesContent() {
   const remove = async (e: Employee) => {
     await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${formatMineNumber(e.employee_id)}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
-  const downloadRegistry = async () => {
-    setExporting(true);
+  const downloadRegistry = () => fb.run(async () => {
     try { await exportPersonnelRegistryExcel(active, exportFilename('Personnel_Registry')); toast.success(`Registry exported, ${active.length} people.`); }
-    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); }
-    finally { setExporting(false); }
-  };
+    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); throw e; }
+  });
 
   const necList = useMemo(() => necEmployees(active), [active]);
-  const downloadNecRegistry = async () => {
-    setExporting(true);
+  const downloadNecRegistry = () => fb.run(async () => {
     try { await exportPersonnelRegistryExcel(necList, exportFilename('NEC_Personnel_Registry'), 'NEC Personnel Registry'); }
-    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); }
-    finally { setExporting(false); }
-  };
+    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); throw e; }
+  });
 
   const actionsOf = (e: Employee) => (
     <span className="inline-flex gap-1">
@@ -164,10 +160,10 @@ function EmployeesContent() {
             <Select aria-label="Sort by" className="w-36" value={sortBy} onValueChange={v => setSortBy(v as SortField)} options={SORTS} />
             <IconButton icon="sort" variant="ghost" label={sortDir === 'asc' ? 'Sorted ascending, reverse' : 'Sorted descending, reverse'} onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))} />
             <ExportButton
-              pending={exporting}
+              pending={fb.pending} success={fb.success}
               items={[
-                { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || exporting, onSelect: downloadRegistry },
-                { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || exporting, onSelect: downloadNecRegistry },
+                { label: 'Registry (Excel)', icon: 'download', disabled: active.length === 0 || fb.pending || fb.success, onSelect: downloadRegistry },
+                { label: `NEC registry (Excel) · ${necList.length}`, icon: 'download', disabled: necList.length === 0 || fb.pending || fb.success, onSelect: downloadNecRegistry },
                 { label: 'Organised roster', icon: 'export-roster', disabled: active.length === 0, onSelect: () => setRosterOpen(true) },
               ]}
             />

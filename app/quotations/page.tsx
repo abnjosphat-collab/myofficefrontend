@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, ExportButton, LoadingPulse } from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, MetricGrid, MetricTile, Notice, PageHeader, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, usePersistentState, ExportButton, LoadingPulse, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -33,7 +33,7 @@ function QuotationsContent() {
   const fresh = useMemo(() => blankDraft(new Date()), []);
   const draft = stored ?? fresh;
   const [tab, setTab] = useState('edit');
-  const [busy, setBusy] = useState<'pdf' | 'word' | null>(null);
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
   const [blocked, setBlocked] = useState<string[]>([]);
   const update = (patch: Partial<Draft>) => { setStored({ ...draft, ...patch }); setBlocked([]); };
   const totals = totalsOf(draft);
@@ -55,13 +55,13 @@ function QuotationsContent() {
       .catch(() => { moved.current = false; /* kept in this browser; tried again on the next visit */ });
   }, [list]);
 
-  const run = async (kind: 'pdf' | 'word') => {
+  const run = (kind: 'pdf' | 'word') => {
     const p = problems(draft);
     if (p.length) { setBlocked(p); toast.error('The quotation is not ready to export.'); return; }
-    setBusy(kind);
-    try { const name = await (kind === 'pdf' ? exportPdf(draft, company) : exportWord(draft, company)); toast.success(`${name} saved to your downloads.`); }
-    catch (e) { toast.error(`The ${kind === 'pdf' ? 'PDF' : 'Word file'} could not be made: ${(e as Error).message}`); }
-    finally { setBusy(null); }
+    void fb.run(async () => {
+      try { const name = await (kind === 'pdf' ? exportPdf(draft, company) : exportWord(draft, company)); toast.success(`${name} saved to your downloads.`); }
+      catch (e) { toast.error(`The ${kind === 'pdf' ? 'PDF' : 'Word file'} could not be made: ${(e as Error).message}`); throw e; }
+    });
   };
   const save = async () => {
     const entry: Saved = { id: draft.number.trim() || String(Date.now()), savedAt: new Date().toISOString(), draft };
@@ -96,10 +96,10 @@ function QuotationsContent() {
           <>
             <Button icon="save" onClick={save}>Save</Button>
             <ExportButton
-              pending={busy !== null}
+              pending={fb.pending} success={fb.success}
               items={[
-                { label: 'PDF', icon: 'pdf', disabled: busy !== null, onSelect: () => run('pdf') },
-                { label: 'Word', icon: 'download', disabled: busy !== null, onSelect: () => run('word') },
+                { label: 'PDF', icon: 'pdf', disabled: fb.pending || fb.success, onSelect: () => run('pdf') },
+                { label: 'Word', icon: 'download', disabled: fb.pending || fb.success, onSelect: () => run('word') },
               ]}
             />
             <Button icon="plus" onClick={startNew}>New</Button>

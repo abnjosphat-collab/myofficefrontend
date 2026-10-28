@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button, Drawer, ExportButton, Notice, LoadingPulse } from '@/components/ui-system';
+import { Button, Drawer, EXPORT_CHECK_MS, ExportButton, Notice, LoadingPulse, useActionFeedback } from '@/components/ui-system';
 import { SOP_SECTION_LABELS, type SopDocument, type SopRevision } from '@/lib/sops/types';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { SopBadges } from './SopCard';
@@ -21,6 +21,7 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
   onExportPdf: (sop: SopDocument) => void;
 }) {
   const [revisions, setRevisions] = useState<{ sopId: string; items: SopRevision[] | null } | null>(null);
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
   const sopId = sop?.id ?? null;
 
   useEffect(() => {
@@ -44,9 +45,10 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
       footer={sop && (
         <>
           <ExportButton
+            pending={fb.pending} success={fb.success}
             items={[
-              { label: 'Export Word', icon: 'download', onSelect: () => onExportWord(sop) },
-              { label: 'Export PDF', icon: 'pdf', onSelect: () => onExportPdf(sop) },
+              { label: 'Export Word', icon: 'download', onSelect: () => { void fb.run(() => Promise.resolve(onExportWord(sop))); } },
+              { label: 'Export PDF', icon: 'pdf', onSelect: () => { void fb.run(() => Promise.resolve(onExportPdf(sop))); } },
             ]}
           />
           {canEdit && !archived && <Button variant="primary" icon="edit" onClick={() => onEdit(sop)}>Edit</Button>}

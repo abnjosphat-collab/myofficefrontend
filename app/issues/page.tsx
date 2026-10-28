@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -62,7 +62,8 @@ function IssuesContent() {
     try { const done = await deleteIssue(i.id); invalidateSparesCache(); setViewingId(null); toast.success((done?.stock?.length ?? 0) > 0 ? 'Issue record deleted and its stock put back.' : 'Issue record deleted.'); (done?.stock_warnings ?? []).forEach(w => toast.warning(w, { duration: 10_000 })); await refresh(); }
     catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
   };
-  const run = async (fn: () => Promise<void>, done: string) => { try { await fn(); toast.success(done); } catch (e) { toast.error(`Export failed: ${(e as Error).message}`); } };
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
+  const run = (fn: () => Promise<void>, done: string) => fb.run(async () => { try { await fn(); toast.success(done); } catch (e) { toast.error(`Export failed: ${(e as Error).message}`); throw e; } });
 
   const COLUMNS: Column<StockIssue>[] = [
     { id: 'issued_at', header: 'Date and time', sortable: true, sticky: true, cell: i => <span className="whitespace-nowrap tabular">{fmtDateTime(i.issued_at)}</span> },
@@ -124,7 +125,7 @@ function IssuesContent() {
         <TabsContent value="log" className="mt-4 flex flex-col gap-4">
           <Toolbar
             trailing={(<ExportButton
-              disabled={issues.length === 0}
+              disabled={issues.length === 0} pending={fb.pending} success={fb.success}
               items={[
                 { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => run(() => exportIssuesExcel(issues), `Excel exported, ${issues.length} issues.`) },
                 { label: 'PDF', icon: 'pdf', onSelect: () => run(() => exportIssuesPdf(issues), `PDF exported, ${issues.length} issues.`) },

@@ -20,7 +20,7 @@ const draft: ArtisanTimesheetDraft = {
 const props = (over: Partial<ArtisanTimesheetDraft> = {}) => ({
   draft: { ...draft, ...over }, onChange: vi.fn(), saved: false, dirty: false,
   blocked: [], sourcesFailed: [], saveError: null, sources: { leaves: [], overtime: [], standbyAssignments: [] },
-  saving: false, exporting: null, onRefresh: vi.fn(), onSave: vi.fn(), onExport: vi.fn(),
+  saving: false, exporting: null, exportDone: null, onRefresh: vi.fn(), onSave: vi.fn(), onExport: vi.fn(),
 });
 
 describe('ArtisanEditor identity facts', () => {

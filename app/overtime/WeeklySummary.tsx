@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, EmptyState, ExportButton, Field, Input, MetricGrid, MetricTile, Notice, Progress, Select, cn } from '@/components/ui-system';
+import { Button, EXPORT_CHECK_MS, EmptyState, ExportButton, Field, Input, MetricGrid, MetricTile, Notice, Progress, Select, cn, useActionFeedback } from '@/components/ui-system';
 import { cleanReasonText, toISODate } from './calcOvertime';
 import { downloadWeeklySummary } from './exportWeeklySummary';
 import { lastCompletedWeek, recordHours, weeklyView, type WeeklySort } from './overtimeLogic';
@@ -21,18 +21,16 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
   const [from, setFrom] = useState(week.from);
   const [to, setTo] = useState(week.to);
   const [sort, setSort] = useState<WeeklySort>('total');
-  const [downloading, setDownloading] = useState(false);
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
   const invalid = from > to;
   const view = useMemo(() => weeklyView(records, employees, from, to, sort), [records, employees, from, to, sort]);
   const today = toISODate(new Date());
   const maxPerson = Math.max(1, ...view.people.map(p => p.total));
 
-  const download = async () => {
-    setDownloading(true);
+  const download = () => fb.run(async () => {
     try { await downloadWeeklySummary(view, from, to); toast.success('Weekly summary downloaded.'); }
-    catch (e) { toast.error(`The download failed: ${(e as Error).message}`); }
-    finally { setDownloading(false); }
-  };
+    catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
+  });
 
   return (
     <div className="flex flex-col gap-5">
@@ -41,7 +39,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
         <Field label="To" className="w-40"><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></Field>
         <Button onClick={() => { setFrom(week.from); setTo(week.to); }} title="The last completed Monday to Sunday">Last week</Button>
         <Select aria-label="Order" className="w-52" value={sort} onValueChange={v => setSort(v as WeeklySort)} options={SORTS} />
-        {!invalid && view.rows.length > 0 && <ExportButton label="Export Excel" onPress={download} pending={downloading} className="ml-auto" />}
+        {!invalid && view.rows.length > 0 && <ExportButton label="Export Excel" onPress={download} pending={fb.pending} success={fb.success} className="ml-auto" />}
       </div>
 
       {view.excluded > 0 && <Notice tone="info" title="Engineering cost centre only">This summary leaves out {view.excluded} {view.excluded === 1 ? 'record' : 'records'} charged to another department.</Notice>}

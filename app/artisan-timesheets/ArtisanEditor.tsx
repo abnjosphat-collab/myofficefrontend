@@ -20,9 +20,9 @@ const APPROVALS: { label: string; name: NameKey; sig: `${NameKey}_signature` }[]
   { label: 'Authorized by', name: 'authorized_by', sig: 'authorized_by_signature' },
 ];
 
-export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesFailed, saveError, saving, exporting, sources, onRefresh, onSave, onExport }: {
+export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesFailed, saveError, saving, exporting, exportDone, sources, onRefresh, onSave, onExport }: {
   draft: ArtisanTimesheetDraft; onChange: (d: ArtisanTimesheetDraft) => void; saved: boolean; dirty: boolean; blocked: string[]; sourcesFailed: string[]; saveError: string | null; sources: Sources;
-  saving: boolean; exporting: 'excel' | 'pdf' | null; onRefresh: () => void; onSave: () => void; onExport: (format: 'excel' | 'pdf') => void;
+  saving: boolean; exporting: 'excel' | 'pdf' | null; exportDone: 'excel' | 'pdf' | null; onRefresh: () => void; onSave: () => void; onExport: (format: 'excel' | 'pdf') => void;
 }) {
   const reuse = getCompiledBySignatureReuse(draft.compiled_by_signature);
   const set = (patch: Partial<ArtisanTimesheetDraft>) => onChange({ ...draft, ...patch });
@@ -75,8 +75,8 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button icon="download" pending={exporting === 'excel'} disabled={!!exporting} onClick={() => onExport('excel')}>Export Excel</Button>
-        <Button icon="pdf" pending={exporting === 'pdf'} disabled={!!exporting} onClick={() => onExport('pdf')}>Export PDF</Button>
+        <Button icon="download" pending={exporting === 'excel'} success={exportDone === 'excel'} disabled={!!exporting} onClick={() => onExport('excel')}>Export Excel</Button>
+        <Button icon="pdf" pending={exporting === 'pdf'} success={exportDone === 'pdf'} disabled={!!exporting} onClick={() => onExport('pdf')}>Export PDF</Button>
         <Button variant="primary" icon="save" pending={saving} onClick={onSave}>{saved ? 'Update timesheet' : 'Save timesheet'}</Button>
       </div>
     </div>

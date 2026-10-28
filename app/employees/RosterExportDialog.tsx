@@ -4,32 +4,34 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, FieldGroup, Notice, Segmented } from '@/components/ui-system';
+import { Button, Dialog, FieldGroup, Notice, SAVE_CHECK_MS, Segmented, useActionFeedback } from '@/components/ui-system';
 import { EXPORT_GROUPS, exportRosterExcel, exportRosterPdf, previewGroups, type ExportGroupBy } from './exportRoster';
 import type { Employee } from './types';
 
 export function RosterExportDialog({ open, employees, onOpenChange }: { open: boolean; employees: Employee[]; onOpenChange: (open: boolean) => void }) {
   const [by, setBy] = useState<ExportGroupBy>('section_profession');
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
-  const [busy, setBusy] = useState(false);
+  const fb = useActionFeedback(SAVE_CHECK_MS);
+  const busy = fb.pending || fb.success;
   const [error, setError] = useState<string | null>(null);
   const preview = useMemo(() => previewGroups(employees, by), [employees, by]);
   const hint = EXPORT_GROUPS.find(g => g.value === by)?.hint;
 
-  const run = async () => {
-    setBusy(true); setError(null);
-    try {
-      if (format === 'excel') await exportRosterExcel(employees, by); else await exportRosterPdf(employees, by);
-      toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported, ${employees.length} employees.`);
-      onOpenChange(false);
-    } catch (e) { setError(e instanceof Error ? e.message : 'The export failed.'); }
-    finally { setBusy(false); }
+  const run = () => {
+    setError(null);
+    let ok = false;
+    void fb.run(async () => {
+      try {
+        if (format === 'excel') await exportRosterExcel(employees, by); else await exportRosterPdf(employees, by);
+        ok = true; toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported, ${employees.length} employees.`);
+      } catch (e) { setError(e instanceof Error ? e.message : 'The export failed.'); throw e; }
+    }).then(() => { if (ok) window.setTimeout(() => onOpenChange(false), SAVE_CHECK_MS); });
   };
 
   return (
     <Dialog
       open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="md" title="Download the organised roster" description="Choose how to group it."
-      footer={<><Button onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button variant="primary" icon="download" pending={busy} onClick={run}>Download</Button></>}
+      footer={<><Button onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button><Button variant="primary" icon="download" pending={fb.pending} success={fb.success} onClick={run}>Download</Button></>}
     >
       <div className="flex flex-col gap-5">
         <FieldGroup label="Group by" description={hint}><Segmented label="Group by" value={by} onValueChange={setBy} options={EXPORT_GROUPS.map(g => ({ value: g.value, label: g.label }))} /></FieldGroup>

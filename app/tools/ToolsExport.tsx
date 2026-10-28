@@ -1,7 +1,8 @@
 // app/tools/ToolsExport.tsx — download the current view as an Excel workbook, a Word document or a PDF.
 'use client';
 
-import { Icon } from '@/components/ui-system';
+import { EXPORT_CHECK_MS, Icon, Spinner, useActionFeedback } from '@/components/ui-system';
+import { useState } from 'react';
 import { exportTable, type ExportTable } from './toolsExports';
 
 const CHOICES = [
@@ -11,14 +12,22 @@ const CHOICES = [
 ] as const;
 
 export function ToolsExport({ data, onDone }: { data: ExportTable; onDone: () => void }) {
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
+  const [format, setFormat] = useState<'xlsx' | 'docx' | 'pdf' | null>(null);
+  const choose = (next: 'xlsx' | 'docx' | 'pdf') => {
+    if (fb.pending || fb.success) return;
+    setFormat(next);
+    let ok = false;
+    void fb.run(async () => { await exportTable(next, data); ok = true; }).then(() => { if (ok) window.setTimeout(onDone, EXPORT_CHECK_MS); });
+  };
   return (
     <div className="flex flex-col gap-4">
       <p className="font-sans text-body-sm text-ink-muted">Download the current view in the format that best fits your next task.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {CHOICES.map(choice => (
-          <button key={choice.format} type="button" onClick={() => void exportTable(choice.format, data).then(onDone)}
-            className="focus-ring flex flex-col items-start gap-1 rounded-card border border-line bg-surface-raised p-4 text-left transition-colors hover:border-action hover:bg-surface-subtle">
-            <Icon name={choice.icon} size="md" />
+          <button key={choice.format} type="button" onClick={() => choose(choice.format)} disabled={fb.pending || fb.success}
+            className="focus-ring flex flex-col items-start gap-1 rounded-card border border-line bg-surface-raised p-4 text-left transition-colors hover:border-action hover:bg-surface-subtle disabled:opacity-70">
+            {format === choice.format && fb.pending ? <Spinner /> : format === choice.format && fb.success ? <Icon name="check" size="md" /> : <Icon name={choice.icon} size="md" />}
             <strong className="font-sans text-body-sm font-medium text-ink">{choice.title}</strong>
             <span className="font-sans text-caption text-ink-muted">{choice.note}</span>
           </button>

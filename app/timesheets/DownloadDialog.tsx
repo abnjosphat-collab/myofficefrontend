@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, Notice, Segmented, Select } from '@/components/ui-system';
+import { Button, Dialog, Field, Notice, SAVE_CHECK_MS, Segmented, Select, useActionFeedback } from '@/components/ui-system';
 import { makeExporters, type ExportArgs } from './exportTimesheet';
 import { fmtPeriod } from './timesheetMeta';
 
@@ -13,22 +13,25 @@ export function DownloadDialog(props: Omit<ExportArgs, 'scope' | 'empId'> & { in
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel');
   const [scope, setScope] = useState<'combined' | 'individual'>(initialScope ?? 'combined');
   const [empId, setEmpId] = useState(initialEmpId ?? '');
-  const [busy, setBusy] = useState(false);
+  const fb = useActionFeedback(SAVE_CHECK_MS);
+  const busy = fb.pending || fb.success;
   const [error, setError] = useState<string | null>(null);
-  const generate = async () => {
+  const generate = () => {
     if (scope === 'individual' && !empId) { setError('Choose which employee to download.'); return; }
-    setBusy(true); setError(null);
-    try {
-      const ex = makeExporters({ ...rest, scope, empId });
-      if (format === 'excel') await ex.downloadExcel(); else await ex.downloadPDF();
-      toast.success('Download started.'); onClose();
-    } catch (e) { setError(`The download failed: ${(e as Error).message}`); }
-    finally { setBusy(false); }
+    setError(null);
+    let ok = false;
+    void fb.run(async () => {
+      try {
+        const ex = makeExporters({ ...rest, scope, empId });
+        if (format === 'excel') await ex.downloadExcel(); else await ex.downloadPDF();
+        ok = true; toast.success('Download started.');
+      } catch (e) { setError(`The download failed: ${(e as Error).message}`); throw e; }
+    }).then(() => { if (ok) window.setTimeout(onClose, SAVE_CHECK_MS); });
   };
   return (
     <Dialog
       open onOpenChange={o => { if (!o && !busy) onClose(); }} size="sm" title="Download timesheet" description={fmtPeriod(rest.period)}
-      footer={<><Button onClick={onClose} disabled={busy}>Cancel</Button><Button variant="primary" icon="download" pending={busy} onClick={generate}>Download</Button></>}
+      footer={<><Button onClick={onClose} disabled={busy}>Cancel</Button><Button variant="primary" icon="download" pending={fb.pending} success={fb.success} onClick={generate}>Download</Button></>}
     >
       <div className="flex flex-col gap-4">
         {error && <Notice tone="danger" title="Not downloaded">{error}</Notice>}

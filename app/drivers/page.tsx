@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
@@ -105,6 +105,7 @@ function DriversContent() {
   const confirm = useConfirm();
   const { drivers, loading, loaded, error, errorStatus, updatedAt, loadData } = useDriversData();
   const [search, setSearch] = useState('');
+  const fb = useActionFeedback(EXPORT_CHECK_MS);
   const [deptFilter, setDeptFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState<'all' | Driver['status']>('all');
   const [view, setView] = useViewPreference('drivers', VIEW_CARDS_TABLE);
@@ -174,10 +175,10 @@ function DriversContent() {
         filtered={hasFilters}
         trailing={(<>
           <ExportButton
-            disabled={filtered.length === 0}
+            disabled={filtered.length === 0} pending={fb.pending} success={fb.success}
             items={[
-              { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => exportExcel(filtered) },
-              { label: 'PDF', icon: 'pdf', onSelect: () => exportPDF(filtered, filterLabel) },
+              { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => { void fb.run(async () => { try { await exportExcel(filtered); } catch (e) { toast.error(`The Excel file could not be made: ${(e as Error).message}`); throw e; } }); } },
+              { label: 'PDF', icon: 'pdf', onSelect: () => { void fb.run(async () => { try { exportPDF(filtered, filterLabel); } catch (e) { toast.error(`The PDF could not be made: ${(e as Error).message}`); throw e; } }); } },
             ]}
           />
           <ViewToggle value={view} onValueChange={setView} options={VIEW_CARDS_TABLE} />
