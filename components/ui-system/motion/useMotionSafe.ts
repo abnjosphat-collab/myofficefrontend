@@ -17,7 +17,7 @@ export function useIsReducedMotion(): boolean {
   useEffect(() => setMounted(true), []);
   // Framer reports the setting as unknown during SSR, so the server always renders the reduced shape; the first
   // client render matches it and the real value applies after mount. Components branch their HTML on this hook,
-  // and without the gate every static use would hydrate-mismatch (React #418).
+  // and without the gate every static use would hydrate-mismatch (React error 418).
   if (!mounted) return true;
   return config !== false;
 }
