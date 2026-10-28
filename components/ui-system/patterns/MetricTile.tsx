@@ -53,7 +53,7 @@ export function MetricTile({ label, value, detail, tone = 'default', loading, un
     <>
       <span className="text-ink-muted">{label}</span>
       <span className={cn('font-display font-semibold tabular', toneValue[tone])}>
-        {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : typeof value === 'number' ? <NumberTransition value={value} /> : value}
+        {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : typeof value === 'number' ? <><span className="sr-only">{value}</span><span aria-hidden="true"><NumberTransition value={value} /></span></> : value}
       </span>
       {detail && !loading && <span className="text-caption text-ink-subtle">{detail}</span>}
     </>

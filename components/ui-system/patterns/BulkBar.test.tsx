@@ -19,13 +19,8 @@ describe('BulkBar', () => {
   it('counts the selection and names what the filters hide', () => {
     render(<BulkBar {...props()} />);
     expect(screen.getByRole('region', { name: 'Bulk actions' })).toBeInTheDocument();
-    const status = screen.getByRole('status');
-    expect(status).toHaveTextContent('selected');
-    expect(status).toHaveTextContent('hidden by filters');
-    // The rolling counts: screen readers hear each final value once.
-    const sr = status.querySelectorAll('.sr-only');
-    expect(sr[0]).toHaveTextContent('3');
-    expect(sr[1]).toHaveTextContent('1');
+    // One accessible sentence (the rolling strip is visuals only).
+    expect(screen.getByText('3 selected (1 hidden by filters)')).toBeInTheDocument();
   });
 
   it('omits the hidden part when every selected row is shown', () => {

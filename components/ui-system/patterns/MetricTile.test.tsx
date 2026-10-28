@@ -6,11 +6,14 @@ import { MetricTile } from './MetricTile';
 
 describe('MetricTile motion', () => {
   it('rolls a numeric value (in place under reduced motion)', () => {
-    const { rerender } = render(<MetricTile label="Open" value={3} />);
-    expect(screen.getByText('3', { selector: '.sr-only' })).toBeInTheDocument();
+    const { container, rerender } = render(<MetricTile label="Open" value={3} />);
+    // The tile's own screen-reader value leads; the roll beneath is visuals only.
+    const announcing = () => container.querySelector('.sr-only');
+    expect(announcing()).toHaveTextContent('3');
+    expect(container.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
     rerender(<MetricTile label="Open" value={4} />);
-    expect(screen.getByText('4', { selector: '.sr-only' })).toBeInTheDocument();
-    expect(screen.queryByText('3', { selector: '.sr-only' })).not.toBeInTheDocument();
+    expect(announcing()).toHaveTextContent('4');
+    expect(screen.queryByText('3')).not.toBeInTheDocument();
   });
 
   it('leaves non-numeric values static', () => {

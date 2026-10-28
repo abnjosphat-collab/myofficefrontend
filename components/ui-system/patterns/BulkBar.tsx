@@ -50,10 +50,14 @@ export function BulkBar({
         )}
       >
         <span className="font-sans text-label font-semibold text-ink" role="status">
-          <NumberTransition value={selectedCount} /> selected{hiddenCount > 0 ? <> (<NumberTransition value={hiddenCount} /> hidden by filters)</> : ''}
+          <span className="sr-only">{selectedCount} selected{hiddenCount > 0 ? ` (${hiddenCount} hidden by filters)` : ''}</span>
+          <span aria-hidden="true">
+            <NumberTransition value={selectedCount} /> selected{hiddenCount > 0 ? <> (<NumberTransition value={hiddenCount} /> hidden by filters)</> : ''}
+          </span>
         </span>
         <Button size="sm" variant="secondary" onClick={onSelectAllShown}>
-          Select all shown (<NumberTransition value={shownCount} />)
+          <span className="sr-only">Select all shown ({shownCount})</span>
+          <span aria-hidden="true">Select all shown (<NumberTransition value={shownCount} />)</span>
         </Button>
         {actions}
         <Button size="sm" variant="ghost" className="ml-auto" onClick={onClear}>
