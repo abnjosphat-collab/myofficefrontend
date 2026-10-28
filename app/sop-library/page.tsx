@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, EmptyState, MetricGrid, MetricTile, PageHeader, SearchField, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, deriveDataStatus, isTransientStatus, useConfirm,
+  Button, DataRegion, EmptyState, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, SearchField, Select, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, useConfirm,
   type DataStatus, FilterField
 } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
@@ -97,6 +97,7 @@ function SopLibraryContent() {
   const showArchive = scope === 'archive';
   const switchScope = (next: 'library' | 'archive') => { setScope(next); if (next === 'archive' && archived.length === 0) loadArchived(); };
   const list = showArchive ? archived : filtered;
+  const listCalm = JSON.stringify([search, department, status, owner, review, showArchive]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +105,7 @@ function SopLibraryContent() {
         breadcrumbs={[{ label: 'MyOffice' }, { label: 'SOP library' }]}
         title="SOP library"
         description={viewerScope ? `Living, versioned standard operating procedures, replacing static Word documents as the source of truth. — showing ${viewerScope} only.` : 'Living, versioned standard operating procedures, replacing static Word documents as the source of truth.'}
-        actions={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined}
+        actions={canEdit ? <ZoomLink zoomId="sop-library:new" className="inline-block"><Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button></ZoomLink> : undefined}
       />
 
       <MetricGrid compact>
@@ -148,12 +149,13 @@ function SopLibraryContent() {
           ? <EmptyState icon="archive" title="Nothing archived" description="Archived SOPs show up here and can be restored at any time." />
           : hasFilters
             ? <EmptyState icon="search" title="No SOPs match these filters" description="Try clearing a filter or the search." action={<Button onClick={() => { setSearch(''); setDepartment(ALL); setStatus(ALL); setOwner(ALL); setReview(ALL); }}>Clear filters</Button>} />
-            : viewerScope ? <EmptyState icon="documents" title={`No ${viewerScope} SOPs yet`} description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined} /> : <EmptyState icon="documents" title="No SOPs yet" description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button> : undefined} />}
+            : viewerScope ? <EmptyState icon="documents" title={`No ${viewerScope} SOPs yet`} description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <ZoomLink zoomId="sop-library:new" className="inline-block"><Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button></ZoomLink> : undefined} /> : <EmptyState icon="documents" title="No SOPs yet" description={canEdit ? 'Create the first SOP to start replacing static Word documents.' : 'Nothing has been published to the library yet.'} action={canEdit ? <ZoomLink zoomId="sop-library:new" className="inline-block"><Button variant="primary" icon="plus" onClick={openCreate}>New SOP</Button></ZoomLink> : undefined} />}
       >
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {list.map(sop => (
+            <MotionListItem key={sop.id}>
+            <ZoomLink zoomId={`sop-library:rec:${sop.id}`}>
             <SopCard
-              key={sop.id}
               sop={sop}
               canEdit={canEdit}
               archived={showArchive}
@@ -164,8 +166,10 @@ function SopLibraryContent() {
               onArchive={() => handleArchive(sop)}
               onRestore={() => handleRestore(sop)}
             />
+            </ZoomLink>
+            </MotionListItem>
           ))}
-        </div>
+        </MotionList>
       </DataRegion>
         </TabsContent>
       </Tabs>

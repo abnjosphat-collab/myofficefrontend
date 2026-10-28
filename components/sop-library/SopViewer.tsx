@@ -37,6 +37,7 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
   return (
     <Drawer
       open={sop !== null}
+      zoomId={sop ? `sop-library:rec:${sop.id}` : undefined}
       onOpenChange={open => { if (!open) onClose(); }}
       title={sop ? `${sop.code}: ${sop.title}` : 'SOP'}
       description={sop ? `${sop.department} · owner ${sop.owner || 'unassigned'}` : undefined}

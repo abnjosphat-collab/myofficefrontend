@@ -49,6 +49,7 @@ export function SopFormDialog({ open, onOpenChange, sop, onSubmit }: {
       submitLabel={isEdit ? 'Save changes' : 'Create SOP'}
       onSubmit={submit}
       size="lg"
+      zoomId={isEdit ? undefined : 'sop-library:new'}
     >
       <p className="font-sans text-body-sm text-ink-muted">Only code, title, department and owner are required. Every other field, including each section, can be filled in as the SOP matures.</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

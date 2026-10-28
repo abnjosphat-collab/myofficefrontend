@@ -12,7 +12,7 @@ export function SpareDetail({ spare: s, onClose, onEdit, onDelete, onAddToRequis
   const pr = s ? priorityMeta(s.priority) : null;
   return (
     <Dialog
-      open={!!s} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={s?.description ?? 'Spare part'} description={s?.stock_code}
+      open={!!s} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={s ? `spares:rec:${s.id}` : undefined} title={s?.description ?? 'Spare part'} description={s?.stock_code}
       footer={s && <DetailActions onDelete={() => onDelete(s)} onClose={onClose} onEdit={() => onEdit(s)} primary="edit"><Button icon="cart" onClick={() => onAddToRequisition(s)}>Add to requisition</Button></DetailActions>}
     >
       {s && st && pr && (

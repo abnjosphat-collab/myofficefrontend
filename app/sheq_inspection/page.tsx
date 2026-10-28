@@ -5,7 +5,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -108,7 +108,7 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={inspection ? 'Edit inspection' : 'New inspection'} description="Title, inspector, location, date and time are required." submitLabel={inspection ? 'Save changes' : 'Create inspection'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={inspection ? 'Edit inspection' : 'New inspection'} description="Title, inspector, location, date and time are required." submitLabel={inspection ? 'Save changes' : 'Create inspection'} onSubmit={submit} size="lg" zoomId={inspection ? undefined : 'sheq_inspection:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="si-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="si-basic" className="font-display text-section font-semibold text-ink sm:col-span-2">Inspection</h3>
@@ -167,6 +167,7 @@ function DetailDialog({ inspection, onClose, onEdit, onDelete }: { inspection: S
       title="Inspection report"
       description={inspection ? `${inspection.title}, ${formatDate(inspection.date)}` : undefined}
       size="lg"
+      zoomId={inspection ? `sheq_inspection:rec:${inspection.id}` : undefined}
       footer={inspection && (
         <DetailActions onDelete={() => onDelete(inspection)} onClose={onClose} onEdit={() => onEdit(inspection)} />
       )}
@@ -280,6 +281,7 @@ function InspectionContent() {
       && (!dateFrom || i.date >= dateFrom) && (!dateTo || i.date <= dateTo));
   }, [inspections, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (i, id) => (id === 'findings' ? String(i.findings?.length || 0).padStart(4, '0') : String(i[id as keyof SHEQFormData] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, dateFrom, dateTo, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
   const pending = loading && !loaded;
@@ -310,7 +312,7 @@ function InspectionContent() {
         description={scope ? `Safety, health, environment and quality compliance tracking. \u2014 showing ${scope} only.` : 'Safety, health, environment and quality compliance tracking.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>
+            <ZoomLink zoomId="sheq_inspection:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button></ZoomLink>
           </>
         )}
       />
@@ -363,19 +365,20 @@ function InspectionContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No inspections match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="compliance" title={`No ${scope} inspections yet`} description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} /> : <EmptyState icon="compliance" title="No inspections yet" description="Create the first inspection to get started." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button>} />}
+          : scope ? <EmptyState icon="compliance" title={`No ${scope} inspections yet`} description="Create the first inspection to get started." action={<ZoomLink zoomId="sheq_inspection:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button></ZoomLink>} /> : <EmptyState icon="compliance" title="No inspections yet" description="Create the first inspection to get started." action={<ZoomLink zoomId="sheq_inspection:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New inspection</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'inspection' : 'inspections'}{filtered.length !== inspections.length ? ` of ${inspections.length}` : ''} · {stats.critical} critical {stats.critical === 1 ? 'finding' : 'findings'} across all inspections<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(i => {
               const findings = i.findings || [];
               const closed = findings.filter(f => f.status === 'closed').length;
               const critical = findings.filter(f => f.priority === 'critical').length;
               const photos = (i.before_photos?.length || 0) + (i.after_photos?.length || 0);
               return (
+                <MotionListItem key={i.id}>
+                <ZoomLink zoomId={`sheq_inspection:rec:${i.id}`}>
                 <RecordCard
-                  key={i.id}
                   eyebrow={`${formatDate(i.date)}${i.time ? ` at ${i.time}` : ''}`}
                   title={i.title}
                   status={<InspectionBadge status={i.status} />}
@@ -390,12 +393,15 @@ function InspectionContent() {
                   onOpen={() => setViewing(i)}
                   openLabel={`View inspection ${i.title}`}
                 />
+                </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
             caption="SHEQ inspections"
+            stillKey={listCalm}
             rows={rows}
             columns={COLUMNS}
             getRowId={i => i.id}

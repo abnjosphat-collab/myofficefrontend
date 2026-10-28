@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink } from '@/components/ui-system';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { apiCreate, apiDelete, apiUpdate } from './api';
 import { CategoryPanel } from './CategoryPanel';
@@ -51,6 +51,7 @@ function SparesContent() {
   const viewing = useMemo(() => spares.find(s => s.id === viewingId) ?? null, [spares, viewingId]);
   const matches = useMemo(() => sortSpares(filterSpares(spares, f, favourites), sort, dir, favourites), [spares, f, favourites, sort, dir]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
+  const listCalm = JSON.stringify([f, sort, dir, page]);
   const stats = useMemo(() => summarise(spares), [spares]);
   const breakdown = useMemo(() => categoryBreakdown(spares), [spares]);
   const categories = useMemo(() => [{ value: ALL, label: 'All categories' }, ...[...new Set(spares.flatMap(categoriesOf))].sort().map(c => ({ value: c, label: c }))], [spares]);
@@ -102,7 +103,7 @@ function SparesContent() {
               { label: `Requisition${filled(lines).length ? ` (${filled(lines).length})` : ''}`, icon: 'cart', onSelect: () => setReqOpen(true) },
               { label: 'Import Excel', icon: 'upload', onSelect: () => router.push('/spares/import') },
             ]} />
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ spare: null })}>Add spare</Button>
+            <ZoomLink zoomId="spares:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ spare: null })}>Add spare</Button></ZoomLink>
           </>
         )}
       />
@@ -142,23 +143,25 @@ function SparesContent() {
         status={status} subject="spares" error={list.error} onRetry={() => list.refetch()}
         empty={filtered
           ? <EmptyState icon="search" title="No parts match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
-          : <EmptyState icon="spares" title="No spare parts yet" description="Add the first one, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ spare: null })}>Add spare</Button>} />}
+          : <EmptyState icon="spares" title="No spare parts yet" description="Add the first one, or import a spreadsheet." action={<ZoomLink zoomId="spares:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ spare: null })}>Add spare</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'part' : 'parts'}{matches.length !== spares.length ? ` of ${spares.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Spare parts">
+          <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Spare parts">
             {visible.map(s => (
-              <li key={s.id} className="relative">
+              <MotionListItem as="li" key={s.id} className="relative">
+                <ZoomLink zoomId={`spares:rec:${s.id}`}>
                 <RecordCard
                   eyebrow={s.stock_code} title={s.description} openLabel={`Open ${s.stock_code}, ${s.description}`} onOpen={() => setViewingId(s.id)} status={badges(s)}
                   facts={[{ label: 'On hand', value: <span className="tabular">{s.current_quantity} {s.unit_of_measure || 'UN'}, min {s.min_quantity}</span> }, { label: 'Price', value: <span className="tabular">{formatCurrency(s.unit_price)}</span> }, ...(categoriesOf(s).length ? [{ label: 'Category', value: categoriesOf(s).join(', ') }] : []), ...(s.storage_location ? [{ label: 'Location', value: s.storage_location }] : [])]}
                   action={actionsOf(s)}
                 />
-              </li>
+                </ZoomLink>
+              </MotionListItem>
             ))}
-          </ul>
+          </MotionList>
         ) : (
-          <DataTable caption="Spare parts" rows={visible} columns={COLUMNS} getRowId={s => String(s.id)} onRowActivate={s => setViewingId(s.id)} rowActions={actionsOf} />
+          <DataTable stillKey={listCalm} caption="Spare parts" rows={visible} columns={COLUMNS} getRowId={s => String(s.id)} onRowActivate={s => setViewingId(s.id)} rowActions={actionsOf} />
         )}
         {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>
