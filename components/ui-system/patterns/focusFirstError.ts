@@ -13,6 +13,9 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
  * prefers-reduced-motion (the same matchMedia idiom as FormDialog's banner
  * scroll). Returns whether focus moved.
  */
+/** Fired (bubbling, detail = the focused control) when a refused submit lands on the first error. That field's error icon wiggles once. */
+export const FIRST_ERROR_EVENT = 'mo:first-error';
+
 export function focusFirstInvalid(root: HTMLElement | null): boolean {
   if (!root || typeof document === 'undefined') return false;
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -22,6 +25,7 @@ export function focusFirstInvalid(root: HTMLElement | null): boolean {
     el.focus({ preventScroll: true });
     if (document.activeElement !== el) continue;
     el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    el.dispatchEvent(new CustomEvent<HTMLElement>(FIRST_ERROR_EVENT, { bubbles: true, detail: el }));
     return true;
   }
   return false;

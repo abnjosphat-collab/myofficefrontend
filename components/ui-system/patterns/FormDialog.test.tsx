@@ -55,6 +55,54 @@ describe('FormDialog save failure', () => {
   });
 });
 
+describe('FormDialog saved hold', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows the check before closing, within the 0.3 s budget', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const onSaved = vi.fn();
+    render(
+      <ConfirmProvider>
+        <FormDialog open onOpenChange={onOpenChange} title="Add" submitLabel="Save" onSubmit={async () => {}} onSaved={onSaved}>
+          <Field label="Name"><Input /></Field>
+        </FormDialog>
+      </ConfirmProvider>
+    );
+    const start = Date.now();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    // The dialog lives in a portal, so the swap is queried document-wide.
+    await waitFor(() => expect(document.querySelector('[data-motion-swap="replace"]')).toBeInTheDocument());
+    // The check is visible while the dialog is still open.
+    expect(onOpenChange).not.toHaveBeenCalled();
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(Date.now() - start).toBeLessThan(3000);
+    expect(onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('shows no check on a refused submit', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfirmProvider>
+        <FormDialog open onOpenChange={() => {}} title="Add" submitLabel="Save" onSubmit={async () => false}>
+          <Field label="Name" error="Enter the name."><Input /></Field>
+        </FormDialog>
+      </ConfirmProvider>
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Name')));
+    expect(document.querySelector('[data-motion-swap]')).toBeNull();
+    // …but the first error's icon is told to wiggle.
+    expect(document.querySelector('[data-wiggle-trigger="1"]')).toBeInTheDocument();
+  });
+});
+
 describe('FormDialog refused submit', () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();

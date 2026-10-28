@@ -34,6 +34,17 @@ describe('focusFirstInvalid', () => {
     vi.restoreAllMocks();
   });
 
+  it('announces the focused control so its error icon wiggles once', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<TwoInvalid />);
+    const root = screen.getByRole('form', { name: 'probe' });
+    const heard: Array<EventTarget | null> = [];
+    window.addEventListener('mo:first-error', event => heard.push((event as CustomEvent).detail));
+    expect(focusFirstInvalid(root)).toBe(true);
+    expect(heard).toEqual([screen.getByLabelText('First')]);
+    vi.restoreAllMocks();
+  });
+
   it('skips an invalid control the browser refuses to focus', () => {
     Element.prototype.scrollIntoView = vi.fn();
     render(

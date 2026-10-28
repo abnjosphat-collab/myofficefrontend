@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useId, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
-import { Icon } from '../foundations/Icon';
+import { AnimatedIcon } from '../motion/AnimatedIcon';
+import { FIRST_ERROR_EVENT } from '../patterns/focusFirstError';
 
 type FieldIds = { inputId: string; descriptionId: string; errorId: string; hasError: boolean; hasDescription: boolean; isRequired: boolean };
 const FieldContext = createContext<FieldIds | null>(null);
@@ -33,6 +34,31 @@ const labelText = 'font-sans text-label font-medium text-ink';
 const hintText = 'font-sans text-caption text-ink-muted';
 const errorText = 'flex items-start gap-1.5 font-sans text-caption font-medium text-danger';
 const requiredMark = <span aria-hidden="true" className="ml-0.5 text-danger">*</span>;
+
+/**
+ * The error icon: wiggles once when a refused submit lands focus inside its
+ * own field (the `mo:first-error` event carries the focused control; only the
+ * field that contains it answers, so the first error wiggles alone). Static
+ * otherwise — and always static under reduced motion.
+ */
+function ErrorWiggle() {
+  const [trigger, setTrigger] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const onFirstError = (event: Event) => {
+      const target = (event as CustomEvent<HTMLElement>).detail;
+      const host = ref.current?.closest('[data-field]');
+      if (target instanceof HTMLElement && host?.contains(target)) setTrigger(t => t + 1);
+    };
+    window.addEventListener(FIRST_ERROR_EVENT, onFirstError);
+    return () => window.removeEventListener(FIRST_ERROR_EVENT, onFirstError);
+  }, []);
+  return (
+    <span ref={ref} data-wiggle-trigger={trigger} className="mt-0.5 inline-flex">
+      <AnimatedIcon name="warning" effect="wiggle" trigger={trigger} size="xs" weight="emphasis" />
+    </span>
+  );
+}
 const optionalMark = <span aria-hidden="true" className="ml-1.5 font-normal text-ink-muted"> Optional</span>;
 
 export interface FieldProps {
@@ -69,7 +95,7 @@ export function Field({ label, description, error, required, optional, className
   };
   return (
     <FieldContext.Provider value={ids}>
-      <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+      <div data-field="" className={cn('flex min-w-0 flex-col gap-1.5', className)}>
         <label htmlFor={ids.inputId} className={cn(labelText, labelClassName)}>
           {label}
           {required && requiredMark}
@@ -79,7 +105,7 @@ export function Field({ label, description, error, required, optional, className
         {description && <p id={ids.descriptionId} className={hintText}>{description}</p>}
         {error && (
           <p id={ids.errorId} role="alert" className={errorText}>
-            <Icon name="warning" size="xs" weight="emphasis" className="mt-0.5" />
+            <ErrorWiggle />
             <span>{error}</span>
           </p>
         )}
@@ -113,7 +139,7 @@ export function FieldGroup({ label, description, error, required, optional, clas
   const errorId = `${base}-group-error`;
   const describedBy = [description ? descriptionId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined;
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={describedBy} className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+    <div role="group" data-field="" aria-labelledby={labelId} aria-describedby={describedBy} className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <span id={labelId} className={labelText}>
         {label}
         {required && requiredMark}
@@ -123,7 +149,7 @@ export function FieldGroup({ label, description, error, required, optional, clas
       {description && <p id={descriptionId} className={hintText}>{description}</p>}
       {error && (
         <p id={errorId} role="alert" className={errorText}>
-          <Icon name="warning" size="xs" weight="emphasis" className="mt-0.5" />
+          <ErrorWiggle />
           <span>{error}</span>
         </p>
       )}

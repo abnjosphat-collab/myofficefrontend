@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { SAVE_CHECK_MS } from '../motion/presets';
 import { Button } from '../primitives/Button';
 import { MarkDirtyProvider } from '../primitives/Field';
 import { Dialog, type DialogProps } from '../overlays/Dialog';
@@ -38,8 +39,13 @@ export interface FormDialogProps extends Pick<DialogProps, 'open' | 'onOpenChang
 export function FormDialog({ open, onOpenChange, title, description, size = 'md', submitLabel, onSubmit, onSaved, secondaryAction, dirty: dirtyProp, zoomId, children }: FormDialogProps) {
   const formId = useId();
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (holdTimer.current !== null) clearTimeout(holdTimer.current);
+  }, []);
   // A refused submit (validation failed in the fields) moves focus to the
   // first invalid field after the errors paint; thrown errors keep the
   // banner scroll below.
@@ -47,7 +53,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
   // Unsaved work: typed input (bubbled change events, except search boxes
   // and picker search text) plus custom-control commits via useMarkDirty.
   const [autoDirty, setAutoDirty] = useState(false);
-  useEffect(() => { if (open) setAutoDirty(false); }, [open]);
+  useEffect(() => { if (open) { setAutoDirty(false); setSaved(false); } }, [open]);
   const markDirty = useCallback(() => setAutoDirty(true), []);
   const markIfData = (event: FormEvent) => {
     const target = event.target as HTMLElement | null;
@@ -78,6 +84,11 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
     try {
       const result = await onSubmit();
       if (result === false) { refused(); return; }
+      // The check shows before the dialog leaves (held 0.25 s, within the
+      // 0.3 s budget); dismissal and double submit stay blocked meanwhile.
+      setSaved(true);
+      await new Promise(resolve => { holdTimer.current = setTimeout(resolve, SAVE_CHECK_MS); });
+      holdTimer.current = null;
       onOpenChange(false);
       onSaved?.();
     } catch (e) {
@@ -100,7 +111,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
         <>
           {secondaryAction}
           <Button onClick={() => close(false)} disabled={saving}>Cancel</Button>
-          <Button variant="primary" type="submit" form={formId} pending={saving}>{submitLabel}</Button>
+          <Button variant="primary" type="submit" form={formId} pending={saving && !saved} success={saved}>{submitLabel}</Button>
         </>
       )}
     >

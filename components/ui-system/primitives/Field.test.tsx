@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Field, FieldGroup } from './Field';
 import { Input } from './Input';
+import { FIRST_ERROR_EVENT } from '../patterns/focusFirstError';
 
 const describedByTargets = (el: HTMLElement) =>
   (el.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map(id => document.getElementById(id));
@@ -44,6 +45,36 @@ describe('Field', () => {
     const label = document.querySelector('label');
     expect(label?.className).toContain('sr-only');
     expect(screen.getByLabelText('Add a progress update')).not.toBeNull();
+  });
+});
+
+describe('ErrorWiggle', () => {
+  it('wiggles only the field that holds the focused control', () => {
+    const { container } = render(
+      <>
+        <Field label="First" error="Enter the first."><Input /></Field>
+        <Field label="Second" error="Enter the second."><Input /></Field>
+      </>,
+    );
+    const wiggles = () => [...container.querySelectorAll('[data-wiggle-trigger]')].map(el => el.getAttribute('data-wiggle-trigger'));
+    expect(wiggles()).toEqual(['0', '0']);
+    const second = screen.getByLabelText('Second');
+    fireEvent(second, new CustomEvent(FIRST_ERROR_EVENT, { bubbles: true, detail: second }));
+    expect(wiggles()).toEqual(['0', '1']);
+  });
+
+  it('ignores first-error events from outside any field', () => {
+    const { container } = render(
+      <Field label="First" error="Enter the first."><Input /></Field>,
+    );
+    const outsider = document.createElement('input');
+    document.body.appendChild(outsider);
+    try {
+      fireEvent(outsider, new CustomEvent(FIRST_ERROR_EVENT, { bubbles: true, detail: outsider }));
+      expect(container.querySelector('[data-wiggle-trigger]')).toHaveAttribute('data-wiggle-trigger', '0');
+    } finally {
+      outsider.remove();
+    }
   });
 });
 

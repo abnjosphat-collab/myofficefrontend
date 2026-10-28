@@ -79,7 +79,7 @@ export { ChartPanel } from './patterns/ChartPanel';
 export { Distribution } from './patterns/Distribution';
 export { FormDialog } from './patterns/FormDialog';
 export type { FormDialogProps } from './patterns/FormDialog';
-export { focusFirstInvalid, useRefusedSubmit } from './patterns/focusFirstError';
+export { focusFirstInvalid, useRefusedSubmit, FIRST_ERROR_EVENT } from './patterns/focusFirstError';
 export { useDismissGuard } from './patterns/FormGuard';
 export { chartTheme, chartColor } from './foundations/chartTheme';
 export type { DestinationResult } from './patterns/DestinationSearch';
