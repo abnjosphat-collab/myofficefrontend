@@ -53,7 +53,7 @@ const spec = {
     check(await page.locator('[data-zoom-panel="gallery:new-order"]').getAttribute('data-zoom-mode') === 'zoom', 'the New button grows into its form');
     await page.keyboard.press('Escape');
     await formZoom.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-    await page.getByRole('button', { name: 'Open drawer record' }).click();
+    await page.getByRole('button', { name: 'Open the zoom drawer' }).click();
     const drawerZoom = page.getByRole('dialog', { name: 'Drawer record' });
     await drawerZoom.waitFor({ timeout: 5000 });
     check(await page.locator('[data-zoom-panel="gallery:drawer:1"]').getAttribute('data-zoom-mode') === 'zoom', 'the drawer zoom grows out of its source');

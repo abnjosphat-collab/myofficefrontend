@@ -35,7 +35,7 @@ export function ZoomSection() {
         <div>
           <p className="mb-2 font-sans text-label font-medium text-ink">Card → drawer</p>
           <ZoomLink zoomId="gallery:drawer:1" className="inline-block">
-            <Button size="sm" onClick={() => setDrawer(true)}>Open drawer record</Button>
+            <Button size="sm" onClick={() => setDrawer(true)}>Open the zoom drawer</Button>
           </ZoomLink>
         </div>
         <div>
