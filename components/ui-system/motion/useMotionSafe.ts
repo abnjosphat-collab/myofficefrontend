@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useReducedMotionConfig, type Transition } from 'framer-motion';
 import { FADE, SPRING, type SpringPreset } from './presets';
 
@@ -11,7 +12,14 @@ import { FADE, SPRING, type SpringPreset } from './presets';
  * provider the OS setting decides.
  */
 export function useIsReducedMotion(): boolean {
-  return useReducedMotionConfig() !== false;
+  const config = useReducedMotionConfig();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  // Framer reports the setting as unknown during SSR, so the server always renders the reduced shape; the first
+  // client render matches it and the real value applies after mount. Components branch their HTML on this hook,
+  // and without the gate every static use would hydrate-mismatch (React #418).
+  if (!mounted) return true;
+  return config !== false;
 }
 
 /**

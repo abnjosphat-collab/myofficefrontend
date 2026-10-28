@@ -42,4 +42,11 @@ describe('useMotionSafe (full motion)', () => {
     const wrapper = ({ children }: { children: ReactNode }) => <MotionProvider motion="always">{children}</MotionProvider>;
     expect(renderHook(() => useIsReducedMotion(), { wrapper }).result.current).toBe(true);
   });
+
+  it('reports reduced before mount (SSR renders the reduced shape, matching hydration)', async () => {
+    const { renderToString } = await import('react-dom/server');
+    const Probe = () => <>{String(useIsReducedMotion())}</>;
+    expect(renderToString(<Probe />)).toBe('true');
+    expect(renderHook(() => useIsReducedMotion()).result.current).toBe(false);
+  });
 });
