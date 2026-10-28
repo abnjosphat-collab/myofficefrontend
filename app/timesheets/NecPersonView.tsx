@@ -124,7 +124,7 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
       foot={(
         <div className="flex items-baseline justify-between gap-3">
           <p className="font-sans text-body-sm text-ink-muted">Payable total</p>
-          <p className="font-sans text-title font-semibold tabular text-action">{h(totals.total)}</p>
+          <p className="font-sans text-title font-semibold tabular text-ink">{h(totals.total)}</p>
         </div>
       )}
       footnote={footnotes || undefined}
