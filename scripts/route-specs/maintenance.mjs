@@ -167,10 +167,20 @@ const spec = {
     check(JSON.stringify(bulkCall?.body.ids) === '[1,4]' && bulkCall?.body.total_hours === 0.5, 'a bulk close sends the shared note and time for the eligible jobs only', JSON.stringify(bulkCall?.body).slice(0, 160));
     await page.getByRole('button', { name: 'Card view' }).click();
 
+    // zoom: the New button grows into its form and back
+    await page.getByRole('button', { name: 'New work order' }).click();
+    const nf = dialog('New work order');
+    await nf.waitFor({ timeout: 5000 });
+    check(await page.locator('[data-zoom-panel="maintenance:new-order"]').getAttribute('data-zoom-mode') === 'zoom', 'the New button grows into its form');
+    await page.keyboard.press('Escape');
+    await nf.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    check(await nf.count() === 0, 'cancelling the form shrinks it back into the New button');
+
     // detail: the request (with its Done shortcut), then the artisan's report
     await page.getByRole('button', { name: /^Open work order WO-00002/ }).click();
     const d = dialog('Work order WO-00002');
     await d.waitFor({ timeout: 5000 });
+    check(await page.locator('[data-zoom-panel="maintenance:order:2"]').getAttribute('data-zoom-mode') === 'zoom', 'the card grows into its detail');
     check(await d.getByRole('tab', { name: 'Artisan report' }).getAttribute('aria-selected') === 'true', 'the detail opens on the artisan report');
     await d.getByRole('button', { name: 'Done', exact: true }).click();
     const qcd = dialog('Done: WO-00002');
