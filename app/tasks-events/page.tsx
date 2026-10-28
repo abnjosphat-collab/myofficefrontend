@@ -8,7 +8,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -69,6 +69,7 @@ function Board({ completedBy }: { completedBy: string }) {
       && (!overdueOnly || isOverdue(i)) && (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q)));
   }, [items, statusF, typeF, priorityF, overdueOnly, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof TaskEvent] ?? '').toLowerCase()), [filtered, sort]);
+  const listCalm = JSON.stringify([search, statusF, typeF, priorityF, overdueOnly, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
   const pending = loading && !loaded;
@@ -110,7 +111,7 @@ function Board({ completedBy }: { completedBy: string }) {
         description="Upcoming events and to-dos in one list, checked off when done."
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button>
+            <ZoomLink zoomId="tasks-events:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>New</Button></ZoomLink>
           </>
         )}
       />
@@ -160,10 +161,11 @@ function Board({ completedBy }: { completedBy: string }) {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="Nothing matches" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="task" title="Nothing on the board yet" description="Add the first event or task." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>New</Button>} />}
+          : <EmptyState icon="task" title="Nothing on the board yet" description="Add the first event or task." action={<ZoomLink zoomId="tasks-events:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>New</Button></ZoomLink>} />}
       >
         <DataTable
           caption="Events and tasks"
+          stillKey={listCalm}
           rows={rows}
           columns={COLUMNS}
           getRowId={i => String(i.id)}
@@ -177,7 +179,7 @@ function Board({ completedBy }: { completedBy: string }) {
       </DataRegion>
 
       <ItemDetailsDialog item={viewing} author={completedBy} onClose={() => setViewingId(null)} onEdit={openForm} onDelete={remove} onToggle={i => { toggle(i); }} />
-      <ItemFormDialog open={formOpen} item={editing} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} />
+      <ItemFormDialog open={formOpen} item={editing} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} zoomId={editing ? undefined : 'tasks-events:new'} />
     </div>
   );
 }

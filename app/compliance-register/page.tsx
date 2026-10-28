@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
   Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented,
-  StatusBadge, Tag, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
+  StatusBadge, Tag, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
@@ -79,7 +79,7 @@ function AddItemDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="Add compliance item" description="Equipment name and expiry date are required." submitLabel="Add to register" onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Add compliance item" description="Equipment name and expiry date are required." submitLabel="Add to register" onSubmit={submit} zoomId="compliance-register:new">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Equipment name" required error={touched && !form.equipment_name.trim() ? 'Enter the equipment name.' : undefined}>
           <Input value={form.equipment_name} onChange={event => set({ equipment_name: event.target.value })} />
@@ -113,6 +113,7 @@ function ComplianceRegisterContent() {
   const loaded = records.length > 0 || (!loading && !error);
   const displayed = useMemo(() => (filter === 'all' ? records : records.filter(i => i.status === filter)), [records, filter]);
   const rows = useMemo(() => sortRows(displayed, sort, sortValue), [displayed, sort]);
+  const listCalm = JSON.stringify([filter, sort]);
   const counts = { current: records.filter(i => i.status === 'current').length, due_soon: records.filter(i => i.status === 'due_soon').length, overdue: records.filter(i => i.status === 'overdue').length };
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
   const pending = loading && !loaded;
@@ -132,7 +133,7 @@ function ComplianceRegisterContent() {
         description={scope ? `Regulatory certificates and inspection tracking. — showing ${scope} only.` : 'Regulatory certificates and inspection tracking.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>
+            <ZoomLink zoomId="compliance-register:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button></ZoomLink>
           </>
         )}
       />
@@ -165,9 +166,9 @@ function ComplianceRegisterContent() {
         onRetry={() => refetch()}
         empty={filter !== 'all'
           ? <EmptyState icon="search" title={`No ${STATUS_META[filter as Status].label.toLowerCase()} items`} description="Choose a different status to see other items." action={<Button onClick={() => setFilter('all')}>Show all</Button>} />
-          : scope ? <EmptyState icon="compliance" title={`No ${scope} items registered yet`} description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} /> : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button>} />}
+          : scope ? <EmptyState icon="compliance" title={`No ${scope} items registered yet`} description="Add the first certificate or inspection to start tracking expiry dates." action={<ZoomLink zoomId="compliance-register:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button></ZoomLink>} /> : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<ZoomLink zoomId="compliance-register:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button></ZoomLink>} />}
       >
-        <DataTable caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
+        <DataTable stillKey={listCalm} caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>
 
       <AddItemDialog open={adding} onOpenChange={setAdding} onCreate={createItem} />

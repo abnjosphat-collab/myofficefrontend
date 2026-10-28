@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -99,7 +99,7 @@ export function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisit
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={req ? `Edit ${req.requisitionNumber}` : 'New purchase requisition'} description="Requester, date and at least one described item are required." submitLabel={req ? 'Save changes' : 'Create requisition'} onSubmit={submit} size="xl">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={req ? `Edit ${req.requisitionNumber}` : 'New purchase requisition'} description="Requester, date and at least one described item are required." submitLabel={req ? 'Save changes' : 'Create requisition'} onSubmit={submit} size="xl" zoomId={req ? undefined : 'requisitions:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="rq-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <h3 id="rq-basic" className="font-display text-section font-semibold text-ink sm:col-span-3">Requisition</h3>
@@ -214,6 +214,7 @@ function RequisitionsContent() {
       && (!q || r.requester.toLowerCase().includes(q) || r.requisitionNumber.toLowerCase().includes(q) || r.required_for.toLowerCase().includes(q) || r.items.some(i => i.description.toLowerCase().includes(q))));
   }, [reqs, statusF, priorityF, effSection, dateFrom, dateTo, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'cost' ? String(Math.round(itemTotal(r.items) * 100)).padStart(14, '0') : String(r[id as keyof Requisition] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, priorityF, dateFrom, dateTo, sort, tab]);
   const sum = (list: Requisition[]) => list.reduce((s, r) => s + itemTotal(r.items), 0);
   const stats = useMemo(() => ({ total: filtered.length, value: sum(filtered), pending: filtered.filter(r => r.status === 'Pending').length, approved: filtered.filter(r => r.status === 'Approved').length, critical: filtered.filter(r => r.priority === 'Critical').length }), [filtered]);
   const byStatus = STATUSES.map(s => { const l = filtered.filter(r => r.status === s); return { id: s, status: s, count: l.length, value: sum(l) }; }).filter(r => r.count > 0);
@@ -249,7 +250,7 @@ function RequisitionsContent() {
         description={scope ? `Raise, track and approve purchase requests. \u2014 showing ${scope} only.` : 'Raise, track and approve purchase requests.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button>
+            <ZoomLink zoomId="requisitions:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New requisition</Button></ZoomLink>
           </>
         )}
       />
@@ -295,7 +296,7 @@ function RequisitionsContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No requisitions match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="requisition" title={`No ${scope} requisitions yet`} description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} /> : <EmptyState icon="requisition" title="No requisitions yet" description="Create the first purchase requisition." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button>} />}
+          : scope ? <EmptyState icon="requisition" title={`No ${scope} requisitions yet`} description="Create the first purchase requisition." action={<ZoomLink zoomId="requisitions:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button></ZoomLink>} /> : <EmptyState icon="requisition" title="No requisitions yet" description="Create the first purchase requisition." action={<ZoomLink zoomId="requisitions:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New requisition</Button></ZoomLink>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Requisition views">
@@ -306,6 +307,7 @@ function RequisitionsContent() {
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'requisition' : 'requisitions'}{filtered.length !== reqs.length ? ` of ${reqs.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Purchase requisitions"
+              stillKey={listCalm}
               rows={rows}
               columns={COLUMNS}
               getRowId={r => r.id}

@@ -6,7 +6,7 @@ import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'rec
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
@@ -66,7 +66,7 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={complaint ? 'Edit complaint' : 'New safety complaint'} description="The date and the issue raised are required." submitLabel={complaint ? 'Save changes' : 'Submit complaint'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={complaint ? 'Edit complaint' : 'New safety complaint'} description="The date and the issue raised are required." submitLabel={complaint ? 'Save changes' : 'Submit complaint'} onSubmit={submit} size="lg" zoomId={complaint ? undefined : 'safety_complaints:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></Field>
         <div className="sm:col-span-2"><Field label="Raised by" optional description="Leave blank if raised anonymously."><Input value={form.raisedBy} onChange={e => set('raisedBy', e.target.value)} placeholder="Name of the person raising it" /></Field></div>
@@ -233,6 +233,7 @@ function SafetyComplaintsContent() {
       && (!s || [c.issueRaised, c.raisedBy, c.supervisorName, c.byWho, c.location, c.category].some(v => (v || '').toLowerCase().includes(s))));
   }, [complaints, search, statusF, effSection, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'priority' ? String(PRIORITIES.indexOf(c.priority)) : String(c[id as keyof Complaint] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo, sort, tab]);
   // Analytics and the tiles read the filtered list, so a filter picked on Records is visible everywhere.
   const stats = useMemo(() => {
     const n = (s: string) => filtered.filter(c => c.status === s).length;
@@ -274,7 +275,7 @@ function SafetyComplaintsContent() {
         description={scope ? `Register, track and resolve safety complaints with full accountability. \u2014 showing ${scope} only.` : 'Register, track and resolve safety complaints with full accountability.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>
+            <ZoomLink zoomId="safety_complaints:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button></ZoomLink>
           </>
         )}
       />
@@ -323,7 +324,7 @@ function SafetyComplaintsContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No complaints match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="flag" title={`No ${scope} safety complaints yet`} description="Log the first complaint to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>} /> : <EmptyState icon="flag" title="No safety complaints yet" description="Log the first complaint to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button>} />}
+          : scope ? <EmptyState icon="flag" title={`No ${scope} safety complaints yet`} description="Log the first complaint to start the register." action={<ZoomLink zoomId="safety_complaints:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button></ZoomLink>} /> : <EmptyState icon="flag" title="No safety complaints yet" description="Log the first complaint to start the register." action={<ZoomLink zoomId="safety_complaints:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New complaint</Button></ZoomLink>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Safety complaint views">
@@ -334,6 +335,7 @@ function SafetyComplaintsContent() {
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'complaint' : 'complaints'}{filtered.length !== complaints.length ? ` of ${complaints.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Safety complaints"
+              stillKey={listCalm}
               rows={rows}
               columns={COLUMNS}
               getRowId={c => c.id}

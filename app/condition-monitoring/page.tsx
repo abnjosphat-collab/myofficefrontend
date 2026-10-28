@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
 import {
   Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select,
-  StatusBadge, Tag, Textarea, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
+  StatusBadge, Tag, Textarea, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -72,7 +72,7 @@ function AddReadingDialog({ open, onOpenChange, onCreated }: { open: boolean; on
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="Add reading" description="Equipment and date are required." submitLabel="Save reading" onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Add reading" description="Equipment and date are required." submitLabel="Save reading" onSubmit={submit} zoomId="condition-monitoring:new">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Equipment" required error={touched && !form.equipment.trim() ? 'Enter the equipment.' : undefined}>
           <SuggestField historyKey="cm_equipment" placeholder="Equipment name" value={form.equipment} onChange={equipment => set({ equipment })} />
@@ -107,6 +107,7 @@ function ConditionMonitoringContent() {
 
   const displayed = useMemo(() => (tab === 'All' ? readings : readings.filter(r => r.type === tab)), [readings, tab]);
   const rows = useMemo(() => sortRows(displayed, sort, (r, id) => (typeof r[id as keyof CMReading] === 'string' ? String(r[id as keyof CMReading]).toLowerCase() : r[id as keyof CMReading])), [displayed, sort]);
+  const listCalm = JSON.stringify([tab, sort]);
   const counts = { total: readings.length, critical: readings.filter(r => r.result === 'critical').length, caution: readings.filter(r => r.result === 'caution').length, normal: readings.filter(r => r.result === 'normal').length };
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
   const pending = loading && !loaded;
@@ -120,7 +121,7 @@ function ConditionMonitoringContent() {
         description={scope ? `Oil analysis, vibration and thermography records. — showing ${scope} only.` : 'Oil analysis, vibration and thermography records.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>
+            <ZoomLink zoomId="condition-monitoring:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button></ZoomLink>
           </>
         )}
       />
@@ -154,9 +155,9 @@ function ConditionMonitoringContent() {
         onRetry={() => fetchReadings()}
         empty={tab !== 'All'
           ? <EmptyState icon="search" title={`No ${TYPE_LABEL[tab].toLowerCase()} readings`} description="Choose a different type to see other readings." action={<Button onClick={() => setTab('All')}>Show all types</Button>} />
-          : scope ? <EmptyState icon="analytics" title={`No ${scope} readings yet`} description="Add the first oil analysis, vibration or thermography reading." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>} /> : <EmptyState icon="analytics" title="No readings yet" description="Add the first oil analysis, vibration or thermography reading." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button>} />}
+          : scope ? <EmptyState icon="analytics" title={`No ${scope} readings yet`} description="Add the first oil analysis, vibration or thermography reading." action={<ZoomLink zoomId="condition-monitoring:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button></ZoomLink>} /> : <EmptyState icon="analytics" title="No readings yet" description="Add the first oil analysis, vibration or thermography reading." action={<ZoomLink zoomId="condition-monitoring:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button></ZoomLink>} />}
       >
-        <DataTable caption="Condition monitoring records" rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} />
+        <DataTable stillKey={listCalm} caption="Condition monitoring records" rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>
 
       <AddReadingDialog open={adding} onOpenChange={setAdding} onCreated={fetchReadings} />

@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
@@ -76,7 +76,7 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit near miss report' : 'New near miss report'} description="Department, location and a description are required." submitLabel={report ? 'Save changes' : 'Submit report'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit near miss report' : 'New near miss report'} description="Department, location and a description are required." submitLabel={report ? 'Save changes' : 'Submit report'} onSubmit={submit} size="lg" zoomId={report ? undefined : 'near_miss:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Department" required error={errors.department}>
           <SuggestField historyKey="nm_department" placeholder="For example, Engineering" value={form.department} onChange={v => set('department', v)} />
@@ -171,6 +171,7 @@ function NearMissContent() {
       && (!dateTo || r.date <= dateTo));
   }, [reports, search, effSection, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof NearMissReport] ?? '').toLowerCase()), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, dateFrom, dateTo, sort]);
   const stats = useMemo(() => {
     const by = (s: Section) => reports.filter(r => r.section === s).length;
     return { total: reports.length, mechanical: by('Mechanical'), electrical: by('Electrical'), general: by('General'), reporters: new Set(reports.map(r => r.reporterName?.trim()).filter(Boolean)).size };
@@ -208,7 +209,7 @@ function NearMissContent() {
         description={scope ? `Report dangerous occurrences. Every report helps prevent a future incident. \u2014 showing ${scope} only.` : 'Report dangerous occurrences. Every report helps prevent a future incident.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>
+            <ZoomLink zoomId="near_miss:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button></ZoomLink>
           </>
         )}
       />
@@ -260,11 +261,12 @@ function NearMissContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No reports match" description="Try a different search, section or date range." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="warning" title={`No ${scope} near miss reports yet`} description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} /> : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button>} />}
+          : scope ? <EmptyState icon="warning" title={`No ${scope} near miss reports yet`} description="Submit the first report to start the register." action={<ZoomLink zoomId="near_miss:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button></ZoomLink>} /> : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<ZoomLink zoomId="near_miss:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         <DataTable
           caption="Near miss reports"
+          stillKey={listCalm}
           rows={rows}
           columns={COLUMNS}
           getRowId={r => r.id}

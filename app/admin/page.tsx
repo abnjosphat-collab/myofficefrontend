@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse, ZoomLink } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -127,7 +127,7 @@ function InviteDialog({ open, onOpenChange, caller, onInvited }: { open: boolean
     onInvited();
   };
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="Invite user" description="They receive an email to set a password and sign in." submitLabel="Send invite" onSubmit={submit} size="sm">
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Invite user" description="They receive an email to set a password and sign in." submitLabel="Send invite" onSubmit={submit} size="sm" zoomId="admin:new-invite">
       <Field label="Email" required error={touched && !email.trim() ? 'Enter an email address.' : undefined}><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" autoComplete="off" /></Field>
       <div>
         <p className="mb-1.5 font-sans text-label font-medium text-ink">Role</p>
@@ -152,6 +152,7 @@ function Directory({ caller }: { caller: UserProfile }) {
     return users.filter(u => (!q || (u.full_name ?? '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) && (roleF === ALL || u.role === roleF));
   }, [users, search, roleF]);
   const rows = useMemo(() => sortRows(filtered, sort, (u, id) => (id === 'role' ? String(ROLES.indexOf(u.role)) : id === 'section' ? (profileScope(u) ?? '') : id === 'name' ? nameOf(u).toLowerCase() : String(u[id as keyof UserProfile] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, roleF, sort]);
   const counts = (r: UserRole) => users.filter(u => u.role === r).length;
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -183,7 +184,7 @@ function Directory({ caller }: { caller: UserProfile }) {
         actions={(
           <>
             <Button asChild variant="ghost"><Link href="/admin/lists">Manage shared lists</Link></Button>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setInviteOpen(true)}>Invite user</Button>
+            <ZoomLink zoomId="admin:new-invite" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => setInviteOpen(true)}>Invite user</Button></ZoomLink>
           </>
         )}
       />
@@ -207,11 +208,12 @@ function Directory({ caller }: { caller: UserProfile }) {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No matching users" description="Try a different search or role." action={<Button onClick={() => { setSearch(''); setRoleF(ALL); }}>Clear filters</Button>} />
-          : <EmptyState icon="user" title="No users found" description="Invite the first user to get started." action={<Button variant="primary" icon="plus" onClick={() => setInviteOpen(true)}>Invite user</Button>} />}
+          : <EmptyState icon="user" title="No users found" description="Invite the first user to get started." action={<ZoomLink zoomId="admin:new-invite" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setInviteOpen(true)}>Invite user</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'user' : 'users'}{filtered.length !== users.length ? ` of ${users.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         <DataTable
           caption="User accounts"
+          stillKey={listCalm}
           rows={rows}
           columns={COLUMNS}
           getRowId={u => u.id}

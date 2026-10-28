@@ -14,8 +14,8 @@ import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 const blank = (): TaskEventFormData => ({ title: '', description: '', task_type: 'Task', event_date: '', due_date: '', responsible_people: [], priority: 'Medium' });
 const fromItem = (i: TaskEvent): TaskEventFormData => ({ title: i.title, description: i.description || '', task_type: i.task_type, event_date: i.event_date || '', due_date: i.due_date || '', responsible_people: i.responsible_people || [], priority: i.priority });
 
-export function ItemFormDialog({ open, item, onOpenChange, onSave }: {
-  open: boolean; item: TaskEvent | null; onOpenChange: (open: boolean) => void; onSave: (id: number | null, data: TaskEventFormData) => Promise<void>;
+export function ItemFormDialog({ open, item, onOpenChange, onSave, zoomId }: {
+  open: boolean; item: TaskEvent | null; onOpenChange: (open: boolean) => void; onSave: (id: number | null, data: TaskEventFormData) => Promise<void>; zoomId?: string;
 }) {
   const [form, setForm] = useState<TaskEventFormData>(blank);
   const [touched, setTouched] = useState(false);
@@ -30,7 +30,7 @@ export function ItemFormDialog({ open, item, onOpenChange, onSave }: {
     toast.success(item ? 'Updated.' : 'Added to the board.');
   };
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit event or task' : 'New event or task'} submitLabel={item ? 'Save changes' : 'Add to the board'} onSubmit={submit} size="md">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit event or task' : 'New event or task'} submitLabel={item ? 'Save changes' : 'Add to the board'} onSubmit={submit} size="md" zoomId={zoomId}>
       <div className="flex flex-col gap-4">
         <Field label="Title" required error={touched && noTitle ? 'Enter a title.' : undefined}><Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="What needs doing?" /></Field>
         <Field label="Description" optional><Textarea rows={3} value={form.description} onChange={e => set('description', e.target.value)} /></Field>

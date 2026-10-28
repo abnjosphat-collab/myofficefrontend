@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, EmptyState, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { latestUpdated } from '@/lib/format';
@@ -45,6 +45,7 @@ function AvailabilitiesContent() {
   const [tab, setTab] = useState('overview');
   const [editing, setEditing] = useState<AvailRecord | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const listCalm = JSON.stringify([search, eqFilter, deptFilter, catFilter, dateFrom, dateTo, period, tab]);
 
   const eqMap = useMemo(() => new Map(equipment.map(e => [String(e.id), e] as [string, Equipment])), [equipment]);
   const depts = useMemo(() => [...new Set(equipment.map(e => e.department).filter(Boolean) as string[])].sort(), [equipment]);
@@ -151,7 +152,7 @@ function AvailabilitiesContent() {
         actions={(
           <>
             <Button asChild variant="ghost"><Link href="/breakdowns">Breakdowns</Link></Button>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={openNew}>Log record</Button>
+            <ZoomLink zoomId="availabilities:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={openNew}>Log record</Button></ZoomLink>
           </>
         )}
       />
@@ -200,18 +201,18 @@ function AvailabilitiesContent() {
           onRetry={() => refresh()}
           empty={hasFilters || records.length > 0
             ? <EmptyState icon="search" title="No records in this range" description="Widen the dates or clear the filters." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-            : scope ? <EmptyState icon="gauge" title={`No ${scope} availability records yet`} description="Log the first record, or record breakdowns to have them derived." action={<Button variant="primary" icon="plus" onClick={openNew}>Log record</Button>} /> : <EmptyState icon="gauge" title="No availability records yet" description="Log the first record, or record breakdowns to have them derived." action={<Button variant="primary" icon="plus" onClick={openNew}>Log record</Button>} />}
+            : scope ? <EmptyState icon="gauge" title={`No ${scope} availability records yet`} description="Log the first record, or record breakdowns to have them derived." action={<ZoomLink zoomId="availabilities:new" className="inline-block"><Button variant="primary" icon="plus" onClick={openNew}>Log record</Button></ZoomLink>} /> : <EmptyState icon="gauge" title="No availability records yet" description="Log the first record, or record breakdowns to have them derived." action={<ZoomLink zoomId="availabilities:new" className="inline-block"><Button variant="primary" icon="plus" onClick={openNew}>Log record</Button></ZoomLink>} />}
         >
           <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'} from {fmtDate(dateFrom)} to {fmtDate(dateTo)}<UpdatedCaption at={latestUpdated(manual.updatedAt, derived.updatedAt)} /></p>
           <TabsContent value="overview">
-            <DataTable caption="Latest availability per machine" rows={summary} columns={OVERVIEW} getRowId={r => r.id} />
+            <DataTable stillKey={listCalm} caption="Latest availability per machine" rows={summary} columns={OVERVIEW} getRowId={r => r.id} />
           </TabsContent>
           <TabsContent value="period">
             <div className="mb-3 flex items-center justify-between gap-3">
               <Segmented label="Group by" value={period} onValueChange={v => setPeriod(v as Period)} options={PERIODS} />
               {periodRows.length > 0 && <DownloadButton data={periodRows as unknown as Record<string, unknown>[]} columns={periodExport} filename={`Availability_by_${period}_${dateFrom}_to_${dateTo}`} title={`Availability by ${period}`} subtitle={`${dateFrom} to ${dateTo}`} formats={['excel']} />}
             </div>
-            <DataTable caption={`Availability by ${period}`} rows={periodRows} columns={PERIOD_COLS} getRowId={r => r.periodKey} />
+            <DataTable stillKey={listCalm} caption={`Availability by ${period}`} rows={periodRows} columns={PERIOD_COLS} getRowId={r => r.periodKey} />
           </TabsContent>
           <TabsContent value="analytics">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -251,6 +252,7 @@ function AvailabilitiesContent() {
           <TabsContent value="records">
             <DataTable
               caption="Availability records"
+              stillKey={listCalm}
               rows={filtered}
               columns={RECORD_COLS}
               getRowId={r => String(r.id)}
@@ -263,7 +265,7 @@ function AvailabilitiesContent() {
         </DataRegion>
       </Tabs>
 
-      <RecordDialog open={dialogOpen} record={editing} equipment={equipment} onOpenChange={setDialogOpen} onSave={save} />
+      <RecordDialog open={dialogOpen} record={editing} equipment={equipment} onOpenChange={setDialogOpen} onSave={save} zoomId={editing ? undefined : 'availabilities:new'} />
     </div>
   );
 }

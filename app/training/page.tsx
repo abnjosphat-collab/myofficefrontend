@@ -9,7 +9,7 @@ import { todayLocal } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink } from '@/components/ui-system';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
@@ -71,7 +71,7 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={cert ? 'Edit certification' : 'Add certification'} description="Employee name, employee ID, certification and expiry date are required." submitLabel={cert ? 'Save changes' : 'Save certification'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={cert ? 'Edit certification' : 'Add certification'} description="Employee name, employee ID, certification and expiry date are required." submitLabel={cert ? 'Save changes' : 'Save certification'} onSubmit={submit} size="lg" zoomId={cert ? undefined : 'training:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><Input value={form.employee_name} onChange={e => set({ employee_name: e.target.value })} autoComplete="name" /></Field>
         <Field label="Employee ID" required error={missing(form.employee_id, 'Enter the employee ID.')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} placeholder="For example, E001" /></Field>
@@ -122,6 +122,7 @@ function TrainingContent() {
       .sort((a, b) => (STATUS_ORDER[b.status] ?? 0) - (STATUS_ORDER[a.status] ?? 0));
   }, [certs, statusFilter, deptFilter, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, statusFilter, deptFilter, sort]);
   const counts = useMemo(() => ({ total: certs.length, valid: certs.filter(c => c.status === 'Valid').length, expired: certs.filter(c => c.status === 'Expired').length, dueSoon: certs.filter(c => c.status === 'Due Soon').length }), [certs]);
   const expiring = useMemo(() => certs.filter(c => { const d = daysUntilExpiry(c.expiry_date); return d >= 0 && d <= 90; }).sort((a, b) => daysUntilExpiry(a.expiry_date) - daysUntilExpiry(b.expiry_date)), [certs]);
   const deptCompliance = useMemo(() => {
@@ -155,7 +156,7 @@ function TrainingContent() {
         description={scope ? `Employee qualifications, expiry dates and compliance — showing ${scope} only.` : 'Employee qualifications, expiry dates and compliance.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>
+            <ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>
           </>
         )}
       />
@@ -192,11 +193,12 @@ function TrainingContent() {
             onRetry={() => fetchAll()}
             empty={hasFilters
               ? <EmptyState icon="search" title="No certifications match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setStatusFilter(ALL); setDeptFilter(ALL); }}>Clear filters</Button>} />
-              : scope ? <EmptyState icon="training" title={`No ${scope} certifications yet`} description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} /> : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button>} />}
+              : scope ? <EmptyState icon="training" title={`No ${scope} certifications yet`} description="Add the first certification to start tracking expiry dates." action={<ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>} /> : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {certs.length} certifications<UpdatedCaption at={updatedAt} /></p>
             <DataTable
               caption="Certification register"
+              stillKey={listCalm}
               rows={rows}
               columns={COLUMNS}
               getRowId={c => String(c.id)}

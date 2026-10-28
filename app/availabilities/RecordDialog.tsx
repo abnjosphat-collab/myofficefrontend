@@ -15,12 +15,13 @@ type Form = { equipment_id: string; date: string; operational_hours: string; bre
 const emptyForm = (): Form => ({ equipment_id: '', date: todayLocal(), operational_hours: '24', breakdown_hours: '0', notes: '' });
 const LABEL = { success: 'Excellent', warning: 'Acceptable', danger: 'Needs attention' } as const;
 
-export function RecordDialog({ open, record, equipment, onOpenChange, onSave }: {
+export function RecordDialog({ open, record, equipment, onOpenChange, onSave, zoomId }: {
   open: boolean;
   record: AvailRecord | null;
   equipment: Equipment[];
   onOpenChange: (open: boolean) => void;
   onSave: (id: number | string | null, payload: Record<string, unknown>) => Promise<void>;
+  zoomId?: string;
 }) {
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
@@ -57,7 +58,7 @@ export function RecordDialog({ open, record, equipment, onOpenChange, onSave }: 
   const err = (isBad: boolean, text: string) => (touched && isBad ? text : undefined);
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={record ? 'Edit availability record' : 'Log availability record'} description="Operating hours and downtime for one machine on one day." submitLabel={record ? 'Save changes' : 'Save record'} onSubmit={submit} size="md">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={record ? 'Edit availability record' : 'Log availability record'} description="Operating hours and downtime for one machine on one day." submitLabel={record ? 'Save changes' : 'Save record'} onSubmit={submit} size="md" zoomId={zoomId}>
       <div className="flex flex-col gap-4">
         <Field label="Equipment" required error={err(bad.equipment, 'Choose the equipment.')} description={equipment.length === 0 ? 'The equipment list could not be loaded, so no machine can be chosen.' : undefined}>
           <Select aria-label="Equipment" placeholder="Select equipment" value={form.equipment_id} onValueChange={id => { set({ equipment_id: id }); prefill(id, form.date); }} options={equipment.map(e => ({ value: String(e.id), label: e.name }))} />
