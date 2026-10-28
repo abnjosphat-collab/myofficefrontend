@@ -363,6 +363,17 @@ Motion-and-fixes plan 5.4 slice 2 of 3 (full account in workspace `audit/motion-
 - Worktree note: backend's untracked reset SQL preserved, never run; other sessions' worktrees/server left alone. Slice 3 continues on `b4-motion-rollout` (== main).
 - Release note: cards grow into their detail and New buttons into their forms everywhere; exports and copies confirm with a check.
 
+## 8s. B4 motion rollout slice 3: behaviour-motion finish (Muse, 28 Oct 2026; merged to main, pushed and live 28 Oct 2026, tagged release-2026-10-28-b4-3)
+
+Motion-and-fixes plan 5.4 slice 3 (re-scoped per ASSUMPTIONS.md B4-28: the remaining behaviour motion, not floors/charts). Frontend main 9276011 + this record; backend untouched. No schema/data changes; no live writes.
+
+- Verified already-shipped behaviour (slices 1-2) still holds: MetricTile number roll + selected-ring fade; FormDialog first-error wiggle + submit check + 0.25 s close hold; copy buttons show the check; shell nav sliding indicator; ActiveNoticesPopup card presence (MotionList); bulk-bar presence + rolling counts with collapse-out on delete.
+- New in this slice: stillKey for the three stateful tables slice 2 missed (overtime sort, machine-history page, recently-deleted search) with full-motion remount tests; copy-check tests (lookup, noticeboard detail, requisition); documents bulk-bar single-sentence count test; ledger regen.
+- Pin/star/mute keep the documented decisions (B4-22/B4-27/B4-6): no glyph pair exists for star/pin, sound mute is a checkbox - colour + label + aria-pressed carry the state; no identical-glyph swap.
+- Gate: tsc clean, eslint 0 errors (17 pre-existing warnings), vitest 326 files/2341 tests green, docs:check clean, build green, verify-routes touched 406 pass/0 fail, a11y touched pass except pre-existing /issues nested-interactive (B5). Live: 8 pages 200, zero console errors (signed-out).
+- Floors (floor/motion.tsx, compressors) and charts first-draw remain open (B4-13/14/17) for a further slice (b4-4) or B5.
+- Worktree note: backend untracked reset SQL preserved, never staged or run.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
