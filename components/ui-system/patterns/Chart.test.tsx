@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { Bar, BarChart, XAxis } from 'recharts';
 import { Chart, chartFrameProps } from './Chart';
 
@@ -45,5 +45,27 @@ describe('Chart', () => {
     expect(seen.chart.accessibilityLayer).toBe(false);
     expect(seen.bar.isAnimationActive).toBe(!reduceMotion);
     expect(seen.axis).not.toHaveProperty('isAnimationActive');
+    expect(seen.bar.animationDuration).toBe(400);
+    expect(seen.bar.animationEasing).toBe('ease-out');
+  });
+
+  it('animates only on first draw: still after 450 ms, and a data change stays still', () => {
+    vi.useFakeTimers();
+    try {
+      mockBrowser(false);
+      const seen: Record<string, Record<string, unknown>> = {};
+      const BarSpy = (props: Record<string, unknown>) => { seen.bar = props; return null; };
+      BarSpy.displayName = 'Bar';
+      const ChartSpy = (props: Record<string, unknown>) => (props.children as never) ?? null;
+      ChartSpy.displayName = 'BarChart';
+      const { rerender } = render(<Chart><ChartSpy><BarSpy /></ChartSpy></Chart>);
+      expect(seen.bar.isAnimationActive).toBe(true);
+      act(() => { vi.advanceTimersByTime(450); });
+      expect(seen.bar.isAnimationActive).toBe(false);
+      rerender(<Chart><ChartSpy><BarSpy /></ChartSpy></Chart>);
+      expect(seen.bar.isAnimationActive).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

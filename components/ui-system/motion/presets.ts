@@ -77,3 +77,13 @@ export const HIGHLIGHT_WASH_S = 1.2;
  */
 export const EXPORT_CHECK_MS = 1200;
 export const SAVE_CHECK_MS = 250;
+
+/**
+ * CHART_DRAW_MS: a chart's first-draw animation (400 ms ease-out — Recharts
+ * has no springs, so this is the faithful "0.4 s smooth"). CHART_STILL_AFTER_MS:
+ * the Chart frame flips series still 450 ms after mount, so a background
+ * refresh or filter change never re-animates. Choreography config, never
+ * logic-on-settle: nothing waits on these to do work.
+ */
+export const CHART_DRAW_MS = 400;
+export const CHART_STILL_AFTER_MS = 450;
