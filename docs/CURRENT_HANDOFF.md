@@ -374,6 +374,17 @@ Motion-and-fixes plan 5.4 slice 3 (re-scoped per ASSUMPTIONS.md B4-28: the remai
 - Floors (floor/motion.tsx, compressors) and charts first-draw remain open (B4-13/14/17) for a further slice (b4-4) or B5.
 - Worktree note: backend untracked reset SQL preserved, never staged or run.
 
+## 8t. B4 motion rollout slice 4: floors + charts + phone snap (Muse, 28 Oct 2026; merged to main, pushed and live 28 Oct 2026, tagged release-2026-10-28-b4-4)
+
+Motion-and-fixes plan 5.4 slice 4 (the B4-28 deferral: floors + charts first-draw, plus the brief's phone scroll-snap). Frontend branch `b4-motion-rollout` (9 commits); backend untouched. No schema/data changes; no live writes.
+
+- Floor migration off framer-motion: `floor/motion.tsx` Slab is a plain div, CountUp is NumberTransition (calm smooth roll), Ring sweeps on the gentle CSS token, AnimatedText rises on the smooth token (Tools top-bar titles ride the same piece); fan loops kept verbatim. Compressors: view pill is the sliding indicator, view switch and runway/drawer expanders are Presence, pods enter on CSS, week bars transition on smooth, chevrons on snappy. Framer/layout allowlists for these files removed from the ratchet + eslint.
+- Charts: the `Chart` frame animates series 400 ms ease-out on first draw only, still 450 ms after mount (refresh/filter never re-animate; always still reduced). Central - all 13 Recharts files go through the frame, none sets its own props (B4-31).
+- Phone scroll-snap (CSS only): MetricGrid tile rows and MultiSelectFilter chip rows scroll with snap below sm, wrap above; tile roots anchor their sr-only text so scrolled-out announcements never widen the page.
+- UnitPod zoom stays unbuilt (not in the slice brief - B4-33); the drawer keeps its normal open. Pre-existing failures carried: /tools hydration #418 x5, /ppe Reset-button timeout (both reproduced identically on main), /issues axe nested-interactive x2.
+- Gate: tsc clean, eslint 0 errors (17 pre-existing warnings), vitest 329 files/2355 tests green (full) + focused greens for the two class-only follow-ups, docs:check clean, build green, verify-routes touched 572+ pass with only the pre-existing failures, a11y touched pass except pre-existing /issues, 1440+390 renders inspected incl compressors. Live: 8 pages 200, zero console errors (signed-out).
+- Worktree note: backend untracked reset SQL preserved, never staged or run. Caution: a broad node stop during the gate also stopped another session's :3005 server (mine was :3015); :3016 main-comparison server stopped and its worktree removed.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
