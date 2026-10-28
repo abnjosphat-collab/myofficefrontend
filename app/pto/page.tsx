@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
@@ -109,7 +109,7 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTORep
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit PTO report' : 'New planned task observation'} description="Date, observer, worker and the task observed are required." submitLabel={report ? 'Save changes' : 'Submit PTO'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit PTO report' : 'New planned task observation'} description="Date, observer, worker and the task observed are required." submitLabel={report ? 'Save changes' : 'Submit PTO'} onSubmit={submit} size="lg" zoomId={report ? undefined : 'pto:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="pto-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="pto-basic" className="font-display text-section font-semibold text-ink sm:col-span-2">Observation</h3>
@@ -196,6 +196,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       title="Planned task observation report"
       description={report ? `${report.jobTaskObserved}, ${formatDate(report.date)}` : undefined}
       size="lg"
+      zoomId={report ? `pto:rec:${report.id}` : undefined}
       footer={report && (
         <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
@@ -305,6 +306,7 @@ function PTOContent() {
     });
   }, [reports, search, effSection, statusF, typeF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'risk' ? (hasRiskFlag(r.riskAssessment) ? '1' : '0') : String(r[id as keyof PTOReport] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, typeF, riskOnly, dateFrom, dateTo, sort]);
   const count = (s: ReportStatus) => reports.filter(r => r.status === s).length;
   const allActions = reports.flatMap(r => r.actionPlan || []);
   const highRisk = reports.filter(r => hasRiskFlag(r.riskAssessment)).length;
@@ -346,7 +348,7 @@ function PTOContent() {
         description={scope ? `Complete PTO forms with risk assessment and action tracking. \u2014 showing ${scope} only.` : 'Complete PTO forms with risk assessment and action tracking.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>
+            <ZoomLink zoomId="pto:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button></ZoomLink>
           </>
         )}
       />
@@ -396,17 +398,18 @@ function PTOContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No PTO reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="task" title={`No ${scope} PTO reports yet`} description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} /> : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button>} />}
+          : scope ? <EmptyState icon="task" title={`No ${scope} PTO reports yet`} description="Create the first planned task observation to start the register." action={<ZoomLink zoomId="pto:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button></ZoomLink>} /> : <EmptyState icon="task" title="No PTO reports yet" description="Create the first planned task observation to start the register." action={<ZoomLink zoomId="pto:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New PTO</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {allActions.filter(a => a.status === 'Completed').length} of {allActions.length} actions completed across all reports<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => {
               const p = summarizeActions(r.actionPlan);
               const o = overdueCount(r);
               return (
+                <MotionListItem key={r.id}>
+                <ZoomLink zoomId={`pto:rec:${r.id}`}>
                 <RecordCard
-                  key={r.id}
                   eyebrow={formatDate(r.date)}
                   title={r.jobTaskObserved}
                   status={<StatusTag status={r.status} />}
@@ -422,12 +425,15 @@ function PTOContent() {
                   onOpen={() => setViewingId(r.id)}
                   openLabel={`View PTO report ${r.jobTaskObserved}, ${formatDate(r.date)}`}
                 />
+                </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
             caption="PTO reports"
+            stillKey={listCalm}
             rows={rows}
             columns={COLUMNS}
             getRowId={r => r.id}

@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -79,7 +79,7 @@ export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?:
   const err = (bad: boolean, text: string) => (touched && bad ? text : undefined);
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit care observation' : 'New care observation'} description="Location, date, the activity, what you saw and what you did are required." submitLabel={report ? 'Save changes' : 'Submit care observation'} onSubmit={submit} size="xl">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit care observation' : 'New care observation'} description="Location, date, the activity, what you saw and what you did are required." submitLabel={report ? 'Save changes' : 'Submit care observation'} onSubmit={submit} size="xl" zoomId={report ? undefined : 'pachedu:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="pa-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <h3 id="pa-basic" className="font-display text-section font-semibold text-ink sm:col-span-3">Basic information</h3>
@@ -142,6 +142,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       title="Pachedu: be your brother's keeper"
       description={report ? `${report.observerName || 'Anonymous'}, ${formatDate(report.date)}` : undefined}
       size="lg"
+      zoomId={report ? `pachedu:rec:${report.id}` : undefined}
       footer={report && (
         <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
@@ -215,6 +216,7 @@ function PacheduContent() {
       && (!riskOnly || hasSeriousImpact(r)) && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo));
   }, [reports, search, effSection, deptF, statusF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof PacheduReport] ?? '').toLowerCase()), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, deptF, statusF, riskOnly, dateFrom, dateTo, sort]);
   const count = (s: PacheduStatus) => reports.filter(r => r.status === s).length;
   const intentional = reports.filter(r => r.behaviourType === 'Intentional').length;
   const risky = reports.filter(hasSeriousImpact).length;
@@ -258,7 +260,7 @@ function PacheduContent() {
         description={scope ? `Be your brother's keeper: track care observations and supportive actions. — showing ${scope} only.` : "Be your brother's keeper: track care observations and supportive actions."}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button>
+            <ZoomLink zoomId="pachedu:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openEditor()}>New care observation</Button></ZoomLink>
           </>
         )}
       />
@@ -306,14 +308,15 @@ function PacheduContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No care observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="care" title={`No ${scope} care observations yet`} description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} /> : <EmptyState icon="care" title="No care observations yet" description="Be the first to record a Pachedu observation." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button>} />}
+          : scope ? <EmptyState icon="care" title={`No ${scope} care observations yet`} description="Be the first to record a Pachedu observation." action={<ZoomLink zoomId="pachedu:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button></ZoomLink>} /> : <EmptyState icon="care" title="No care observations yet" description="Be the first to record a Pachedu observation." action={<ZoomLink zoomId="pachedu:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New care observation</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {bySection} · {intentional} intentional<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => (
+              <MotionListItem key={r.id}>
+              <ZoomLink zoomId={`pachedu:rec:${r.id}`}>
               <RecordCard
-                key={r.id}
                 eyebrow={`${formatDate(r.date)}${r.location ? ` · ${r.location}` : ''}`}
                 title={r.observerName || 'Anonymous'}
                 status={<StatusTag status={r.status} />}
@@ -329,11 +332,14 @@ function PacheduContent() {
                 onOpen={() => setViewingId(r.id)}
                 openLabel={`View care observation by ${label(r)}`}
               />
+              </ZoomLink>
+              </MotionListItem>
             ))}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
             caption="Pachedu care observations"
+            stillKey={listCalm}
             rows={rows}
             columns={COLUMNS}
             getRowId={r => r.id}

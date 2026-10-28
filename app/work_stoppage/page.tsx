@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -98,7 +98,7 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkSt
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit work stoppage' : 'New work stoppage'} description="Date, department, description and who issued it are required." submitLabel={report ? 'Save changes' : 'Issue work stoppage'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit work stoppage' : 'New work stoppage'} description="Date, department, description and who issued it are required." submitLabel={report ? 'Save changes' : 'Issue work stoppage'} onSubmit={submit} size="lg" zoomId={report ? undefined : 'work_stoppage:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="ws-incident" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="ws-incident" className="font-display text-section font-semibold text-ink sm:col-span-2">Incident</h3>
@@ -154,6 +154,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete }: { report: WorkStopp
       title="Work stoppage report"
       description={report ? `${report.department}, ${formatDate(report.date)}` : undefined}
       size="lg"
+      zoomId={report ? `work_stoppage:rec:${report.id}` : undefined}
       footer={report && (
         <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
@@ -266,6 +267,7 @@ function WorkStoppageContent() {
     });
   }, [reports, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'actions' ? String((r.correctiveActions || []).length).padStart(4, '0') : String(r[id as keyof WorkStoppageReport] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, dateFrom, dateTo, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
   const pending = loading && !loaded;
@@ -298,7 +300,7 @@ function WorkStoppageContent() {
         description={scope ? `Document and track unsafe acts, unsafe practices and SHEQ compliance issues. \u2014 showing ${scope} only.` : 'Document and track unsafe acts, unsafe practices and SHEQ compliance issues.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>
+            <ZoomLink zoomId="work_stoppage:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button></ZoomLink>
           </>
         )}
       />
@@ -345,17 +347,18 @@ function WorkStoppageContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No reports match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="flag" title={`No ${scope} work stoppages issued`} description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} /> : <EmptyState icon="flag" title="No work stoppages issued" description="Issue a work stoppage to document an unsafe act or practice." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button>} />}
+          : scope ? <EmptyState icon="flag" title={`No ${scope} work stoppages issued`} description="Issue a work stoppage to document an unsafe act or practice." action={<ZoomLink zoomId="work_stoppage:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button></ZoomLink>} /> : <EmptyState icon="flag" title="No work stoppages issued" description="Issue a work stoppage to document an unsafe act or practice." action={<ZoomLink zoomId="work_stoppage:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Issue stoppage</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => {
               const p = summarizeActions(r.correctiveActions);
               const o = overdueCount(r);
               return (
+                <MotionListItem key={r.id}>
+                <ZoomLink zoomId={`work_stoppage:rec:${r.id}`}>
                 <RecordCard
-                  key={r.id}
                   eyebrow={formatDate(r.date)}
                   title={r.department}
                   status={<span className="inline-flex flex-wrap gap-1.5"><SectionBadge section={r.section} />{o > 0 && <StatusBadge tone="danger" icon="overdue">{o} overdue</StatusBadge>}</span>}
@@ -368,12 +371,15 @@ function WorkStoppageContent() {
                   onOpen={() => setViewing(r)}
                   openLabel={`View ${r.department} report of ${formatDate(r.date)}`}
                 />
+                </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
             caption="Work stoppages"
+            stillKey={listCalm}
             rows={rows}
             columns={COLUMNS}
             getRowId={r => r.id}

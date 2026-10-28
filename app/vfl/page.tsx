@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -110,7 +110,7 @@ export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?:
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit VFL observation' : 'New VFL observation'} description="Observer, date, time and a description are required." submitLabel={report ? 'Save changes' : 'Save observation'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit VFL observation' : 'New VFL observation'} description="Observer, date, time and a description are required." submitLabel={report ? 'Save changes' : 'Save observation'} onSubmit={submit} size="lg" zoomId={report ? undefined : 'vfl:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="vfl-observer" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="vfl-observer" className="font-display text-section font-semibold text-ink sm:col-span-2">Observer</h3>
@@ -162,6 +162,7 @@ function DetailDialog({ report, onClose, onEdit, onDelete, onStatusChange }: { r
       title="Visible felt leadership observation"
       description={report ? `${report.observerName}, ${formatDate(report.date)}` : undefined}
       size="lg"
+      zoomId={report ? `vfl:rec:${report.id}` : undefined}
       footer={report && (
         <DetailActions onDelete={() => onDelete(report)} onClose={onClose} onEdit={() => onEdit(report)} />
       )}
@@ -250,6 +251,7 @@ function VFLContent() {
     });
   }, [reports, search, effSection, statusF, behaviourF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof VFLReport] ?? '').toLowerCase()), [filtered, sort]);
+  const listCalm = JSON.stringify([search, effSection, statusF, behaviourF, dateFrom, dateTo, sort]);
   const count = (s: VFLStatus) => reports.filter(r => r.status === s).length;
   const totalActions = reports.reduce((n, r) => n + (r.actions?.length || 0), 0);
   const safe = reports.filter(r => r.behaviourCategory === 'Safe Behaviour').length;
@@ -292,7 +294,7 @@ function VFLContent() {
         description={scope ? `Safety observations and coaching tracking. — showing ${scope} only.` : 'Safety observations and coaching tracking.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>
+            <ZoomLink zoomId="vfl:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button></ZoomLink>
           </>
         )}
       />
@@ -341,16 +343,17 @@ function VFLContent() {
         onRetry={() => refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No observations match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="eye" title={`No ${scope} VFL observations yet`} description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} /> : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button>} />}
+          : scope ? <EmptyState icon="eye" title={`No ${scope} VFL observations yet`} description="Record the first observation to start the register." action={<ZoomLink zoomId="vfl:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button></ZoomLink>} /> : <EmptyState icon="eye" title="No VFL observations yet" description="Record the first observation to start the register." action={<ZoomLink zoomId="vfl:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New observation</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'observation' : 'observations'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''} · {totalActions} {totalActions === 1 ? 'action' : 'actions'} across all observations<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map(r => {
               const p = summarizeActions(r.actions);
               return (
+                <MotionListItem key={r.id}>
+                <ZoomLink zoomId={`vfl:rec:${r.id}`}>
                 <RecordCard
-                  key={r.id}
                   eyebrow={`${formatDate(r.date)}${fmtTime(r.time) ? ` · ${fmtTime(r.time)}` : ''}`}
                   title={r.observerName}
                   subtitle={r.designation || undefined}
@@ -367,12 +370,15 @@ function VFLContent() {
                   onOpen={() => setViewingId(r.id)}
                   openLabel={`View VFL observation for ${r.observerName}, ${formatDate(r.date)}`}
                 />
+                </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
             caption="VFL observations"
+            stillKey={listCalm}
             rows={rows}
             columns={COLUMNS}
             getRowId={r => r.id}
