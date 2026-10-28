@@ -28,7 +28,7 @@
 | `/breakdowns/analytics` | Migrated | Yes | No | Yes, 2026-10-04 | Dashboard pattern on the same insight views as the Breakdowns page. |
 | `/competency` | Migrated | Yes | No | Yes, 2026-10-03 | Skill matrix; saves use the real employee_id (data bug fixed); department filter removed (no data). |
 | `/compliance-register` | Migrated | Yes | No | Yes, 2026-10-03 | Register with status tiles as filters; add dialog. |
-| `/compressors` | Migrated | Yes | 5 | Yes, 2026-10-10 | The redesigned floor (3D backdrop with flat cards, figure strip as filter, side panel per unit, week and month views, services, analytics, fleet; Excel and PDF downloads) replaced the earlier page on 2026-10-10. Compressors come from the Equipment register; service completion belongs to Maintenance. Reduced-motion users get a still page. |
+| `/compressors` | Migrated | Yes | 6 | Yes, 2026-10-10 | The redesigned floor (3D backdrop with flat cards, figure strip as filter, side panel per unit, week and month views, services, analytics, fleet; Excel and PDF downloads) replaced the earlier page on 2026-10-10. Compressors come from the Equipment register; service completion belongs to Maintenance. Reduced-motion users get a still page. |
 | `/condition-monitoring` | Migrated | Yes | No | Yes, 2026-10-03 | Readings register; a reading of 0 is stored as 0. |
 | `/contractors` | Migrated | Yes | No | Yes, 2026-10-03 | Cards by trade, table, details dialog, add flow; failed create keeps input. |
 | `/deep-space-preview` | Own chrome | Yes | No | Not checked | standalone prototype (glass card over 3D particles; own layout, no shell) |
