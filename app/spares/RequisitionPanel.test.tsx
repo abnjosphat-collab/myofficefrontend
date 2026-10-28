@@ -1,7 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ConfirmProvider } from '@/components/ui-system';
+import { Icon } from '@/components/ui-system/foundations/Icon';
+
+/** The exact svg a state renders, for proving a swap shows the check. */
+function glyphHtml(name: 'check'): string {
+  const { container, unmount } = render(<Icon name={name} size="sm" />);
+  const html = container.querySelector('svg')?.outerHTML ?? '';
+  unmount();
+  return html;
+}
 import { RequisitionPanel } from './RequisitionPanel';
 import type { ReqHeader, ReqLine, SavedRequisition, Spare } from './types';
 import type { ApiListState } from '@/lib/useApiList';
@@ -34,6 +43,24 @@ function setup(header: ReqHeader, lines: ReqLine[] = []) {
   );
   return { onHeader, onLines };
 }
+
+describe('RequisitionPanel copy check', () => {
+  const CLIPBOARD_DESCRIPTOR = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
+  afterEach(() => {
+    if (CLIPBOARD_DESCRIPTOR) Object.defineProperty(window.navigator, 'clipboard', CLIPBOARD_DESCRIPTOR);
+  });
+
+  it('shows the check on Copy after the requisition is copied', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText }, configurable: true });
+    setup(emptyHeader, [{ id: 'l1', spare, searchValue: '', qty: '3', dropdownOpen: false }]);
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const copy = screen.getByRole('button', { name: 'Copy' });
+    expect(copy.querySelector('[data-motion-swap="replace"] svg')?.outerHTML).toBe(glyphHtml('check'));
+  });
+});
 
 describe('RequisitionPanel load confirm', () => {
   it('load asks with a non-empty builder', async () => {

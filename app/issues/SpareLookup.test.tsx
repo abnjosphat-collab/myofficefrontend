@@ -2,6 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SpareLookup, type LookupSpare } from './SpareLookup';
+import { Icon } from '@/components/ui-system/foundations/Icon';
+
+/** The exact svg a state renders, for proving a swap shows the check. */
+function glyphHtml(name: 'check' | 'copy'): string {
+  const { container, unmount } = render(<Icon name={name} size="md" />);
+  const html = container.querySelector('svg')?.outerHTML ?? '';
+  unmount();
+  return html;
+}
 
 const SPARES: LookupSpare[] = [
   { stock_code: 'BRG-1', description: 'Bearing 6204', unit_price: 12.5, current_quantity: 3, category: 'Bearings' },
@@ -73,6 +82,18 @@ describe('SpareLookup', () => {
     setup();
     await user.click(screen.getByRole('button', { name: 'Copy code BRG-1' }));
     expect(writeText).toHaveBeenCalledWith('BRG-1');
+  });
+
+  it('shows the check on the copied row, and only there', async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText: vi.fn(async () => {}) }, configurable: true });
+    setup();
+    await user.click(screen.getByRole('button', { name: 'Copy code BRG-1' }));
+    const copied = screen.getByRole('button', { name: 'Copied BRG-1' });
+    expect(copied.querySelector('[data-motion-swap="replace"] svg')?.outerHTML).toBe(glyphHtml('check'));
+    const other = screen.getByRole('button', { name: 'Copy code SEAL-9' });
+    expect(other.querySelector('[data-motion-swap="replace"]')).toBeNull();
+    expect(other.querySelector('svg')?.outerHTML).toBe(glyphHtml('copy'));
   });
 
   it('falls back when the clipboard API is missing', async () => {

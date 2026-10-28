@@ -1,7 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { Icon } from '@/components/ui-system/foundations/Icon';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmProvider } from '@/components/ui-system';
-import { NoticeDialog } from './page';
+import { DetailDialog, NoticeDialog } from './page';
+import type { Notice } from './types';
+
+/** The exact svg a state renders, for proving a swap shows the check. */
+function glyphHtml(name: 'check'): string {
+  const { container, unmount } = render(<Icon name={name} size="sm" />);
+  const html = container.querySelector('svg')?.outerHTML ?? '';
+  unmount();
+  return html;
+}
 
 const { uploadMock } = vi.hoisted(() => ({ uploadMock: vi.fn() }));
 vi.mock('./useNoticeboardData', async importOriginal => {
@@ -15,6 +26,28 @@ const sized = (name: string, size: number) => {
   Object.defineProperty(f, 'size', { value: size });
   return f;
 };
+
+describe('DetailDialog copy check', () => {
+  const CLIPBOARD_DESCRIPTOR = Object.getOwnPropertyDescriptor(window.navigator, 'clipboard');
+  afterEach(() => {
+    if (CLIPBOARD_DESCRIPTOR) Object.defineProperty(window.navigator, 'clipboard', CLIPBOARD_DESCRIPTOR);
+  });
+
+  it('shows the check on Copy after the notice is copied', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const notice: Notice = {
+      id: '1', title: 'Pump rota', content: 'Check the pumps.', date: '2026-10-20',
+      category: 'Safety', priority: 'High', status: 'Active', is_pinned: false, requires_acknowledgment: false,
+    };
+    render(<DetailDialog notice={notice} now={Date.now()} onClose={() => {}} onEdit={() => {}} onDelete={() => {}} onTogglePin={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith('Pump rota\n\nCheck the pumps.');
+    const copy = screen.getByRole('button', { name: 'Copy' });
+    expect(copy.querySelector('[data-motion-swap="replace"] svg')?.outerHTML).toBe(glyphHtml('check'));
+  });
+});
 
 describe('notice attachments guard', () => {
   beforeEach(() => {
