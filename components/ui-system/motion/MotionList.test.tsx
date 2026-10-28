@@ -45,6 +45,13 @@ describe('MotionList (B4)', () => {
     expect(washes[0].parentElement?.textContent).toContain('Row d');
   });
 
+  it('forwards identity props to the list element', () => {
+    const view = render(<MotionList as="ul" id="grp" aria-label="People">{rows(['a'])}</MotionList>);
+    const list = view.container.querySelector('ul');
+    expect(list).toHaveAttribute('id', 'grp');
+    expect(list).toHaveAttribute('aria-label', 'People');
+  });
+
   it('leaves non-item children alone', () => {
     const view = render(
       <MotionList as="ul">

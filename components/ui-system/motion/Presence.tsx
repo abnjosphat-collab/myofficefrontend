@@ -101,6 +101,12 @@ export interface MotionListProps {
    * only data changes (background refresh, mutations) enter and exit.
    */
   calmKey?: string | number;
+  /** Forwarded to the list element (collapse toggles target it). */
+  id?: string;
+  /** Forwarded to the list element. */
+  'aria-label'?: string;
+  /** Forwarded to the list element. */
+  'aria-labelledby'?: string;
 }
 
 /**
@@ -121,7 +127,7 @@ interface ListMemory {
   fresh: Set<Key | null>;
 }
 
-export function MotionList({ children, className, as = 'div', calmKey }: MotionListProps) {
+export function MotionList({ children, className, as = 'div', calmKey, id, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledby }: MotionListProps) {
   const reduce = useIsReducedMotion();
   // Keys held now, and their signature for cheap change detection.
   const kids = Children.toArray(children);
@@ -152,10 +158,10 @@ export function MotionList({ children, className, as = 'div', calmKey }: MotionL
   });
   const List = as;
   if (reduce) {
-    return <List className={className}>{items}</List>;
+    return <List className={className} id={id} aria-label={ariaLabel} aria-labelledby={ariaLabelledby}>{items}</List>;
   }
   return (
-    <List className={className}>
+    <List className={className} id={id} aria-label={ariaLabel} aria-labelledby={ariaLabelledby}>
       <AnimatePresence key={calmKey ?? 'live'} initial={false}>{items}</AnimatePresence>
     </List>
   );
