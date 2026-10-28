@@ -173,6 +173,14 @@ describe('BulkBar', () => {
     expect(handlers.onRestore).toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Delete for good' })).toBeInTheDocument();
   });
+
+  it('keeps the announced count to one sentence as the tick set changes', () => {
+    const { container, rerender } = render(<BulkBar count={2} total={40} trash={false} isManager {...handlers} />);
+    const said = () => container.querySelector('.sr-only');
+    expect(said()).toHaveTextContent('2 selected');
+    rerender(<BulkBar count={5} total={40} trash={false} isManager {...handlers} />);
+    expect(said()).toHaveTextContent('5 selected');
+  });
 });
 
 describe('SetupBanner', () => {
