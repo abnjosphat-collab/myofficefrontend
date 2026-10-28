@@ -2,7 +2,9 @@
 // description, price, category and stock for each match, with the matched words highlighted. The matching
 // rule is the shared one in lib/spareSearch, so this finds the same parts as the register and the issue
 // form's picker. When onAdd is given, each row offers Add to issue (button, or Enter on the active row);
-// every row offers Copy code.
+// every row offers Copy code. The results are a plain list, not a listbox: rows hold real buttons,
+// and buttons inside role=option are nested-interactive (axe). Arrow keys move an active row
+// (aria-current + a live announcement); Enter adds it.
 'use client';
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -84,7 +86,7 @@ export function SpareLookup({ spares, loading, loaded, error, onRetry, onAdd }: 
     <div className="flex flex-col gap-3">
       <SearchField
         value={q} onValueChange={onSearch} onKeyDown={onSearchKeyDown} placeholder="Search code, description or category" wrapperClassName="min-w-56 max-w-sm flex-1"
-        role="combobox" aria-expanded={hits.length > 0} aria-controls={listId} aria-activedescendant={active >= 0 ? optionId(active) : undefined}
+        aria-controls={listId}
       />
       {error && !loaded ? (
         <Notice tone="warning" title="The spare catalogue could not be loaded" action={<Button size="sm" icon="refresh" onClick={onRetry}>Try again</Button>}>{error}</Notice>
@@ -99,12 +101,13 @@ export function SpareLookup({ spares, loading, loaded, error, onRetry, onAdd }: 
           <p className="font-sans text-caption text-ink-muted" role="status">
             {typed ? `${total} ${total === 1 ? 'match' : 'matches'}` : `${total} ${total === 1 ? 'part' : 'parts'} in the catalogue`}{hits.length < total ? ` — showing the first ${hits.length}, type to narrow` : ''}
           </p>
-          <ul role="listbox" id={listId} aria-label="Matching spares" className="flex flex-col gap-2">
+          <p className="sr-only" role="status">{active >= 0 ? `${hits[active].stock_code} ${hits[active].description}, row ${active + 1} of ${hits.length}` : ''}</p>
+          <ul id={listId} aria-label="Matching spares" className="flex flex-col gap-2">
             {hits.map((s, i) => {
               const cats = (s.categories && s.categories.length > 0 ? s.categories : s.category ? [s.category] : []).join(', ');
               const isActive = i === active;
               return (
-                <li key={s.stock_code} role="option" id={optionId(i)} aria-selected={isActive} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border px-3 py-2', isActive ? 'border-action bg-action-soft/60' : 'border-line bg-surface-subtle')}>
+                <li key={s.stock_code} id={optionId(i)} aria-current={isActive || undefined} data-active={isActive || undefined} className={cn('flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border px-3 py-2', isActive ? 'border-action bg-action-soft/60' : 'border-line bg-surface-subtle')}>
                   <span className="font-mono text-body-sm font-semibold text-ink"><Marked text={s.stock_code} words={words} /></span>
                   <span className="min-w-0 flex-1 basis-40 font-sans text-body-sm text-ink [overflow-wrap:anywhere]"><Marked text={s.description} words={words} /></span>
                   <span className="font-sans text-body-sm tabular text-ink">{formatCurrency(s.unit_price ?? 0)}</span>
