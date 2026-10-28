@@ -49,7 +49,7 @@ const fromCover = (c: RotationCover): Form => ({
   reason: c.reason || '',
 });
 
-export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotations, onOpenChange, onSave }: {
+export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotations, onOpenChange, onSave, zoomId }: {
   open: boolean;
   cover: RotationCover | null;
   preset?: CoverPreset | null;
@@ -57,6 +57,7 @@ export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotatio
   dutyRotations: DutyRotation[];
   onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
+  zoomId?: string;
 }) {
   const [form, setForm] = useState<Form>(() => blank(preset));
   const [touched, setTouched] = useState(false);
@@ -112,7 +113,7 @@ export function CoverDialog({ open, cover, preset, standbyRotations, dutyRotatio
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={cover ? 'Edit cover' : 'Name cover'} description="Who holds in place of whom, and for which dates." submitLabel={cover ? 'Update cover' : 'Name cover'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={cover ? 'Edit cover' : 'Name cover'} description="Who holds in place of whom, and for which dates." submitLabel={cover ? 'Update cover' : 'Name cover'} onSubmit={submit} zoomId={zoomId}>
       <div className="flex flex-col gap-4">
         <Field label="Roster" required>
           <Segmented label="Roster type" value={form.kind} onValueChange={v => set({ kind: v, rotation_id: '' })} options={[{ value: 'standby', label: 'Standby' }, { value: 'duty', label: 'Duty' }]} />

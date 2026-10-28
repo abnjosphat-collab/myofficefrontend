@@ -125,7 +125,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   }
   return (
     <>
-      <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }}
+      <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }} zoomId={modal?.kind === 'employee' ? 'tools:new-employee' : modal?.kind === 'bulk-issue' ? 'tools:new-bulk-issue' : modal?.kind === 'new' ? 'tools:new-equipment' : modal?.kind === 'feedback' ? 'tools:new-feedback' : undefined}
         wide={['customize', 'feedback', 'import', 'export', 'bulk-issue'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>
         {body}
       </ToolsDialog>

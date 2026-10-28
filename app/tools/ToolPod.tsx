@@ -4,7 +4,7 @@
 // action is its sibling, never nested inside it.
 'use client';
 
-import { Button, RecordCard, StatusBadge } from '@/components/ui-system';
+import { Button, RecordCard, StatusBadge, ZoomLink } from '@/components/ui-system';
 import type { Tool } from './prototype';
 import { nobodyCanUse } from './toolConditions';
 import { statusLabel, statusTone, whereIs } from './toolLook';
@@ -16,6 +16,7 @@ export function ToolPod({ tool, onOpen, onAction }: { tool: Tool; onOpen: () => 
   const out = tool.status === 'issued' || tool.status === 'overdue';
   const quick: ToolQuickAction | null = tool.archived || tool.status === 'attention' ? null : out ? 'return' : 'issue';
   return (
+    <ZoomLink zoomId={`tools:rec:${tool.id}`}>
     <RecordCard
       eyebrow={tool.id}
       title={tool.name}
@@ -26,5 +27,6 @@ export function ToolPod({ tool, onOpen, onAction }: { tool: Tool; onOpen: () => 
       onOpen={onOpen}
       openLabel={`${tool.name}, ${tool.id}, ${label}. ${whereIs(tool)}. Open for details.`}
     />
+    </ZoomLink>
   );
 }

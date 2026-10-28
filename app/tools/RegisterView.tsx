@@ -3,13 +3,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, DataTable, StatusBadge, useConfirm } from '@/components/ui-system';
+import { Button, DataTable, MotionList, MotionListItem, StatusBadge, useConfirm } from '@/components/ui-system';
 import { departmentOf, type Tool } from './prototype';
 import { statusLabel, statusTone } from './toolLook';
 import { ToolPod, type ToolQuickAction } from './ToolPod';
 
-export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany }: {
-  tools: Tool[]; view: 'grid' | 'list'; onSelect: (id: string) => void; onAction?: (kind: ToolQuickAction, tool: Tool) => void; onArchiveMany?: (tools: Tool[]) => Promise<void>;
+export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany, calmKey }: {
+  tools: Tool[]; view: 'grid' | 'list'; onSelect: (id: string) => void; onAction?: (kind: ToolQuickAction, tool: Tool) => void; onArchiveMany?: (tools: Tool[]) => Promise<void>; calmKey?: string;
 }) {
   const confirm = useConfirm();
   const [selecting, setSelecting] = useState(false);
@@ -27,7 +27,7 @@ export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany }:
   };
 
   if (view === 'grid') {
-    return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{tools.map(tool => <ToolPod key={tool.id} tool={tool} onOpen={() => onSelect(tool.id)} onAction={onAction} />)}</div>;
+    return <MotionList calmKey={calmKey} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{tools.map(tool => <MotionListItem key={tool.id}><ToolPod tool={tool} onOpen={() => onSelect(tool.id)} onAction={onAction} /></MotionListItem>)}</MotionList>;
   }
   return (
     <div className="flex flex-col gap-3">
@@ -44,6 +44,7 @@ export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany }:
         )
         : <div className="flex"><Button icon="archive" onClick={() => setSelecting(true)}>Select to archive</Button></div>)}
       <DataTable
+        stillKey={calmKey}
         caption="Equipment register"
         rows={tools}
         getRowId={tool => tool.id}

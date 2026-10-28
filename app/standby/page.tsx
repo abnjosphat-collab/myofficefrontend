@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, Notice, PageHeader, StatusBadge,
+  Button, DataRegion, DataTable, EmptyState, IconButton, Notice, PageHeader, StatusBadge, ZoomLink,
   Tabs, TabsContent, TabsList, TabsTrigger, deriveDataStatus, isTransientStatus, useConfirm, type Column,
 } from '@/components/ui-system';
 import { ContactButtons } from '@/components/shared/ContactButtons';
@@ -210,7 +210,7 @@ function StandbyContent() {
 
         <TabsContent value="rotations" className="mt-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="primary" icon="plus" onClick={() => { setEditingRotation(null); setRotationOpen(true); }}>New rotation</Button>
+            <ZoomLink zoomId="standby:new-rotation" className="inline-block"><Button variant="primary" icon="plus" onClick={() => { setEditingRotation(null); setRotationOpen(true); }}>New rotation</Button></ZoomLink>
           </div>
           <DataRegion status={rotationsStatus} subject="standby rotations" error={rotations.error} onRetry={() => rotations.refetch()} empty={<EmptyState icon="sync" title={scope ? `No ${scope} standby rotations yet` : 'No standby rotations yet'} description="Create one to set up who stands standby and in what order." />}>
             <DataTable caption="Standby rotations" rows={rotations.items} columns={ROTATION_COLUMNS} getRowId={r => String(r.id)}
@@ -222,7 +222,7 @@ function StandbyContent() {
           <section className="flex flex-col gap-4" aria-labelledby="duty-rosters-h">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="duty-rosters-h" className="font-display text-section font-semibold text-ink">Duty rosters</h2>
-              <Button variant="primary" icon="plus" onClick={() => { setEditingDutyRotation(null); setDutyRotationOpen(true); }}>New duty roster</Button>
+              <ZoomLink zoomId="standby:new-duty-roster" className="inline-block"><Button variant="primary" icon="plus" onClick={() => { setEditingDutyRotation(null); setDutyRotationOpen(true); }}>New duty roster</Button></ZoomLink>
             </div>
             <DataRegion status={dutyRotationsStatus} subject="duty rosters" error={dutyRotations.error} onRetry={() => dutyRotations.refetch()} empty={<EmptyState icon="shield" title={scope ? `No ${scope} duty rosters yet` : 'No duty rosters yet'} description="Create one to set up who answers as duty official and in what order." />}>
               <DataTable caption="Duty rosters" rows={dutyRotations.items} columns={DUTY_ROTATION_COLUMNS} getRowId={r => String(r.id)}
@@ -235,7 +235,7 @@ function StandbyContent() {
                 <h2 id="duty-overrides-h" className="font-display text-section font-semibold text-ink">Explicitly named</h2>
                 <p className="font-sans text-body-sm text-ink-muted">One-off officials for chosen dates — these win over the roster above where they overlap.</p>
               </div>
-              <Button variant="primary" icon="plus" onClick={() => { setEditingDuty(null); setDutyOpen(true); }}>Name official</Button>
+              <ZoomLink zoomId="standby:new-duty" className="inline-block"><Button variant="primary" icon="plus" onClick={() => { setEditingDuty(null); setDutyOpen(true); }}>Name official</Button></ZoomLink>
             </div>
             <DataRegion status={dutyStatus} subject="duty officials" error={duty.error} onRetry={() => duty.refetch()} empty={<EmptyState icon="shield" title={scope ? `No ${scope} duty officials named` : 'No duty officials named'} description="Name who answers for the mine, and for which dates." />}>
               <DataTable caption="Duty officials" rows={duty.items} columns={DUTY_COLUMNS} getRowId={r => String(r.id)}
@@ -246,7 +246,7 @@ function StandbyContent() {
 
         <TabsContent value="covers" className="mt-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button variant="primary" icon="plus" onClick={() => { setEditingCover(null); setCoverPreset(null); setCoverOpen(true); }}>Name cover</Button>
+            <ZoomLink zoomId="standby:new-cover" className="inline-block"><Button variant="primary" icon="plus" onClick={() => { setEditingCover(null); setCoverPreset(null); setCoverOpen(true); }}>Name cover</Button></ZoomLink>
           </div>
           <DataRegion status={coversStatus} subject="covers" error={covers.error} onRetry={() => covers.refetch()} empty={<EmptyState icon="swap" title={scope ? `No ${scope} covers named` : 'No covers named'} description="Name who holds in place of whom when someone is away." />}>
             <DataTable caption="Covers" rows={covers.items} columns={COVER_COLUMNS} getRowId={r => String(r.id)}
@@ -255,13 +255,13 @@ function StandbyContent() {
         </TabsContent>
       </Tabs>
 
-      <RotationDialog open={rotationOpen} mode="standby" rotation={editingRotation} onOpenChange={setRotationOpen} onSave={saveRotation} />
-      <RotationDialog open={dutyRotationOpen} mode="duty" rotation={editingDutyRotation} onOpenChange={setDutyRotationOpen} onSave={saveDutyRotation} />
-      <DutyDialog open={dutyOpen} entry={editingDuty} onOpenChange={setDutyOpen} onSave={saveDuty} />
+      <RotationDialog open={rotationOpen} mode="standby" rotation={editingRotation} onOpenChange={setRotationOpen} onSave={saveRotation} zoomId={editingRotation ? undefined : 'standby:new-rotation'} />
+      <RotationDialog open={dutyRotationOpen} mode="duty" rotation={editingDutyRotation} onOpenChange={setDutyRotationOpen} onSave={saveDutyRotation} zoomId={editingDutyRotation ? undefined : 'standby:new-duty-roster'} />
+      <DutyDialog open={dutyOpen} entry={editingDuty} onOpenChange={setDutyOpen} onSave={saveDuty} zoomId={editingDuty ? undefined : 'standby:new-duty'} />
       <CoverDialog
         open={coverOpen} cover={editingCover} preset={coverPreset}
         standbyRotations={rotations.items} dutyRotations={dutyRotations.items}
-        onOpenChange={o => { setCoverOpen(o); if (!o) { setEditingCover(null); setCoverPreset(null); } }} onSave={saveCover}
+        onOpenChange={o => { setCoverOpen(o); if (!o) { setEditingCover(null); setCoverPreset(null); } }} onSave={saveCover} zoomId={editingCover ? undefined : 'standby:new-cover'}
       />
     </div>
   );

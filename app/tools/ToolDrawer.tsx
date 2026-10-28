@@ -45,6 +45,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
       open={!!tool}
       onOpenChange={o => { if (!o) close(); }}
       placement="right"
+      zoomId={tool ? `tools:rec:${tool.id}` : undefined}
       title={tool?.name.trim() ?? 'Tool'}
       description={tool ? `${tool.id} · ${tool.make || 'No make recorded'} · ${whereIs(tool)}` : undefined}
       footer={tool && (

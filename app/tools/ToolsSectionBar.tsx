@@ -2,7 +2,7 @@
 // that double as the filter, then one toolbar with the result count, the other filters, the view switch and the actions.
 'use client';
 
-import { Button, ExportButton, FilterField, Input, MetricGrid, MetricTile, MoreMenu, SearchField, Select, Toolbar, ViewToggle, VIEW_GRID_LIST, type MoreMenuItem } from '@/components/ui-system';
+import { Button, ExportButton, FilterField, Input, MetricGrid, MetricTile, MoreMenu, SearchField, Select, Toolbar, ViewToggle, VIEW_GRID_LIST, ZoomLink, type MoreMenuItem } from '@/components/ui-system';
 import { CATEGORIES, STATUS, type Status } from './prototype';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
@@ -63,9 +63,9 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
             <ExportButton label="Export" onPress={() => w.setModal({ kind: 'export' })} />
             {tools_ && <ViewToggle value={view} onValueChange={w.setView} options={VIEW_GRID_LIST} />}
             <MoreMenu items={items} label="Actions" />
-            {tab === 'employees' && <Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button>}
-            {tab === 'register' && <Button variant="primary" onClick={() => w.openManageModal({ kind: 'bulk-issue' })} disabled={!counts.available}>Issue tools</Button>}
-            {tools_ && <Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add equipment</Button>}
+            {tab === 'employees' && <ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button></ZoomLink>}
+            {tab === 'register' && <ZoomLink zoomId="tools:new-bulk-issue" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'bulk-issue' })} disabled={!counts.available}>Issue tools</Button></ZoomLink>}
+            {tools_ && <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add equipment</Button></ZoomLink>}
           </>
         )}
       >

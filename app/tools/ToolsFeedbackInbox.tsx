@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, EmptyState, Icon } from '@/components/ui-system';
+import { Button, EmptyState, Icon, ZoomLink } from '@/components/ui-system';
 import { formatDateTime } from '@/lib/format';
 import { ToolsDialog } from './ToolsUI';
 import type { FeedbackRecord } from './ToolsAnalytics';
@@ -18,7 +18,7 @@ export function ToolsFeedbackInbox({ items, onAdd }: { items: FeedbackRecord[]; 
     <section className="flex flex-col gap-4" aria-label="Saved feedback">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-sans text-body-sm text-ink-muted">{items.length} {items.length === 1 ? 'entry' : 'entries'} · text and audio</p>
-        <Button variant="primary" icon="plus" onClick={onAdd}>Send feedback</Button>
+        <ZoomLink zoomId="tools:new-feedback" className="inline-block"><Button variant="primary" icon="plus" onClick={onAdd}>Send feedback</Button></ZoomLink>
       </div>
       {items.length
         ? (

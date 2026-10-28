@@ -30,10 +30,11 @@ const fromRotation = (r: StandbyRotation | DutyRotation, mode: RotationKind) => 
 let keySeq = 0;
 const nextKey = () => `new-${Date.now()}-${(keySeq += 1)}`;
 
-export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
+export function RotationDialog({ open, mode, rotation, onOpenChange, onSave, zoomId }: {
   open: boolean; mode: RotationKind; rotation: StandbyRotation | DutyRotation | null;
   onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
+  zoomId?: string;
 }) {
   const [form, setForm] = useState(blank);
   const [touched, setTouched] = useState(false);
@@ -112,7 +113,7 @@ export function RotationDialog({ open, mode, rotation, onOpenChange, onSave }: {
     : { title: rotation ? 'Edit duty roster' : 'New duty roster', description: rotation ? 'Change who answers as duty official and in what order.' : 'Set up who answers as duty official, in what order, and for how long each.' };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={copy.title} description={copy.description} submitLabel={rotation ? 'Update rotation' : 'Create rotation'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={copy.title} description={copy.description} submitLabel={rotation ? 'Update rotation' : 'Create rotation'} onSubmit={submit} zoomId={zoomId}>
       <div className="flex flex-col gap-6">
         <section aria-labelledby="rt-bas" className="flex flex-col gap-3">
           <h3 id="rt-bas" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Rotation</h3>

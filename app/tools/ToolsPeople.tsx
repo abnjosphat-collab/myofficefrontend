@@ -3,7 +3,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button, Checkbox, EmptyState, Field, Icon, Input, Notice, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, useConfirm } from '@/components/ui-system';
+import { Button, Checkbox, EmptyState, Field, Icon, Input, Notice, SearchField, Tabs, TabsContent, TabsList, TabsTrigger, ZoomLink, useConfirm } from '@/components/ui-system';
 import type { CompetencyRecord } from './complianceTypes';
 import { ToolsDialog } from './ToolsUI';
 import { EligibilityByEquipment, EligibilityByPerson } from './ToolsEligibility';
@@ -133,7 +133,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const shown = selected?.backendId ? employees.find(employee => employee.backendId === selected.backendId) ?? selected : selected;
 
   if (!employees.length) {
-    return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools and equipment. This register is separate from MyOffice." action={<Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button>} />;
+    return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools and equipment. This register is separate from MyOffice." action={<ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button></ZoomLink>} />;
   }
   return (
     <div className="flex flex-col gap-4">

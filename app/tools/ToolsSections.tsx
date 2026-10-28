@@ -2,7 +2,7 @@
 // failed state, never a misleading empty one), then shows the section.
 'use client';
 
-import { Button, DataTable, DestinationSearch, EmptyState, LoadingPulse, Notice } from '@/components/ui-system';
+import { Button, DataTable, DestinationSearch, EmptyState, LoadingPulse, Notice, ZoomLink } from '@/components/ui-system';
 import { ToolsAccountAccess } from './ToolsAuth';
 import { ToolsAnalytics } from './ToolsAnalytics';
 import { ToolsCompliance } from './ToolsCompliance';
@@ -81,6 +81,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
             ? <EmptyState icon="history" title="No history yet" description="Issue and return records will appear here with the employee, recorder and dates." />
             : (
               <DataTable
+                stillKey={JSON.stringify([w.search, w.scope])}
                 caption="Issue and return history"
                 rows={w.visibleActivity}
                 getRowId={event => event.id}
@@ -102,9 +103,9 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
             ? (
               <EmptyState icon={activeTools.length ? 'search' : 'equipment'} title={activeTools.length ? 'No matching equipment' : 'Start your equipment register'}
                 description={activeTools.length ? 'Try fewer filters or a different search.' : `Add the first tool or equipment item for ${department === 'all' ? 'your operation' : department}.`}
-                action={<Button variant="primary" onClick={activeTools.length ? w.clearFilters : () => w.openManageModal({ kind: 'new' })}>{activeTools.length ? 'Clear search & filters' : 'Add the first item'}</Button>} />
+                action={activeTools.length ? <Button variant="primary" onClick={w.clearFilters}>Clear search & filters</Button> : <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'new' })}>Add the first item</Button></ZoomLink>} />
             )
-            : <RegisterView tools={visibleTools} view={w.view} onSelect={w.setSelectedId} onAction={(kind, tool) => w.openAction(kind, tool)} onArchiveMany={w.options.showRemoval && tab === 'register' && manage ? w.archiveTools : undefined} />}
+            : <RegisterView calmKey={JSON.stringify([w.search, w.status, w.category, w.location, w.sort, w.department])} tools={visibleTools} view={w.view} onSelect={w.setSelectedId} onAction={(kind, tool) => w.openAction(kind, tool)} onArchiveMany={w.options.showRemoval && tab === 'register' && manage ? w.archiveTools : undefined} />}
         </>
       );
     }

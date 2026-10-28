@@ -9,7 +9,7 @@ export type FontSizeChoice = number;
 export const ToolsPreferences = createContext({ font: 'inter' as FontChoice, fontSize: 100 as FontSizeChoice, guidance: true });
 
 /** The shared Dialog (focus trap, focus return, dismissal rules); a wide one for forms with many fields. Unsaved input asks before it closes, like FormDialog. */
-export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; children: ReactNode }) {
+export function ToolsDialog({ open, onClose, title, description, wide = false, dismissible = true, zoomId, children }: { open: boolean; onClose: () => void; title: string; description: string; wide?: boolean; dismissible?: boolean; zoomId?: string; children: ReactNode }) {
   // Dirtiness is recorded against the dialog it was typed into (open state + form kind): a reopen or a kind
   // switch derives pristine without any reset, so stale dirt can neither leak across forms nor race a reset.
   const dialogKey = `${open}:${title}`;
@@ -25,7 +25,7 @@ export function ToolsDialog({ open, onClose, title, description, wide = false, d
   const { guardClose } = useDismissGuard({ when: autoDirty, message: 'Entries in this form are not saved yet.' });
   // No busy concept here on purpose (unlike FormDialog): every Tools save is workspace-owned, so discarding mid-save still lands it with a toast.
   const close = () => guardClose(onClose);
-  return <SharedDialog open={open} onOpenChange={value => { if (!value) close(); }} dismissible={dismissible} title={title} description={description} size={wide ? 'lg' : 'md'} focusTitle><div onChange={markIfData} className="contents"><MarkDirtyProvider value={markDirty}>{children}</MarkDirtyProvider></div></SharedDialog>;
+  return <SharedDialog open={open} onOpenChange={value => { if (!value) close(); }} dismissible={dismissible} title={title} description={description} size={wide ? 'lg' : 'md'} focusTitle zoomId={zoomId}><div onChange={markIfData} className="contents"><MarkDirtyProvider value={markDirty}>{children}</MarkDirtyProvider></div></SharedDialog>;
 }
 
 export type AddEvidence = (files: File[]) => Evidence[];
