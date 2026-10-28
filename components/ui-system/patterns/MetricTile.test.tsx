@@ -39,6 +39,10 @@ describe('MetricTile motion', () => {
     expect(strip.className).toContain('max-sm:snap-x');
     expect(strip.className).toContain('max-sm:overflow-x-auto');
     expect(strip.className).toContain('max-sm:max-w-full');
+    // The tile anchors its own sr-only text: inside a phone scroller, an
+    // absolutely-positioned announcement would otherwise widen the page.
+    const tile = strip.firstElementChild as HTMLElement;
+    expect(tile.className).toContain('relative');
     expect(strip.className).toContain('[&>*]:max-sm:snap-start');
     expect(strip.style.transform).toBe('');
   });

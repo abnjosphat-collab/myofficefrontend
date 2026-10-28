@@ -43,7 +43,7 @@ const toneValue = {
  */
 export function MetricTile({ label, value, detail, tone = 'default', loading, unavailable, href, onClick, selected, className }: MetricTileProps) {
   const quiet = cn(
-    'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
+    'relative inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
     'transition-colors duration-[var(--mo-duration-base)]',
     selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
     (href || onClick) && 'focus-ring hover:border-action/35',
