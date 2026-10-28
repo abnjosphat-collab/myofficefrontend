@@ -14,13 +14,15 @@ export interface ExportMenuItem {
   hint?: ReactNode;
 }
 
-/** Shared trigger options; `ExportButtonProps` adds exactly one of `items` or `onPress` + `label`. */
+/** Shared trigger options; callers pass exactly one of `items` or `onPress` + `label`. */
 export type ExportButtonCommon = {
   /** Leading icon. The export action everywhere; a file-type glyph only inside the menu. */
   icon?: IconMeaning;
   disabled?: boolean;
-  /** Shows a spinner and blocks repeat activation. The IconSwap pending state (B4) replaces this. */
+  /** Shows a spinner and blocks repeat activation. */
   pending?: boolean;
+  /** Shows the check (swapped up-up): the file landed. Blocks repeat activation while shown. */
+  success?: boolean;
   size?: ButtonSize;
   menuAlign?: 'start' | 'center' | 'end';
   className?: string;
@@ -42,14 +44,14 @@ export function ExportButton(props: ExportButtonCommon & (
   | { items: ExportMenuItem[]; onPress?: never; label?: never; shortLabel?: never }
   | { onPress: () => void; label: string; shortLabel?: string; items?: never }
 )) {
-  const { icon = 'download', disabled = false, pending = false, size = 'md', menuAlign = 'end', className, iconOnly = false } = props;
+  const { icon = 'download', disabled = false, pending = false, success = false, size = 'md', menuAlign = 'end', className, iconOnly = false } = props;
   const iconSize = size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'md';
 
   if (props.items) {
     const items = props.items;
     const trigger = iconOnly
-      ? <IconButton icon={icon} label="Export" tooltip="Export" variant="shell" size={iconSize} pending={pending} className={className} />
-      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} className={className}>Export</Button>;
+      ? <IconButton icon={icon} label="Export" tooltip="Export" variant="shell" size={iconSize} pending={pending} success={success} className={className} />
+      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} success={success} className={className}>Export</Button>;
     return (
       <Menu>
         <MenuTrigger asChild>{trigger}</MenuTrigger>
@@ -62,11 +64,11 @@ export function ExportButton(props: ExportButtonCommon & (
 
   const { onPress, label, shortLabel = 'Export' } = props;
   if (iconOnly) {
-    return <IconButton icon={icon} label={label} tooltip={label} variant="shell" size={iconSize} disabled={disabled} pending={pending} onClick={onPress} className={className} />;
+    return <IconButton icon={icon} label={label} tooltip={label} variant="shell" size={iconSize} disabled={disabled} pending={pending} success={success} onClick={onPress} className={className} />;
   }
   const shortened = shortLabel !== label;
   return (
-    <Button variant="secondary" size={size} icon={icon} disabled={disabled} pending={pending} onClick={onPress} className={className}>
+    <Button variant="secondary" size={size} icon={icon} disabled={disabled} pending={pending} success={success} onClick={onPress} className={className}>
       {shortened ? <span className="max-[390px]:hidden">{label}</span> : label}
       {shortened && <span className="min-[391px]:hidden">{shortLabel}</span>}
     </Button>

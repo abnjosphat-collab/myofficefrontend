@@ -1,7 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import { ExportButton } from '@/components/ui-system';
+import { EXPORT_CHECK_MS, ExportButton, useActionFeedback } from '@/components/ui-system';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
@@ -60,8 +60,14 @@ export function DownloadButton({
   statusColumn, statusColor, iconOnly = false,
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
+  // The trigger phases: idle → pending → success (held 1.2 s) → idle around
+  // both builds. A failed build toasts and returns to idle with no check.
+  const { pending, success, run } = useActionFeedback(EXPORT_CHECK_MS);
+  const download = (build: () => Promise<boolean>) => () => void run(async () => {
+    if (!await build()) throw new Error('export failed');
+  });
 
-  const downloadExcel = async () => {
+  const downloadExcel = async (): Promise<boolean> => {
     try {
       const ExcelJS = (await import('exceljs')).default;
       const { saveAs } = await import('file-saver');
@@ -170,12 +176,14 @@ export function DownloadButton({
         `${filename}.xlsx`,
       );
       toast.success(`Excel exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      return true;
     } catch (err) {
       toast.error(`Export failed: ${(err as Error).message}`);
+      return false;
     }
   };
 
-  const downloadPDF = async () => {
+  const downloadPDF = async (): Promise<boolean> => {
     try {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
@@ -225,25 +233,29 @@ export function DownloadButton({
 
       doc.save(`${filename}.pdf`);
       toast.success(`PDF exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      return true;
     } catch (err) {
       toast.error(`Export failed: ${(err as Error).message}`);
+      return false;
     }
   };
 
   // One offered format needs no menu: a single direct button. Two formats: the shared Menu.
   if (formats.length === 1) {
     const onlyFormat = formats[0];
-    const run = onlyFormat === 'excel' ? downloadExcel : downloadPDF;
-    return <ExportButton label={onlyFormat === 'excel' ? 'Export Excel' : 'Export PDF'} onPress={() => void run()} iconOnly={iconOnly} className={className} />;
+    const build = onlyFormat === 'excel' ? downloadExcel : downloadPDF;
+    return <ExportButton label={onlyFormat === 'excel' ? 'Export Excel' : 'Export PDF'} onPress={download(build)} pending={pending} success={success} iconOnly={iconOnly} className={className} />;
   }
 
   return (
     <ExportButton
       iconOnly={iconOnly}
       className={className}
+      pending={pending}
+      success={success}
       items={[
-        { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => void downloadExcel() },
-        { label: 'PDF', icon: 'pdf', onSelect: () => void downloadPDF() },
+        { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: download(downloadExcel) },
+        { label: 'PDF', icon: 'pdf', onSelect: download(downloadPDF) },
       ]}
     />
   );

@@ -6,7 +6,7 @@
  * motion only where it explains something. See the UI system README's
  * "Motion" section for the rules and the effect-meaning matrix.
  */
-export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING } from './presets';
+export { EXPORT_CHECK_MS, FADE, FADE_S, HIGHLIGHT_WASH_S, SAVE_CHECK_MS, SPIN, SPRING } from './presets';
 export type { SpringName, SpringPreset } from './presets';
 export { MotionProvider } from './MotionProvider';
 export { useIsReducedMotion, useMotionSafe } from './useMotionSafe';

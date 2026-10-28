@@ -67,3 +67,13 @@ export const SPIN: Transition = { duration: 0.5, ease: 'linear', repeat: Infinit
  * place a duration is written. Pinned by `presets.test.ts`.
  */
 export const HIGHLIGHT_WASH_S = 1.2;
+
+/**
+ * EXPORT_CHECK_MS: how long an export trigger holds the check after the file
+ * lands (1.2 s). SAVE_CHECK_MS: how long a form's submit button holds the
+ * check before the dialog closes (0.25 s, within the 0.3 s budget). Display
+ * holds, not transitions, so outside the 0.5 s cap — but still single-sourced
+ * here, so no duration is written anywhere else.
+ */
+export const EXPORT_CHECK_MS = 1200;
+export const SAVE_CHECK_MS = 250;

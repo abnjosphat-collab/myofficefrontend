@@ -80,6 +80,17 @@ describe('DownloadButton Excel export', () => {
   });
 });
 
+describe('DownloadButton phases', () => {
+  it('holds the check after the file lands, then returns to idle', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<DownloadButton data={data} columns={columns} filename="test" formats={['excel']} />);
+    await user.click(screen.getByRole('button'));
+    await vi.waitFor(() => expect(savedBlob).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector('[data-motion-swap="replace"]')).toBeInTheDocument());
+    await vi.waitFor(() => expect(container.querySelector('[data-motion-swap="replace"]')).not.toBeInTheDocument(), { timeout: 5000 });
+  });
+});
+
 describe('DownloadButton trigger', () => {
   it('defaults to a labelled Export button, not an icon', () => {
     render(<DownloadButton data={data} columns={columns} filename="test" />);

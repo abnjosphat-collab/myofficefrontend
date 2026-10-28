@@ -48,6 +48,16 @@ describe('ExportButton', () => {
     cleanup();
   });
 
+  it('success swaps the trigger to the check and blocks reactivation', async () => {
+    const onPress = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(<ExportButton label="Export Excel" onPress={onPress} success />);
+    expect(container.querySelector('[data-motion-swap="replace"]')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Export/ }));
+    expect(onPress).not.toHaveBeenCalled();
+    cleanup();
+  });
+
   it('disabled and pending block activation', async () => {
     const onPress = vi.fn();
     const user = userEvent.setup();

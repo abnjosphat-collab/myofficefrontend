@@ -100,11 +100,13 @@ export { BulkEditDialog, BulkEditLockedNotice, useBulkEdit } from './patterns/Bu
 export type { BulkField } from './patterns/BulkEdit';
 
 // Motion (the one motion layer; see ./motion and the README "Motion" section)
-export { FADE, FADE_S, HIGHLIGHT_WASH_S, SPIN, SPRING, MotionProvider, useIsReducedMotion, useMotionSafe, AnimatedIcon, IconSwap, NumberTransition, MotionList, MotionListItem, Presence, presenceMotion, MotionTableBody, MotionTableRow, SlidingIndicator, useSlidingIndicator, DrawerDragPanel, ZoomLink, ZoomTarget, ZoomBoundary, ZoomOverlay, registerZoomSource, unregisterZoomSource, markZoomSourceUsed, lookupZoomSource, consumeZoomSource } from './motion';
+export { EXPORT_CHECK_MS, FADE, FADE_S, HIGHLIGHT_WASH_S, SAVE_CHECK_MS, SPIN, SPRING, MotionProvider, useIsReducedMotion, useMotionSafe, AnimatedIcon, IconSwap, NumberTransition, MotionList, MotionListItem, Presence, presenceMotion, MotionTableBody, MotionTableRow, SlidingIndicator, useSlidingIndicator, DrawerDragPanel, ZoomLink, ZoomTarget, ZoomBoundary, ZoomOverlay, registerZoomSource, unregisterZoomSource, markZoomSourceUsed, lookupZoomSource, consumeZoomSource } from './motion';
 export type { SpringName, SpringPreset, AnimatedIconEffect, AnimatedIconProps, IconSwapProps, NumberTransitionProps, MotionListItemProps, MotionListProps, PresenceProps, MotionTableBodyProps, MotionTableRowProps, IndicatorRect, SlidingIndicatorProps, DrawerDragPanelProps, ZoomLinkProps, ZoomTargetProps } from './motion';
 
 // Hooks
 export { usePersistentState, oneOf, asString, readStored, storeValue } from './hooks/usePersistentState';
+export { useActionFeedback } from './hooks/useActionFeedback';
+export type { ActionPhase } from './hooks/useActionFeedback';
 export { useMediaQuery, DESKTOP_QUERY } from './hooks/useMediaQuery';
 
 // Shell

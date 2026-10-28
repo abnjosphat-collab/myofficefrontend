@@ -1,7 +1,7 @@
 // The caps from PLAN 5.1/5.2: no transition over 0.5 s, no bounce over 0.15,
 // linear only in SPIN. The highlight wash is the sole documented exception.
 import { describe, expect, it } from 'vitest';
-import { FADE, HIGHLIGHT_WASH_S, SPIN, SPRING } from './presets';
+import { EXPORT_CHECK_MS, FADE, HIGHLIGHT_WASH_S, SAVE_CHECK_MS, SPIN, SPRING } from './presets';
 
 const transitions = {
   ...SPRING,
@@ -38,6 +38,13 @@ describe('motion preset caps', () => {
 
   it('pins the highlight wash as the sole documented cap exception', () => {
     expect(HIGHLIGHT_WASH_S).toBe(1.2);
+  });
+
+  it('pins the display holds (feedback timing, not transitions)', () => {
+    expect(EXPORT_CHECK_MS).toBe(1200);
+    // The form close-after-check budget is 0.3 s.
+    expect(SAVE_CHECK_MS).toBe(250);
+    expect(SAVE_CHECK_MS).toBeLessThanOrEqual(300);
   });
 
   it('keeps the documented table values', () => {
