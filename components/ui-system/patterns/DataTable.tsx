@@ -6,6 +6,7 @@ import { Icon } from '../foundations/Icon';
 import { IconButton } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { nextSort, selectionState, toggleAllVisible, toggleOne, type SortState } from './tableLogic';
+import { MotionTableBody, MotionTableRow } from '../motion';
 
 export type Column<T> = {
   id: string;
@@ -48,17 +49,20 @@ export interface DataTableProps<T> {
    */
   renderExpanded?: (row: T) => ReactNode;
   expandLabel?: (row: T, open: boolean) => string;
+  /** Calm key: the page's filter/sort/page signature. When it changes, row enter/exit is suppressed, so filtering, sorting and paging never animate. Omit for tables whose rows only change with the data. */
+  stillKey?: string | number;
 }
 
 /**
  * Semantic, responsive data table. Header is sticky inside its scroll container,
  * numbers align right with tabular figures, selected rows get a fill AND a checked
  * box, and horizontal overflow is explicit (the wrapper scrolls, the page never does).
- * Sorting and selection logic live in tableLogic.ts (pure, tested).
+ * Rows fade in and out on data changes (a background refresh, a mutation) and stay
+ * crisp — never a layout animation. Sorting and selection logic live in tableLogic.ts (pure, tested).
  */
 export function DataTable<T>({
   rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, rowSelectLabel, rowSelectBlocked, onRowActivate, rowActions, density = 'comfortable', className,
-  renderExpanded, expandLabel,
+  renderExpanded, expandLabel, stillKey,
 }: DataTableProps<T>) {
   const ids = useMemo(() => rows.map(getRowId), [rows, getRowId]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -118,7 +122,7 @@ export function DataTable<T>({
             {renderExpanded && <th scope="col" className="sticky top-0 z-sticky w-px border-b border-line bg-surface-subtle px-2 py-2"><span className="sr-only">Details</span></th>}
           </tr>
         </thead>
-        <tbody>
+        <MotionTableBody stillKey={stillKey}>
           {rows.map((row, index) => {
             const id = ids[index];
             const isSelected = selected?.has(id) ?? false;
@@ -126,7 +130,7 @@ export function DataTable<T>({
             const open = openId === id;
             return (
               <Fragment key={id}>
-              <tr
+              <MotionTableRow
                 data-selected={isSelected || undefined}
                 onClick={onRowActivate ? () => onRowActivate(row) : undefined}
                 className={cn('group', onRowActivate && 'cursor-pointer')}
@@ -154,14 +158,14 @@ export function DataTable<T>({
                     />
                   </td>
                 )}
-              </tr>
+              </MotionTableRow>
               {renderExpanded && open && (
                 <tr><td colSpan={span} className="border-b border-line-subtle bg-surface-subtle px-4 py-3">{renderExpanded(row)}</td></tr>
               )}
               </Fragment>
             );
           })}
-        </tbody>
+        </MotionTableBody>
       </table>
     </div>
   );

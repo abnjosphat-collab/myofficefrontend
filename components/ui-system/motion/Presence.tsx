@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useRef, type Key, type ReactElement, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { FADE, HIGHLIGHT_WASH_S, SPRING } from './presets';
 import { useIsReducedMotion } from './useMotionSafe';
@@ -93,51 +93,91 @@ export function Presence({ visible, children, className, swapKey = 'content', fa
 export interface MotionListProps {
   children: ReactNode;
   className?: string;
+  /** List element, so card grids keep `ul` semantics. Default `div`. */
+  as?: 'div' | 'ul' | 'ol';
+  /**
+   * Calm key: the page's filter/sort/page signature. When it changes the
+   * boundary remounts, so filtering, sorting and paging never animate —
+   * only data changes (background refresh, mutations) enter and exit.
+   */
+  calmKey?: string | number;
 }
 
 /**
  * A list whose rows enter with fade + 6 px rise and leave with fade +
- * collapse. No enter cascade on first paint (`initial={false}`): page
+ * collapse. Rows that arrive after first paint (a background refresh) also
+ * get the highlight wash, by key — so key items by record id, never by
+ * index. No enter cascade on first paint (`initial={false}`): page
  * navigation never animates. Under reduced motion rows add and remove
- * instantly. For lists of ~100 items or fewer (the height collapse is the
- * one non-transform animation, and it stays cheap at that size).
+ * instantly (the wash still fades: it is opacity-only). For lists of ~100
+ * items or fewer (the height collapse is the one non-transform animation,
+ * and it stays cheap at that size).
  */
-export function MotionList({ children, className }: MotionListProps) {
+export function MotionList({ children, className, as = 'div', calmKey }: MotionListProps) {
   const reduce = useIsReducedMotion();
+  // Keys seen so far, set on first paint. Anything new later arrived with
+  // the data and gets the wash. (Render-phase ref write: StrictMode renders
+  // twice with the same children, so both passes agree.)
+  const seen = useRef<Set<Key | null> | null>(null);
+  const lastCalm = useRef(calmKey);
+  const keys = Children.toArray(children).map(child => (isValidElement(child) ? (child.key ?? null) : null));
+  // A calm-key change (new filters, sort or page) starts the list over: rows
+  // it reveals are not "new arrivals" and get no wash.
+  if (lastCalm.current !== calmKey) {
+    lastCalm.current = calmKey;
+    seen.current = new Set(keys);
+  }
+  if (seen.current === null) seen.current = new Set(keys);
+  const fresh = new Set<Key | null>();
+  for (const key of keys) {
+    if (!seen.current.has(key)) fresh.add(key);
+  }
+  seen.current = new Set(keys);
+  const items = Children.toArray(children).map(child => {
+    if (!isValidElement(child) || child.type !== MotionListItem) return child;
+    const key = child.key ?? null;
+    if (!fresh.has(key)) return child;
+    return cloneElement(child as ReactElement<MotionListItemProps>, { highlight: true });
+  });
+  const List = as;
   if (reduce) {
-    return <div className={className}>{children}</div>;
+    return <List className={className}>{items}</List>;
   }
   return (
-    <div className={className}>
-      <AnimatePresence initial={false}>{children}</AnimatePresence>
-    </div>
+    <List className={className}>
+      <AnimatePresence key={calmKey ?? 'live'} initial={false}>{items}</AnimatePresence>
+    </List>
   );
 }
 
 export interface MotionListItemProps {
   children: ReactNode;
   className?: string;
-  /** The row just arrived (background refresh): an opacity-only wash fades out over 1.2 s. */
+  /** The list element for this row, matching the parent (`li` under `ul`). Default `div`. */
+  as?: 'div' | 'li';
+  /** The row just arrived (background refresh): an opacity-only wash fades out over 1.2 s. MotionList sets this by key; pass it directly only outside a MotionList. */
   highlight?: boolean;
   /** Collapse the row's height on exit (default true). False = fade only, for DataTable rows, which stay crisp. */
   collapse?: boolean;
 }
 
 /** One row inside a MotionList. Key it by record id so exits track the right row. */
-export function MotionListItem({ children, className, highlight = false, collapse = true }: MotionListItemProps) {
+export function MotionListItem({ children, className, as = 'div', highlight = false, collapse = true }: MotionListItemProps) {
   const reduce = useIsReducedMotion();
   const enter = collapse ? presenceMotion.enter : presenceMotion.enterFadeOnly;
   const exit = collapse ? presenceMotion.exitCollapse : presenceMotion.exitFadeOnly;
   if (reduce) {
+    const Item = as;
     return (
-      <div className={cn('relative', className)}>
+      <Item className={cn('relative', className)}>
         {highlight ? <HighlightWash key="wash" /> : null}
         {children}
-      </div>
+      </Item>
     );
   }
+  const Item = motion[as];
   return (
-    <motion.div
+    <Item
       data-testid="motion-list-item"
       className={cn('relative', className)}
       style={collapse ? { overflow: 'hidden' } : undefined}
@@ -148,6 +188,67 @@ export function MotionListItem({ children, className, highlight = false, collaps
     >
       {highlight ? <HighlightWash key="wash" /> : null}
       {children}
-    </motion.div>
+    </Item>
+  );
+}
+
+export interface MotionTableBodyProps {
+  children: ReactNode;
+  className?: string;
+  /**
+   * Calm key: the page's filter/sort/page signature. When it changes the
+   * boundary remounts, so filtering, sorting and paging never animate.
+   */
+  stillKey?: string | number;
+}
+
+/**
+ * The AnimatePresence boundary for a table body: rows fade in and out on
+ * data changes only (background refresh, mutations). `initial={false}`: no
+ * cascade on first paint. Renders a plain tbody under reduced motion.
+ */
+export function MotionTableBody({ children, className, stillKey }: MotionTableBodyProps) {
+  const reduce = useIsReducedMotion();
+  if (reduce) {
+    return <tbody className={className}>{children}</tbody>;
+  }
+  return (
+    <tbody className={className}>
+      <AnimatePresence key={stillKey ?? 'live'} initial={false}>{children}</AnimatePresence>
+    </tbody>
+  );
+}
+
+export interface MotionTableRowProps {
+  children: ReactNode;
+  className?: string;
+  onClick?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
+  [key: `data-${string}`]: unknown;
+}
+
+/**
+ * One table row: fades in on add, fades out on remove, never a layout
+ * animation (tables stay crisp). Key the row — or its fragment — by record
+ * id so exits track the right row. No highlight wash: a tr cannot host the
+ * overlay, so the fade-in IS the insert motion.
+ */
+export function MotionTableRow({ children, className, onClick, ...rest }: MotionTableRowProps) {
+  const reduce = useIsReducedMotion();
+  if (reduce) {
+    return <tr className={className} onClick={onClick} {...rest}>{children}</tr>;
+  }
+  return (
+    <motion.tr
+      data-testid="motion-table-row"
+      className={className}
+      onClick={onClick}
+      {...rest}
+      initial={presenceMotion.enterFadeOnly.initial}
+      animate={presenceMotion.enterFadeOnly.animate}
+      exit={presenceMotion.exitFadeOnly.exit}
+      transition={presenceMotion.enterFadeOnly.transition}
+    >
+      {children}
+    </motion.tr>
   );
 }
