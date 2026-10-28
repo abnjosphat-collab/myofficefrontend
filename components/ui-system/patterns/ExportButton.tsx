@@ -69,7 +69,7 @@ export function ExportButton(props: ExportButtonCommon & (
   const shortened = shortLabel !== label;
   return (
     <Button variant="secondary" size={size} icon={icon} disabled={disabled} pending={pending} success={success} onClick={onPress} className={className}>
-      {shortened ? <span className="max-[390px]:hidden">{label}</span> : label}
+      {shortened ? <span className="hidden min-[391px]:inline">{label}</span> : label}
       {shortened && <span className="min-[391px]:hidden">{shortLabel}</span>}
     </Button>
   );

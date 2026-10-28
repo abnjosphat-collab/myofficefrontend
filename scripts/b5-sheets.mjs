@@ -11,12 +11,13 @@ const SHOTS = path.resolve('node_modules/.cache/mo-audit/shots-b5');
 const OUT = path.resolve(`node_modules/.cache/mo-audit/sheets-${arg('label', 'b5')}`);
 fs.mkdirSync(OUT, { recursive: true });
 
-const files = fs.readdirSync(SHOTS).filter(f => f.endsWith('.png') && !f.startsWith('sheet-'));
-const combos = [...new Set(files.map(f => f.replace(/\.png$/, '').split('-').slice(-2).join('-') + '@' + f.replace(/\.png$/, '').split('@')[1]))].sort();
+const comboOf = f => (f.match(/-([a-z]+-[a-z]+@\d+)\.png$/) || [])[1];
+const files = fs.readdirSync(SHOTS).filter(f => f.endsWith('.png') && !f.startsWith('sheet-') && comboOf(f));
+const combos = [...new Set(files.map(comboOf))].sort();
 const browser = await chromium.launch();
 
 for (const combo of combos) {
-  const group = files.filter(f => f.endsWith(`-${combo}.png`)).sort();
+  const group = files.filter(f => comboOf(f) === combo).sort();
   if (!group.length) continue;
   const wide = combo.includes('@1440');
   const w = wide ? 360 : 180;
