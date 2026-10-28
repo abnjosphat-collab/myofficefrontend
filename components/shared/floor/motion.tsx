@@ -1,10 +1,13 @@
 // components/shared/floor/motion.tsx — the moving parts of the compressor floor: a raised slab, numbers that count to
 // their value, the service-life ring and the fan. Nothing loops for ever: things move once when they appear or change,
 // while the pointer is on them, or when the floor signals an event. Each one is still under reduced motion.
+// All timing comes from the motion presets (components/ui-system/motion/presets): CountUp rolls on the calm
+// smooth spring via NumberTransition, the ring sweeps on the gentle CSS spring token, animated text rises on
+// the smooth token; the fan's loops stay CSS (ambient floor feel, no preset equivalent).
 'use client';
 
-import { animate, motion, useReducedMotion } from 'framer-motion';
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { NumberTransition, useIsReducedMotion } from '@/components/ui-system/motion';
 import s from './floor.module.css';
 
 /**
@@ -17,7 +20,7 @@ export function Slab({ children, className = '', accent, style, still = false, r
   'aria-label'?: string;
 }) {
   return (
-    <motion.div
+    <div
       {...aria}
       role={role}
       tabIndex={tabIndex}
@@ -28,33 +31,24 @@ export function Slab({ children, className = '', accent, style, still = false, r
       style={{ ...style, ...(accent ? { ['--accent' as string]: accent } : {}) }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-/** A number that counts from its previous value to the new one. */
+/** A number that counts from its previous value to the new one (calm roll; in place under reduced motion). */
 export function CountUp({ value, decimals = 0, suffix = '' }: { value: number | null | undefined; decimals?: number; suffix?: string }) {
-  const reduced = useReducedMotion();
-  const [shown, setShown] = useState(value ?? 0);
-  const from = useRef(value ?? 0);
-  useEffect(() => {
-    if (value == null) return;
-    if (reduced) { from.current = value; return; }
-    const controls = animate(from.current, value, { duration: 0.9, ease: [0.16, 1, 0.3, 1], onUpdate: v => setShown(v) });
-    from.current = value;
-    return () => controls.stop();
-  }, [value, reduced]);
-  if (value == null) return <span aria-label="Not available">—</span>;
-  const display = reduced ? value : shown;
-  // Same number style as the rest of the app (`hours()`: 1960.0), not a locale's grouping and decimal comma.
-  return <span className="tabular">{display.toFixed(decimals)}{suffix}</span>;
+  return <NumberTransition value={value ?? NaN} decimals={decimals} suffix={suffix} />;
 }
 
-/** A ring that fills to `fraction` (0..1). The fill animates whenever the value changes. */
+/** A ring that fills to `fraction` (0..1). The fill sweeps on the gentle token whenever the value changes. */
 export function Ring({ fraction, size = 64, stroke = 6, accent, children, label, urgent = false }: {
   fraction: number; size?: number; stroke?: number; accent: string; children?: ReactNode; label: string; urgent?: boolean;
 }) {
-  const reduced = useReducedMotion();
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const clamped = Math.max(0, Math.min(1, fraction));
@@ -62,13 +56,11 @@ export function Ring({ fraction, size = 64, stroke = 6, accent, children, label,
     <div role="img" aria-label={label} className={`relative grid shrink-0 place-items-center ${urgent ? s.urgent : ''}`} style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--mo-surface-muted)" strokeWidth={stroke} />
-        <motion.circle
+        <circle
           cx={size / 2} cy={size / 2} r={r} fill="none" stroke={accent} strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={c}
-          initial={{ strokeDashoffset: reduced ? c * (1 - clamped) : c }}
-          animate={{ strokeDashoffset: c * (1 - clamped) }}
-          transition={{ duration: reduced ? 0 : 1.1, ease: [0.16, 1, 0.3, 1] }}
-          style={{ filter: `drop-shadow(0 0 4px color-mix(in srgb, ${accent} 45%, transparent))` }}
+          strokeDashoffset={shown ? c * (1 - clamped) : c}
+          style={{ filter: `drop-shadow(0 0 4px color-mix(in srgb, ${accent} 45%, transparent))`, transition: 'stroke-dashoffset var(--mo-spring-gentle-duration) var(--mo-spring-gentle)' }}
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center">{children}</div>
@@ -99,7 +91,7 @@ export function Fan({ running, kick = 0, size = 26 }: { running: boolean; kick?:
 export function AnimatedText({ text, className = '', as = 'span', stagger = 0.045 }: {
   text: string; className?: string; as?: 'span' | 'h1' | 'h2' | 'p'; stagger?: number;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useIsReducedMotion();
   const Tag = as;
   if (reduced) return <Tag className={className}>{text}</Tag>;
   const words = text.split(' ');
@@ -109,11 +101,9 @@ export function AnimatedText({ text, className = '', as = 'span', stagger = 0.04
       <span className="sr-only">{text}</span>
       <span key={text} aria-hidden="true" className="inline-block">
         {words.map((w, i) => (
-          <motion.span key={i} className="inline-block whitespace-pre"
-            initial={{ opacity: 0, y: '0.45em', filter: 'blur(3px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            transition={{ duration: 0.42, delay: i * stagger, ease: [0.16, 1, 0.3, 1] }}>
+          <span key={i} className={`${s.riseWord} inline-block whitespace-pre`} style={{ animationDelay: `${i * stagger}s` }}>
             {w}{i < words.length - 1 ? ' ' : ''}
-          </motion.span>
+          </span>
         ))}
       </span>
     </Tag>

@@ -56,12 +56,16 @@
 :global(.group):hover .urgent { animation: attentionHover 2.8s ease-in-out infinite; }
 
 /* A view's panels come in once, one after another (Services, Analytics, Fleet). */
-.viewEnter > * > * { animation: riseIn .5s var(--mo-ease-emphasized) both; }
+.viewEnter > * > * { animation: riseIn var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
 .viewEnter > * > *:nth-child(2) { animation-delay: .06s; }
 .viewEnter > * > *:nth-child(3) { animation-delay: .12s; }
 .viewEnter > * > *:nth-child(4) { animation-delay: .18s; }
 .viewEnter > * > *:nth-child(n+5) { animation-delay: .24s; }
 @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* Animated text: each word rises and unblurs on the smooth token (stagger delay is inline choreography). */
+.riseWord { animation: riseBlur var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
+@keyframes riseBlur { from { opacity: 0; transform: translateY(0.45em); filter: blur(3px); } to { opacity: 1; transform: none; filter: blur(0); } }
 
 /* The background. All of the depth is here, not in the cards: a calm wash that brightens towards the top and
    deepens towards the viewer, a whisper of perspective grid melting into the horizon, and two faint glass planes
@@ -103,14 +107,14 @@
 @keyframes attention { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse], .viewEnter > * > *,
+  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse], .viewEnter > * > *, .riseWord,
   :global(.group):hover .fan[data-running='true'], :global(.group):hover .urgent { animation: none; }
   .slab { transition: none; }
 }
 
 /* Month view: a reading after a gap carries a small corner mark; rows come in once, top to bottom. */
 .spanMark { display: inline-block; width: 6px; height: 6px; border-radius: 1px; background: var(--mo-warning); }
-.rowIn { animation: riseIn .4s var(--mo-ease-emphasized) both; }
+.rowIn { animation: riseIn var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
 @media (prefers-reduced-motion: reduce) { .rowIn { animation: none; } }
 
 /* The in-app 3D floor (every page): a faint wireframe plane receding to a horizon low on the page. It fades out towards the horizon, so it
