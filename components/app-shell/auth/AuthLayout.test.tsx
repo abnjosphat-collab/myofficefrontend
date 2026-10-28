@@ -43,4 +43,10 @@ describe('DeepSpaceStage theme (B5)', () => {
     render(<AuthPage><p>sign in</p></AuthPage>);
     expect(toggle()).toBe('Switch to light');
   });
+
+  it('server render stays light (dark settles post-mount, so hydration agrees)', async () => {
+    localStorage.setItem('myoffice_appearance_v1', JSON.stringify({ version: 1, font: 'inter', fontSize: 100, guidance: true, theme: 'mono', darkness: 'dark' }));
+    const { renderToString } = await import('react-dom/server');
+    expect(renderToString(<AuthPage><p>sign in</p></AuthPage>)).toContain('Switch to dark');
+  });
 });

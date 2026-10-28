@@ -6,7 +6,7 @@
 // pauses when the tab is hidden, and cleans up its loop and listeners on unmount.
 'use client';
 
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { cn, migrateAppearance } from '@/components/ui-system';
 import { MeshCanvas } from './MeshCanvas';
 import { SilkCanvas } from './SilkCanvas';
@@ -24,18 +24,11 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
   );
 }
 
-// The remembered light/dark choice, read through an external store so the server and first client render agree (light, the default) without an effect.
+// The remembered light/dark choice. The server snapshot is light and the first client render agrees; the real theme (explicit choice, else the app's darkness) settles post-mount so dark can never hydrate-mismatch.
 const listeners = new Set<() => void>();
 const subscribe = (callback: () => void) => { listeners.add(callback); window.addEventListener('storage', callback); return () => { listeners.delete(callback); window.removeEventListener('storage', callback); }; };
-const readDark = () => {
-  try {
-    const own = localStorage.getItem(STORAGE_KEY);
-    if (own === 'dark') return true;
-    if (own === 'light') return false;
-    // No sign-in choice yet: follow the app's stored darkness, so the card and its text agree (a dark app behind a light card washes the text out).
-    return migrateAppearance(localStorage).darkness === 'dark';
-  } catch { return false; }
-};
+const readDark = () => { try { return localStorage.getItem(STORAGE_KEY) === 'dark'; } catch { return false; } };
+const hasChoice = () => { try { return localStorage.getItem(STORAGE_KEY) != null; } catch { return true; } };
 const writeDark = (next: boolean) => { try { localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light'); } catch { /* not remembered */ } listeners.forEach(callback => callback()); };
 
 // Which background: the wireframe net by default, the silk cloth with ?bg=silk (kept for comparing). Read through an external store so the server
@@ -45,7 +38,15 @@ const subscribeBackground = (callback: () => void) => { window.addEventListener(
 
 /** Full-screen sign-in surface; children are centred above the background. */
 export function DeepSpaceStage({ children, className }: { children: ReactNode; className?: string }) {
-  const dark = useSyncExternalStore(subscribe, readDark, () => false);
+  const storedDark = useSyncExternalStore(subscribe, readDark, () => false);
+  const [mounted, setMounted] = useState(false);
+  const [appDark, setAppDark] = useState(false);
+  useEffect(() => {
+    // Settle after mount so the server and first client render agree on light: an explicit choice wins, otherwise the stage follows the app's stored darkness (a dark app behind a light card washes the text out).
+    setMounted(true);
+    try { setAppDark(migrateAppearance(localStorage).darkness === 'dark'); } catch { /* stay light */ }
+  }, []);
+  const dark = mounted && (storedDark || (!hasChoice() && appDark));
   const background = useSyncExternalStore(subscribeBackground, readBackground, () => 'mesh');
   const toggle = () => writeDark(!dark);
   return (
