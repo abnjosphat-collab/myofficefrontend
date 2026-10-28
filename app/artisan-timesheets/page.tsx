@@ -36,6 +36,7 @@ function ArtisanContent() {
   const [listYear, setListYear] = useState(ANY);
   const [listMonth, setListMonth] = useState(ANY);
   const saved = useSavedTimesheets({ employee_id: listEmployee === ANY ? undefined : listEmployee, year: listYear === ANY ? undefined : Number(listYear), month: listMonth === ANY ? undefined : Number(listMonth) });
+  const savedCalm = JSON.stringify([listEmployee, listYear, listMonth]);
   const [tab, setTab] = useState('editor');
   const [pick, setPick] = useState('');
   const openToken = useRef(0); // supersedes a slower open when the pick changes mid-flight
@@ -200,7 +201,7 @@ function ArtisanContent() {
               <Select aria-label="Filter by year" className="w-36" value={listYear} onValueChange={setListYear} options={[{ value: ANY, label: 'All years' }, ...YEARS]} />
             </Toolbar>
             <DataRegion status={listStatus} subject="saved timesheets" error={saved.error} onRetry={() => saved.refetch()} loadingContent={<TimesheetLoading label="Loading saved timesheets" detail={['Opening the filing cabinet…', 'Dusting the archive…']} />} empty={<EmptyState icon="archive" title="No saved timesheets match" description="Open a month and save it, or clear the filters." />}>
-              <DataTable caption="Saved artisan timesheets" rows={saved.items} columns={COLUMNS} getRowId={r => String(r.id)} onRowActivate={r => { void openSaved(r); }}
+              <DataTable stillKey={savedCalm} caption="Saved artisan timesheets" rows={saved.items} columns={COLUMNS} getRowId={r => String(r.id)} onRowActivate={r => { void openSaved(r); }}
                 rowActions={r => <span className="inline-flex gap-1"><Button size="sm" onClick={() => { void openSaved(r); }}>Open</Button><IconButton icon="delete" size="sm" variant="ghost" label={`Delete the timesheet of ${r.employee_name} for ${periodLabel(r.year, r.month)}`} onClick={() => remove(r)} /></span>} />
             </DataRegion>
           </TabsContent>

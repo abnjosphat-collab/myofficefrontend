@@ -276,7 +276,7 @@ function SheqContent() {
             </div>
             <section aria-labelledby="sheq-monthly">
               <h2 id="sheq-monthly" className="mb-3 font-display text-section font-semibold text-ink">Reports per module and month</h2>
-              <DataTable caption="Reports per module and month" rows={monthRows} columns={monthColumns} getRowId={r => r.id} />
+              <DataTable stillKey={JSON.stringify([range, customFrom, customTo])} caption="Reports per module and month" rows={monthRows} columns={monthColumns} getRowId={r => r.id} />
             </section>
           </TabsContent>
 

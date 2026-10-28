@@ -11,7 +11,7 @@ export function InsightsPanel({ query, enabled = true }: { query: string; enable
   const status = deriveDataStatus({ loaded: !!ins.data, loading: ins.loading, error: ins.error, errorStatus: ins.errorStatus, count: ins.data?.summary?.total_breakdowns ?? 0, transient: isTransientStatus(ins.errorStatus) });
   return (
     <DataRegion status={status} subject="breakdown analytics" error={ins.error} onRetry={ins.refetch} empty={<EmptyState icon="analytics" title="No breakdowns in this selection" description="Widen the filters to see analytics." />}>
-      {ins.data && <BreakdownInsights data={ins.data} />}
+      {ins.data && <BreakdownInsights data={ins.data} stillKey={query} />}
     </DataRegion>
   );
 }

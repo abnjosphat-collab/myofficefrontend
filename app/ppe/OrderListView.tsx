@@ -51,6 +51,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   const { lines, counts, excluded, twins, notDueLegacy } = basket;
   const sizes = useMemo(() => [...new Set(lines.map(e => normSize(e.size)))].sort(), [lines]);
   const rows = useMemo(() => sortOrderList(filterOrderList(lines, { type: typeFilter, size, search, urgency }), sort), [lines, typeFilter, size, search, urgency, sort]);
+  const listCalm = JSON.stringify([typeFilter, size, search, urgency, sort]);
   const visibleExcluded = useMemo(() => excluded.filter(e => matchesTypeFilter(e.ppe_type, typeFilter)), [excluded, typeFilter]);
   const groups = useMemo(() => groupOrderList(rows), [rows]);
   const poLines = useMemo(() => groupOrderList(lines), [lines]);
@@ -142,7 +143,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
                   {groups.map(g => <li key={`${g.ppe_type}-${g.size}`} className="flex flex-wrap items-baseline gap-x-3 py-2 font-sans text-body-sm"><span className="font-semibold tabular text-ink">{g.count} ×</span><span className="font-medium text-ink">{typeName(g.ppe_type)}, size {g.size}</span>{g.people.length > 0 && <span className="min-w-0 flex-1 text-ink-muted [overflow-wrap:anywhere]">for {g.people.join(', ')}</span>}</li>)}
                 </ul>
               </section>
-              <DataTable caption="Items on the order list" rows={rows} columns={COLUMNS} getRowId={l => l.record_id} rowActions={rowActions} />
+              <DataTable stillKey={listCalm} caption="Items on the order list" rows={rows} columns={COLUMNS} getRowId={l => l.record_id} rowActions={rowActions} />
             </DataRegion>
           ) : (
             typeFilter.types.length > 0 ? <p className="font-sans text-body-sm text-ink-muted">No order lines of these types — reset the lens above to see everything.</p> : <p className="font-sans text-body-sm text-ink-muted">No order lines right now — everything due is shut out below, or nothing is due.</p>

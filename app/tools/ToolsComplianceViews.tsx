@@ -34,6 +34,7 @@ export function InspectionsView({ tools, plan, inspections, onRecord }: { tools:
         ? <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="success" size="sm" />No scheduled checks are overdue. Requirements come from each equipment record.</p>
         : (
           <DataTable
+            stillKey={JSON.stringify([show, query])}
             caption="Inspections by equipment"
             rows={rows}
             getRowId={tool => tool.id}
@@ -168,6 +169,7 @@ export function ApprovalsView({ tools, competencies, toolById, employeeById, onO
           ? <p className="flex items-center gap-2 font-sans text-body-sm text-ink-muted"><Icon name="success" size="sm" />Every piece of equipment has at least one eligible person.</p>
           : (
             <DataTable
+              stillKey={JSON.stringify([show, query])}
               caption="Eligible people by equipment"
               rows={rows}
               getRowId={tool => tool.id}

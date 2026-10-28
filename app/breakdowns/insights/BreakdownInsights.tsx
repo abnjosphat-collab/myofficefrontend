@@ -57,7 +57,7 @@ function Bars({ data, x }: { data: { name: string; value: number }[]; x: string 
   );
 }
 
-export function BreakdownInsights({ data }: { data: HeatmapData }) {
+export function BreakdownInsights({ data, stillKey }: { data: HeatmapData; stillKey?: string }) {
   const [tab, setTab] = useState('overview');
   const s = data.summary;
   const months = useMemo(() => (data.monthly_trends ?? []).map(m => ({ name: monthLabel(m.month), value: m.count })), [data.monthly_trends]);
@@ -120,12 +120,12 @@ export function BreakdownInsights({ data }: { data: HeatmapData }) {
       </TabsContent>
 
       <TabsContent value="machines" className="mt-4">
-        <RankTable title="Machines that break most" description="Top ten by number of breakdowns." caption="Machines ranked by breakdowns" rows={ranked(data.top_problem_machines)} columns={MACHINES} empty="No machines in this selection." />
+        <RankTable title="Machines that break most" description="Top ten by number of breakdowns." caption="Machines ranked by breakdowns" rows={ranked(data.top_problem_machines)} columns={MACHINES} empty="No machines in this selection." stillKey={stillKey} />
       </TabsContent>
 
       <TabsContent value="people" className="mt-4 flex flex-col gap-5">
-        <RankTable title="Artisans" description="Top ten by number of jobs." caption="Artisans ranked by jobs" rows={people} columns={PEOPLE} empty="No artisans in this selection." />
-        <RankTable title="Spare parts used" description="Top ten by quantity." caption="Spare parts ranked by quantity" rows={ranked(data.top_spare_parts)} columns={PARTS} empty="No parts recorded against these breakdowns." />
+        <RankTable title="Artisans" description="Top ten by number of jobs." caption="Artisans ranked by jobs" rows={people} columns={PEOPLE} empty="No artisans in this selection." stillKey={stillKey} />
+        <RankTable title="Spare parts used" description="Top ten by quantity." caption="Spare parts ranked by quantity" rows={ranked(data.top_spare_parts)} columns={PARTS} empty="No parts recorded against these breakdowns." stillKey={stillKey} />
       </TabsContent>
 
       <TabsContent value="mix" className="mt-4">

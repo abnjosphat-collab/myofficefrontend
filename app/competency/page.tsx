@@ -162,7 +162,7 @@ function CompetencyContent() {
           ? <EmptyState icon="search" title="No employees match these filters" description="Try a different trade." action={<Button onClick={() => setTradeFilter('all')}>Clear filter</Button>} />
           : scope ? <EmptyState icon="training" title={`No ${scope} skill assessments yet`} description="Assessments appear here once competency records exist." /> : <EmptyState icon="training" title="No skill assessments yet" description="Assessments appear here once competency records exist." />}
       >
-        <DataTable caption="Competency matrix: skill level by employee" rows={displayed} columns={columns} getRowId={e => String(e.id)} density="compact" />
+        <DataTable stillKey={tradeFilter} caption="Competency matrix: skill level by employee" rows={displayed} columns={columns} getRowId={e => String(e.id)} density="compact" />
       </DataRegion>
 
       <Card padding="md">

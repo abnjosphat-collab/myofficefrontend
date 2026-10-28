@@ -81,7 +81,7 @@ export function AnalyticsPanel({ issues }: { issues: StockIssue[] }) {
 
       <section aria-labelledby="period-table" className="flex flex-col gap-2">
         <h2 id="period-table" className="font-display text-section font-semibold text-ink">{PERIODS.find(p => p.value === period)?.label} breakdown</h2>
-        <DataTable caption={`Issues by ${period}`} rows={rows} columns={COLUMNS} getRowId={r => r.key} />
+        <DataTable stillKey={period} caption={`Issues by ${period}`} rows={rows} columns={COLUMNS} getRowId={r => r.key} />
       </section>
     </div>
   );

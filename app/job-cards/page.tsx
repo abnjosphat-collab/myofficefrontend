@@ -154,6 +154,7 @@ function JobCardsContent() {
   const [selected, setSelected] = useState<JobCard | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const listCalm = JSON.stringify([search, filter]);
 
   // useModuleData reports failures as "<HTTP status>: <body>"; recover the status so access problems and
   // transient failures are told apart. A failed request must never read as "no job cards".
@@ -208,7 +209,7 @@ function JobCardsContent() {
           ? <EmptyState icon="search" title="No job cards match" description="Try a different search or status." action={<Button onClick={() => { setFilter('all'); setSearch(''); }}>Clear filters</Button>} />
           : scope ? <EmptyState icon="task" title={`No ${scope} job cards yet`} description="Job cards will appear here once they are created." /> : <EmptyState icon="task" title="No job cards yet" description="Job cards will appear here once they are created." />}
       >
-        <DataTable caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
+        <DataTable stillKey={listCalm} caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
       </DataRegion>
 
       {selected && <JobCardDetail key={selected.id} jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, { ...updated, expected_updated_at: selected?.updated_at }); refetch(); }} />}

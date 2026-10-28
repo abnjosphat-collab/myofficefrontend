@@ -74,6 +74,7 @@ function AvailabilityContent() {
     const v = e[id as keyof Equipment];
     return typeof v === 'string' ? v.toLowerCase() : v ?? '';
   }), [filtered, sort]);
+  const listCalm = JSON.stringify([search, statusF, tab, sort]);
 
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: filtered.length, transient: isTransientStatus(list.errorStatus) });
   const unavailable = !stats.loaded && !stats.loading;
@@ -156,7 +157,7 @@ function AvailabilityContent() {
         >
           <p className="mb-3 font-sans text-caption text-ink-muted">{filtered.length} of {equipment.length} equipment<UpdatedCaption at={list.updatedAt} /></p>
           <TabsContent value="overview">
-            <DataTable caption="Equipment availability" rows={rows} columns={OVERVIEW} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort}
+            <DataTable stillKey={listCalm} caption="Equipment availability" rows={rows} columns={OVERVIEW} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort}
               rowActions={e => (
                 <span className="inline-flex gap-1">
                   <Button asChild size="sm"><Link href={`/breakdowns?q=${encodeURIComponent(e.name)}`} aria-label={`View breakdowns for ${e.name}`}>Breakdowns</Link></Button>
@@ -165,7 +166,7 @@ function AvailabilityContent() {
               )} />
           </TabsContent>
           <TabsContent value="detailed">
-            <DataTable caption="Detailed availability analysis" rows={rows} columns={DETAIL} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort} />
+            <DataTable stillKey={listCalm} caption="Detailed availability analysis" rows={rows} columns={DETAIL} getRowId={e => String(e.id)} sort={sort} onSortChange={setSort} />
             <p className="mt-3 font-sans text-caption text-ink-muted">Equipment with no availability record shows No data for availability, MTBF and MTTR, because nothing has been measured. It is left out of the department averages.</p>
           </TabsContent>
           <TabsContent value="trends">

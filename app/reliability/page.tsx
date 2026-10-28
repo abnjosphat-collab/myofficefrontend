@@ -30,6 +30,7 @@ function ReliabilityContent() {
   const [sort, setSort] = useState<SortState>({ id: 'rpn', direction: 'desc' });
 
   const rows = sortRows(table, sort, (e, id) => e[id as keyof EquipReliability]);
+  const listCalm = JSON.stringify(sort);
   const fleet = fleetFigures(table);
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: table.length, transient: isTransientStatus(errorStatus) });
   const ready = status === 'ready' || status === 'refreshing' || status === 'stale-error';
@@ -90,7 +91,7 @@ function ReliabilityContent() {
 
           <section aria-labelledby="equipment-metrics">
             <h2 id="equipment-metrics" className="mb-3 font-display text-section font-semibold text-ink">Equipment reliability metrics</h2>
-            <DataTable caption="Equipment reliability metrics" rows={rows} columns={COLUMNS} getRowId={e => e.equipment} sort={sort} onSortChange={setSort} />
+            <DataTable stillKey={listCalm} caption="Equipment reliability metrics" rows={rows} columns={COLUMNS} getRowId={e => e.equipment} sort={sort} onSortChange={setSort} />
           </section>
         </div>
       </DataRegion>

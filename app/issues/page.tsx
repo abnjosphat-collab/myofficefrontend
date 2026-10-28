@@ -47,6 +47,7 @@ function IssuesContent() {
     });
   }, [issues, search, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'cost' ? issueCost(r) : id === 'items' ? (r.items ?? []).length : String(r[id as keyof StockIssue] ?? '').toLowerCase())), [filtered, sort]);
+  const listCalm = JSON.stringify([search, dateFrom, dateTo, sort, tab]);
   const totalCost = useMemo(() => issues.reduce((s, i) => s + issueCost(i), 0), [issues]);
 
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: filtered.length, transient: isTransientStatus(list.errorStatus) });
@@ -149,7 +150,7 @@ function IssuesContent() {
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'}{filtered.length !== issues.length ? ` of ${issues.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             <DataTable
-              caption="Stock issue log" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort}
+              caption="Stock issue log" stillKey={listCalm} rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort}
               onRowActivate={i => setViewingId(i.id)}
               rowActions={i => <IconButton icon="delete" variant="danger" size="sm" label={`Delete the issue to ${i.recipient_name} on ${fmtDateTime(i.issued_at)}`} onClick={() => remove(i)} />}
             />
