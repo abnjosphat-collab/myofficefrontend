@@ -50,6 +50,7 @@ export function CategoryTable({ categories }: { categories: OTCategoryDetail[] }
         onSortChange={setSort}
         density="compact"
         className="rounded-none border-0"
+        stillKey={JSON.stringify(sort)}
         renderExpanded={c => <Records category={c} />}
         expandLabel={(c, open) => `${open ? 'Hide' : 'Show'} the records for ${c.category}`}
       />

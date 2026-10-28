@@ -80,7 +80,7 @@ export function RecentlyDeletedContent() {
         onRetry={() => list.refetch()}
         empty={<EmptyState icon="history" title="Nothing deleted" description="Deleted records show up here and can be put back at any time." />}
       >
-        <DataTable caption="Recently deleted records" rows={list.items} columns={columns} getRowId={row => row.id} />
+        <DataTable caption="Recently deleted records" rows={list.items} columns={columns} getRowId={row => row.id} stillKey={q} />
       </DataRegion>
     </div>
   );

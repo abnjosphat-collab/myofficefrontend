@@ -120,7 +120,7 @@ function JobsPanel({ jobs, openJobs }: { jobs: WorkOrder[]; openJobs: number }) 
       ) : (
         <div className="flex flex-col gap-3">
           <DataTable
-            caption="Jobs for this machine" rows={pageSlice(jobs, page, pageSize)} columns={columns} getRowId={w => String(w.id)}
+            caption="Jobs for this machine" rows={pageSlice(jobs, page, pageSize)} columns={columns} getRowId={w => String(w.id)} stillKey={page}
             onRowActivate={w => router.push(`/maintenance?open=${encodeURIComponent(String(w.id))}`)}
           />
           {jobs.length > pageSize && <Pagination page={page} pageSize={pageSize} total={jobs.length} onPageChange={setPage} />}
