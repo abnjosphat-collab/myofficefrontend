@@ -2,18 +2,18 @@
 // subfolder, rename, move, delete (when empty). The count is every file in it and below.
 'use client';
 
-import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, RecordCard, Icon } from '@/components/ui-system';
+import { IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, MotionList, MotionListItem, RecordCard, Icon } from '@/components/ui-system';
 import type { FolderNode } from './types';
 
-export function FolderGrid({ folders, isManager, onOpen, onNewSub, onRename, onMove, onDelete }: {
+export function FolderGrid({ folders, isManager, onOpen, onNewSub, onRename, onMove, onDelete, calmKey }: {
   folders: readonly FolderNode[]; isManager: boolean; onOpen: (f: FolderNode) => void; onNewSub: (f: FolderNode) => void;
-  onRename: (f: FolderNode) => void; onMove: (f: FolderNode) => void; onDelete: (f: FolderNode) => void;
+  onRename: (f: FolderNode) => void; onMove: (f: FolderNode) => void; onDelete: (f: FolderNode) => void; calmKey?: string;
 }) {
   if (folders.length === 0) return null;
   return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Folders here">
+    <MotionList as="ul" calmKey={calmKey} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Folders here">
       {folders.map(f => (
-        <li key={f.id} className="relative">
+        <MotionListItem as="li" key={f.id} className="relative">
           <RecordCard
             title={<span className="inline-flex items-center gap-2"><Icon name="folder" size="md" className="shrink-0 text-ink-muted" />{f.name}</span>}
             openLabel={`Open folder ${f.name}`} onOpen={() => onOpen(f)} subtitle={f.description || undefined}
@@ -30,8 +30,8 @@ export function FolderGrid({ folders, isManager, onOpen, onNewSub, onRename, onM
               </Menu>
             )}
           />
-        </li>
+        </MotionListItem>
       ))}
-    </ul>
+    </MotionList>
   );
 }

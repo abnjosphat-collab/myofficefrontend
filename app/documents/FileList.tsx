@@ -5,8 +5,8 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import {
-  Checkbox, DataRegion, Icon, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Pagination, RecordCard,
-  StatusBadge, Tag, deriveDataStatus, isTransientStatus, pageSlice, sortRows, type Column, type SortState,
+  Checkbox, DataRegion, Icon, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, MotionList, MotionListItem, Pagination, RecordCard,
+  StatusBadge, Tag, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, sortRows, type Column, type SortState,
 } from '@/components/ui-system';
 import { fmtDateTime } from '@/components/shared/utils';
 import { formatSize, highlightParts, shortLocation, typeMeta } from './documentLogic';
@@ -58,12 +58,12 @@ function FileMenu({ doc, a, isManager }: { doc: DocumentFile; a: FileActions; is
   );
 }
 
-export function FileList({ items, terms, view, state, subject, actions: a, selected, onSelectedChange, showLocation, isManager, emptyHint, empty }: {
+export function FileList({ items, terms, view, state, subject, actions: a, selected, onSelectedChange, showLocation, isManager, emptyHint, empty, calmKey }: {
   items: readonly DocumentFile[]; terms: readonly string[]; view: 'cards' | 'table';
   state: { loaded: boolean; loading: boolean; error: string | null; errorStatus: number | null; refetch: () => Promise<void> };
   subject: string; actions: FileActions; selected: ReadonlySet<string>; onSelectedChange: (s: Set<string>) => void; showLocation: boolean; isManager: boolean;
   /** Said under "no files" when nothing is narrowing the list. */
-  emptyHint: ReactNode; empty?: ReactNode;
+  emptyHint: ReactNode; empty?: ReactNode; calmKey?: string;
 }) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(1);
@@ -71,6 +71,7 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
   const lastPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, lastPage);
   const visible = pageSlice(rows, current, PAGE_SIZE);
+  const listCalm = JSON.stringify([calmKey ?? null, sort, current]);
   const status = deriveDataStatus({ loaded: state.loaded, loading: state.loading, error: state.error, errorStatus: state.errorStatus, count: items.length, transient: isTransientStatus(state.errorStatus) });
 
   const COLUMNS: Column<DocumentFile>[] = [
@@ -96,7 +97,7 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
       {view === 'table' ? (
         <div className="flex flex-col gap-3">
           <DataTable
-            caption={`Files in ${subject}`} rows={visible} columns={COLUMNS} getRowId={d => d.id} sort={sort} onSortChange={setSort}
+            caption={`Files in ${subject}`} stillKey={listCalm} rows={visible} columns={COLUMNS} getRowId={d => d.id} sort={sort} onSortChange={setSort}
             selected={selected} onSelectedChange={onSelectedChange} rowSelectLabel={d => `Select ${d.name}`} onRowActivate={a.onOpen}
             rowActions={d => <FileMenu doc={d} a={a} isManager={isManager} />}
           />
@@ -104,12 +105,13 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={`Files in ${subject}`}>
+          <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={`Files in ${subject}`}>
             {visible.map(d => {
               const m = typeMeta(d.type);
               return (
-                <li key={d.id} className="relative">
+                <MotionListItem as="li" key={d.id} className="relative">
                   <Checkbox className="absolute left-3.5 top-3.5 z-10" aria-label={`Select ${d.name}`} checked={selected.has(d.id)} onChange={e => toggleOne(d.id, e.target.checked)} />
+                  <ZoomLink zoomId={`documents:rec:${d.id}`}>
                   <RecordCard
                     eyebrow={<span className="pl-7">{m.label}</span>} title={<Marked text={d.name} terms={terms} />} openLabel={`Preview ${d.name}`} onOpen={() => a.onOpen(d)} selected={selected.has(d.id)}
                     subtitle={d.originalName && d.originalName !== d.name ? d.originalName : undefined}
@@ -122,10 +124,11 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
                     meta={d.tags.length > 0 ? <span className="flex flex-wrap gap-1">{d.tags.slice(0, 4).map(t => <Tag key={t}>{t}</Tag>)}</span> : undefined}
                     action={<FileMenu doc={d} a={a} isManager={isManager} />}
                   />
-                </li>
+                  </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </ul>
+          </MotionList>
           {rows.length > PAGE_SIZE && <Pagination page={current} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />}
         </div>
       )}

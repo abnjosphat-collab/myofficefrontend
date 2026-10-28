@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { AppShell, useRouteSidebarCollapsed } from '@/components/app-shell';
-import { Button, Drawer, EmptyState, Notice, PageHeader, VIEW_CARDS_TABLE, useViewPreference } from '@/components/ui-system';
+import { Button, Drawer, EmptyState, Notice, PageHeader, VIEW_CARDS_TABLE, ZoomLink, useViewPreference } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { BulkBar } from './BulkBar';
 import { BulkTagsDialog, EditFileDialog, type TagsSubject } from './FileDialogs';
@@ -57,6 +57,7 @@ function DocumentsContent() {
   const [dropped, setDropped] = useState<File[]>([]);
 
   const folders = overview.overview?.folders ?? EMPTY_FOLDERS;
+  const listCalm = JSON.stringify([filters, place]);
   const tree = useMemo(() => buildTree(folders), [folders]);
   const flat = useMemo(() => flattenTree(tree), [tree]);
   const facets = overview.overview?.facets ?? { types: {}, exts: [], tags: [], uploaders: [] };
@@ -108,7 +109,7 @@ function DocumentsContent() {
     : trashView ? <EmptyState icon="delete" title="The trash is empty" description="Deleted files wait here until a manager deletes them for good." />
     : place.kind === 'starred' ? <EmptyState icon="starred" title="Nothing starred" description="Star a file to keep it close." />
     : place.kind === 'unfiled' ? <EmptyState icon="documents" title="Nothing is unfiled" description="Every file is in a folder." />
-    : <EmptyState icon="documents" title={place.kind === 'folder' ? 'No files in this folder' : scope ? `No ${scope} files yet` : 'No files yet'} description="Upload files, drop them on this page, or paste a picture." action={<Button variant="primary" icon="upload" onClick={() => { setDropped([]); setUploading(true); }}>Upload files</Button>} />;
+    : <EmptyState icon="documents" title={place.kind === 'folder' ? 'No files in this folder' : scope ? `No ${scope} files yet` : 'No files yet'} description="Upload files, drop them on this page, or paste a picture." action={<ZoomLink zoomId="documents:new-upload" className="inline-block"><Button variant="primary" icon="upload" onClick={() => { setDropped([]); setUploading(true); }}>Upload files</Button></ZoomLink>} />;
 
   const treeNav = <FolderTree tree={tree} flat={flat} place={place} counts={counts} onSelect={go} />;
 
@@ -120,7 +121,7 @@ function DocumentsContent() {
         actions={(
           <>
             <Button icon="folder-add" disabled={!overview.overview} onClick={() => setFolderTarget({ mode: 'create', parentId: place.kind === 'folder' ? place.id : null })}>New folder</Button>
-            <Button variant="primary" icon="upload" disabled={!overview.overview} onClick={() => { setDropped([]); setUploading(true); }}>Upload</Button>
+            <ZoomLink zoomId="documents:new-upload" className="inline-block"><Button variant="primary" icon="upload" disabled={!overview.overview} onClick={() => { setDropped([]); setUploading(true); }}>Upload</Button></ZoomLink>
           </>
         )}
       />
@@ -146,7 +147,7 @@ function DocumentsContent() {
               <section aria-labelledby="folders-h" className="flex flex-col gap-2">
                 <h3 id="folders-h" className="font-sans text-label font-medium text-ink-muted">Folders</h3>
                 <FolderGrid
-                  folders={subfolders} isManager={isManager} onOpen={f => go({ kind: 'folder', id: f.id })} onNewSub={f => setFolderTarget({ mode: 'create', parentId: f.id })}
+                  calmKey={listCalm} folders={subfolders} isManager={isManager} onOpen={f => go({ kind: 'folder', id: f.id })} onNewSub={f => setFolderTarget({ mode: 'create', parentId: f.id })}
                   onRename={f => setFolderTarget({ mode: 'rename', folder: f })} onMove={f => setMoving({ kind: 'folder', folder: f })} onDelete={f => { void deleteFolderThen(f); }}
                 />
               </section>
@@ -167,7 +168,7 @@ function DocumentsContent() {
                   onTrash={() => { void act.trash(chosen); }} onRestore={() => { void act.restore(chosen); }} onPurge={() => { void act.purge(chosen); }}
                 />
                 <FileList
-                  items={items} terms={search.result?.terms ?? []} view={view} state={search} subject={folderHere?.name ?? 'the library'} actions={fileActions}
+                  calmKey={listCalm} items={items} terms={search.result?.terms ?? []} view={view} state={search} subject={folderHere?.name ?? 'the library'} actions={fileActions}
                   selected={selected} onSelectedChange={setSelected} showLocation={place.kind !== 'folder' || narrowed} isManager={isManager} emptyHint="Nothing to show here." empty={emptyState}
                 />
               </section>

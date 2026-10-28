@@ -70,7 +70,7 @@ export function UploadDialog({ open, flat, defaultFolderId, initialFiles, tagSug
   return (
     <FormDialog
       open={open} onOpenChange={o => { if (!busy) onOpenChange(o); }} size="lg" title="Upload files" description={scope && !folderId ? `Into ${scope} — pick a folder below` : `Into ${pathLabel(flat, folderId)}`}
-      submitLabel={files.length > 1 ? `Upload ${files.length} files` : 'Upload'} onSubmit={submit}
+      submitLabel={files.length > 1 ? `Upload ${files.length} files` : 'Upload'} onSubmit={submit} zoomId="documents:new-upload"
       dirty={files.some(f => !f.uploaded) || folderId !== defaultFolderId || tags.length > 0 || files.some(f => f.name !== f.file.name)}
     >
       <div className="flex flex-col gap-4">

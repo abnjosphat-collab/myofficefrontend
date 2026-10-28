@@ -90,7 +90,7 @@ export function DocumentViewer({ doc, list, onNavigate, onClose, actions, isMana
   const total = list.length;
   return (
     <Dialog
-      open onOpenChange={o => { if (!o) onClose(); }} size="xl" title={doc.name}
+      open onOpenChange={o => { if (!o) onClose(); }} size="xl" zoomId={`documents:rec:${doc.id}`} title={doc.name}
       description={`${meta.label}, ${formatSize(doc.size)}${total > 1 && near.position >= 0 ? `. File ${near.position + 1} of ${total} in this list` : ''}`}
       footer={(
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
