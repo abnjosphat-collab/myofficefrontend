@@ -2,7 +2,6 @@
 // and whether today's reading is in. The whole pod is one button that opens the unit drawer.
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
 import { Icon } from '@/components/ui-system';
 import { STATUS_META, hours } from './meta';
 import type { Compressor } from './types';
@@ -13,17 +12,12 @@ import s from '@/components/shared/floor/floor.module.css';
 export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onOpen }: {
   compressor: Compressor; recordedToday: boolean; justSaved: boolean; kick: number; index: number; onOpen: () => void;
 }) {
-  const reduced = useReducedMotion();
   const accent = statusAccent(compressor.status);
   const life: ServiceLife = serviceLife(compressor.total_running_hours);
   const status = STATUS_META[compressor.status]?.label ?? compressor.status;
   const efficiency = compressor.total_running_hours ? (compressor.total_loaded_hours / compressor.total_running_hours) * 100 : null;
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay: reduced ? 0 : Math.min(index * 0.04, 0.4), ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div className={s.rowIn} style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}>
       <Slab
         accent={accent}
         className={`group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus ${justSaved ? s.saved : ''}`}
@@ -75,6 +69,6 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onO
           </footer>
         </div>
       </Slab>
-    </motion.div>
+    </div>
   );
 }

@@ -4,10 +4,9 @@
 // fields (pressure, temperature, notes) folded away until wanted.
 'use client';
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, Icon, Input, Textarea, useDismissGuard } from '@/components/ui-system';
+import { Button, Dialog, Field, Icon, Input, Presence, Textarea, useDismissGuard } from '@/components/ui-system';
 import { calculateDailyDelta, calculateEfficiency, readingProblems } from './calcCompressors';
 import { STATUS_KEYS, STATUS_META, hours } from './meta';
 import type { Compressor, PreviousReading } from './types';
@@ -33,7 +32,6 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
   /** Show this compressor's week and month. */
   onHistory: (id: number) => void;
 }) {
-  const reduced = useReducedMotion();
   const [running, setRunning] = useState('');
   const [loaded, setLoaded] = useState('');
   const [pressure, setPressure] = useState('');
@@ -159,24 +157,19 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
               <MeterField label="Running hours" value={running} onChange={setRunning} previous={previousLoading ? 'Loading…' : `Previous ${hours(prevRun)}`} error={touched ? problems.running : undefined} delta={valid ? dayRun : null} onEnter={save} />
               <MeterField label="Loaded hours" value={loaded} onChange={setLoaded} previous={previousLoading ? 'Loading…' : `Previous ${hours(prevLoad)}`} error={touched ? problems.loaded : undefined} delta={valid ? dayLoad : null} onEnter={save} />
             </div>
-            <AnimatePresence initial={false}>
-              {valid && dayRun > 0 && (
-                <motion.p key="day" initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduced ? undefined : { opacity: 0 }}
-                  className="font-sans text-body-sm text-ink-muted">
+            <Presence visible={valid && dayRun > 0} fadeOnly>
+              <p className="font-sans text-body-sm text-ink-muted">
                   This day: <span className="tabular text-ink">{dayRun.toFixed(1)} h</span> running, <span className="tabular text-ink">{dayLoad.toFixed(1)} h</span> loaded · <span className="tabular font-medium" style={{ color: effTone }}>{eff}%</span> loaded
-                </motion.p>
-              )}
-            </AnimatePresence>
+              </p>
+            </Presence>
 
             <button type="button" aria-expanded={more} onClick={() => setMore(m => !m)}
               className="flex w-fit items-center gap-1 rounded-sm font-sans text-body-sm text-ink-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-              <Icon name="chevron-down" size="xs" className={`transition-transform duration-200 ${more ? 'rotate-180' : ''}`} />
+              <Icon name="chevron-down" size="xs" className={`transition-transform duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy motion-reduce:transition-none ${more ? 'rotate-180' : ''}`} />
               Pressure, temperature and notes
             </button>
-            <AnimatePresence initial={false}>
-              {more && (
-                <motion.div key="more" initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={reduced ? undefined : { height: 0, opacity: 0 }}
-                  transition={{ duration: reduced ? 0 : 0.2 }} className="overflow-hidden">
+            <Presence visible={more}>
+              <div>
                   <div className="flex flex-col gap-3 pb-1">
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Pressure" optional><Input type="number" inputMode="decimal" value={pressure} onChange={e => setPressure(e.target.value)} placeholder="bar" /></Field>
@@ -184,9 +177,8 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
                     </div>
                     <Field label="Notes" optional><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything the next shift should know" /></Field>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+              </div>
+            </Presence>
           </section>
         </div>
       )}

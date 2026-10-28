@@ -153,7 +153,7 @@ const localRules = {
       create(context) {
         const filename = (context.filename ?? '').replace(/\\/g, '/');
         const allowed = filename.includes('components/ui-system/motion/')
-          || /(^|\/)(app\/compressors\/(page|UnitDrawer|UnitPod|UnitView)\.tsx|app\/test-homepage\/.*|components\/shared\/floor\/motion\.tsx|components\/ui-system\/patterns\/LoadingPulse\.tsx|components\/home\/useTypewriterPlaceholder\.ts)$/.test(filename)
+          || /(^|\/)(app\/test-homepage\/.*|components\/ui-system\/patterns\/LoadingPulse\.tsx|components\/home\/useTypewriterPlaceholder\.ts)$/.test(filename)
           || /\.test\.tsx?$/.test(filename);
         if (allowed) return {};
         const report = (node) => context.report({

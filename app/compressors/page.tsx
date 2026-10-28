@@ -5,12 +5,11 @@
 // muted.
 'use client';
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Select, deriveDataStatus, isTransientStatus, buttonVariants } from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
 import { useLookupList } from '@/hooks/useLookups';
 import { formatDate, formatWeekday } from '@/lib/format';
 import { AnalyticsTab } from './AnalyticsTab';
@@ -39,13 +38,14 @@ const parseDay = (v: string) => { const [y, m, d] = v.split('-').map(Number); re
 const dayLabel = (v: string) => `${formatWeekday(parseDay(v))} ${formatDate(parseDay(v))}`;
 
 function CompressorFloor() {
-  const reduced = useReducedMotion();
   const [date, setDate] = useState(() => localDateString(new Date()));
   const d = useCompressorsData(date);
   const { register, previous } = d;
   const compressors = register.items;
   const lookupLocations = useLookupList('location');
   const [view, setView] = useState<View>('floor');
+  const viewNavRef = useRef<HTMLDivElement>(null);
+  const viewPill = useSlidingIndicator(viewNavRef, { selector: '[aria-pressed="true"]', activeKey: view });
   const [layout, setLayout] = useState<'pods' | 'list'>('pods');
   const [location, setLocation] = useState(ALL);
   const [statusF, setStatusF] = useState(ALL);
@@ -116,11 +116,12 @@ function CompressorFloor() {
       {/* View switch: the floor is the job; the rest are references */}
       <nav aria-label="Compressor views" className="flex flex-wrap items-center justify-between gap-3">
         {/* Scrolls sideways within its own width on a narrow screen rather than widening the page. */}
-        <div className="relative flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface-muted p-1 shadow-[inset_0_1px_3px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] [scrollbar-width:none]">
+        <div ref={viewNavRef} className="relative flex max-w-full gap-1 overflow-x-auto rounded-lg bg-surface-muted p-1 shadow-[inset_0_1px_3px_color-mix(in_srgb,var(--mo-ink)_12%,transparent)] [scrollbar-width:none]">
+          <SlidingIndicator rect={viewPill} variant="pill" className="rounded-control bg-surface-raised shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]" />
           {([['floor', 'Floor'], ['month', 'Month'], ['services', 'Services'], ['analytics', 'Analytics'], ['fleet', 'Fleet']] as const).map(([v, label]) => (
             <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-              className="relative z-10 shrink-0 rounded-control px-4 py-1.5 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-              {view === v && <motion.span layoutId="view-pill" className="absolute inset-0 -z-10 rounded-control bg-surface-raised shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]" transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }} />}
+              className={`relative z-10 shrink-0 rounded-control px-4 py-1.5 font-sans text-body-sm font-medium text-ink-muted transition-colors aria-pressed:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${viewPill ? '' : 'aria-pressed:bg-surface-raised aria-pressed:shadow-[0_4px_12px_-6px_color-mix(in_srgb,var(--mo-ink)_40%,transparent)]'}`}>
+
               {label}
             </button>
           ))}
@@ -136,8 +137,8 @@ function CompressorFloor() {
         )}
       </nav>
 
-      <AnimatePresence mode="wait">
-        <motion.div key={view} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.22 }}>
+      <Presence visible fadeOnly swapKey={view}>
+        <div>
           {view === 'floor' && (
             <div className="flex flex-col gap-5">
               <ServiceRunway items={dueSoon} onOpen={setOpenId} />
@@ -178,8 +179,8 @@ function CompressorFloor() {
           {view === 'services' && <div className={s.viewEnter}><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
           {view === 'analytics' && <div className={s.viewEnter}><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
           {view === 'fleet' && <div className={s.viewEnter}><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      </Presence>
 
       <UnitDrawer
         compressor={open}
@@ -227,7 +228,6 @@ function UnitList({ rows, recorded, onOpen }: { rows: Compressor[]; recorded: Se
  * bar, hours to go and the service it is heading for. Six rows show; the rest are one click away.
  */
 function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: ReturnType<typeof serviceLife> }[]; onOpen: (id: number) => void }) {
-  const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   // Browser storage is only readable after mount.
@@ -255,13 +255,10 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
         </span>
         <span className="font-sans text-caption tabular" style={{ color: week ? 'var(--mo-danger)' : 'var(--mo-ink-muted)' }}>{week} within a week</span>
         <span className="font-sans text-caption tabular text-ink-muted">{month} within 30 days</span>
-        <Icon name="chevron-down" size="xs" className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <Icon name="chevron-down" size="xs" className={`transition-transform duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div id={bodyId} key="list"
-            initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={reduced ? undefined : { height: 0, opacity: 0 }}
-            transition={{ duration: reduced ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
+      <Presence visible={open}>
+        <div id={bodyId}>
             <ul className="mt-1 divide-y divide-line-subtle border-t border-line-subtle">
               {shown.map(({ c, life }) => (
                 <li key={c.id} style={{ ['--accent' as string]: life.tone }}>
@@ -281,9 +278,8 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
                 : <span />}
               <DownloadButton data={servicesFromRegister(items.map(x => x.c)) as unknown as Record<string, unknown>[]} columns={SERVICES_COLUMNS} filename={exportFilename('Compressor_Upcoming_Services')} title="Upcoming compressor services" />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      </Presence>
     </section>
   );
 }

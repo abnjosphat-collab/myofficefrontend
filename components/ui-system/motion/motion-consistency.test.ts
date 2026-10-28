@@ -13,10 +13,8 @@ describe('motion-consistency', () => {
     expect(rules('components/ui-system/motion/X.tsx', `import { motion } from 'framer-motion';`)).not.toContain('framer-import');
   });
 
-  it('honours the framer exception list', () => {
+  it('honours the framer exception list (compressors + floor migrated in B4s4)', () => {
     for (const rel of [
-      'app/compressors/page.tsx',
-      'components/shared/floor/motion.tsx',
       'components/ui-system/patterns/LoadingPulse.tsx',
       'components/home/useTypewriterPlaceholder.ts',
       'app/test-homepage/page.tsx',
@@ -34,7 +32,7 @@ describe('motion-consistency', () => {
     const withImport = (jsx: string) => `import { motion } from 'framer-motion';\n${jsx}`;
     expect(rules('app/leaves/page.tsx', withImport(`<motion.div layoutId="x" />`))).toContain('layout-scope');
     expect(rules('app/leaves/page.tsx', withImport(`<motion.div layout />`))).toContain('layout-scope');
-    expect(rules('app/compressors/page.tsx', withImport(`<motion.span layoutId="view-pill" />`))).not.toContain('layout-scope');
+    expect(rules('app/compressors/page.tsx', withImport(`<motion.span layoutId="view-pill" />`))).toContain('layout-scope');
     // Recharts layout="vertical" is not framer.
     expect(rules('app/issues/Panel.tsx', `<BarChart layout="vertical" />`)).not.toContain('layout-scope');
     // Prose and comments never flag.
@@ -45,7 +43,8 @@ describe('motion-consistency', () => {
     expect(rules('app/leaves/page.tsx', `<motion.div transition={{ duration: 0.3 }} />`)).toContain('raw-transition');
     expect(rules('app/leaves/page.tsx', `<motion.div transition={{ type: 'spring', stiffness: 300 }} />`)).toContain('raw-transition');
     expect(rules('components/ui-system/motion/X.tsx', `<motion.div transition={{ duration: 0.3 }} />`)).not.toContain('raw-transition');
-    expect(rules('app/compressors/page.tsx', `<motion.div transition={{ duration: 0.3 }} />`)).not.toContain('raw-transition');
+    expect(rules('app/compressors/page.tsx', `<motion.div transition={{ duration: 0.3 }} />`)).toContain('raw-transition');
+    expect(rules('components/ui-system/patterns/LoadingPulse.tsx', `<motion.div transition={{ duration: 0.3 }} />`)).not.toContain('raw-transition');
     expect(rules('app/leaves/page.tsx', `<motion.div transition={SPRING.smooth} />`)).not.toContain('raw-transition');
   });
 

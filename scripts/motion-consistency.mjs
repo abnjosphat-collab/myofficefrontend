@@ -22,12 +22,8 @@ const { join, relative } = path;
 // the presets; the loading loops, the typewriter guide and the test-homepage
 // study stay by decision (see ASSUMPTIONS.md).
 const FRAMER_ALLOW = new Set([
-  'app/compressors/page.tsx',
-  'app/compressors/UnitDrawer.tsx',
-  'app/compressors/UnitPod.tsx',
-  'app/compressors/UnitView.tsx',
-  'components/shared/floor/motion.tsx',
   // B4s1: ActiveNoticesPopup migrated to Presence (was: framer exception).
+  // B4s4: compressors + floor/motion migrated onto the presets.
   'components/ui-system/patterns/LoadingPulse.tsx',
   'components/home/useTypewriterPlaceholder.ts',
 ]);
@@ -39,7 +35,7 @@ const TRANSITION_ALLOW_DIRS = FRAMER_ALLOW_DIRS;
 
 // Named moving elements allowed a layout/layoutId until B4 migrates them.
 const LAYOUT_ALLOW = new Set([
-  'app/compressors/page.tsx', // view-pill shared pill
+  // B4s4: the compressor view-pill moved to the sliding indicator (was: layoutId exception).
   // B4s1: ActiveNoticesPopup migrated to Presence (was: card layout exception).
 ]);
 const LAYOUT_ALLOW_DIRS = ['app/test-homepage/', 'components/ui-system/motion/'];

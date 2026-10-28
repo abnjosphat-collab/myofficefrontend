@@ -4,9 +4,8 @@
 // of the days it covers and marked.
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
-import { useMemo, useState } from 'react';
-import { Button, IconButton, MetricGrid, MetricTile } from '@/components/ui-system';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, IconButton, MetricGrid, MetricTile, useIsReducedMotion } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate, formatWeekday } from '@/lib/format';
@@ -38,7 +37,9 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
   onBack: () => void;
   onOpenDay: (date: string) => void;
 }) {
-  const reduced = useReducedMotion();
+  const reduced = useIsReducedMotion();
+  const [barsShown, setBarsShown] = useState(false);
+  useEffect(() => { const f = requestAnimationFrame(() => setBarsShown(true)); return () => cancelAnimationFrame(f); }, []);
   const [period, setPeriod] = useState<Period>('week');
   const [anchor, setAnchor] = useState(today);
   const { start, end, label } = bounds(period, anchor);
@@ -119,12 +120,10 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
               return (
                 <div key={d.date} title={tip} className="relative flex h-full items-end justify-center">
                   {d.state === 'reading' && (
-                    <motion.div className="relative w-full overflow-hidden rounded-t-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)' }}
-                      initial={reduced ? false : { height: 0 }} animate={{ height: `${Math.max(2, height)}%` }}
-                      transition={{ duration: reduced ? 0 : 0.6, delay: reduced ? 0 : i * 0.015, ease: [0.16, 1, 0.3, 1] }}>
+                    <div className="relative w-full overflow-hidden rounded-t-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)', height: reduced || barsShown ? `${Math.max(2, height)}%` : '0%', transition: reduced ? undefined : 'height var(--mo-spring-smooth-duration) var(--mo-spring-smooth)', transitionDelay: reduced ? undefined : `${i * 0.015}s` }}>
                       <span className="absolute inset-x-0 bottom-0" style={{ height: `${share * 100}%`, background: 'var(--mo-action)' }} />
                       {d.span > 1 && <span className={`${s.spanMark} absolute right-0.5 top-0.5`} />}
-                    </motion.div>
+                    </div>
                   )}
                   {d.state === 'missing' && <span className="mb-1 size-1.5 rounded-full bg-ink-subtle" />}
                   {d.date === today && <span className="absolute inset-x-0 -bottom-5 mx-auto h-0.5 w-3/4 rounded bg-ink" />}
