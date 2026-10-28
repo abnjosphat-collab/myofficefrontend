@@ -26,7 +26,7 @@ export function EmployeeDetail({ employee: e, onClose, onEdit, onDelete }: { emp
   return (
     <Dialog
       open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={e ? fullName(e) : 'Employee'} description={e ? [formatMineNumber(e.employee_id), designation].filter(Boolean).join(', ') : undefined}
-      footer={e && (<DetailActions onDelete={() => onDelete(e)} onClose={onClose} onEdit={() => onEdit(e)} primary="edit"><Button asChild variant="ghost" icon="ppe"><Link href={`/ppe?person=${encodeURIComponent(e.employee_id)}`}>PPE</Link></Button></DetailActions>)}
+      footer={e && (<DetailActions onDelete={() => onDelete(e)} onClose={onClose} onEdit={() => onEdit(e)} primary="edit"><Button asChild variant="ghost" icon="ppe"><Link href={`/ppe?person=${encodeURIComponent(e.employee_id)}`}>PPE</Link></Button></DetailActions>)} zoomId={e ? `employees:rec:${e.id}` : undefined}
     >
       {e && (
         <div className="flex flex-col gap-4">

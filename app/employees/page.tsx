@@ -7,7 +7,7 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column } from '@/components/ui-system';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
@@ -68,6 +68,7 @@ function EmployeesContent() {
   const effF = useMemo(() => (scope ? { ...f, section: scope } : f), [f, scope]);
   const matches = useMemo(() => sortEmployees(filterEmployees(employees, effF), sortBy, sortDir), [employees, effF, sortBy, sortDir]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
+  const listCalm = JSON.stringify([effF, sortBy, sortDir, page]);
   const stats = useMemo(() => summarise(employees), [employees]);
   const roleOptions = useMemo(() => designationFilterOptions([...new Set(active.map(e => (e.designation || '').trim()).filter(Boolean))]), [active]);
   const searching = f.search.trim() !== '';
@@ -114,12 +115,14 @@ function EmployeesContent() {
     </>
   );
   const card = (e: Employee, withSection: boolean) => (
+    <ZoomLink zoomId={`employees:rec:${e.id}`}>
     <RecordCard
       eyebrow={formatMineNumber(e.employee_id)} title={fullName(e)} subtitle={normalizeDesignation(e.designation) || 'No designation'} openLabel={`Open ${fullName(e)}`} onOpen={() => setViewingId(e.id)}
       status={badges(e, withSection)}
       facts={[...(e.phone ? [{ label: 'Phone', value: formatPhoneDisplay(e.phone) }] : []), ...(tenure(e.date_of_engagement) ? [{ label: 'Time here', value: tenure(e.date_of_engagement) }] : []), ...(e.supervisor ? [{ label: 'Supervisor', value: e.supervisor }] : [])]}
       action={actionsOf(e)}
     />
+    </ZoomLink>
   );
   const COLUMNS: Column<Employee>[] = [
     { id: 'name', header: 'Name', sticky: true, cell: e => <div className="min-w-0"><p className="font-medium text-ink">{fullName(e)}</p><p className="font-mono text-caption text-ink-muted">{formatMineNumber(e.employee_id)}</p></div> },
@@ -141,7 +144,7 @@ function EmployeesContent() {
             <MoreMenu items={[
               ...(canNormalise ? [{ label: 'Normalise', icon: 'normalize' as const, disabled: active.length === 0, onSelect: () => setNormalising(true) }] : []),
             ]} />
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ employee: null })}>Add employee</Button>
+            <ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>
           </>
         )}
       />
@@ -189,8 +192,8 @@ function EmployeesContent() {
         empty={filtered
           ? <EmptyState icon="search" title="No one matches" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
           : scope
-            ? <EmptyState icon="employees" title={`No ${scope} people yet`} description={`Add the first one — they will join ${scope}.`} action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button>} />
-            : <EmptyState icon="employees" title="No employees yet" description="Add the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button>} />}
+            ? <EmptyState icon="employees" title={`No ${scope} people yet`} description={`Add the first one — they will join ${scope}.`} action={<ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>} />
+            : <EmptyState icon="employees" title="No employees yet" description="Add the first one." action={<ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>} />}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-sans text-caption text-ink-muted" role="status">
@@ -201,10 +204,10 @@ function EmployeesContent() {
         </div>
         {view === 'cards' ? (
           searching || groups.length === 0
-            ? <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Personnel">{visible.map(e => <li key={e.id} className="relative">{card(e, true)}</li>)}</ul>
-            : <RosterGroups groups={groups} closed={closed} onToggle={toggleGroup} card={e => card(e, false)} />
+            ? <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Personnel">{visible.map(e => <MotionListItem as="li" key={e.id} className="relative">{card(e, true)}</MotionListItem>)}</MotionList>
+            : <RosterGroups groups={groups} closed={closed} onToggle={toggleGroup} card={e => card(e, false)} calmKey={listCalm} />
         ) : (
-          <DataTable caption="Personnel" rows={visible} columns={COLUMNS} getRowId={e => String(e.id)} onRowActivate={e => setViewingId(e.id)} rowActions={actionsOf} />
+          <DataTable caption="Personnel" rows={visible} columns={COLUMNS} getRowId={e => String(e.id)} onRowActivate={e => setViewingId(e.id)} rowActions={actionsOf} stillKey={listCalm} />
         )}
         {(view === 'table' || searching) && matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>

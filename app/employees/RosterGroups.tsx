@@ -2,7 +2,7 @@
 // collapsed (a search opens everything, so a match is never hidden), and the heading says how many people it holds.
 'use client';
 
-import { Icon, cn } from '@/components/ui-system';
+import { Icon, MotionList, MotionListItem, cn } from '@/components/ui-system';
 import type { Employee, SectionGroup } from './types';
 
 const GRID = 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3';
@@ -20,7 +20,7 @@ function Toggle({ id, title, count, open, onToggle, level }: { id: string; title
   );
 }
 
-export function RosterGroups({ groups, closed, onToggle, card }: { groups: SectionGroup[]; closed: Set<string>; onToggle: (key: string) => void; card: (e: Employee) => React.ReactNode }) {
+export function RosterGroups({ groups, closed, onToggle, card, calmKey }: { groups: SectionGroup[]; closed: Set<string>; onToggle: (key: string) => void; card: (e: Employee) => React.ReactNode; calmKey: string | number }) {
   return (
     <div className="flex flex-col gap-5">
       {groups.map(g => {
@@ -37,11 +37,11 @@ export function RosterGroups({ groups, closed, onToggle, card }: { groups: Secti
                     return (
                       <div key={sg.designation} className="flex flex-col gap-2.5 pl-1 sm:pl-3">
                         <Toggle id={subId} title={sg.designation} count={sg.employees.length} open={subOpen} onToggle={() => onToggle(key)} level={3} />
-                        {subOpen && <ul id={subId} className={GRID} aria-label={`${sg.designation} in ${g.section}`}>{sg.employees.map(e => <li key={e.id} className="relative">{card(e)}</li>)}</ul>}
+                        {subOpen && <MotionList as="ul" calmKey={calmKey} id={subId} className={GRID} aria-label={`${sg.designation} in ${g.section}`}>{sg.employees.map(e => <MotionListItem as="li" key={e.id} className="relative">{card(e)}</MotionListItem>)}</MotionList>}
                       </div>
                     );
                   })
-                  : <ul className={GRID} aria-label={`People in ${g.section}`}>{g.employees.map(e => <li key={e.id} className="relative">{card(e)}</li>)}</ul>}
+                  : <MotionList as="ul" calmKey={calmKey} className={GRID} aria-label={`People in ${g.section}`}>{g.employees.map(e => <MotionListItem as="li" key={e.id} className="relative">{card(e)}</MotionListItem>)}</MotionList>}
               </div>
             )}
           </section>

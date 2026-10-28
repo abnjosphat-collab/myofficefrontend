@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink } from '@/components/ui-system';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
@@ -81,7 +81,7 @@ function DriverDialog({ driver, departments, open, onOpenChange, onSaved }: { dr
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={driver ? 'Edit driver' : 'Add driver'} description="Only the full name is required." submitLabel={driver ? 'Save changes' : 'Add driver'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title={driver ? 'Edit driver' : 'Add driver'} description="Only the full name is required." submitLabel={driver ? 'Save changes' : 'Add driver'} onSubmit={submit} zoomId={driver ? undefined : 'drivers:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><Field label="Full name" required error={touched && !form.full_name.trim() ? 'Enter the full name.' : undefined}><Input value={form.full_name} onChange={e => set('full_name', e.target.value)} autoComplete="name" placeholder="For example, John Moyo" /></Field></div>
         <div className="sm:col-span-2"><Field label="Phone numbers" optional><PhoneRows phones={form.phones} onChange={v => set('phones', v)} /></Field></div>
@@ -132,6 +132,7 @@ function DriversContent() {
   const pending = loading && !loaded;
   const unavailable = !loaded && !loading;
   const hasFilters = !!search || deptFilter !== ALL || statusFilter !== 'all';
+  const listCalm = JSON.stringify([search, deptFilter, statusFilter]);
   const filterLabel = [deptFilter !== ALL ? deptFilter : null, statusFilter !== 'all' ? statusFilter : null, search ? `"${search}"` : null].filter(Boolean).join(', ') || 'All departments';
 
   const openEditor = (d?: Driver) => { setEditing(d); setDialogOpen(true); };
@@ -157,7 +158,7 @@ function DriversContent() {
         description="Licensed personnel approved to operate mine vehicles."
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>
+            <ZoomLink zoomId="drivers:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button></ZoomLink>
           </>
         )}
       />
@@ -194,7 +195,7 @@ function DriversContent() {
         onRetry={() => loadData()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No drivers match" description="Try a different search or filter." action={<Button onClick={() => { setSearch(''); setDeptFilter(ALL); setStatusFilter('all'); }}>Clear filters</Button>} />
-          : <EmptyState icon="drivers" title="No drivers yet" description="Add the first authorised driver to start the register." action={<Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button>} />}
+          : <EmptyState icon="drivers" title="No drivers yet" description="Add the first authorised driver to start the register." action={<ZoomLink zoomId="drivers:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>Add driver</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'driver' : 'drivers'}{filtered.length !== drivers.length ? ` of ${drivers.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
         {view === 'cards' ? (
@@ -202,10 +203,10 @@ function DriversContent() {
             {grouped.map(([department, items]) => (
               <section key={department} aria-labelledby={`dept-${department}`}>
                 <h2 id={`dept-${department}`} className="mb-3 font-display text-section font-semibold text-ink">{department}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{items.length} {items.length === 1 ? 'driver' : 'drivers'}</span></h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {items.map(d => (
+                    <MotionListItem key={d.id}>
                     <RecordCard
-                      key={d.id}
                       eyebrow={d.license_class || 'No licence class'}
                       title={d.full_name}
                       status={<StatusTag status={d.status} />}
@@ -218,8 +219,9 @@ function DriversContent() {
                       onOpen={() => openEditor(d)}
                       openLabel={`Edit ${d.full_name}`}
                     />
+                    </MotionListItem>
                   ))}
-                </div>
+                </MotionList>
               </section>
             ))}
           </div>
@@ -231,6 +233,7 @@ function DriversContent() {
             getRowId={d => String(d.id)}
             sort={sort}
             onSortChange={setSort}
+            stillKey={JSON.stringify([listCalm, sort])}
             onRowActivate={openEditor}
             rowActions={d => (
               <RowActions subject={`${d.full_name}`} onEdit={() => openEditor(d)} onDelete={() => remove(d)} deleteVerb="Remove" />

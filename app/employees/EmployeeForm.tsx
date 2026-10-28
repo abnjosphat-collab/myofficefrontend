@@ -63,7 +63,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id}` : 'Mine number, name, ID number, designation and employment type are required.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id}` : 'Mine number, name, ID number, designation and employment type are required.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit} zoomId={editing ? undefined : 'employees:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="ef-personal" className="flex flex-col gap-3">
           <h3 id="ef-personal" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Personal</h3>
