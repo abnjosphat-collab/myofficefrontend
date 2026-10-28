@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -69,6 +69,7 @@ function BreakdownsContent() {
   });
   const matches = useMemo(() => sortBreakdowns(filterBreakdowns(rows, f), sort, dir), [rows, f, sort, dir]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
+  const listCalm = JSON.stringify([f, sort, dir, page]);
   const stats = useMemo(() => summarise(rows), [rows]);
   const departments = useMemo(() => distinct(rows, b => b.department), [rows]);
   const locations = useMemo(() => distinct(rows, b => b.location), [rows]);
@@ -119,7 +120,7 @@ function BreakdownsContent() {
         description={scope ? `Log, track and resolve equipment failures. — showing ${scope} only.` : 'Log, track and resolve equipment failures.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button>
+            <ZoomLink zoomId="breakdowns:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>Log breakdown</Button></ZoomLink>
           </>
         )}
       />
@@ -174,23 +175,25 @@ function BreakdownsContent() {
             status={status} subject="breakdowns" error={list.error} onRetry={() => list.refetch()}
             empty={filtered
               ? <EmptyState icon="search" title="No breakdowns match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
-              : scope ? <EmptyState icon="breakdown" title={`No ${scope} breakdowns logged yet`} description="Log the first one when a machine fails." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button>} /> : <EmptyState icon="breakdown" title="No breakdowns logged yet" description="Log the first one when a machine fails." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button>} />}
+              : scope ? <EmptyState icon="breakdown" title={`No ${scope} breakdowns logged yet`} description="Log the first one when a machine fails." action={<ZoomLink zoomId="breakdowns:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button></ZoomLink>} /> : <EmptyState icon="breakdown" title="No breakdowns logged yet" description="Log the first one when a machine fails." action={<ZoomLink zoomId="breakdowns:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>Log breakdown</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{matches.length} {matches.length === 1 ? 'breakdown' : 'breakdowns'}{matches.length !== rows.length ? ` of ${rows.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Breakdowns">
+              <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Breakdowns">
                 {visible.map(b => (
-                  <li key={b.id} className="relative">
+                  <MotionListItem as="li" key={b.id} className="relative">
+                    <ZoomLink zoomId={`breakdowns:rec:${b.id}`}>
                     <RecordCard
                       eyebrow={b.machine_id} title={b.machine_name} subtitle={b.breakdown_description || undefined} openLabel={`Open the breakdown of ${b.machine_name}, ${b.breakdown_date ? fmtDate(b.breakdown_date) : 'no date'}`} onOpen={() => setViewingId(b.id)} status={badges(b)}
                       facts={[{ label: 'Date', value: b.breakdown_date ? fmtDate(b.breakdown_date) : 'No date' }, { label: 'Kind', value: typeMeta(b.breakdown_type).label }, ...(b.location ? [{ label: 'Location', value: b.location }] : []), ...(b.artisan_name ? [{ label: 'Artisan', value: b.artisan_name }] : []), { label: 'Downtime', value: downtimeText(b) }, ...(costOf(b) > 0 ? [{ label: 'Parts', value: formatCurrency(costOf(b)) }] : [])]}
                       action={actionsOf(b)}
                     />
-                  </li>
+                    </ZoomLink>
+                  </MotionListItem>
                 ))}
-              </ul>
+              </MotionList>
             ) : (
-              <DataTable caption="Breakdowns" rows={visible} columns={COLUMNS} getRowId={b => String(b.id)} onRowActivate={b => setViewingId(b.id)} rowActions={actionsOf} />
+              <DataTable caption="Breakdowns" rows={visible} columns={COLUMNS} getRowId={b => String(b.id)} onRowActivate={b => setViewingId(b.id)} rowActions={actionsOf} stillKey={listCalm} />
             )}
             {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
           </DataRegion>

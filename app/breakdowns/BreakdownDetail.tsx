@@ -23,7 +23,7 @@ export function BreakdownDetail({ record: b, onClose, onEdit, onDelete, onRaiseW
   return (
     <Dialog
       open={!!b} onOpenChange={o => { if (!o) onClose(); }} size="lg" title={b?.machine_name ?? 'Breakdown'} description={b ? [b.machine_id, b.breakdown_date ? fmtDate(b.breakdown_date) : ''].filter(Boolean).join(', ') : undefined}
-      footer={b && (<DetailActions onDelete={() => onDelete(b)} onClose={onClose} onEdit={() => onEdit(b)} />)}
+      footer={b && (<DetailActions onDelete={() => onDelete(b)} onClose={onClose} onEdit={() => onEdit(b)} />)} zoomId={b ? `breakdowns:rec:${b.id}` : undefined}
     >
       {b && (
         <div className="flex flex-col gap-4">

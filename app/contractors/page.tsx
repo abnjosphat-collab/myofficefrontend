@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList } from '@/components/ui-system';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -49,7 +49,7 @@ function JobsList({ jobs }: { jobs: Job[] }) {
 
 function ContractorDetails({ contractor, onClose }: { contractor: Contractor | null; onClose: () => void }) {
   return (
-    <Dialog open={contractor !== null} onOpenChange={open => { if (!open) onClose(); }} title={contractor?.company ?? 'Contractor'} description={contractor ? [contractor.trade, contractor.contact].filter(Boolean).join(' · ') : undefined} size="md">
+    <Dialog open={contractor !== null} onOpenChange={open => { if (!open) onClose(); }} title={contractor?.company ?? 'Contractor'} description={contractor ? [contractor.trade, contractor.contact].filter(Boolean).join(' · ') : undefined} size="md" zoomId={contractor ? `contractors:rec:${contractor.id}` : undefined}>
       {contractor && (
         <div className="flex flex-col gap-5">
           <FactList>
@@ -136,7 +136,7 @@ function AddContractorDialog({ open, onOpenChange, onCreated }: { open: boolean;
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title="Add contractor" description="New contractors start as active with a rating of 3." submitLabel="Save contractor" onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} title="Add contractor" description="New contractors start as active with a rating of 3." submitLabel="Save contractor" onSubmit={submit} zoomId="contractors:new">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Company name" required error={needsCompany ? 'Enter the company name.' : undefined}>
           <Input value={form.company} onChange={event => { set({ company: event.target.value }); setNeedsCompany(false); }} autoComplete="organization" />
@@ -179,6 +179,7 @@ function ContractorsContent() {
   }, [displayed]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: displayed.length, transient: isTransientStatus(errorStatus) });
+  const listCalm = JSON.stringify([tradeFilter, statusFilter]);
   const filtered = tradeFilter !== 'all' || statusFilter !== 'all';
   const stats = {
     total: contractors.length,
@@ -197,7 +198,7 @@ function ContractorsContent() {
         description="Third-party contractor register and job tracking."
         actions={(
           <>
-            <Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>
+            <ZoomLink zoomId="contractors:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button></ZoomLink>
           </>
         )}
       />
@@ -235,16 +236,22 @@ function ContractorsContent() {
         onRetry={fetchContractors}
         empty={filtered
           ? <EmptyState icon="search" title="No contractors match these filters" description="Try a different trade or status." action={<Button onClick={() => { setTradeFilter('all'); setStatusFilter('all'); }}>Clear filters</Button>} />
-          : <EmptyState icon="contractor" title="No contractors yet" description="Add the first contractor to start the register." action={<Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button>} />}
+          : <EmptyState icon="contractor" title="No contractors yet" description="Add the first contractor to start the register." action={<ZoomLink zoomId="contractors:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add contractor</Button></ZoomLink>} />}
       >
         {view === 'cards' ? (
           <div className="flex flex-col gap-5">
             {groups.map(([trade, items]) => (
               <section key={trade} aria-labelledby={`trade-${trade}`}>
                 <h2 id={`trade-${trade}`} className="mb-3 font-display text-section font-semibold text-ink">{trade}<span className="ml-2 font-sans text-label font-normal text-ink-muted">{plural(items.length, 'contractor')}</span></h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {items.map(contractor => <ContractorCard key={contractor.id} contractor={contractor} onOpen={() => setOpenId(contractor.id)} />)}
-                </div>
+                <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {items.map(contractor => (
+                    <MotionListItem key={contractor.id}>
+                      <ZoomLink zoomId={`contractors:rec:${contractor.id}`}>
+                        <ContractorCard contractor={contractor} onOpen={() => setOpenId(contractor.id)} />
+                      </ZoomLink>
+                    </MotionListItem>
+                  ))}
+                </MotionList>
               </section>
             ))}
           </div>
@@ -256,6 +263,7 @@ function ContractorsContent() {
             getRowId={c => String(c.id)}
             sort={sort}
             onSortChange={setSort}
+            stillKey={JSON.stringify([listCalm, sort])}
             onRowActivate={c => setOpenId(c.id)}
             rowActions={c => <Button size="sm" variant="ghost" onClick={() => setOpenId(c.id)}>Details</Button>}
           />
