@@ -196,8 +196,8 @@ function MaintenanceContent() {
             <span className="font-sans text-caption text-ink-muted">Priority:</span>
             {(Object.keys(PRIORITY) as WorkOrderPriority[]).map(p => { const on = f.priorities.includes(p); return <Button key={p} size="sm" variant={on ? 'primary' : 'secondary'} aria-pressed={on} onClick={() => set({ priorities: on ? f.priorities.filter(x => x !== p) : [...f.priorities, p] })}>{PRIORITY[p].label}</Button>; })}
           </div>
-          {live.size > 0 && (
-            <BulkBar
+          <BulkBar
+            visible={live.size > 0}
               selectedCount={live.size}
               hiddenCount={hiddenCount}
               shownCount={rows.length}

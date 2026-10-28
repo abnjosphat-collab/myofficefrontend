@@ -1,11 +1,14 @@
 // BulkBar: the one bulk-action bar — count line, "Select all shown (n)" and
 // "Clear", plus the caller's actions. Sticky at the viewport bottom on phones,
-// inline above the list on desktop.
+// inline above the list on desktop. It enters and leaves with the presence
+// motion; the counts roll. (Reduced test mode: presence is instant, counts
+// change in place.)
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BulkBar } from './BulkBar';
 
 const props = (over = {}) => ({
+  visible: true,
   selectedCount: 3, hiddenCount: 1, shownCount: 5,
   onSelectAllShown: vi.fn(), onClear: vi.fn(),
   actions: <button type="button">Mark done</button>,
@@ -16,13 +19,31 @@ describe('BulkBar', () => {
   it('counts the selection and names what the filters hide', () => {
     render(<BulkBar {...props()} />);
     expect(screen.getByRole('region', { name: 'Bulk actions' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('3 selected (1 hidden by filters)');
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('selected');
+    expect(status).toHaveTextContent('hidden by filters');
+    // The rolling counts: screen readers hear each final value once.
+    const sr = status.querySelectorAll('.sr-only');
+    expect(sr[0]).toHaveTextContent('3');
+    expect(sr[1]).toHaveTextContent('1');
   });
 
   it('omits the hidden part when every selected row is shown', () => {
     render(<BulkBar {...props({ hiddenCount: 0 })} />);
-    expect(screen.getByRole('status')).toHaveTextContent('3 selected');
+    expect(screen.getByRole('status')).toHaveTextContent('selected');
     expect(screen.getByRole('status').textContent).not.toContain('hidden');
+  });
+
+  it('rolls the select-all-shown count too', () => {
+    render(<BulkBar {...props()} />);
+    expect(screen.getByRole('button', { name: 'Select all shown (5)' })).toBeInTheDocument();
+  });
+
+  it('is gone when nothing is selected', () => {
+    const { rerender } = render(<BulkBar {...props({ visible: true })} />);
+    expect(screen.getByRole('region', { name: 'Bulk actions' })).toBeInTheDocument();
+    rerender(<BulkBar {...props({ visible: false })} />);
+    expect(screen.queryByRole('region', { name: 'Bulk actions' })).not.toBeInTheDocument();
   });
 
   it('select-all-shown, clear and the caller actions all fire', () => {

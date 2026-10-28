@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { NumberTransition } from '../motion';
 import { cn } from '../foundations/cn';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Skeleton } from '../primitives/Skeleton';
@@ -43,15 +44,16 @@ const toneValue = {
 export function MetricTile({ label, value, detail, tone = 'default', loading, unavailable, href, onClick, selected, className }: MetricTileProps) {
   const quiet = cn(
     'inline-flex items-baseline gap-2 rounded-control border px-3 py-1.5 font-sans text-body-sm',
+    'transition-colors duration-[var(--mo-duration-base)]',
     selected ? 'border-action bg-action-soft/60' : 'border-line-subtle bg-transparent',
-    (href || onClick) && 'focus-ring transition-colors duration-[var(--mo-duration-base)] hover:border-action/35',
+    (href || onClick) && 'focus-ring hover:border-action/35',
     className,
   );
   const line = (
     <>
       <span className="text-ink-muted">{label}</span>
       <span className={cn('font-display font-semibold tabular', toneValue[tone])}>
-        {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : value}
+        {loading ? <Skeleton className="inline-block h-3.5 w-6 align-middle" /> : unavailable ? <span className="font-medium text-warning">Unavailable</span> : typeof value === 'number' ? <NumberTransition value={value} /> : value}
       </span>
       {detail && !loading && <span className="text-caption text-ink-subtle">{detail}</span>}
     </>
