@@ -30,7 +30,7 @@ export function ServiceForm({ open, record, onOpenChange, onSave }: {
     toast.success(editing ? 'Service record updated.' : 'Service record added.');
   };
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit service' : 'New service'} description={record && !editing ? 'Read from the file. Check every field before saving.' : 'The description is required.'} submitLabel={editing ? 'Save changes' : 'Add service'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit service' : 'New service'} description={record && !editing ? 'Read from the file. Check every field before saving.' : 'The description is required.'} submitLabel={editing ? 'Save changes' : 'Add service'} onSubmit={submit} zoomId={editing ? undefined : 'services:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Description of the service" required error={touched && !form.description.trim() ? 'Describe what was done.' : undefined} className="sm:col-span-2">
           <Textarea rows={3} value={form.description} onChange={e => set({ description: e.target.value })} placeholder="Replaced the hydraulic pump on compressor 3" />

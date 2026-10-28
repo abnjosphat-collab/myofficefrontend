@@ -126,7 +126,7 @@ function OvertimeContent() {
   const matches = useMemo(() => filterRecords(unmatchedOnly ? unmatched : records, effective, order), [records, unmatched, unmatchedOnly, effective, order]);
   const rows = useMemo(() => sortRows(matches, sort, (r, id) => (id === 'hours' ? recordHours(r) : id === 'date' ? r.date : id === 'employee' ? r.employee_name.toLowerCase() : String(r[id as keyof OTRecord] ?? '').toLowerCase())), [matches, sort]);
   const visible = pageSlice(rows, page, pageSize);
-  const listCalm = JSON.stringify([effective, order, unmatchedOnly]);
+  const listCalm = JSON.stringify([effective, order, unmatchedOnly, sort, page, pageSize]);
   const stats = useMemo(() => summarise(records), [records]);
   const months = useMemo(() => monthOptions(records), [records]);
   const activeMonth = months.find(m => m.from === filters.from && m.to === filters.to)?.key ?? null;

@@ -23,7 +23,7 @@ export function ShiftDetail({ assignment: a, onClose, onEdit, onDelete }: { assi
 
   return (
     <Dialog
-      open={!!a} onOpenChange={o => { if (!o) onClose(); }} size="lg"
+      open={!!a} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={a ? `shifts:rec:${a.id}` : undefined}
       title={a?.employee_name ?? 'Assignment'} description={a ? `${a.designation || 'No designation'}, ${a.department || 'no department'}` : undefined}
       footer={a && (<DetailActions onDelete={() => onDelete(a)} deleteLabel="Remove" onClose={onClose} onEdit={() => onEdit(a)} editLabel="Edit assignment" />)}
     >

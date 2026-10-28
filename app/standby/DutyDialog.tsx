@@ -15,9 +15,10 @@ const fromEntry = (e: DutyEntry) => ({
   date_from: e.date_from.slice(0, 10), date_to: e.date_to.slice(0, 10), note: e.note || '',
 });
 
-export function DutyDialog({ open, entry, onOpenChange, onSave }: {
+export function DutyDialog({ open, entry, onOpenChange, onSave, zoomId }: {
   open: boolean; entry: DutyEntry | null; onOpenChange: (open: boolean) => void;
   onSave: (id: number | null, payload: Record<string, unknown>) => Promise<void>;
+  zoomId?: string;
 }) {
   const [form, setForm] = useState(blank);
   const [touched, setTouched] = useState(false);
@@ -53,7 +54,7 @@ export function DutyDialog({ open, entry, onOpenChange, onSave }: {
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={entry ? 'Edit duty official' : 'Name duty official'} description="Who answers for the mine over these dates." submitLabel={entry ? 'Update official' : 'Name official'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={entry ? 'Edit duty official' : 'Name duty official'} description="Who answers for the mine over these dates." submitLabel={entry ? 'Update official' : 'Name official'} onSubmit={submit} zoomId={zoomId}>
       <div className="flex flex-col gap-4">
         <Field label="Official" required error={err(bad.employee, 'Choose the official or enter their ID and name.')}>
           <PersonPicker label="Official" name={form.employee_name} employeeId={form.employee_id} onPick={pick} />

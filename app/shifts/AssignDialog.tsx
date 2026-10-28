@@ -69,7 +69,7 @@ export function AssignDialog({ open, assignment, onOpenChange, onSave }: {
   const stand = (i: number, patch: Partial<StandbyPeriod>) => set({ standby_periods: swap(form.standby_periods, i, patch) });
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={assignment ? 'Edit assignment' : 'Assign shift'} description={assignment ? 'Change the shift cycle for this employee.' : 'Set up a shift cycle for an employee.'} submitLabel={assignment ? 'Update assignment' : 'Assign shift'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={assignment ? 'Edit assignment' : 'Assign shift'} description={assignment ? 'Change the shift cycle for this employee.' : 'Set up a shift cycle for an employee.'} submitLabel={assignment ? 'Update assignment' : 'Assign shift'} onSubmit={submit} zoomId={assignment ? undefined : 'shifts:new'}>
       <div className="flex flex-col gap-6">
         <section aria-labelledby="as-emp" className="flex flex-col gap-3">
           <h3 id="as-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employee</h3>

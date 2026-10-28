@@ -6,9 +6,9 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge,
+  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge,
   Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
-  type Column,
+  type Column, ZoomLink,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
@@ -80,6 +80,7 @@ function ShiftsContent() {
       .sort((a, b) => f.sort === 'name' ? a.employee_name.localeCompare(b.employee_name) : f.sort === 'shift_type' ? a.shift_type.localeCompare(b.shift_type) : f.sort === 'cycle_start_date' ? a.cycle_start_date.localeCompare(b.cycle_start_date) : (b.created_at || '').localeCompare(a.created_at || ''));
   }, [items, f]);
 
+  const listCalm = JSON.stringify([f]);
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: filtered.length, transient: isTransientStatus(list.errorStatus) });
   const pending = list.loading && !list.loaded;
   const unavailable = !list.loaded && !list.loading;
@@ -128,7 +129,7 @@ function ShiftsContent() {
         description={scope ? `Who is on duty, off duty or on standby, by shift cycle — showing ${scope} only.` : 'Who is on duty, off duty or on standby, by shift cycle.'}
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button>
+            <ZoomLink zoomId="shifts:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Assign shift</Button></ZoomLink>
           </>
         )}
       />
@@ -169,7 +170,7 @@ function ShiftsContent() {
         status={status} subject="shift assignments" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No assignments match" description="Try a different search or filter." action={<Button onClick={clear}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="clock" title={`No ${scope} shifts assigned yet`} description="Assign the first shift cycle." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button>} /> : <EmptyState icon="clock" title="No shifts assigned yet" description="Assign the first shift cycle." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button>} />}
+          : scope ? <EmptyState icon="clock" title={`No ${scope} shifts assigned yet`} description="Assign the first shift cycle." action={<ZoomLink zoomId="shifts:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button></ZoomLink>} /> : <EmptyState icon="clock" title="No shifts assigned yet" description="Assign the first shift cycle." action={<ZoomLink zoomId="shifts:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>Assign shift</Button></ZoomLink>} />}
       >
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList aria-label="Shift views">
@@ -179,12 +180,13 @@ function ShiftsContent() {
           <TabsContent value="assignments" className="mt-4 flex flex-col gap-3">
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} assignments<UpdatedCaption at={list.updatedAt} /></p>
             {view === 'cards' ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.map(a => {
                   const st = todayStatus(a); const next = daysUntilNextOn(a); const hasCycle = (a.on_days || 0) + (a.off_days || 0) > 0;
                   return (
+                    <MotionListItem key={a.id}>
+                    <ZoomLink zoomId={`shifts:rec:${a.id}`}>
                     <RecordCard
-                      key={a.id}
                       eyebrow={a.designation || a.department || a.employee_id}
                       title={a.employee_name}
                       status={<StatusTag a={a} />}
@@ -197,12 +199,14 @@ function ShiftsContent() {
                       action={<span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${a.employee_name}'s assignment`} onClick={() => openForm(a)} /><IconButton icon="delete" variant="danger" size="sm" label={`Remove ${a.employee_name}'s assignment`} onClick={() => remove(a)} /></span>}
                       onOpen={() => setViewingId(a.id)} openLabel={`View ${a.employee_name}'s assignment`}
                     />
+                    </ZoomLink>
+                    </MotionListItem>
                   );
                 })}
-              </div>
+              </MotionList>
             ) : (
               <DataTable
-                caption="Shift assignments" rows={filtered} columns={COLUMNS} getRowId={a => String(a.id)} onRowActivate={a => setViewingId(a.id)}
+                caption="Shift assignments" rows={filtered} columns={COLUMNS} getRowId={a => String(a.id)} stillKey={listCalm} onRowActivate={a => setViewingId(a.id)}
                 rowActions={a => <span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${a.employee_name}'s assignment`} onClick={() => openForm(a)} /><IconButton icon="delete" variant="danger" size="sm" label={`Remove ${a.employee_name}'s assignment`} onClick={() => remove(a)} /></span>}
               />
             )}
@@ -216,7 +220,7 @@ function ShiftsContent() {
       <ShiftDetail assignment={viewing} onClose={() => setViewingId(null)} onEdit={openForm} onDelete={remove} />
       <AssignDialog open={formOpen} assignment={editing} onOpenChange={o => { setFormOpen(o); if (!o) setEditing(null); }} onSave={save} />
       <EventDialog target={eventTarget} onClose={() => setEventTarget(null)} onSave={saveEvents} />
-      <DutyDialog open={dutyOpen} entry={editingDuty} onOpenChange={o => { setDutyOpen(o); if (!o) setEditingDuty(null); }} onSave={saveDuty} />
+      <DutyDialog open={dutyOpen} entry={editingDuty} onOpenChange={o => { setDutyOpen(o); if (!o) setEditingDuty(null); }} onSave={saveDuty} zoomId={editingDuty ? undefined : 'shifts:new-duty'} />
     </div>
   );
 }

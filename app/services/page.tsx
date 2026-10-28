@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { ImportDialog } from './ImportDialog';
@@ -48,6 +48,7 @@ function ServicesContent() {
   const viewing = useMemo(() => records.find(r => r.id === viewingId) ?? null, [records, viewingId]);
   const matches = useMemo(() => sortRecords(filterRecords(records, filters), sort), [records, filters, sort]);
   const visible = pageSlice(matches, page, PAGE_SIZE);
+  const listCalm = JSON.stringify([filters, sort, page]);
   const counts = useMemo(() => summarise(records), [records]);
   const filtered = isFiltered(filters);
   const status = deriveDataStatus({ loaded: list.loaded, loading: list.loading, error: list.error, errorStatus: list.errorStatus, count: matches.length, transient: isTransientStatus(list.errorStatus) });
@@ -105,7 +106,7 @@ function ServicesContent() {
         actions={(
           <>
             <MoreMenu items={[{ label: 'Import or scan', icon: 'upload', disabled: !list.loaded, onSelect: () => setImporting(true) }]} />
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button>
+            <ZoomLink zoomId="services:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ record: null })}>New service</Button></ZoomLink>
           </>
         )}
       />
@@ -141,15 +142,16 @@ function ServicesContent() {
         status={status} subject="services" error={list.error} onRetry={() => list.refetch()}
         empty={filtered
           ? <EmptyState icon="search" title="No jobs match" description="Try a different search or clear the filters." action={<Button onClick={() => { setFilters(NO_FILTERS); setPage(1); }}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="service" title={`No ${scope} services recorded yet`} description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} /> : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button>} />}
+          : scope ? <EmptyState icon="service" title={`No ${scope} services recorded yet`} description="Add the first job, or import a spreadsheet." action={<ZoomLink zoomId="services:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button></ZoomLink>} /> : <EmptyState icon="service" title="No services recorded yet" description="Add the first job, or import a spreadsheet." action={<ZoomLink zoomId="services:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ record: null })}>New service</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{matches.length} {matches.length === 1 ? 'job' : 'jobs'}{matches.length !== records.length ? ` of ${records.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Services">
+          <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Services">
             {visible.map(r => {
               const s = statusOf(r);
               return (
-                <li key={r.id} className="relative">
+                <MotionListItem as="li" key={r.id} className="relative">
+                  <ZoomLink zoomId={`services:rec:${r.id}`}>
                   <RecordCard
                     eyebrow={r.date ? fmtDate(r.date) : 'No date'} title={r.description || 'No description'} subtitle={r.supplier || undefined} openLabel={`Open ${r.description || 'job'}`} onOpen={() => open(r)}
                     status={<><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{r.category && <StatusBadge tone="info">{r.category}</StatusBadge>}</>}
@@ -157,12 +159,13 @@ function ServicesContent() {
                     meta={<div className="w-full min-w-40"><Progress value={(s.done / STAGE_COUNT) * 100} label={`${r.description || 'Job'}: ${s.done} of ${STAGE_COUNT} approvals`} /></div>}
                     action={rowActions(r)}
                   />
-                </li>
+                  </ZoomLink>
+                </MotionListItem>
               );
             })}
-          </ul>
+          </MotionList>
         ) : (
-          <DataTable caption={view === 'sheet' ? 'Services sheet' : 'Services register'} rows={visible} columns={view === 'sheet' ? SHEET : TABLE} getRowId={r => r.id} density={view === 'sheet' ? 'compact' : 'comfortable'} onRowActivate={open} rowActions={view === 'sheet' ? undefined : rowActions} />
+          <DataTable stillKey={listCalm} caption={view === 'sheet' ? 'Services sheet' : 'Services register'} rows={visible} columns={view === 'sheet' ? SHEET : TABLE} getRowId={r => r.id} density={view === 'sheet' ? 'compact' : 'comfortable'} onRowActivate={open} rowActions={view === 'sheet' ? undefined : rowActions} />
         )}
         {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>

@@ -20,7 +20,7 @@ export function ServiceDetail({ record, who, onClose, onEdit, onDelete, onSaveSt
   if ((record?.id ?? null) !== seen) { setSeen(record?.id ?? null); setTab('pipeline'); }
   return (
     <Dialog
-      open={!!record} onOpenChange={o => { if (!o) onClose(); }} size="xl"
+      open={!!record} onOpenChange={o => { if (!o) onClose(); }} size="xl" zoomId={record ? `services:rec:${record.id}` : undefined}
       title={record?.description || 'Service'} description={record ? [record.supplier, record.date && fmtDate(record.date)].filter(Boolean).join(', ') || undefined : undefined}
       footer={record && (<DetailActions onDelete={() => onDelete(record)} onClose={onClose} onEdit={() => onEdit(record)} editLabel="Edit details" />)}
     >

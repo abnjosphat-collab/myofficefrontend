@@ -4,7 +4,7 @@
 // happen here; rosters and covers are managed on the Standby page.
 'use client';
 
-import { Button, IconButton, Notice, StatusBadge } from '@/components/ui-system';
+import { Button, IconButton, Notice, StatusBadge, ZoomLink } from '@/components/ui-system';
 import { ContactButtons } from '@/components/shared/ContactButtons';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
@@ -45,7 +45,7 @@ export function DutyStrip({ items, dutyRotations, covers, loaded, loading, error
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 id="duty-strip" className="font-display text-title font-semibold text-ink">Duty officials</h2>
         <p className="font-sans text-caption tabular text-ink-muted">{fmtDate(today)} to {fmtDate(weekEnd)}</p>
-        <span className="ml-auto"><Button size="sm" icon="plus" onClick={onNew}>Name official</Button></span>
+        <span className="ml-auto"><ZoomLink zoomId="shifts:new-duty" inline><Button size="sm" icon="plus" onClick={onNew}>Name official</Button></ZoomLink></span>
       </div>
       {degraded && (
         <p className="font-sans text-body-sm text-ink-muted">Duty rosters or covers are unavailable — showing explicitly named officials only.</p>
