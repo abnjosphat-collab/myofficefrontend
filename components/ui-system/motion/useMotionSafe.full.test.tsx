@@ -2,6 +2,7 @@
 // the preset passes through. Separate file: framer's OS-preference listener
 // is a module singleton initialised once per file.
 import { renderHook } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('framer-motion', async (importOriginal) => {
@@ -9,6 +10,7 @@ vi.mock('framer-motion', async (importOriginal) => {
 });
 
 import { SPRING } from './presets';
+import { MotionProvider } from './MotionProvider';
 import { useIsReducedMotion, useMotionSafe } from './useMotionSafe';
 
 Object.defineProperty(window, 'matchMedia', {
@@ -34,5 +36,10 @@ describe('useMotionSafe (full motion)', () => {
 
   it('returns an explicit preset', () => {
     expect(renderHook(() => useMotionSafe(SPRING.snappy)).result.current).toBe(SPRING.snappy);
+  });
+
+  it('honours a forced-reduced subtree (the gallery simulate switch)', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => <MotionProvider motion="always">{children}</MotionProvider>;
+    expect(renderHook(() => useIsReducedMotion(), { wrapper }).result.current).toBe(true);
   });
 });

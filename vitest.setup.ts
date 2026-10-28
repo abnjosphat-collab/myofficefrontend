@@ -8,7 +8,7 @@ import { cleanup } from '@testing-library/react';
 // under parallel workers instead of timing-sensitive.
 vi.mock('framer-motion', async importOriginal => {
   const mod = await importOriginal<typeof import('framer-motion')>();
-  return { ...mod, useReducedMotion: () => true };
+  return { ...mod, useReducedMotion: () => true, useReducedMotionConfig: () => true };
 });
 
 // vitest.config.ts doesn't set test.globals, so @testing-library/react's own

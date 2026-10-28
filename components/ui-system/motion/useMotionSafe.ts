@@ -1,15 +1,17 @@
 'use client';
 
-import { useReducedMotion, type Transition } from 'framer-motion';
+import { useReducedMotionConfig, type Transition } from 'framer-motion';
 import { FADE, SPRING, type SpringPreset } from './presets';
 
 /**
- * True when motion must be reduced. framer reports `null` before it knows
- * (SSR, first render); unknown counts as reduced, so the first paint never
- * animates something the OS asked to keep still.
+ * True when motion must be reduced. Uses framer's config-aware hook (not
+ * `useReducedMotion`, which reads only the OS setting and ignores
+ * MotionConfig): the /dev/motion gallery's simulated reduce-motion switch
+ * nests `motion="always"`, and every piece below must honour it. Outside any
+ * provider the OS setting decides.
  */
 export function useIsReducedMotion(): boolean {
-  return useReducedMotion() !== false;
+  return useReducedMotionConfig() !== false;
 }
 
 /**
