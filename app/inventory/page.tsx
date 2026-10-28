@@ -5,9 +5,9 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, RecordCard,
+  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard,
   SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference,
-  type Column, type SortState, type Tone, FilterField
+  type Column, type SortState, type Tone, FilterField, ZoomLink
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -74,7 +74,7 @@ function ItemDialog({ item, existing, open, onOpenChange, onSave }: { item: Inve
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit item' : 'Add item'} description="Name and SKU are required." submitLabel={item ? 'Save changes' : 'Add item'} onSubmit={submit} size="lg">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit item' : 'Add item'} description="Name and SKU are required." submitLabel={item ? 'Save changes' : 'Add item'} onSubmit={submit} size="lg" zoomId={item ? undefined : 'inventory:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Item name" required error={show('name')}><Input value={form.name} onChange={e => set({ name: e.target.value })} /></Field>
         <Field label="SKU" required error={show('sku')}><Input value={form.sku} onChange={e => set({ sku: e.target.value })} /></Field>
@@ -102,6 +102,7 @@ function InventoryPageContent() {
   const [view, setView] = useViewPreference('inventory', VIEW_CARDS_TABLE);
   const [sort, setSort] = useState<SortState>(null);
   const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const listCalm = JSON.stringify([search, statusFilter, category, supplier]);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const categories = useMemo(() => [...new Set(inventory.map(i => i.category).filter(Boolean))].sort(), [inventory]);
@@ -161,7 +162,7 @@ function InventoryPageContent() {
         description="Stock levels, reorder points and locations."
         actions={(
           <>
-            <Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => openEditor(null)}>Add item</Button>
+            <ZoomLink zoomId="inventory:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => openEditor(null)}>Add item</Button></ZoomLink>
           </>
         )}
       />
@@ -202,13 +203,13 @@ function InventoryPageContent() {
         status={status} subject="inventory" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No items match" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
-          : <EmptyState icon="package" title="No inventory items yet" description="Add your first item to start tracking stock levels." action={<Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button>} />}
+          : <EmptyState icon="package" title="No inventory items yet" description="Add your first item to start tracking stock levels." action={<ZoomLink zoomId="inventory:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add item</Button></ZoomLink>} />}
       >
       {view === 'cards' ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map(item => (
+            <MotionListItem key={item.id}>
             <RecordCard
-              key={item.id}
               eyebrow={<span className="font-mono">{item.sku}</span>}
               title={item.name}
               subtitle={item.category || undefined}
@@ -225,10 +226,11 @@ function InventoryPageContent() {
               onOpen={() => openEditor(item)}
               openLabel={`Edit ${item.name}`}
             />
+            </MotionListItem>
           ))}
-        </div>
+        </MotionList>
       ) : (
-        <DataTable caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} onRowActivate={openEditor} rowActions={rowActions} />
+        <DataTable caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} stillKey={JSON.stringify([listCalm, sort])} onRowActivate={openEditor} rowActions={rowActions} />
       )}
       </DataRegion>
 

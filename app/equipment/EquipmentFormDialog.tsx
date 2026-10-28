@@ -41,7 +41,7 @@ export function EquipmentFormDialog({ open, item, locations, onOpenChange, onSav
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit equipment' : 'Add equipment'} description={item ? item.equipment_id : 'The equipment ID and name are required.'} submitLabel={item ? 'Update equipment' : 'Add equipment'} onSubmit={submit} size="xl">
+    <FormDialog open={open} onOpenChange={onOpenChange} title={item ? 'Edit equipment' : 'Add equipment'} description={item ? item.equipment_id : 'The equipment ID and name are required.'} submitLabel={item ? 'Update equipment' : 'Add equipment'} onSubmit={submit} size="xl" zoomId={item ? undefined : 'equipment:new'}>
       <div className="flex flex-col gap-5">
         <Section id="eq-basic" title="Basic information">
           <Field label="Equipment ID" required error={err(missing.id, 'Enter the equipment ID.')}>{text('equipment_id', 'EQP-001')}</Field>

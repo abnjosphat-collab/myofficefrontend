@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -61,6 +61,7 @@ function EquipmentContent() {
   const filtered = useMemo(() => filterEquipment(items, f), [items, f]);
   const ordered = useMemo(() => sortRows(filtered, sort ?? { id: 'name', direction: 'asc' }, (r, id) => String(r[id as keyof EquipmentItem] ?? '').toLowerCase()), [filtered, sort]);
   const pageRows = useMemo(() => ordered.slice((page - 1) * pageSize, page * pageSize), [ordered, page, pageSize]);
+  const listCalm = JSON.stringify([f, sort, page, pageSize]);
   const counts = useMemo(() => countByStatus(items), [items]);
   const viewing = useMemo(() => items.find(i => i.id === viewingId) ?? null, [items, viewingId]);
   const locationOptions = useMemo(() => locations, [locations]);
@@ -102,7 +103,7 @@ function EquipmentContent() {
         actions={(
           <>
             <Button icon="upload" asChild><Link href="/maintenance/import?kind=assets">Import</Link></Button>
-            <Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button>
+            <ZoomLink zoomId="equipment:new" className="inline-block"><Button variant="primary" icon="plus" disabled={unavailable} onClick={() => openForm(null)}>Add equipment</Button></ZoomLink>
           </>
         )}
       />
@@ -136,14 +137,15 @@ function EquipmentContent() {
         status={status} subject="equipment" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
           ? <EmptyState icon="search" title="No equipment matches" description="Try a different search or filter." action={<Button onClick={clear}>Clear filters</Button>} />
-          : scope ? <EmptyState icon="equipment" title={`No ${scope} equipment yet`} description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} /> : <EmptyState icon="equipment" title="No equipment yet" description="Add the first asset to start the register." action={<Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button>} />}
+          : scope ? <EmptyState icon="equipment" title={`No ${scope} equipment yet`} description="Add the first asset to start the register." action={<ZoomLink zoomId="equipment:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button></ZoomLink>} /> : <EmptyState icon="equipment" title="No equipment yet" description="Add the first asset to start the register." action={<ZoomLink zoomId="equipment:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>Add equipment</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} of {items.length} items{hasFilters ? ' (filtered)' : ''}<UpdatedCaption at={list.updatedAt} /></p>
         {view === 'cards' ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {pageRows.map(i => (
+              <MotionListItem key={i.id}>
+              <ZoomLink zoomId={`equipment:rec:${i.id}`}>
               <RecordCard
-                key={i.id}
                 eyebrow={<span className="font-mono">{i.equipment_id}{i.category ? <span className="font-sans"> · {i.category}</span> : null}</span>}
                 title={i.name}
                 status={<StatusTag item={i} />}
@@ -162,11 +164,13 @@ function EquipmentContent() {
                 )}
                 onOpen={() => setViewingId(i.id)} openLabel={`View ${i.name}`}
               />
+              </ZoomLink>
+              </MotionListItem>
             ))}
-          </div>
+          </MotionList>
         ) : (
           <DataTable
-            caption="Equipment register" rows={pageRows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={s => { setSort(s); setPage(1); }}
+            caption="Equipment register" rows={pageRows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={s => { setSort(s); setPage(1); }} stillKey={listCalm}
             onRowActivate={i => setViewingId(i.id)}
             rowActions={i => (
               <span className="inline-flex items-center gap-1">
@@ -186,7 +190,7 @@ function EquipmentContent() {
 
       <Dialog
         open={!!viewing} onOpenChange={o => { if (!o) setViewingId(null); }} title={viewing?.name ?? 'Equipment'} description={viewing?.equipment_id} size="lg"
-        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} onEdit={() => openForm(viewing)} primary="edit"><Button variant="secondary" icon="history" asChild><Link href={historyHref(viewing.id)}>History</Link></Button></DetailActions>)}
+        footer={viewing && (<DetailActions onDelete={() => remove(viewing)} onClose={() => setViewingId(null)} onEdit={() => openForm(viewing)} primary="edit"><Button variant="secondary" icon="history" asChild><Link href={historyHref(viewing.id)}>History</Link></Button></DetailActions>)} zoomId={viewing ? `equipment:rec:${viewing.id}` : undefined}
       >
         {viewing && (
           <div className="flex flex-col gap-5">
