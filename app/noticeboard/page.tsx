@@ -1,11 +1,11 @@
 // app/noticeboard/page.tsx — company notices and announcements
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EXPORT_CHECK_MS, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
@@ -146,6 +146,9 @@ export function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?:
 
 function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: { notice: Notice | null; now: number; onClose: () => void; onEdit: (n: Notice) => void; onDelete: (n: Notice) => void; onTogglePin: (n: Notice) => void }) {
   const ex = notice ? expiry(notice, now) : { expired: false, soon: false };
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); }, []);
   const share = async () => {
     if (!notice) return;
     if (navigator.share) { try { await navigator.share({ title: notice.title, text: truncate(notice.content, 200), url: window.location.href }); } catch { /* the user dismissed the share sheet */ } return; }
@@ -153,7 +156,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
   };
   const copy = async () => {
     if (!notice) return;
-    try { await navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Notice copied to the clipboard.'); } catch { toast.error('The notice could not be copied.'); }
+    try { await navigator.clipboard.writeText(`${notice.title}\n\n${notice.content}`); toast.success('Notice copied to the clipboard.'); setCopied(true); if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); copiedTimer.current = window.setTimeout(() => setCopied(false), EXPORT_CHECK_MS); } catch { toast.error('The notice could not be copied.'); }
   };
   return (
     <Dialog
@@ -195,7 +198,7 @@ function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: {
           )}
           <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             <Button icon="external" onClick={share}>Share</Button>
-            <Button icon="copy" onClick={copy}>Copy</Button>
+            <Button icon="copy" onClick={copy} success={copied}>Copy</Button>
             <Button icon="pin" onClick={() => onTogglePin(notice)}>{notice.is_pinned ? 'Unpin' : 'Pin'}</Button>
           </div>
         </div>

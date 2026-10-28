@@ -5,9 +5,9 @@
 // every row offers Copy code.
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, EmptyState, IconButton, LoadingPulse, Notice, SearchField, StatusBadge, cn } from '@/components/ui-system';
+import { Button, EXPORT_CHECK_MS, EmptyState, IconButton, LoadingPulse, Notice, SearchField, StatusBadge, cn } from '@/components/ui-system';
 import { formatCurrency } from '@/components/shared/utils';
 import { searchWords, splitHighlight } from '@/lib/moduleSearch';
 import { searchSpares, type SearchableSpare } from '@/lib/spareSearch';
@@ -60,8 +60,11 @@ export function SpareLookup({ spares, loading, loaded, error, onRetry, onAdd }: 
   const optionId = (i: number) => `${listId}-option-${i}`;
 
   const onSearch = (v: string) => { setQ(v); setActiveCode(null); };
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const copiedTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); }, []);
   const copyCode = async (code: string) => {
-    if (await copyText(code)) toast.success(`Code ${code} copied to the clipboard.`);
+    if (await copyText(code)) { toast.success(`Code ${code} copied to the clipboard.`); setCopiedCode(code); if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current); copiedTimer.current = window.setTimeout(() => setCopiedCode(null), EXPORT_CHECK_MS); }
     else toast.error('The code could not be copied.');
   };
   const move = (dir: 1 | -1) => {
@@ -109,7 +112,7 @@ export function SpareLookup({ spares, loading, loaded, error, onRetry, onAdd }: 
                   {s.current_quantity > 0 ? <span className="font-sans text-caption tabular text-ink-muted">{s.current_quantity} in stock</span> : <StatusBadge tone="danger">Out of stock</StatusBadge>}
                   <span className="ml-auto flex shrink-0 items-center gap-1.5">
                     {onAdd && <Button size="sm" onClick={() => onAdd(s)}>Add to issue</Button>}
-                    <IconButton icon="copy" size="sm" label={`Copy code ${s.stock_code}`} onClick={() => copyCode(s.stock_code)} />
+                    <IconButton icon="copy" size="sm" label={copiedCode === s.stock_code ? `Copied ${s.stock_code}` : `Copy code ${s.stock_code}`} success={copiedCode === s.stock_code} onClick={() => copyCode(s.stock_code)} />
                   </span>
                 </li>
               );
