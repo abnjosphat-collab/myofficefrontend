@@ -22,3 +22,6 @@ export { SlidingIndicator, useSlidingIndicator } from './Indicator';
 export type { IndicatorRect, SlidingIndicatorProps } from './Indicator';
 export { DrawerDragPanel } from './DrawerDragPanel';
 export type { DrawerDragPanelProps } from './DrawerDragPanel';
+export { ZoomLink, ZoomTarget, ZoomBoundary, ZoomOverlay } from './Zoom';
+export type { ZoomLinkProps, ZoomTargetProps } from './Zoom';
+export { registerZoomSource, unregisterZoomSource, markZoomSourceUsed, lookupZoomSource, consumeZoomSource } from './zoomRegistry';
