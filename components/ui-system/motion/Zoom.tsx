@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useAnimate, usePresence } from 'framer-motion';
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { FADE, SPRING } from './presets';
 import { useIsReducedMotion } from './useMotionSafe';
 import { consumeZoomSource, lookupZoomSource, markZoomSourceUsed, registerZoomSource, unregisterZoomSource } from './zoomRegistry';
@@ -73,12 +73,14 @@ function zoomStart(source: Rect, panel: Rect): { scaleX: number; scaleY: number;
   };
 }
 
-export interface ZoomTargetProps extends HTMLAttributes<HTMLDivElement> {
+export interface ZoomTargetProps {
   /** Stable id of the source to grow out of. Missing/off-screen → the normal open. */
   zoomId: string;
   /** Which fallback to take: the drawer edge-slide or the dialog scale+fade. */
   placement?: 'center' | 'right';
   children: ReactNode;
+  className?: string;
+  id?: string;
 }
 
 type ZoomMode = 'zoom' | 'fallback' | 'reduce';

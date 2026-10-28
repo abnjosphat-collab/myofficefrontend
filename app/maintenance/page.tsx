@@ -210,7 +210,6 @@ function MaintenanceContent() {
                 </>
               )}
             />
-          )}
           <DataRegion
             status={status} subject="work orders" error={orders.error} onRetry={() => orders.refetch()}
             empty={filtered
