@@ -88,7 +88,7 @@ carries the count ("3 selected (1 hidden by filters)"), "Select all shown (n)" a
 caller's actions; it floats at the bottom of the viewport on phones and sits inline above the list on
 desktop. Selection is shared across views and survives filtering; bulk actions act on the whole set.
 
-**Charts.** Use `ChartPanel` with a `summary` (the text alternative is required), the `Chart` frame around the Recharts chart (responsive box, hidden from assistive technology, still under prefers-reduced-motion), and `chartTheme`/`chartColor` for styling.
+**Charts.** Use `ChartPanel` with a `summary` (the text alternative is required), the `Chart` frame around the Recharts chart (responsive box, hidden from assistive technology, first-draw-only animation — still under prefers-reduced-motion and after any refresh or filter change), and `chartTheme`/`chartColor` for styling.
 Heatmaps and charts are `aria-hidden`; the summary carries the information.
 
 **Search.** `SearchField` filters a local list. `DestinationSearch` navigates: an ARIA combobox that keeps DOM focus in the
