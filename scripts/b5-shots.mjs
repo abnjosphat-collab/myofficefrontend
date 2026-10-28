@@ -24,6 +24,38 @@ for (const file of fs.readdirSync(specDir).filter(f => f.endsWith('.mjs')).sort(
   specs.push(...(Array.isArray(mod.default) ? mod.default : [mod.default]));
 }
 
+// Ledger routes with no route-spec file: the register-script trio (same fixture
+// rows as verify-registers.mjs), the signed-out/own-chrome pages, and the four
+// redirects (the shot lands on the redirect target, which is what a visit renders).
+const ymd = offset => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const EXTRA_SPECS = [
+  { route: '/contractors', data: { '/api/contractors': [
+    { id: 1, company_name: 'Alpha Mechanical', trade: 'Mechanical', contact_name: 'Ann Alpha', phone: '011 111', status: 'active', performance_rating: 4, contract_end: '2020-01-01', insurance_expiry: '2099-01-01', jobs: [{ job_title: 'Mill reline', equipment_name: 'SAG mill', start_date: '2026-09-01', status: 'in_progress' }] },
+    { id: 2, company_name: 'Bright Electrical', trade: 'Electrical', contact_name: 'Ben Bright', phone: '011 222', status: 'inactive', performance_rating: 2, contract_end: '2099-01-01', insurance_expiry: '', jobs: [] },
+    { id: 3, company_name: 'Civil Works Co', trade: 'Civil', contact_name: 'Cat Civil', phone: '011 333', status: 'active', performance_rating: 5, contract_end: '2099-01-01', insurance_expiry: '2099-01-01', jobs: [] },
+  ] } },
+  { route: '/competency', data: { '/api/competency': [
+    { id: 10, employee_id: 'E7', employee_name: 'Eve Seven', trade: 'Millwright', equipment_type: 'SAG Mill Ops', skill_area: 'SAG Mill Ops', skill_level: 1 },
+    { id: 11, employee_id: 'E7', employee_name: 'Eve Seven', trade: 'Millwright', equipment_type: 'Jaw Crusher', skill_area: 'Jaw Crusher', skill_level: 4 },
+    { id: 20, employee_id: 'E8', employee_name: 'Finn Eight', trade: 'Electrician', equipment_type: 'SAG Mill Ops', skill_area: 'SAG Mill Ops', skill_level: 3 },
+    { id: 21, employee_id: 'E8', employee_name: 'Finn Eight', trade: 'Electrician', equipment_type: 'Jaw Crusher', skill_area: 'Jaw Crusher', skill_level: 4 },
+  ] } },
+  { route: '/compliance-register', data: { '/api/compliance': [
+    { id: 1, equipment_name: 'Boiler B1', inspection_type: 'Pressure test', regulatory_body: 'DMRE', certificate_no: 'C-001', expiry_date: ymd(200), status: 'current', responsible: 'Rita Ray', notes: '' },
+    { id: 2, equipment_name: 'Crane C2', inspection_type: 'Load test', regulatory_body: 'SANS', certificate_no: 'C-002', expiry_date: ymd(10), status: 'due_soon', responsible: 'Sam Soo', notes: '' },
+    { id: 3, equipment_name: 'Hoist H3', inspection_type: 'Rope inspection', regulatory_body: 'DMRE', certificate_no: 'C-003', expiry_date: ymd(-5), status: 'overdue', responsible: 'Tina Tee', notes: '' },
+  ] } },
+  { route: '/login', data: {} },
+  { route: '/login-preview', data: {} },
+  { route: '/auth/set-password', data: {} },
+  { route: '/auth/callback', data: {} },
+  { route: '/av', data: {} },
+  { route: '/employees-preview', data: {} },
+  { route: '/leave-management', data: {} },
+  { route: '/ppe/allocate', data: {} },
+];
+specs.push(...EXTRA_SPECS);
+
 const DARK_APPEARANCE = { version: 1, font: 'inter', fontSize: 100, guidance: true, theme: 'mono', darkness: 'dark' };
 const browser = await chromium.launch({ headless: true });
 const slug = route => (route === '/' ? 'home' : route.replace(/\W+/g, '-').replace(/^-|-$/g, ''));
