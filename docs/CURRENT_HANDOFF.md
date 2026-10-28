@@ -343,6 +343,16 @@ Motion-and-fixes plan 5.1/5.2/5.3/5.5 (full account in workspace `audit/motion-a
 - Gate-fixed, not pre-existing: framer springs take ≤2 keyframes (discrete effects are chained two-frame springs now); NumberTransition SR text without aria-label-on-span; `useMediaQuery` falls back without matchMedia. Visual baselines refreshed for the nav bars (workflow run, pulled).
 - Worktree note: the other actor's ExportButton one-liner is still uncommitted — preserved, never staged; backend's untracked reset SQL preserved, never run.
 
+## 8q. B4 motion rollout slice 1: zoom core + shared patterns (Muse, 28 Oct 2026; merged to main, pushed and live 28 Oct 2026, tagged `release-2026-10-28-b4-1`)
+
+Motion-and-fixes plan 5.4 slice 1 of 3 (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B4.md`, plan `PLAN_B4.md`, choices `ASSUMPTIONS.md` B4 section). Frontend main `f81d36a` (branch `b4-motion-rollout`, 17 commits); backend untouched. No schema/data changes; no live writes.
+
+- Zoom: stable-id registry + `ZoomLink`/`ZoomTarget` (rect-based shared-element continuity, placement fallback, mid-flight reversal, reduced crossfade); `Dialog`/`Drawer`/`FormDialog` `zoomId`. Gallery Zoom section (card→dialog, New→form, drawer, fallback) + 8 route-spec cases.
+- Shared patterns: MotionList `as`/auto-highlight/`calmKey` + DataTable fade/`stillKey`; bell bounce-on-rise + rolling badge; popup → Presence; MetricTile roll + ring fade; BulkBar presence + rolling counts; Button/IconButton `success` + `iconSwap`; export phases (holds + `useActionFeedback`, DownloadButton idle→pending→success); FormDialog 0.25 s saved-hold + first-error icon wiggle.
+- Fixed en route: gallery simulate switch now reaches framer pieces (`useReducedMotionConfig`); spring-CSS check honours CRLF checkouts; MotionList freshness without render-phase refs.
+- Verified: tsc clean, eslint 0 errors, vitest 322/2329 green, docs:check green, build green, dev-motion (35) + maintenance (79) specs ALL PASS, axe 0, 1440+390 renders inspected. Live: production serves the slice (chunk marker); touched pages 200 with zero console errors (signed-out, never signed in).
+- Worktree note: the other actor's ExportButton doc one-liner was absorbed verbatim into `612cc5e` (same file); backend's untracked reset SQL preserved, never run. Slice 2 continues on `b4-motion-rollout`.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
