@@ -36,7 +36,8 @@ describe('NumberTransition (full motion)', () => {
   it('rolls digit columns without re-rendering per frame', async () => {
     const phases: string[] = [];
     const { container, rerender } = render(profiled(<NumberTransition value={0} />, phases));
-    expect(phases).toEqual(['mount']);
+    // Mount settles once (SSR match, then the real setting) - not a frame.
+    expect(phases).toEqual(['mount', 'update']);
     // One column per digit; the ones column is stable across the change.
     expect(container.querySelectorAll('.flex-col').length).toBe(1);
     rerender(profiled(<NumberTransition value={42} />, phases));
@@ -44,6 +45,7 @@ describe('NumberTransition (full motion)', () => {
     expect(container.querySelector('.sr-only')).toHaveTextContent('42');
     // Let the roll settle: no further commits means no per-frame setState.
     await new Promise(resolve => setTimeout(resolve, 700));
-    expect(phases).toEqual(['mount', 'update']);
+    // One settle after mount, one for the value change, then silence.
+    expect(phases).toEqual(['mount', 'update', 'update']);
   });
 });
