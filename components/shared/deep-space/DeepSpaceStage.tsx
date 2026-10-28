@@ -1,13 +1,13 @@
 // components/shared/deep-space/DeepSpaceStage.tsx — a full-screen surface for sign-in screens: a wireframe net covering the background and moving in a
 // breeze (MeshCanvas), with the content centred above it. `?bg=silk` on the address swaps in the silk cloth (SilkCanvas), for comparing the two.
 // Neither reacts to the pointer.
-// Light (the app's sage tokens, as they are) is the default; a small toggle at the bottom right switches to a dark sage version and the
-// choice is remembered on this device. Honours prefers-reduced-motion (one still frame), pauses when the tab is hidden, and cleans up
-// its loop and listeners on unmount.
+// Light (the app's sage tokens, as they are) is the default unless the app itself is dark; a small toggle at the bottom right
+// switches to a dark sage version and the choice is remembered on this device. Honours prefers-reduced-motion (one still frame),
+// pauses when the tab is hidden, and cleans up its loop and listeners on unmount.
 'use client';
 
 import { useSyncExternalStore, type ReactNode } from 'react';
-import { cn } from '@/components/ui-system';
+import { cn, migrateAppearance } from '@/components/ui-system';
 import { MeshCanvas } from './MeshCanvas';
 import { SilkCanvas } from './SilkCanvas';
 import s from './deep-space.module.css';
@@ -27,7 +27,15 @@ function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }
 // The remembered light/dark choice, read through an external store so the server and first client render agree (light, the default) without an effect.
 const listeners = new Set<() => void>();
 const subscribe = (callback: () => void) => { listeners.add(callback); window.addEventListener('storage', callback); return () => { listeners.delete(callback); window.removeEventListener('storage', callback); }; };
-const readDark = () => { try { return localStorage.getItem(STORAGE_KEY) === 'dark'; } catch { return false; } }; // light unless the visitor chose dark
+const readDark = () => {
+  try {
+    const own = localStorage.getItem(STORAGE_KEY);
+    if (own === 'dark') return true;
+    if (own === 'light') return false;
+    // No sign-in choice yet: follow the app's stored darkness, so the card and its text agree (a dark app behind a light card washes the text out).
+    return migrateAppearance(localStorage).darkness === 'dark';
+  } catch { return false; }
+};
 const writeDark = (next: boolean) => { try { localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light'); } catch { /* not remembered */ } listeners.forEach(callback => callback()); };
 
 // Which background: the wireframe net by default, the silk cloth with ?bg=silk (kept for comparing). Read through an external store so the server
