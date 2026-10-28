@@ -86,12 +86,12 @@ describe('ShellNotifications badge tone', () => {
 
   it('is red when an unread critical notification is present', () => {
     show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
-    expect(screen.getByText('1').className).toContain('bg-danger');
+    expect(screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('[class*="bg-danger"]')).not.toBeNull();
   });
 
   it('is dark green when only pending approvals are unread', () => {
     show([{ ...n('leave-1', 'leave'), status: 'pending', unread: true }]);
-    expect(screen.getByText('1').className).toContain('bg-action');
+    expect(screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('[class*="bg-action"]')).not.toBeNull();
   });
 
   it('both bells render the same badge for the same counts', () => {
@@ -99,16 +99,16 @@ describe('ShellNotifications badge tone', () => {
     const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0 };
     // Urgent pair: unread critical here, an overdue return there.
     show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
-    const shellUrgent = screen.getByText('1').className;
+    const shellUrgent = (screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span.inline-flex') as HTMLElement).className;
     cleanup();
     render(<ToolsNotifications {...toolsBase} counts={{ ...toolsZero, overdue: 1 }} unread={1} />);
-    expect(screen.getByText('1').className).toBe(shellUrgent);
+    expect((screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span.inline-flex') as HTMLElement).className).toBe(shellUrgent);
     // Normal pair: a pending approval here, a scheduled check there.
     cleanup();
     show([{ ...n('leave-1', 'leave'), status: 'pending', unread: true }]);
-    const shellNormal = screen.getByText('1').className;
+    const shellNormal = (screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span.inline-flex') as HTMLElement).className;
     cleanup();
     render(<ToolsNotifications {...toolsBase} counts={{ ...toolsZero, inspectionDue: 1 }} unread={1} />);
-    expect(screen.getByText('1').className).toBe(shellNormal);
+    expect((screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span.inline-flex') as HTMLElement).className).toBe(shellNormal);
   });
 });

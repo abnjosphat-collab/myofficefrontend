@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { BellBadge, Button, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, cn, LoadingPulse } from '@/components/ui-system';
 import { useNotifications, type BellGroup, type Notification } from './useNotifications';
+import { useRiseKey } from './useRiseKey';
 import type { SourceResult } from './useDashboardData';
 
 /** Source order, not alphabetical: your own jobs first, then approvals, notices next — the merged feed's own order. */
@@ -79,6 +80,7 @@ function BellRow({ item, onNavigate }: { item: Notification; onNavigate: (id: st
 export function ShellNotifications() {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, loading, failedSources, retry, markAllRead, markRead, totals } = useNotifications();
+  const bounceKey = useRiseKey(unreadCount);
   const groups = useMemo(() => groupBellItems(notifications), [notifications]);
   // The activity tail renders below the groups as a plain list, exactly as before — no header, no counts.
   const activityTail = useMemo(
@@ -91,7 +93,7 @@ export function ShellNotifications() {
     <Popover open={open} onOpenChange={setOpen}>
       <span className="relative inline-flex">
         <PopoverTrigger asChild>
-          <IconButton icon="bell" label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'} variant="shell" size="shell" />
+          <IconButton icon="bell" label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'} variant="shell" size="shell" bounceTrigger={bounceKey} />
         </PopoverTrigger>
         {unreadCount > 0 && <BellBadge value={unreadCount} urgent={bellHasUrgentUnread(notifications)} />}
       </span>

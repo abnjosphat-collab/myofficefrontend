@@ -12,16 +12,22 @@ describe('bellBadgeTone', () => {
 describe('BellBadge', () => {
   it('renders the value in dark green when nothing is urgent', () => {
     render(<BellBadge value={2} urgent={false} />);
-    expect(screen.getByText('2').className).toContain('bg-action');
+    // The rolling number: screen readers hear the final value once, sighted
+    // users see the strip. (Reduced test mode: the value changes in place.)
+    expect(screen.getByText('2', { selector: '.sr-only' })).toBeInTheDocument();
+    const visible = screen.getByText('2', { selector: '[aria-hidden="true"]' });
+    expect(visible.closest('span[class*="bg-action"]')).not.toBeNull();
   });
 
   it('renders the value in red when something is overdue or critical', () => {
     render(<BellBadge value={2} urgent />);
-    expect(screen.getByText('2').className).toContain('bg-danger');
+    const visible = screen.getByText('2', { selector: '[aria-hidden="true"]' });
+    expect(visible.closest('span[class*="bg-danger"]')).not.toBeNull();
   });
 
   it('caps a large value at 9+', () => {
     render(<BellBadge value={12} urgent={false} />);
-    expect(screen.getByText('9+')).toBeInTheDocument();
+    expect(screen.getByText('9+', { selector: '.sr-only' })).toBeInTheDocument();
+    expect(screen.getByText('9+', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
   });
 });

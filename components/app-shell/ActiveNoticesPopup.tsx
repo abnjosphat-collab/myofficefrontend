@@ -9,12 +9,15 @@
 // honestly labeled: there's no backend acknowledgment-tracking to claim otherwise,
 // see useNoticeAlerts.ts) marks it read via useNotifications' shared oz_notifSeen
 // store, so it also clears from the bell's unread count — one seen-state, not two.
+//
+// Cards enter with the list insert motion and collapse out on dismiss (MotionList);
+// a card dismissed while siblings stay collapses, and the shell stays mounted so
+// "Dismiss all" collapses every card instead of popping the tree.
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Button, IconButton, Icon, StatusBadge, type Tone } from '@/components/ui-system';
+import { Button, IconButton, Icon, StatusBadge, MotionList, MotionListItem, type Tone } from '@/components/ui-system';
 import { priorityTone } from '@/lib/status';
 import { useNoticeAlerts } from './useNoticeAlerts';
 import { useNotifications } from './useNotifications';
@@ -71,33 +74,29 @@ export function ActiveNoticesPopup() {
   const dismissAll = () => close(displayed.map(n => `notice-${n.id}`));
   const openNotice = () => router.push('/noticeboard');
 
-  if (displayed.length === 0) return null;
+  if (!ready || alreadyShown) return null;
 
   // Bottom of the screen, not the top: the top-right holds the page header's own actions, and on a phone it sits
   // under the top bar and over the page title.
   return (
     <div className="fixed inset-x-4 bottom-[calc(1rem+var(--mo-safe-bottom))] z-40 flex max-h-[40dvh] flex-col sm:max-h-[60dvh] gap-2 overflow-y-auto sm:inset-x-auto sm:right-4 sm:w-80" aria-live="polite">
-      <div className="flex items-center justify-between rounded-control border border-line bg-surface-raised px-3 py-1 shadow-popover">
-        <span className="font-sans text-caption font-medium uppercase tracking-wide text-ink-muted">
-          {displayed.length} Active Notice{displayed.length !== 1 ? 's' : ''}
-        </span>
-        {displayed.length > 1 && <Button variant="ghost" size="sm" onClick={dismissAll}>Dismiss all</Button>}
-      </div>
-      <AnimatePresence>
-        {displayed.map((notice, i) => {
+      {displayed.length > 0 && (
+        <div className="flex items-center justify-between rounded-control border border-line bg-surface-raised px-3 py-1 shadow-popover">
+          <span className="font-sans text-caption font-medium uppercase tracking-wide text-ink-muted">
+            {displayed.length} Active Notice{displayed.length !== 1 ? 's' : ''}
+          </span>
+          {displayed.length > 1 && <Button variant="ghost" size="sm" onClick={dismissAll}>Dismiss all</Button>}
+        </div>
+      )}
+      <MotionList>
+        {displayed.map(notice => {
           const p = PRIORITY[notice.priority];
           return (
-            <motion.div
+            <MotionListItem
               key={notice.id}
-              layout
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ x: 400, opacity: 0 }}
-              transition={{ type: 'spring', damping: 26, stiffness: 320, delay: i * 0.08 }}
               className={`relative cursor-pointer overflow-hidden rounded-card border border-l-4 border-line bg-surface-raised shadow-popover ${p?.accent ?? 'border-l-line-strong'}`}
-              onClick={openNotice}
             >
-              <div className="px-3 py-3">
+              <div className="px-3 py-3" onClick={openNotice}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-1.5">
                     {notice.is_pinned && <Icon name="pinned" size="sm" className="shrink-0 text-warning" />}
@@ -114,10 +113,10 @@ export function ActiveNoticesPopup() {
                   {notice.requires_acknowledgment && <Button variant="primary" size="sm" className="shrink-0" onClick={e => { e.stopPropagation(); dismiss(notice.id); }}>Got it</Button>}
                 </div>
               </div>
-            </motion.div>
+            </MotionListItem>
           );
         })}
-      </AnimatePresence>
+      </MotionList>
     </div>
   );
 }

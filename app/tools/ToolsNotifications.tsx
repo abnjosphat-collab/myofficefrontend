@@ -4,6 +4,7 @@
 
 import { BellBadge, Button, Icon, IconButton, Popover, PopoverContent, PopoverTrigger } from '@/components/ui-system';
 import type { IconMeaning } from '@/components/ui-system/foundations/icon-meanings';
+import { useRiseKey } from '@/components/app-shell/useRiseKey';
 
 export type ToolAttentionCounts = { overdue: number; attention: number; inspectionDue: number; investigationsOverdue: number; overdueEscalations: number; passwordRequests: number; feedback: number };
 
@@ -39,12 +40,13 @@ export function ToolsNotifications({ counts, unread, unavailable, loading, onRet
   onShowAccounts: () => void;
 }) {
   const total = counts.overdue + counts.attention + counts.inspectionDue + counts.investigationsOverdue + counts.passwordRequests + counts.feedback;
+  const bounceKey = useRiseKey(unread);
   return (
     <Popover onOpenChange={open => { if (open) void onViewed(); }}>
       <div className="relative">
         <PopoverTrigger asChild>
           <IconButton icon={unavailable ? 'warning' : 'bell'} variant="ghost"
-            label={unavailable ? 'Tool notifications unavailable' : `${unread} unread tool notifications`} />
+            label={unavailable ? 'Tool notifications unavailable' : `${unread} unread tool notifications`} bounceTrigger={bounceKey} />
         </PopoverTrigger>
         {unread > 0 && <BellBadge value={unread} urgent={toolsBellIsUrgent(counts)} />}
       </div>

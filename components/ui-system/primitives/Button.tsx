@@ -8,6 +8,7 @@ import { Icon, type IconSize } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Tooltip } from '../overlays/Tooltip';
 import { closeTurn } from '../foundations/gestures';
+import { AnimatedIcon } from '../motion/AnimatedIcon';
 
 /** The one button. Hierarchy: primary (one per view) → secondary → ghost; danger only after confirmation. */
 export const buttonVariants = cva(
@@ -131,11 +132,13 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   badge?: ReactNode;
   pending?: boolean;
   pressed?: boolean;
+  /** Bounce the icon when this changes (the bell, when the unread count rises). Omitted = a static icon. */
+  bounceTrigger?: unknown;
 }
 
 /** Icon-only action. The label is mandatory so the control is never unnamed, and it shows as a tooltip on hover and focus. */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon, label, tooltip, tooltipSide = 'bottom', badge, variant, size, pending = false, pressed, className, disabled, type, ...rest },
+  { icon, label, tooltip, tooltipSide = 'bottom', badge, variant, size, pending = false, pressed, bounceTrigger, className, disabled, type, ...rest },
   ref,
 ) {
   const button = (
@@ -149,7 +152,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       className={cn(iconButtonVariants({ variant, size }), badge != null && 'relative', icon === 'close' && closeTurn, pressed && 'bg-action-soft text-action', className)}
       {...rest}
     >
-      {pending ? <Spinner /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
+      {pending ? <Spinner /> : bounceTrigger !== undefined ? <AnimatedIcon name={icon} effect="bounce" trigger={bounceTrigger} size={size === 'lg' ? 'lg' : 'md'} /> : <Icon name={icon} size={size === 'lg' ? 'lg' : 'md'} />}
       {badge === '' ? (
         <span aria-hidden="true" className="absolute right-1 top-1 size-2 rounded-full bg-action" />
       ) : badge != null && (

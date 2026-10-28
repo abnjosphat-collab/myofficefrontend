@@ -27,7 +27,7 @@ const FRAMER_ALLOW = new Set([
   'app/compressors/UnitPod.tsx',
   'app/compressors/UnitView.tsx',
   'components/shared/floor/motion.tsx',
-  'components/app-shell/ActiveNoticesPopup.tsx',
+  // B4s1: ActiveNoticesPopup migrated to Presence (was: framer exception).
   'components/ui-system/patterns/LoadingPulse.tsx',
   'components/home/useTypewriterPlaceholder.ts',
 ]);
@@ -40,7 +40,7 @@ const TRANSITION_ALLOW_DIRS = FRAMER_ALLOW_DIRS;
 // Named moving elements allowed a layout/layoutId until B4 migrates them.
 const LAYOUT_ALLOW = new Set([
   'app/compressors/page.tsx', // view-pill shared pill
-  'components/app-shell/ActiveNoticesPopup.tsx', // card layout (moves to Presence)
+  // B4s1: ActiveNoticesPopup migrated to Presence (was: card layout exception).
 ]);
 const LAYOUT_ALLOW_DIRS = ['app/test-homepage/', 'components/ui-system/motion/'];
 

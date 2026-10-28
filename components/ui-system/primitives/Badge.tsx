@@ -78,7 +78,7 @@ export function Tag({ children, className, onRemove, removeLabel, disabled }: {
 }
 
 /** Count bubble used on tabs and nav items. */
-export function CountBadge({ value, tone = 'neutral', className }: { value: number | string; tone?: 'neutral' | 'brand' | 'warning' | 'danger'; className?: string }) {
+export function CountBadge({ value, tone = 'neutral', className }: { value: ReactNode; tone?: 'neutral' | 'brand' | 'warning' | 'danger'; className?: string }) {
   const tones = {
     neutral: 'bg-surface-muted text-ink-muted',
     brand: 'bg-action text-action-ink',
