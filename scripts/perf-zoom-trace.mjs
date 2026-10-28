@@ -1,5 +1,6 @@
-// B4 perf gate: 100 fixture work-order cards at 4x CPU throttle. Fails when any
-// main-thread task over 50ms lands inside a zoom or list animation window.
+// B4 perf gate: a 100-record fixture register (one full 25-card page; the page
+// paginates at 25) at 4x CPU throttle. Fails when any main-thread task over
+// 50ms lands inside a zoom or list animation window.
 //   node scripts/perf-zoom-trace.mjs [--base http://localhost:3000]
 // Prints per-window counts/max, then PASS/FAIL. Fixture data only.
 import process from 'node:process';
@@ -55,8 +56,8 @@ await page.goto(`${BASE}/maintenance`, { waitUntil: 'networkidle' });
 const cards = page.getByRole('button', { name: /Open work order/ });
 await cards.first().waitFor({ timeout: 15000 });
 const count = await cards.count();
-console.log(`cards rendered: ${count}`);
-if (count !== 100) { console.log(`FAIL expected 100 cards, saw ${count}`); await browser.close(); process.exit(1); }
+console.log(`cards rendered: ${count} (register holds ${orders.length}; the page shows ${count} per page)`);
+if (count !== 25) { console.log(`FAIL expected one full page of 25 cards, saw ${count}`); await browser.close(); process.exit(1); }
 // Let first paint settle outside any window (initial mount never animates).
 await page.waitForTimeout(1000);
 
