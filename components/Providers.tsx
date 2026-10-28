@@ -4,7 +4,7 @@
 import { AuthProvider } from '@/lib/auth-context';
 import { GlobalMfaGate } from '@/components/app-shell/mfa-ui';
 import { ServiceWorkerRegistrar } from '@/components/app-shell/ServiceWorkerRegistrar';
-import { AppearanceProvider, ConfirmProvider, MotionProvider, TooltipProvider } from '@/components/ui-system';
+import { AppearanceProvider, ConfirmProvider, MotionProvider, PointerEventsGuard, TooltipProvider } from '@/components/ui-system';
 import { FloorProvider } from '@/components/shared/floor/FloorProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -14,6 +14,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       {/* Full-screen 2FA prompt, rendered whenever a session exists but hasn't
           cleared its challenge yet — see lib/auth-context.tsx applySession(). */}
       <GlobalMfaGate />
+      {/* Repairs a leaked body{pointer-events:none} when a menu hands off to a dialog in the same tick. */}
+      <PointerEventsGuard />
       {/* One MotionProvider for the app (F-15): framer-motion's default is
           reducedMotion="never", which animated past the OS setting. */}
       <MotionProvider>
