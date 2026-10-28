@@ -6,34 +6,49 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { IconButton } from '../primitives/Button';
-import { DrawerDragPanel } from '../motion';
+import { DrawerDragPanel, ZoomBoundary, ZoomOverlay, ZoomTarget } from '../motion';
 import { firstDialogField } from './dialogFocus';
 
 const panelVariants = cva(
   [
     'fixed z-dialog flex flex-col border border-line bg-surface font-sans text-body text-ink shadow-dialog outline-none',
-    'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
   ],
   {
     variants: {
       placement: {
         center: [
           'left-1/2 top-1/2 max-h-[min(92dvh,56rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-panel',
-          'data-[state=open]:zoom-in-[0.98] data-[state=closed]:zoom-out-[0.98]',
-          'duration-[var(--mo-spring-smooth-duration)] ease-spring-smooth',
         ],
         right: [
           'inset-y-0 right-0 h-dvh w-full max-w-lg rounded-l-panel border-r-0',
-          'data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
-          'duration-[var(--mo-spring-gentle-duration)] ease-spring-gentle',
         ],
+      },
+      // The enter/exit choreography. `css` is the tw-animate open (the
+      // default, byte-identical to before); `zoom` leaves the panel bare
+      // for the ZoomTarget, which owns the motion instead.
+      motion: {
+        css: '',
+        zoom: '',
       },
       size: { sm: 'sm:max-w-md', md: 'sm:max-w-xl', lg: 'sm:max-w-3xl', xl: 'sm:max-w-5xl' },
     },
-    compoundVariants: [{ placement: 'right', size: ['sm', 'md', 'lg', 'xl'], className: 'sm:max-w-lg' }],
-    defaultVariants: { placement: 'center', size: 'md' },
+    compoundVariants: [
+      { placement: 'right', size: ['sm', 'md', 'lg', 'xl'], className: 'sm:max-w-lg' },
+      {
+        placement: 'center', motion: 'css',
+        className: 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-[0.98] data-[state=closed]:zoom-out-[0.98] duration-[var(--mo-spring-smooth-duration)] ease-spring-smooth',
+      },
+      {
+        placement: 'right', motion: 'css',
+        className: 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right duration-[var(--mo-spring-gentle-duration)] ease-spring-gentle',
+      },
+    ],
+    defaultVariants: { placement: 'center', size: 'md', motion: 'css' },
   },
 );
+
+const overlayBase = 'fixed inset-0 z-overlay bg-overlay';
+const overlayCss = 'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-spring-quick-duration)] ease-spring-quick';
 
 export interface DialogProps extends VariantProps<typeof panelVariants> {
   open: boolean;
@@ -60,6 +75,13 @@ export interface DialogProps extends VariantProps<typeof panelVariants> {
   skin?: DialogSkin;
   /** Drag-to-dismiss axis. Drawer passes "x" (phones only, off in reduced motion); centre dialogs never drag. */
   dragDismiss?: 'x';
+  /**
+   * Shared-element zoom: the panel grows out of the ZoomLink source looked up
+   * by this stable id and shrinks back into it on close (a missing or
+   * off-screen source falls back to the placement's normal open). Disables
+   * drag-dismiss while set. Omit for the plain open.
+   */
+  zoomId?: string;
 }
 
 /**
@@ -79,7 +101,7 @@ export type DialogSkin = {
  * body between a fixed header and footer, and responsive sizing.
  */
 export function Dialog({
-  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className, focusTitle, skin, dragDismiss,
+  open, onOpenChange, title, description, children, footer, placement, size, dismissible = true, onRequestClose, className, focusTitle, skin, dragDismiss, zoomId,
 }: DialogProps) {
   const opener = useRef<HTMLElement | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -113,8 +135,9 @@ export function Dialog({
       if (target?.closest('[data-radix-popper-content-wrapper], [data-radix-select-content], [role="listbox"], [role="menu"], [cmdk-root]')) event.preventDefault();
     },
   };
-  const drag = dragDismiss === 'x' && dismissible && !skin;
-  const contentClass = skin ? cn(skin.panel, className) : cn(panelVariants({ placement, size }), className);
+  const zoom = zoomId !== undefined;
+  const drag = dragDismiss === 'x' && dismissible && !skin && !zoom;
+  const contentClass = skin ? cn(skin.panel, className) : cn(panelVariants({ placement, size, motion: zoom ? 'zoom' : 'css' }), className);
   const panel = (
     <>
       <header className={skin?.header ?? 'flex items-start gap-3 border-b border-line-subtle px-5 py-4 sm:px-6'}>
@@ -140,20 +163,44 @@ export function Dialog({
   );
   return (
     <DialogPrimitive.Root open={open} onOpenChange={attemptClose}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className={skin?.overlay ?? 'fixed inset-0 z-overlay bg-overlay data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[var(--mo-spring-quick-duration)] ease-spring-quick'} />
-        {drag ? (
-          <DialogPrimitive.Content asChild className={contentClass} {...contentEvents}>
-            <DrawerDragPanel onDismiss={() => attemptClose(false)}>{panel}</DrawerDragPanel>
-          </DialogPrimitive.Content>
+      <DialogPrimitive.Portal forceMount={zoom ? true : undefined}>
+        {zoom ? (
+          <ZoomBoundary>
+            {open && (
+              <DialogPrimitive.Overlay key="zoom-overlay" asChild forceMount>
+                <ZoomOverlay className={skin?.overlay ?? overlayBase} />
+              </DialogPrimitive.Overlay>
+            )}
+            {open && (
+              <DialogPrimitive.Content
+                key="zoom-content"
+                asChild
+                forceMount
+                className={contentClass}
+                {...skin?.attrs}
+                {...contentEvents}
+              >
+                <ZoomTarget zoomId={zoomId} placement={placement ?? 'center'}>{panel}</ZoomTarget>
+              </DialogPrimitive.Content>
+            )}
+          </ZoomBoundary>
         ) : (
-          <DialogPrimitive.Content
-            className={contentClass}
-            {...skin?.attrs}
-            {...contentEvents}
-          >
-            {panel}
-          </DialogPrimitive.Content>
+          <>
+            <DialogPrimitive.Overlay className={skin?.overlay ?? `${overlayBase} ${overlayCss}`} />
+            {drag ? (
+              <DialogPrimitive.Content asChild className={contentClass} {...contentEvents}>
+                <DrawerDragPanel onDismiss={() => attemptClose(false)}>{panel}</DrawerDragPanel>
+              </DialogPrimitive.Content>
+            ) : (
+              <DialogPrimitive.Content
+                className={contentClass}
+                {...skin?.attrs}
+                {...contentEvents}
+              >
+                {panel}
+              </DialogPrimitive.Content>
+            )}
+          </>
         )}
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

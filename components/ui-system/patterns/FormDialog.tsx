@@ -26,6 +26,8 @@ export interface FormDialogProps extends Pick<DialogProps, 'open' | 'onOpenChang
    * "unsaved" means something the dialog cannot see (picked-but-unstored files).
    */
   dirty?: boolean;
+  /** Shared-element zoom id (the New button's): the form grows out of it and shrinks back. Omit for the plain open. */
+  zoomId?: string;
 }
 
 /**
@@ -33,7 +35,7 @@ export interface FormDialogProps extends Pick<DialogProps, 'open' | 'onOpenChang
  * state that blocks double submit and dismissal, and a save failure shown inline without losing input.
  * Children are the fields; lay them out in a grid (`grid grid-cols-1 gap-4 sm:grid-cols-2`) or a stack.
  */
-export function FormDialog({ open, onOpenChange, title, description, size = 'md', submitLabel, onSubmit, onSaved, secondaryAction, dirty: dirtyProp, children }: FormDialogProps) {
+export function FormDialog({ open, onOpenChange, title, description, size = 'md', submitLabel, onSubmit, onSaved, secondaryAction, dirty: dirtyProp, zoomId, children }: FormDialogProps) {
   const formId = useId();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
       open={open}
       onOpenChange={close}
       dismissible={!saving}
+      zoomId={zoomId}
       title={title}
       description={description}
       size={size}

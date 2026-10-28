@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useAnimate, usePresence } from 'framer-motion';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { FADE, SPRING } from './presets';
 import { useIsReducedMotion } from './useMotionSafe';
 import { consumeZoomSource, lookupZoomSource, markZoomSourceUsed, registerZoomSource, unregisterZoomSource } from './zoomRegistry';
@@ -73,12 +73,11 @@ function zoomStart(source: Rect, panel: Rect): { scaleX: number; scaleY: number;
   };
 }
 
-export interface ZoomTargetProps {
+export interface ZoomTargetProps extends HTMLAttributes<HTMLDivElement> {
   /** Stable id of the source to grow out of. Missing/off-screen → the normal open. */
   zoomId: string;
   /** Which fallback to take: the drawer edge-slide or the dialog scale+fade. */
   placement?: 'center' | 'right';
-  className?: string;
   children: ReactNode;
 }
 
@@ -91,9 +90,20 @@ type ZoomMode = 'zoom' | 'fallback' | 'reduce';
  * reduced motion (or a missing source) it is a crossfade (or the placement's
  * normal open). Must render inside a ZoomBoundary with a stable key.
  */
-export function ZoomTarget({ zoomId, placement = 'center', className, children }: ZoomTargetProps) {
+export const ZoomTarget = forwardRef<HTMLDivElement, ZoomTargetProps>(function ZoomTarget(
+  { zoomId, placement = 'center', className, children, ...rest },
+  forwarded,
+) {
   const reduce = useIsReducedMotion();
   const [scope, animate] = useAnimate<HTMLDivElement>();
+  // Radix Slot (Dialog asChild) forwards its own ref for focus measurements;
+  // it shares the node with the animation scope.
+  const setRefs = useCallback((el: HTMLDivElement | null) => {
+    (scope as { current: HTMLDivElement | null }).current = el;
+    const target: Ref<HTMLDivElement> | undefined = forwarded;
+    if (typeof target === 'function') target(el);
+    else if (target) target.current = el;
+  }, [scope, forwarded]);
   const [isPresent, safeToRemove] = usePresence();
   // Whether THIS open zoomed (a boolean, never the node). Decided at open,
   // honoured at close; the source element is looked up fresh both times.
@@ -181,7 +191,8 @@ export function ZoomTarget({ zoomId, placement = 'center', className, children }
 
   return (
     <motion.div
-      ref={scope}
+      ref={setRefs}
+      {...rest}
       className={className}
       data-zoom-panel={zoomId}
       data-zoom-mode={mode}
@@ -191,7 +202,7 @@ export function ZoomTarget({ zoomId, placement = 'center', className, children }
       {children}
     </motion.div>
   );
-}
+});
 
 /**
  * The AnimatePresence boundary a ZoomTarget needs. `initial={false}`: a
