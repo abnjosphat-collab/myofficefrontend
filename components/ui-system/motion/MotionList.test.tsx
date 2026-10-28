@@ -31,6 +31,20 @@ describe('MotionList (B4)', () => {
     expect(view.container.querySelector('[data-testid="motion-highlight-wash"]')).toBeNull();
   });
 
+  it('keeps the wash through an unrelated re-render, until the list changes again', () => {
+    const view = render(<MotionList as="ul">{rows(['a', 'b'])}</MotionList>);
+    view.rerender(<MotionList as="ul">{rows(['a', 'b', 'c'])}</MotionList>);
+    expect(view.container.querySelectorAll('[data-testid="motion-highlight-wash"]').length).toBe(1);
+    // Same keys (a selection tick, a caption update): the wash plays on.
+    view.rerender(<MotionList as="ul">{rows(['a', 'b', 'c'])}</MotionList>);
+    expect(view.container.querySelectorAll('[data-testid="motion-highlight-wash"]').length).toBe(1);
+    // New data: the old wash is done, the new arrival washes.
+    view.rerender(<MotionList as="ul">{rows(['a', 'b', 'c', 'd'])}</MotionList>);
+    const washes = view.container.querySelectorAll('[data-testid="motion-highlight-wash"]');
+    expect(washes.length).toBe(1);
+    expect(washes[0].parentElement?.textContent).toContain('Row d');
+  });
+
   it('leaves non-item children alone', () => {
     const view = render(
       <MotionList as="ul">
