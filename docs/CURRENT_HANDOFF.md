@@ -70,6 +70,7 @@ Not wired: nothing. No route renders a legacy body any more, and `/inventory` re
 
 57 routes (generated ledger, 10 Oct 2026): **49 migrated**, 0 legacy body, 4 redirects, 4 own chrome; 50 browser-verified. Not marked verified: `/login`, `/auth/set-password`, `/auth/callback` and `/tools` (covered by screenshots and `scripts/verify-tools.mjs` instead), and `/timesheets`, `/standby`, `/test-homepage` (the parallel session's). Still open in the layout pass: a real-device check (below).
 (22 Oct 2026, Muse ppe-timesheets run: ledger regen'd — 59 routes, 49 migrated, 51 browser-verified. `/timesheets` verified; `/leaves`, `/overtime`, `/noticeboard`, `/breakdowns`, `/sheq`, `/tasks-events`, `/ppe`, `/issues`, `/employees`, `/inventory`, `/maintenance` re-verified with appended scopes. Per-route table stays authoritative.)
+(28 Oct 2026, Muse B3 run: ledger regen'd — 64 routes, 53 migrated, 55 browser-verified. `/dev/motion` gallery added and verified (admin-only, not in nav). Per-route table stays authoritative.)
 Migrated and verified at 1440/820/390/320 (`/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard` added 3 Oct): `/`, `/contractors`, `/competency`, `/compliance-register`, `/reliability`,
 `/condition-monitoring`, `/engineering-dashboard`, `/job-cards`, `/inventory`, `/training`, `/sop-library`, `/drivers`,
 `/admin/lists`, `/engineering_report`, `/usage-analyzer`, `/near_miss`, `/safety_complaints`, `/work_stoppage`, `/vfl`, `/sheq_inspection`, `/sheq`, `/pto`, `/pachedu`, `/requisitions`, `/admin`, `/noticeboard`. Everything else: not checked. The authoritative per-route table is
@@ -330,6 +331,17 @@ Part B of the motion-and-fixes plan (full account in workspace `audit/motion-and
 - Verified: tsc clean, eslint 0 errors, vitest 289/2190 green, coverage 46.41/43.41/37.31/50.33 (ratchet 35/34/28/38), docs:check green, build green, verify-routes 2038/0 (availabilities + timesheets specs now fire background ticks via `online`), axe 56 pass + pre-existing /issues SpareLookup nested-interactive (B5), 1440+390 renders inspected. Live: production serves B2 (`min ago` marker, absent pre-B2); 6 pages 200 with zero console errors (signed-out gate, never signed in).
 - The pre-B2 never-auto-refresh rule is superseded by this owner-approved batch (§10 updated); old `verify-*.mjs` scripts still click refresh buttons but are in no CI/gate (B5 may retire them).
 - Worktree note: the other actor's ExportButton doc-comment fix is still uncommitted — preserved, never staged; backend's untracked reset SQL preserved, never run.
+
+## 8p. B3 motion foundation (Muse, 27-28 Oct 2026; merged to main, pushed and live 28 Oct 2026, tagged `release-2026-10-28-b3`)
+
+Motion-and-fixes plan 5.1/5.2/5.3/5.5 (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B3.md`, plan `PLAN_B3.md`, choices `ASSUMPTIONS.md` B3 section). Frontend main `6198471` (branch `b3-motion-foundation`, 14 commits); backend untouched. No schema/data changes; no live writes. ZoomLink is B4's — not built here.
+
+- One motion layer `ui-system/motion/`: presets (smooth/gentle/snappy/quick + FADE + SPIN + HIGHLIGHT_WASH_S, caps tested), `MotionProvider` (replaces bare MotionConfig), `useMotionSafe`, `AnimatedIcon`, `IconSwap`, `NumberTransition` (motion-value columns, Profiler render-count test), `Presence`/`MotionList`, `Indicator` (measurement + CSS spring, no layoutId), `DrawerDragPanel`. CSS `linear()` springs generated from the presets (`scripts/gen-spring-css.mjs`, pinned by `tokens.test.ts`); every piece has a tested reduced-motion path.
+- Adopted in ui-system: Tabs indicator → spring token; Segmented + ViewToggle sliding pill; nav bars in SidebarFrame + mobile strip; Dialog scale 0.98 + smooth / Drawer gentle slide + coarse-pointer drag-dismiss; Menu/Popover/Tooltip fade + 4px quick; Button/IconButton Press 0.98 snappy; DataRegion loading crossfade. Enforced by `local/no-framer-outside-motion` + `scripts/motion-consistency.mjs` in docs:check (compressors/floor/popup listed for B4).
+- `/dev/motion` gallery (admin-only via `lib/roles.ts`, not in nav, simulated reduce-motion switch), route spec, README Motion section (rules, effect matrix, not-used list).
+- Verified: tsc clean, eslint 0 errors, vitest 312/2274 green, docs:check green, build green, dev-motion spec ALL PASS, axe 0, 1440+390 renders inspected, coarse-pointer drag probe (snap-back + fling close) green. Live: gallery 200 with chunk marker (≈2 min after push); `/dev/motion`, `/login`, `/` 200 with zero console errors (signed-out, never signed in).
+- Gate-fixed, not pre-existing: framer springs take ≤2 keyframes (discrete effects are chained two-frame springs now); NumberTransition SR text without aria-label-on-span; `useMediaQuery` falls back without matchMedia. Visual baselines refreshed for the nav bars (workflow run, pulled).
+- Worktree note: the other actor's ExportButton one-liner is still uncommitted — preserved, never staged; backend's untracked reset SQL preserved, never run.
 
 ## 8. Next bounded item
 
