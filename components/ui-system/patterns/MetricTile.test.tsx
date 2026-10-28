@@ -38,6 +38,7 @@ describe('MetricTile motion', () => {
     const strip = container.firstElementChild as HTMLElement;
     expect(strip.className).toContain('max-sm:snap-x');
     expect(strip.className).toContain('max-sm:overflow-x-auto');
+    expect(strip.className).toContain('max-sm:max-w-full');
     expect(strip.className).toContain('[&>*]:max-sm:snap-start');
     expect(strip.style.transform).toBe('');
   });
