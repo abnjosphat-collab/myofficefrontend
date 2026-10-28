@@ -110,6 +110,7 @@ const spec = {
     check(await bar.getByText('5 selected (4 hidden by filters)').isVisible(), 'filtering keeps the selection and says what it hides');
     await page.getByRole('button', { name: 'Clear filters' }).click();
     await bar.getByRole('button', { name: 'Clear' }).click();
+    await bar.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     check(await bar.count() === 0, 'Clear empties the selection and the bar leaves');
 
     // tiles: the foreman's sign-off list and the missed planned jobs
