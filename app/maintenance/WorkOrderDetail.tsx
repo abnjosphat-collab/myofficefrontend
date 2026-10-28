@@ -46,7 +46,7 @@ export function WorkOrderDetail({ order, onClose, onEdit, onDelete, onSaved, onD
   };
   return (
     <Dialog
-      open={!!w} onOpenChange={o => { if (!o) onClose(); }} size="xl" title={w ? `Work order ${w.work_order_number}` : 'Work order'} description={w?.equipment_info}
+      open={!!w} onOpenChange={o => { if (!o) onClose(); }} size="xl" title={w ? `Work order ${w.work_order_number}` : 'Work order'} description={w?.equipment_info} zoomId={w ? `maintenance:order:${w.id}` : undefined}
       footer={w && (<DetailActions onDelete={canManage ? () => onDelete(w) : undefined} onClose={onClose} onEdit={() => onEdit(w)} editLabel="Edit request"><Button variant="secondary" icon="print" asChild><Link href={`/maintenance/print?open=${w.id}`}>Print job card</Link></Button>{isClosable(w) && <Button variant="primary" icon="check" onClick={() => onDone(w)}>Done</Button>}</DetailActions>)}
     >
       {w && status && priority && (

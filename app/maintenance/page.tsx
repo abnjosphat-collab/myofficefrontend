@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import {
-  Button, BulkBar, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
-  Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, pruneSelection, toggleOne, useConfirm, useViewPreference, type Column,
+  Button, BulkBar, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Pagination, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger,
+  Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, pruneSelection, toggleOne, useConfirm, useViewPreference, type Column,
   LoadingPulse,
 } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
@@ -83,6 +83,9 @@ function MaintenanceContent() {
   const viewing = useMemo(() => items.find(w => String(w.id) === viewingId) ?? null, [items, viewingId]);
   const rows = useMemo(() => filterOrders(items, f), [items, f]);
   const visible = pageSlice(rows, page, PAGE_SIZE);
+  // List-calm signature: filter/sort/page changes never animate; anything else
+  // (background refresh, mutation) animates arrivals and departures.
+  const listCalm = JSON.stringify([f, page]);
   const counts = useMemo(() => countByStatus(items), [items]);
   const filtered = isFiltered(f);
   const status = deriveDataStatus({ loaded: orders.loaded, loading: orders.loading, error: orders.error, errorStatus: orders.errorStatus, count: rows.length, transient: isTransientStatus(orders.errorStatus) });
@@ -142,8 +145,8 @@ function MaintenanceContent() {
     { id: 'progress', header: 'Progress', cell: w => <div className="min-w-32"><Progress value={w.progress ?? 0} label={`${w.equipment_info} progress`} /></div> },
   ];
   const headerAction = tab === 'schedules'
-    ? <><Button icon="upload" asChild><Link href="/maintenance/import?kind=schedules">Import</Link></Button>{canManage && <Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button>}</>
-    : tab === 'orders' ? <Button variant="primary" icon="plus" disabled={!orders.loaded} onClick={() => setFormFor({ order: null })}>New work order</Button> : null;
+    ? <><Button icon="upload" asChild><Link href="/maintenance/import?kind=schedules">Import</Link></Button>{canManage && <ZoomLink zoomId="maintenance:new-schedule" className="inline-block"><Button variant="primary" icon="plus" disabled={!schedules.loaded} onClick={() => setSchedFor({ schedule: null })}>New schedule</Button></ZoomLink>}</>
+    : tab === 'orders' ? <ZoomLink zoomId="maintenance:new-order" className="inline-block"><Button variant="primary" icon="plus" disabled={!orders.loaded} onClick={() => setFormFor({ order: null })}>New work order</Button></ZoomLink> : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -214,15 +217,16 @@ function MaintenanceContent() {
             status={status} subject="work orders" error={orders.error} onRetry={() => orders.refetch()}
             empty={filtered
               ? <EmptyState icon="search" title="No work orders match" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
-              : scope ? <EmptyState icon="wrench" title={`No ${scope} work orders yet`} description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} /> : <EmptyState icon="wrench" title="No work orders yet" description="Raise the first one." action={<Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button>} />}
+              : scope ? <EmptyState icon="wrench" title={`No ${scope} work orders yet`} description="Raise the first one." action={<ZoomLink zoomId="maintenance:new-order" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button></ZoomLink>} /> : <EmptyState icon="wrench" title="No work orders yet" description="Raise the first one." action={<ZoomLink zoomId="maintenance:new-order" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ order: null })}>New work order</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{rows.length} {rows.length === 1 ? 'work order' : 'work orders'}{rows.length !== items.length ? ` of ${items.length}` : ''}<UpdatedCaption at={orders.updatedAt} /></p>
             {view === 'cards' ? (
-              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Work orders">
+              <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Work orders">
                 {visible.map(w => {
                   const p = priorityMeta(w.priority);
                   return (
-                    <li key={String(w.id)} className="relative">
+                    <MotionListItem as="li" key={String(w.id)} className="relative">
+                      <ZoomLink zoomId={`maintenance:order:${w.id}`}>
                       <RecordCard
                         eyebrow={`#${w.work_order_number}`} title={w.equipment_info} subtitle={w.job_request_details || undefined} openLabel={`Open work order ${w.work_order_number}, ${w.equipment_info}`} onOpen={() => setViewingId(String(w.id))}
                         selectable selected={selected.has(String(w.id))} onSelectedChange={() => setSelected(prev => toggleOne(String(w.id), prev))} selectLabel={`Select work order ${w.work_order_number}`}
@@ -231,12 +235,13 @@ function MaintenanceContent() {
                         meta={<div className="w-full min-w-40"><Progress value={w.progress ?? 0} label={`${w.equipment_info} progress`} /></div>}
                         action={actionsOf(w)}
                       />
-                    </li>
+                      </ZoomLink>
+                    </MotionListItem>
                   );
                 })}
-              </ul>
+              </MotionList>
             ) : (
-              <DataTable caption="Work orders" rows={visible} columns={COLUMNS} getRowId={w => String(w.id)} selected={selected} onSelectedChange={setSelected} onRowActivate={w => setViewingId(String(w.id))} rowActions={actionsOf} />
+              <DataTable caption="Work orders" rows={visible} columns={COLUMNS} getRowId={w => String(w.id)} selected={selected} onSelectedChange={setSelected} onRowActivate={w => setViewingId(String(w.id))} rowActions={actionsOf} stillKey={listCalm} />
             )}
             {rows.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />}
           </DataRegion>

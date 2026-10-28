@@ -72,7 +72,7 @@ export function WorkOrderForm({ open, order, allOrders, onOpenChange, onChanged 
   return (
     <FormDialog
       open={open} onOpenChange={onOpenChange} size="lg" title={editing ? `Edit work order ${order.work_order_number}` : 'New work order'} description={editing ? order.equipment_info : 'The machine, the job and who does it are required.'}
-      submitLabel={editing ? 'Save changes' : machines.length > 1 ? `Raise ${machines.length} work orders` : 'Raise work order'} onSubmit={submit}
+      submitLabel={editing ? 'Save changes' : machines.length > 1 ? `Raise ${machines.length} work orders` : 'Raise work order'} onSubmit={submit} zoomId={editing ? undefined : 'maintenance:new-order'}
     >
       <div className="flex flex-col gap-5">
         {editing

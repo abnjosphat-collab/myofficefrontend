@@ -51,7 +51,7 @@ export function ScheduleForm({ open, schedule, onOpenChange, onSaved }: { open: 
   const kind = d.recurrence_type;
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit schedule' : 'New schedule'} description="Work orders are raised from it automatically." submitLabel={editing ? 'Save changes' : 'Create schedule'} onSubmit={submit}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title={editing ? 'Edit schedule' : 'New schedule'} description="Work orders are raised from it automatically." submitLabel={editing ? 'Save changes' : 'Create schedule'} onSubmit={submit} zoomId={editing ? undefined : 'maintenance:new-schedule'}>
       <div className="flex flex-col gap-5">
         <Field label="Schedule name" required error={err(problems.name)}><Input value={d.name} onChange={e => set({ name: e.target.value })} placeholder="Weekly compressor check" /></Field>
         <MachinePicker value={d.equipment_info} onChange={v => set({ equipment_info: v })} error={err(problems.machines)} />

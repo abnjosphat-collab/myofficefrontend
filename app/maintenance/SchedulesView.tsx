@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Button, DataRegion, EmptyState, IconButton, RecordCard, SearchField, StatusBadge, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
+import { Button, DataRegion, EmptyState, IconButton, MotionList, MotionListItem, RecordCard, SearchField, StatusBadge, ZoomLink, deriveDataStatus, isTransientStatus } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { todayLocal } from '@/lib/dates';
 import type { ApiListState } from '@/lib/useApiList';
@@ -61,11 +61,11 @@ export function SchedulesView({ list, orders, onEdit, onNew, onRaised, canManage
         status={status} subject="schedules" error={list.error} onRetry={() => list.refetch()}
         empty={q
           ? <EmptyState icon="search" title="No schedules match" description="Try a different search." action={<Button onClick={() => setSearch('')}>Clear search</Button>} />
-          : scope ? <EmptyState icon="clock" title={`No ${scope} recurring schedules yet`} description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button> : undefined} /> : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button> : undefined} />}
+          : scope ? <EmptyState icon="clock" title={`No ${scope} recurring schedules yet`} description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <ZoomLink zoomId="maintenance:new-schedule" className="inline-block"><Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button></ZoomLink> : undefined} /> : <EmptyState icon="clock" title="No recurring schedules yet" description="A schedule raises work orders for you every week, month, quarter or on set dates." action={canManage ? <ZoomLink zoomId="maintenance:new-schedule" className="inline-block"><Button variant="primary" icon="plus" onClick={onNew}>Create the first schedule</Button></ZoomLink> : undefined} />}
       >
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Schedules">
+        <MotionList as="ul" calmKey={q} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Schedules">
           {rows.map(s => (
-            <li key={s.id} className="relative">
+            <MotionListItem as="li" key={s.id} className="relative">
               <RecordCard
                 eyebrow={recurrenceLabel(s)} title={s.name} subtitle={s.equipment_info} openLabel={`Edit the schedule ${s.name}`} onOpen={canManage ? () => onEdit(s) : undefined}
                 status={<StatusBadge tone={s.active ? 'success' : 'neutral'}>{s.active ? 'Active' : 'Paused'}</StatusBadge>}
@@ -78,9 +78,9 @@ export function SchedulesView({ list, orders, onEdit, onNew, onRaised, canManage
                   </span>
                 )}
               />
-            </li>
+            </MotionListItem>
           ))}
-        </ul>
+        </MotionList>
       </DataRegion>
     </div>
   );
