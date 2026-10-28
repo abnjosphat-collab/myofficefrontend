@@ -63,7 +63,7 @@ export function MetricTile({ label, value, detail, tone = 'default', loading, un
   return <div className={quiet}>{line}</div>;
 }
 
-/** The row of quick-stat tiles: one wrapping strip everywhere. `columns` and `compact` are accepted for older call sites. */
+/** The row of quick-stat tiles: one wrapping strip on wide screens; on phones one snapping row (CSS scroll-snap, no transforms). `columns` and `compact` are accepted for older call sites. */
 export function MetricGrid({ children, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; compact?: boolean; className?: string }) {
-  return <div className={cn('flex flex-wrap items-center gap-2', className)}>{children}</div>;
+  return <div className={cn('flex flex-wrap items-center gap-2 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-proximity [scrollbar-width:none] [&>*]:max-sm:shrink-0 [&>*]:max-sm:snap-start', className)}>{children}</div>;
 }

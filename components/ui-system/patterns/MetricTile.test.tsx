@@ -2,7 +2,7 @@
 // renders as before. The selected ring is a colour fade, never a scale.
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { MetricTile } from './MetricTile';
+import { MetricGrid, MetricTile } from './MetricTile';
 
 describe('MetricTile motion', () => {
   it('rolls a numeric value (in place under reduced motion)', () => {
@@ -31,6 +31,15 @@ describe('MetricTile motion', () => {
     rerender(<MetricTile label="Open" value={3} selected />);
     expect(tile.className).toContain('border-action');
     expect(tile.style.transform).toBe('');
+  });
+
+  it('snaps tile rows sideways on phones (CSS only, no transforms)', () => {
+    const { container } = render(<MetricGrid><MetricTile label="Open" value={3} /><MetricTile label="Done" value={4} /></MetricGrid>);
+    const strip = container.firstElementChild as HTMLElement;
+    expect(strip.className).toContain('max-sm:snap-x');
+    expect(strip.className).toContain('max-sm:overflow-x-auto');
+    expect(strip.className).toContain('[&>*]:max-sm:snap-start');
+    expect(strip.style.transform).toBe('');
   });
 
   it('still shows the skeleton while loading and Unavailable on failure', () => {

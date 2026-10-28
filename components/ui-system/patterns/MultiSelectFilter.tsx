@@ -67,8 +67,8 @@ export function MultiSelectFilter({ label, unit, options, value, onChange, mode,
         </PopoverContent>
       </Popover>
       {value.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <ul className="flex flex-wrap gap-1.5" aria-label={`${label}, filtered`}>
+        <div className="flex flex-wrap items-center gap-1.5 max-sm:flex-nowrap">
+          <ul className="flex flex-wrap gap-1.5 max-sm:min-w-0 max-sm:flex-1 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-proximity [scrollbar-width:none] [&>*]:max-sm:shrink-0 [&>*]:max-sm:snap-start" aria-label={`${label}, filtered`}>
             {value.map(v => (
               <li key={v}><Tag onRemove={() => onChange(value.filter(x => x !== v))}>{raw.get(v) ?? v}</Tag></li>
             ))}

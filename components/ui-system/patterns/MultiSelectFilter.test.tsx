@@ -49,6 +49,17 @@ describe('MultiSelectFilter', () => {
     expect(screen.getByRole('button', { name: /PPE types filter: All types/ })).toBeInTheDocument();
   });
 
+  it('snaps the chip row sideways on phones (CSS only)', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /PPE types filter/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /Safety Shoes/ }));
+    const chips = container.querySelector('ul[aria-label="PPE types, filtered"]') as HTMLElement;
+    expect(chips.className).toContain('max-sm:snap-x');
+    expect(chips.className).toContain('max-sm:overflow-x-auto');
+    expect(chips.className).toContain('[&>*]:max-sm:snap-start');
+  });
+
   it('clears from inside the popover without touching the mode', async () => {
     const user = userEvent.setup();
     render(<Harness />);
