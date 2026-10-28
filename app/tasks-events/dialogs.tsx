@@ -117,7 +117,7 @@ export function ItemDetailsDialog({ item, author, onClose, onEdit, onDelete, onT
               )}
               <div className="flex items-end gap-2">
                 <Field label="Add a progress update" labelClassName="sr-only"><Textarea rows={2} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write an update" /></Field>
-                <Button variant="primary" onClick={post} disabled={!draft.trim() || posting}>{posting ? 'Posting…' : 'Post'}</Button>
+                <Button onClick={post} disabled={!draft.trim() || posting}>{posting ? 'Posting…' : 'Post'}</Button>
               </div>
           </FactSection>
         </div>

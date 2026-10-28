@@ -235,7 +235,7 @@ function StandbyContent() {
                 <h2 id="duty-overrides-h" className="font-display text-section font-semibold text-ink">Explicitly named</h2>
                 <p className="font-sans text-body-sm text-ink-muted">One-off officials for chosen dates — these win over the roster above where they overlap.</p>
               </div>
-              <ZoomLink zoomId="standby:new-duty" className="inline-block"><Button variant="primary" icon="plus" onClick={() => { setEditingDuty(null); setDutyOpen(true); }}>Name official</Button></ZoomLink>
+              <ZoomLink zoomId="standby:new-duty" className="inline-block"><Button icon="plus" onClick={() => { setEditingDuty(null); setDutyOpen(true); }}>Name official</Button></ZoomLink>
             </div>
             <DataRegion status={dutyStatus} subject="duty officials" error={duty.error} onRetry={() => duty.refetch()} empty={<EmptyState icon="shield" title={scope ? `No ${scope} duty officials named` : 'No duty officials named'} description="Name who answers for the mine, and for which dates." />}>
               <DataTable caption="Duty officials" rows={duty.items} columns={DUTY_COLUMNS} getRowId={r => String(r.id)}

@@ -24,7 +24,7 @@ function PreUseForm({ w, toolId }: { w: ToolsWorkspace; toolId: string }) {
       <Field label="Check notes" optional>
         <Textarea aria-label="Check notes" rows={2} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Anything the next person should know." />
       </Field>
-      <div><Button type="submit" variant="primary" size="sm" pending={saving}>Record pre-use check</Button></div>
+      <div><Button type="submit" size="sm" pending={saving}>Record pre-use check</Button></div>
     </form>
   );
 }

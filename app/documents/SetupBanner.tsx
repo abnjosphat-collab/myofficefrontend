@@ -35,7 +35,7 @@ export function SetupBanner({ isManager, amsMissing, unindexed, onChanged }: { i
       {amsMissing > 0 && (
         <Notice
           tone="info" title="The Asset Management System folders are not all set up"
-          action={isManager ? <Button size="sm" variant="primary" icon="folder-add" pending={seeding} onClick={seed}>Set up the AMS folders</Button> : undefined}
+          action={isManager ? <Button size="sm" icon="folder-add" pending={seeding} onClick={seed}>Set up the AMS folders</Button> : undefined}
         >
           {amsMissing} {amsMissing === 1 ? 'folder' : 'folders'} of the structure {amsMissing === 1 ? 'is' : 'are'} still to be created. Folders you already have are kept and, where the name matches, placed in the structure with their files.
           {!isManager && ' A manager can set them up.'}

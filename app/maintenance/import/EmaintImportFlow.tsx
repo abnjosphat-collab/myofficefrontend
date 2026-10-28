@@ -299,7 +299,7 @@ export function EmaintImportFlow({ kind }: { kind: ImportKind }) {
           <section aria-labelledby="match-h" className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1"><h2 id="match-h" className="font-display text-section font-semibold text-ink">Matches</h2><p className="font-sans text-body-sm text-ink-muted">Every row against the register. Nothing is saved by checking.</p></div>
-              <Button variant="primary" icon="search" pending={matching} disabled={missingRequired.length > 0} onClick={checkMatches}>Check matches</Button>
+              <Button icon="search" pending={matching} disabled={missingRequired.length > 0} onClick={checkMatches}>Check matches</Button>
             </div>
             {matchError && <Notice tone="danger" title="The matches could not be checked" action={<Button size="sm" icon="refresh" onClick={checkMatches}>Try again</Button>}>{matchError}</Notice>}
             {preview && (
