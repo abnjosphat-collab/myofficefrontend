@@ -144,7 +144,7 @@ export function NoticeDialog({ notice, open, onOpenChange, onSaved }: { notice?:
   );
 }
 
-function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: { notice: Notice | null; now: number; onClose: () => void; onEdit: (n: Notice) => void; onDelete: (n: Notice) => void; onTogglePin: (n: Notice) => void }) {
+export function DetailDialog({ notice, now, onClose, onEdit, onDelete, onTogglePin }: { notice: Notice | null; now: number; onClose: () => void; onEdit: (n: Notice) => void; onDelete: (n: Notice) => void; onTogglePin: (n: Notice) => void }) {
   const ex = notice ? expiry(notice, now) : { expired: false, soon: false };
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<number | null>(null);
