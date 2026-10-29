@@ -43,7 +43,8 @@ describe('PPEIssueForm person-pick', () => {
     const user = userEvent.setup();
     const onSave = vi.fn(async () => {});
     render(<ConfirmProvider><PPEIssueForm open record={null} prefill={null} employee={null} matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
-    // The new-issue picker opens on mount with the caret in its search box; pick straight from it.
+    // The new-issue picker starts with the caret in its box; type and pick straight from it.
+    await user.keyboard('dee');
     await user.click(screen.getByRole('option', { name: /Dee Delta/ }));
     const facts = document.querySelector('dl[aria-label="Person"]')?.textContent ?? '';
     expect(facts).toContain('C400');
@@ -64,7 +65,7 @@ describe('PPEIssueForm person-pick', () => {
     render(<ConfirmProvider><PPEIssueForm open record={issue()} prefill={null} employee={holder({ unmatched: true })} matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
     expect(screen.getByRole('combobox', { name: 'Re-link to the right person' })).toBeVisible();
     expect(document.querySelector('dl[aria-label="Person"]')?.textContent ?? '').toContain('TBA2');
-    await user.click(screen.getByRole('combobox', { name: 'Re-link to the right person' }));
+    await user.type(screen.getByRole('combobox', { name: 'Re-link to the right person' }), 'ann');
     await user.click(screen.getByRole('option', { name: /Ann Alpha/ }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ employee_id: 'C100', employee_name: 'Ann Alpha' }), '9');
@@ -86,6 +87,7 @@ describe('PPEIssueForm premature failure', () => {
     const user = userEvent.setup();
     const onSave = vi.fn(async () => {});
     render(<ConfirmProvider><PPEIssueForm open record={null} prefill={null} employee={null} matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
+    await user.keyboard('dee');
     await user.click(screen.getByRole('option', { name: /Dee Delta/ }));
     await user.type(screen.getByLabelText(/^Item or brand/), 'Gumboots');
     expect(screen.queryByLabelText(/^What failed/)).toBeNull();

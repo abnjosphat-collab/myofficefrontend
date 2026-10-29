@@ -2,6 +2,7 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -92,8 +93,9 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
   });
   const set = (patch: Partial<Form>) => setForm(p => ({ ...p, ...patch }));
   const people = useMemo(() => employees.map(e => ({ name: `${e.first_name} ${e.last_name}`.trim(), department: e.department })), [employees]);
+  // A comma list of inspectors: the first one's department fills the department.
   const setInspectors = (name: string) => {
-    const m = people.find(p => p.name === name);
+    const m = people.find(p => p.name === name.split(',')[0].trim());
     setForm(p => ({ ...p, inspectors: name, department: m?.department || p.department }));
   };
   const updateFinding = (id: string, patch: Partial<InspectionFinding>) => set({ findings: form.findings.map(f => (f.id === id ? { ...f, ...patch } : f)) });
@@ -115,7 +117,7 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
           <div className="sm:col-span-2"><Field label="Inspection title" required error={touched && !form.title.trim() ? 'Enter a title.' : undefined}><Input value={form.title} onChange={e => set({ title: e.target.value })} placeholder="For example, Monthly safety audit" /></Field></div>
           <div className="sm:col-span-2">
             <Field label="Inspector(s)" required description="Separate several names with commas." error={touched && !form.inspectors.trim() ? 'Enter the inspector’s name.' : undefined}>
-              <Input list="si-people" value={form.inspectors} onChange={e => setInspectors(e.target.value)} autoComplete="off" placeholder="Select or type inspector names" />
+              <PersonInput multiple value={form.inspectors} onChange={setInspectors} placeholder="Type inspector names" />
             </Field>
           </div>
           <Field label="Location" required error={touched && !form.place.trim() ? 'Enter the location.' : undefined}>
@@ -129,7 +131,6 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
           <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v as InspectionStatus })} options={INSPECTION_STATUSES.map(s => ({ value: s, label: INSPECTION_META[s].label }))} /></Field>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
           <Field label="Time" required error={touched && !form.time ? 'Enter the time.' : undefined}><Input type="time" value={form.time} onChange={e => set({ time: e.target.value })} /></Field>
-          <datalist id="si-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
         </section>
 
         <section aria-labelledby="si-findings" className="flex flex-col gap-3">
@@ -150,8 +151,8 @@ function InspectionDialog({ inspection, open, onOpenChange, onSaved }: { inspect
 
         <section aria-labelledby="si-signoff" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="si-signoff" className="font-display text-section font-semibold text-ink sm:col-span-2">Sign-off</h3>
-          <Field label="Head of department" optional><Input list="si-people" value={form.hodName} onChange={e => set({ hodName: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
-          <Field label="SHEQ official" optional><Input list="si-people" value={form.sheqOfficialName} onChange={e => set({ sheqOfficialName: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
+          <Field label="Head of department" optional><PersonInput value={form.hodName} onChange={v => set({ hodName: v })} placeholder="Select or type a name" /></Field>
+          <Field label="SHEQ official" optional><PersonInput value={form.sheqOfficialName} onChange={v => set({ sheqOfficialName: v })} placeholder="Select or type a name" /></Field>
           <p className="font-sans text-caption text-ink-muted sm:col-span-2">Signatures are captured after submission or approval.</p>
         </section>
       </div>

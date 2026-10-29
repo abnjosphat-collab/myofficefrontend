@@ -9,6 +9,7 @@ import { todayLocal } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink } from '@/components/ui-system';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
@@ -73,7 +74,7 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={cert ? 'Edit certification' : 'Add certification'} description="Employee name, employee ID, certification and expiry date are required." submitLabel={cert ? 'Save changes' : 'Save certification'} onSubmit={submit} size="lg" zoomId={cert ? undefined : 'training:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><Input value={form.employee_name} onChange={e => set({ employee_name: e.target.value })} autoComplete="name" /></Field>
+        <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><PersonInput value={form.employee_name} onChange={v => set({ employee_name: v })} onPick={e => set({ employee_id: String(e.employee_id ?? ''), ...(e.department ? { department: String(e.department) } : {}) })} /></Field>
         <Field label="Employee ID" required error={missing(form.employee_id, 'Enter the employee ID.')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} placeholder="For example, E001" /></Field>
         <Field label="Department" optional><Input value={form.department} onChange={e => set({ department: e.target.value })} /></Field>
         <Field label="Certification name" required error={missing(form.certification_name, 'Enter the certification name.')}><Input value={form.certification_name} onChange={e => set({ certification_name: e.target.value })} placeholder="For example, First aid and CPR" /></Field>

@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -116,8 +117,7 @@ export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?:
           <h3 id="vfl-observer" className="font-display text-section font-semibold text-ink sm:col-span-2">Observer</h3>
           <div className="sm:col-span-2">
             <Field label="Observer's name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}>
-              <Input list="vfl-people" value={form.observerName} onChange={e => setObserver(e.target.value)} autoComplete="off" placeholder="Select or type the observer's name" />
-              <datalist id="vfl-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+              <PersonInput value={form.observerName} onChange={setObserver} placeholder="Select or type the observer's name" />
             </Field>
           </div>
           <Field label="Designation" optional><SuggestField historyKey="vfl_designation" placeholder="Job title" value={form.designation} onChange={v => set({ designation: v })} /></Field>

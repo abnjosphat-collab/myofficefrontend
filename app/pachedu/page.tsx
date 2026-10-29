@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -108,8 +109,7 @@ export function ReportDialog({ report, open, onOpenChange, onSaved }: { report?:
           <div className="flex flex-col gap-4">
             <div><p className="mb-1.5 font-sans text-label font-medium text-ink">Behaviour classification</p><Segmented label="Behaviour classification" value={form.behaviourType} onValueChange={v => set({ behaviourType: v })} options={BEHAVIOURS.map(b => ({ value: b, label: b }))} /></div>
             <Field label="Observer name" optional description="Leave blank to record anonymously.">
-              <Input list="pa-people" value={form.observerName} onChange={e => setObserver(e.target.value)} autoComplete="off" placeholder="Select or type your name" />
-              <datalist id="pa-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+              <PersonInput value={form.observerName} onChange={setObserver} placeholder="Select or type your name" />
             </Field>
             <Field label="Department" optional><SuggestField historyKey="pach_dept" placeholder="For example, Engineering" value={form.dept} onChange={v => set({ dept: v })} /></Field>
             <Field label="SDWT" optional><SuggestField historyKey="pach_sdwt" placeholder="SDWT number" value={form.sdwt} onChange={v => set({ sdwt: v })} /></Field>

@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
@@ -83,7 +84,7 @@ function DriverDialog({ driver, departments, open, onOpenChange, onSaved }: { dr
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={driver ? 'Edit driver' : 'Add driver'} description="Only the full name is required." submitLabel={driver ? 'Save changes' : 'Add driver'} onSubmit={submit} zoomId={driver ? undefined : 'drivers:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2"><Field label="Full name" required error={touched && !form.full_name.trim() ? 'Enter the full name.' : undefined}><Input value={form.full_name} onChange={e => set('full_name', e.target.value)} autoComplete="name" placeholder="For example, John Moyo" /></Field></div>
+        <div className="sm:col-span-2"><Field label="Full name" required error={touched && !form.full_name.trim() ? 'Enter the full name.' : undefined}><PersonInput value={form.full_name} onChange={v => set('full_name', v)} placeholder="For example, John Moyo" /></Field></div>
         <div className="sm:col-span-2"><Field label="Phone numbers" optional><PhoneRows phones={form.phones} onChange={v => set('phones', v)} /></Field></div>
         <Field label="Department" optional description="Choose a suggestion or type your own.">
           <Input list="driver-departments" value={form.department} onChange={e => set('department', e.target.value)} />

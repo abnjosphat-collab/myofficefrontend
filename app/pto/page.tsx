@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -114,12 +115,12 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: PTORep
         <section aria-labelledby="pto-basic" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="pto-basic" className="font-display text-section font-semibold text-ink sm:col-span-2">Observation</h3>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>
-          <Field label="Observer name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}><Input value={form.observerName} onChange={e => set({ observerName: e.target.value })} placeholder="Observer's full name" /></Field>
+          <Field label="Observer name" required error={touched && !form.observerName.trim() ? 'Enter the observer’s name.' : undefined}><PersonInput value={form.observerName} onChange={v => set({ observerName: v })} placeholder="Observer's full name" /></Field>
           {scope
             ? <Field label="Section" description={report ? 'The section stays as it is.' : `Your account files observations in ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
             : <Field label="Section"><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v as SectionType })} options={SECTIONS.map(s => ({ value: s, label: s }))} /></Field>}
           <Field label="Department or contractor" optional><Input value={form.deptSectionContractor} onChange={e => set({ deptSectionContractor: e.target.value })} placeholder="Department or contractor" /></Field>
-          <Field label="Worker name" required error={touched && !form.workerName.trim() ? 'Enter the worker’s name.' : undefined}><Input value={form.workerName} onChange={e => set({ workerName: e.target.value })} placeholder="Worker's full name" /></Field>
+          <Field label="Worker name" required error={touched && !form.workerName.trim() ? 'Enter the worker’s name.' : undefined}><PersonInput value={form.workerName} onChange={v => set({ workerName: v })} placeholder="Worker's full name" /></Field>
           <Field label="Occupation" optional><Input value={form.occupation} onChange={e => set({ occupation: e.target.value })} placeholder="Job title or occupation" /></Field>
           <div className="sm:col-span-2"><Field label="Job or task observed" required error={touched && !form.jobTaskObserved.trim() ? 'Describe the task observed.' : undefined}><Input value={form.jobTaskObserved} onChange={e => set({ jobTaskObserved: e.target.value })} placeholder="Describe the task being observed" /></Field></div>
           <Field label="SHEQ reference no." optional><Input value={form.sheqRefNo} onChange={e => set({ sheqRefNo: e.target.value })} placeholder="For example, SHEQ-001" /></Field>

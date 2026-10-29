@@ -2,13 +2,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
-import { SuggestField } from '@/components/shared/SuggestField';
 import { useLookupList } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
@@ -69,7 +69,7 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
     <FormDialog open={open} onOpenChange={onOpenChange} title={complaint ? 'Edit complaint' : 'New safety complaint'} description="The date and the issue raised are required." submitLabel={complaint ? 'Save changes' : 'Submit complaint'} onSubmit={submit} size="lg" zoomId={complaint ? undefined : 'safety_complaints:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set('date', e.target.value)} /></Field>
-        <div className="sm:col-span-2"><Field label="Raised by" optional description="Leave blank if raised anonymously."><Input value={form.raisedBy} onChange={e => set('raisedBy', e.target.value)} placeholder="Name of the person raising it" /></Field></div>
+        <div className="sm:col-span-2"><Field label="Raised by" optional description="Leave blank if raised anonymously."><PersonInput value={form.raisedBy} onChange={v => set('raisedBy', v)} placeholder="Name of the person raising it" /></Field></div>
         <div className="sm:col-span-3"><Field label="Issue raised" required error={touched && !form.issueRaised.trim() ? 'Describe the issue raised.' : undefined}><Textarea rows={3} value={form.issueRaised} onChange={e => set('issueRaised', e.target.value)} placeholder="Describe the safety complaint in detail" /></Field></div>
         <Field label="Category"><Select aria-label="Category" value={form.category} onValueChange={v => set('category', v)} options={CATEGORIES.map(c => ({ value: c, label: c }))} /></Field>
         {scope
@@ -83,9 +83,9 @@ function ComplaintDialog({ complaint, open, onOpenChange, onSaved }: { complaint
           </Field>
         </div>
         <div className="sm:col-span-3"><Field label="Action plan" optional><Textarea rows={2} value={form.actionPlan} onChange={e => set('actionPlan', e.target.value)} placeholder="Describe the corrective action plan" /></Field></div>
-        <div className="sm:col-span-2"><Field label="Action by" optional><Input value={form.byWho} onChange={e => set('byWho', e.target.value)} placeholder="Responsible person" /></Field></div>
+        <div className="sm:col-span-2"><Field label="Action by" optional><PersonInput value={form.byWho} onChange={v => set('byWho', v)} placeholder="Responsible person" /></Field></div>
         <Field label="Due date" optional><Input type="date" value={form.byWhen} onChange={e => set('byWhen', e.target.value)} /></Field>
-        <div className="sm:col-span-2"><Field label="Foreman or supervisor" optional><SuggestField historyKey="handover_supervisor" placeholder="Supervisor or foreman name" value={form.supervisorName} onChange={v => set('supervisorName', v)} /></Field></div>
+        <div className="sm:col-span-2"><Field label="Foreman or supervisor" optional><PersonInput value={form.supervisorName} onChange={v => set('supervisorName', v)} placeholder="Supervisor or foreman name" /></Field></div>
         <Field label="Signature (initials)" optional><Input value={form.supervisorSignature} onChange={e => set('supervisorSignature', e.target.value)} placeholder="For example, J.D." /></Field>
         <div className="sm:col-span-2"><Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set('status', v)} options={STATUSES.map(s => ({ value: s, label: STATUS_META[s].label }))} /></Field></div>
         <Field label="Date closed" optional><Input type="date" value={form.dateClosed} onChange={e => set('dateClosed', e.target.value)} /></Field>

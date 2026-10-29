@@ -3,6 +3,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import {
@@ -59,8 +60,8 @@ export function SopFormDialog({ open, onOpenChange, sop, onSubmit }: {
         <Field label="Status"><Select aria-label="Status" value={values.status} onValueChange={v => set('status', v as SopFormValues['status'])} options={SOP_STATUSES.map(s => ({ value: s, label: SOP_STATUS_LABEL[s] }))} /></Field>
         <Field label="Classification"><Select aria-label="Classification" value={values.classification} onValueChange={v => set('classification', v as SopFormValues['classification'])} options={SOP_CLASSIFICATIONS.map(c => ({ value: c, label: c }))} /></Field>
         <Field label="Risk tier"><Select aria-label="Risk tier" value={values.risk_tier || NOT_ASSESSED} onValueChange={v => set('risk_tier', (v === NOT_ASSESSED ? '' : v) as SopFormValues['risk_tier'])} options={[{ value: NOT_ASSESSED, label: 'Not yet assessed' }, ...SOP_RISK_TIERS.map(t => ({ value: String(t), label: SOP_RISK_TIER_LABEL[t] }))]} /></Field>
-        <Field label="Owner" required error={missing(values.owner, 'Enter the owner.')}><SuggestField historyKey="sop_owner" value={values.owner} onChange={v => set('owner', v)} placeholder="J. Moyo" /></Field>
-        <Field label="Approver" optional><SuggestField historyKey="sop_approver" value={values.approver} onChange={v => set('approver', v)} placeholder="" /></Field>
+        <Field label="Owner" required error={missing(values.owner, 'Enter the owner.')}><PersonInput value={values.owner} onChange={v => set('owner', v)} placeholder="J. Moyo" /></Field>
+        <Field label="Approver" optional><PersonInput value={values.approver} onChange={v => set('approver', v)} /></Field>
         <Field label="Version"><SuggestField historyKey="sop_version" value={values.version} onChange={v => set('version', v)} placeholder="0.1" /></Field>
         <Field label="Supersedes" optional><SuggestField historyKey="sop_supersedes" value={values.supersedes} onChange={v => set('supersedes', v)} placeholder="For example, SOP-OPS-000 v1.0" /></Field>
         <Field label="Effective date" optional><Input type="date" value={values.effective_date} onChange={e => set('effective_date', e.target.value)} /></Field>

@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -94,7 +95,7 @@ function AddItemDialog({ open, onOpenChange, onCreate }: { open: boolean; onOpen
         <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}>
           <Input type="date" value={form.expiry_date} onChange={event => set({ expiry_date: event.target.value })} />
         </Field>
-        <Field label="Responsible person"><Input value={form.responsible} onChange={event => set({ responsible: event.target.value })} autoComplete="name" /></Field>
+        <Field label="Responsible person"><PersonInput value={form.responsible} onChange={v => set({ responsible: v })} /></Field>
       </div>
     </FormDialog>
   );

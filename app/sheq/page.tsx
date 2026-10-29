@@ -2,6 +2,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import Link from 'next/link';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from 'sonner';
@@ -415,7 +416,7 @@ function SheqContent() {
           <TabsContent value="notes" className="mt-5 flex flex-col gap-4">
             <p className="font-sans text-body-sm text-ink-muted">Notes are saved on this device only; they are not shared with other people or devices.</p>
             <form className="grid grid-cols-1 gap-3 sm:grid-cols-[12rem_1fr_auto] sm:items-end" onSubmit={e => { e.preventDefault(); addNote(); }}>
-              <Field label="Your name" optional><Input value={noteAuthor} onChange={e => setNoteAuthor(e.target.value)} placeholder="Safety manager" /></Field>
+              <Field label="Your name" optional><PersonInput value={noteAuthor} onChange={setNoteAuthor} placeholder="Safety manager" /></Field>
               <Field label="Note"><Textarea rows={2} value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add a safety observation, flag or reminder" /></Field>
               <Button variant="primary" type="submit" icon="plus" disabled={!noteText.trim()}>Add note</Button>
             </form>

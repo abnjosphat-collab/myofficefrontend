@@ -43,7 +43,7 @@ describe('CoverDialog', () => {
       {...base}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11', reason: 'Leave' }}
     /></ConfirmProvider>);
-    expect(screen.getByRole('combobox', { name: 'Away' })).toHaveTextContent('Ann Alpha');
+    expect(screen.getByRole('combobox', { name: 'Away' })).toHaveValue('Ann Alpha');
     expect(screen.getByDisplayValue('2026-10-10')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Leave')).toBeInTheDocument();
   });
@@ -55,7 +55,7 @@ describe('CoverDialog', () => {
       {...base} onSave={onSave}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11', reason: 'Leave' }}
     /></ConfirmProvider>);
-    await user.click(screen.getByRole('combobox', { name: 'Holding in their place' }));
+    await user.type(screen.getByRole('combobox', { name: 'Holding in their place' }), 'zed');
     await user.click(screen.getByRole('option', { name: /Zed Zulu/ }));
     await user.click(screen.getByRole('button', { name: 'Name cover' }));
     expect(onSave).toHaveBeenCalledWith(null, expect.objectContaining({
@@ -73,7 +73,7 @@ describe('CoverDialog', () => {
       {...base} onSave={onSave}
       preset={{ kind: 'standby', rotation_id: 1, absent_employee_id: 'C001', absent_employee_name: 'Ann Alpha', date_from: '2026-10-10', date_to: '2026-10-11' }}
     /></ConfirmProvider>);
-    await user.click(screen.getByRole('combobox', { name: 'Holding in their place' }));
+    await user.type(screen.getByRole('combobox', { name: 'Holding in their place' }), 'ann');
     await user.click(screen.getByRole('option', { name: /Ann Alpha/ }));
     await user.click(screen.getByRole('button', { name: 'Name cover' }));
     expect(screen.getByText('Nobody holds in place of themselves.')).toBeInTheDocument();

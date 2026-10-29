@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -105,8 +106,7 @@ export function ReqDialog({ req, open, onOpenChange, onSaved }: { req?: Requisit
           <h3 id="rq-basic" className="font-display text-section font-semibold text-ink sm:col-span-3">Requisition</h3>
           <div className="sm:col-span-2">
             <Field label="Requester" required error={touched && !form.requester.trim() ? 'Enter the requester.' : undefined}>
-              <Input list="rq-people" value={form.requester} onChange={e => setRequester(e.target.value)} autoComplete="off" placeholder="Type a name to search employees" />
-              <datalist id="rq-people">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+              <PersonInput value={form.requester} onChange={setRequester} placeholder="Type a name to search employees" />
             </Field>
           </div>
           <Field label="Date" required error={touched && !form.date ? 'Enter the date.' : undefined}><Input type="date" value={form.date} onChange={e => set({ date: e.target.value })} /></Field>

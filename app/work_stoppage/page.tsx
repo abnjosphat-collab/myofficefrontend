@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -114,12 +115,11 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: WorkSt
         <section aria-labelledby="ws-people" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <h3 id="ws-people" className="font-display text-section font-semibold text-ink sm:col-span-2">Personnel</h3>
           <Field label="Stoppage issued by" required error={touched && !form.stoppageBy.trim() ? 'Enter who issued the stoppage.' : undefined}>
-            <Input list="ws-people-list" value={form.stoppageBy} onChange={e => setIssuer(e.target.value)} autoComplete="off" placeholder="Select or type a name" />
+            <PersonInput value={form.stoppageBy} onChange={setIssuer} placeholder="Select or type a name" />
           </Field>
           <Field label="Position" optional><SuggestField historyKey="ws_position" placeholder="For example, Safety Officer" value={form.stoppagePosition} onChange={v => set({ stoppagePosition: v })} /></Field>
-          <Field label="Accepted by" optional><Input list="ws-people-list" value={form.acceptedBy} onChange={e => set({ acceptedBy: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
-          <Field label="SHEQ checked by" optional><Input list="ws-people-list" value={form.sheqCheckedBy} onChange={e => set({ sheqCheckedBy: e.target.value })} autoComplete="off" placeholder="Select or type a name" /></Field>
-          <datalist id="ws-people-list">{people.map(p => <option key={p.name} value={p.name} />)}</datalist>
+          <Field label="Accepted by" optional><PersonInput value={form.acceptedBy} onChange={v => set({ acceptedBy: v })} placeholder="Select or type a name" /></Field>
+          <Field label="SHEQ checked by" optional><PersonInput value={form.sheqCheckedBy} onChange={v => set({ sheqCheckedBy: v })} placeholder="Select or type a name" /></Field>
         </section>
 
         <section aria-labelledby="ws-actions" className="flex flex-col gap-3">

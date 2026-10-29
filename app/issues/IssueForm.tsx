@@ -3,9 +3,9 @@
 'use client';
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { Button, Combobox, Field, Icon, IconButton, Input, Notice, Panel, useRefusedSubmit } from '@/components/ui-system';
-import { useEmployees } from '@/hooks/useLookups';
 import { formatCurrency, lineTotal, nowLocal } from '@/components/shared/utils';
 import { searchSpares } from '@/lib/spareSearch';
 import { invalidateSparesCache } from '@/hooks/useLookups';
@@ -62,8 +62,6 @@ export const IssueForm = forwardRef<IssueFormHandle, IssueFormProps>(function Is
   { spares, sparesError, onRetrySpares, defaultIssuedBy, onRecorded, collapsible = false, forceOpenSignal = 0, onActivity },
   ref,
 ) {
-  const employees = useEmployees();
-  const people = useMemo(() => [...new Set(employees.map(e => `${e.first_name} ${e.last_name}`.trim()).filter(Boolean))].sort(), [employees]);
   const [recipient, setRecipient] = useState('');
   const [issuedBy, setIssuedBy] = useState(defaultIssuedBy);
   const [issuedAt, setIssuedAt] = useState(nowLocal);
@@ -152,13 +150,12 @@ export const IssueForm = forwardRef<IssueFormHandle, IssueFormProps>(function Is
       <form ref={formRef} className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); submit(); }} noValidate>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Issued to" required error={touched && bad.recipient ? 'Enter who received the items.' : undefined}>
-            <Input list="issue-people" value={recipient} onChange={e => setRecipient(e.target.value)} autoComplete="off" placeholder="Name" />
+            <PersonInput value={recipient} onChange={setRecipient} placeholder="Name" />
           </Field>
           <Field label="Date and time"><Input type="datetime-local" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} /></Field>
-          <Field label="Issued by" optional><Input list="issue-people" value={issuedBy} onChange={e => setIssuedBy(e.target.value)} autoComplete="off" placeholder="Your name" /></Field>
+          <Field label="Issued by" optional><PersonInput value={issuedBy} onChange={setIssuedBy} placeholder="Your name" /></Field>
           <Field label="Notes" optional><Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reason, job number or project" /></Field>
         </div>
-        <datalist id="issue-people">{people.map(n => <option key={n} value={n} label={n} />)}</datalist>
 
         <section aria-labelledby="issue-items" className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">

@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -99,8 +100,7 @@ function ReportDialog({ report, open, onOpenChange, onSaved }: { report?: NearMi
         </div>
         <Field label="Witness details" optional><SuggestField historyKey="nm_witness" placeholder="Names and contact details" value={form.witnessDetails} onChange={v => set('witnessDetails', v)} /></Field>
         <Field label="Reporter name" optional description="Leave blank to report anonymously.">
-          <Input list="nm-reporters" value={form.reporterName} onChange={e => setReporter(e.target.value)} autoComplete="off" placeholder="Select or type a name" />
-          <datalist id="nm-reporters">{names.map(n => <option key={n.name} value={n.name} />)}</datalist>
+          <PersonInput value={form.reporterName} onChange={setReporter} placeholder="Select or type a name" />
         </Field>
       </div>
     </FormDialog>

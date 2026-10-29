@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
@@ -91,7 +92,7 @@ function AddReadingDialog({ open, onOpenChange, onCreated }: { open: boolean; on
         <Field label="Result">
           <Select aria-label="Result" value={form.result} onValueChange={result => set({ result: result as CMResult })} options={(Object.keys(RESULT_META) as CMResult[]).map(result => ({ value: result, label: RESULT_META[result].label }))} />
         </Field>
-        <Field label="Technician" optional><Input value={form.technician} onChange={event => set({ technician: event.target.value })} autoComplete="name" /></Field>
+        <Field label="Technician" optional><PersonInput value={form.technician} onChange={v => set({ technician: v })} /></Field>
         <div className="sm:col-span-2"><Field label="Notes" optional><Textarea rows={3} value={form.notes} onChange={event => set({ notes: event.target.value })} /></Field></div>
       </div>
     </FormDialog>
