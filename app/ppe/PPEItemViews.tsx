@@ -19,6 +19,11 @@ export function StandingBadge({ r }: { r: PPERecord }) {
   return s === 'none' || !STANDING_LABEL[s] ? <StatusBadge tone={st.tone}>{st.label}</StatusBadge> : <StatusBadge tone={STANDING_TONE[s]}>{STANDING_LABEL[s]}</StatusBadge>;
 }
 
+/** Marks an issue that replaced an item which failed before its expiry; nothing for an ordinary issue. */
+export function PrematureBadge({ r }: { r: PPERecord }) {
+  return r.premature_failure === true ? <StatusBadge tone="warning">Premature failure</StatusBadge> : null;
+}
+
 export function ItemMenu({ r, a }: { r: PPERecord; a: ItemActions }) {
   const due = r.status === 'active' && (standing(r) === 'overdue' || standing(r) === 'soon');
   return (
@@ -54,7 +59,9 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
               <div className="min-w-0 flex-1">
                 <p className="font-sans text-label font-medium text-ink [overflow-wrap:anywhere]">{typeName(r.ppe_type)}{r.size && <span className="font-normal text-ink-muted">, size {r.size}</span>}</p>
                 <p className="font-sans text-caption text-ink-muted tabular">{r.item_name}{r.item_name && ', '}issued {fmtDate(r.issue_date)}{r.expiry_date ? `, expires ${fmtDate(r.expiry_date)}` : ', no expiry'}</p>
+                {r.premature_failure === true && r.failure_reason && <p className="font-sans text-caption text-ink-muted [overflow-wrap:anywhere]">What failed: {r.failure_reason}</p>}
               </div>
+              <PrematureBadge r={r} />
               <StandingBadge r={r} />
               {readOnly ? <ZoomLink zoomId={`ppe:item:${r.id}`} inline><IconButton icon="eye" size="sm" variant="ghost" label={`View details for ${r.item_name || typeName(r.ppe_type)}, ${r.employee_name}`} onClick={() => actions.onView(r)} /></ZoomLink> : <ItemMenu r={r} a={actions} />}
             </li>
@@ -73,12 +80,13 @@ export function PPEItemDetail({ item: r, onClose, onEdit, readOnly = false }: { 
       footer={r && (<DetailActions onClose={onClose} onEdit={readOnly ? undefined : () => onEdit(r)} />)}>
       {r && cond && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2"><StandingBadge r={r} /><StatusBadge tone={cond.tone}>{cond.label}</StatusBadge></div>
+          <div className="flex flex-wrap items-center gap-2"><StandingBadge r={r} /><StatusBadge tone={cond.tone}>{cond.label}</StatusBadge><PrematureBadge r={r} /></div>
           <FactList>
             <Fact label="Item or brand">{r.item_name}</Fact><Fact label="Size">{r.size}</Fact>
             <Fact label="Issued">{fmtDate(r.issue_date)}</Fact><Fact label="Expires">{r.expiry_date ? fmtDate(r.expiry_date) : 'Does not expire'}</Fact>
             <Fact label="Position">{r.position}</Fact><Fact label="Section">{r.mine_section}</Fact>
             <Fact label="Issued by">{r.issued_by}</Fact><Fact label="Location">{r.location}</Fact>
+            {r.premature_failure === true && <Fact label="What failed" wide>{r.failure_reason || 'Not recorded'}</Fact>}
             {r.notes && <Fact label="Notes" wide>{r.notes}</Fact>}
           </FactList>
         </div>

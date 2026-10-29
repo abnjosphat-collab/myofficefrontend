@@ -34,6 +34,8 @@ export interface FreeLineDraft {
   ppe_type: string; item_name: string; size?: string; qty?: number; note?: string;
   /** Who it is for, when someone is known (shown as-is; never matched to the register). */
   employee_name?: string;
+  /** Which section's order it goes on (a free line has no person to take a section from). */
+  section?: string;
 }
 
 export function useOrderList() {
@@ -96,7 +98,7 @@ export function useOrderList() {
 
   /** A line for something with no PPE record (spares, extras): stored under "free:<uuid>", no person required. */
   const addFree = useCallback((draft: FreeLineDraft) => {
-    addMany([{ record_id: freeLineId(), employee_id: '', employee_name: draft.employee_name ?? '', ppe_type: draft.ppe_type, item_name: draft.item_name, size: draft.size ?? '', qty: draft.qty ?? 1, note: draft.note ?? '', kind: 'free', source: 'manual' }]);
+    addMany([{ record_id: freeLineId(), employee_id: '', employee_name: draft.employee_name ?? '', ppe_type: draft.ppe_type, item_name: draft.item_name, size: draft.size ?? '', qty: draft.qty ?? 1, note: draft.note ?? '', ...(draft.section ? { section: draft.section } : {}), kind: 'free', source: 'manual' }]);
   }, [addMany]);
 
   /** Drop order lines fulfilled by a newly issued item (same employee + type + size). */

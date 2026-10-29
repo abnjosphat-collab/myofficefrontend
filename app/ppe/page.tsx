@@ -17,7 +17,7 @@ import { todayLocal } from '@/lib/dates';
 import { latestUpdated } from '@/lib/format';
 import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
-import { enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
+import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
 import { MatrixDialog } from './MatrixDialog';
 import { OrderListView, type BasketAddables } from './OrderListView';
@@ -66,10 +66,11 @@ function PPEContent() {
   const holders = useMemo(() => groupByEmployee(records, roster.items), [records, roster.items]);
   const today = todayLocal();
   const basketRegister = useMemo<BasketRegister>(() => {
-    const known = new Set<string>(); const archived = new Set<string>();
-    roster.items.forEach(e => { const id = normalizeEmployeeId(e.employee_id); if (!id) return; known.add(id); if (e.archived === true) archived.add(id); });
-    return { known, archived };
+    const known = new Set<string>(); const archived = new Set<string>(); const sections = new Map<string, string>();
+    roster.items.forEach(e => { const id = normalizeEmployeeId(e.employee_id); if (!id) return; known.add(id); if (e.archived === true) archived.add(id); if (e.section) sections.set(id, e.section); });
+    return { known, archived, sections };
   }, [roster.items]);
+  const registerSections = useMemo(() => [...new Set([...(basketRegister.sections?.values() ?? [])].map(s => normalizeSection(s)))].filter(s => s !== 'Unassigned').sort(compareSections), [basketRegister]);
   const basket = useMemo(() => buildBasket(records, order.entries, basketRegister, today), [records, order.entries, basketRegister, today]);
   const covered = useMemo(() => coveredRecordIds(basket), [basket]);
   const shutOut = useMemo(() => excludedRecordIds(basket.excluded), [basket]);
@@ -79,7 +80,7 @@ function PPEContent() {
   const basketView = useMemo(() => {
     const b = buildBasket(visibleByType, order.entries, basketRegister, today);
     const lines = b.lines.filter(l => matchesTypeFilter(l.ppe_type, typeFilter));
-    return { ...b, lines, counts: { auto: lines.filter(l => l.origin === 'auto').length, manual: lines.filter(l => l.origin === 'manual').length, free: lines.filter(l => l.origin === 'free').length, excluded: b.excluded.length }, twins: basket.twins, notDueLegacy: basket.notDueLegacy };
+    return { ...b, lines, counts: { auto: lines.filter(l => l.origin === 'auto').length, manual: lines.filter(l => l.origin === 'manual').length, free: lines.filter(l => l.origin === 'free').length, excluded: b.excluded.length }, twins: basket.twins, notDueLegacy: basket.notDueLegacy, renewed: basket.renewed };
   }, [visibleByType, order.entries, basketRegister, today, basket, typeFilter]);
   const thisWeek = useMemo(() => weekWindow(today, 0), [today]);
   const nextWeek = useMemo(() => weekWindow(today, 1), [today]);
@@ -247,6 +248,7 @@ function PPEContent() {
     { value: 'all', label: `Everyone (${visibleHolders.length})` }, { value: 'active', label: `Has active (${visibleHolders.filter(h => h.records.some(r => r.status === 'active')).length})` },
     { value: 'soon', label: `Expiring soon (${stats.employeesSoon})` }, { value: 'overdue', label: `Overdue (${stats.employeesOverdue})` },
     { value: 'none', label: `No PPE yet (${visibleHolders.filter(h => h.records.length === 0).length})` },
+    { value: 'premature', label: `Premature failures (${visibleHolders.filter(h => h.records.some(r => r.premature_failure === true)).length})` },
   ];
 
   return (
@@ -304,7 +306,7 @@ function PPEContent() {
                   <ZoomLink zoomId={`ppe:holder:${h.employee_id}`}>
                   <RecordCard
                     eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
-                    facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : [])]}
+                    facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : []), ...(h.records.some(r => r.premature_failure === true) ? [{ label: 'Premature failures', value: h.records.filter(r => r.premature_failure === true).map(r => typeName(r.ppe_type)).join(', ') }] : [])]}
                     action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
                   />
                   </ZoomLink>
@@ -324,7 +326,7 @@ function PPEContent() {
             status={deriveDataStatus({ loaded: order.loaded, loading: order.loading, error: order.error, errorStatus: order.errorStatus, count: 1, transient: isTransientStatus(order.errorStatus) })}
             subject="the order list" error={order.error} onRetry={() => { void order.refetch(); }}
           >
-            <OrderListView basket={basketView} addables={addables} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} onIssue={issueFromOrder} onRemove={order.remove} onRemoveMany={order.removeMany} onExclude={line => { order.exclude(line); toast.success('Excluded from the automatic list. Restore it below to bring it back.'); }} onRestore={order.restore} onUpdate={order.update} onKeepManual={keepManual} onAddMany={addToOrder} onAddFree={draft => { order.addFree(draft); toast.success('Free line added to the order list.'); }} onClearManual={order.clearManual} />
+            <OrderListView basket={basketView} addables={addables} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} registerSections={registerSections}onIssue={issueFromOrder} onRemove={order.remove} onRemoveMany={order.removeMany} onExclude={line => { order.exclude(line); toast.success('Excluded from the automatic list. Restore it below to bring it back.'); }} onRestore={order.restore} onUpdate={order.update} onKeepManual={keepManual} onAddMany={addToOrder} onAddFree={draft => { order.addFree(draft); toast.success('Free line added to the order list.'); }} onClearManual={order.clearManual} />
           </DataRegion>
         </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>

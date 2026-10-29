@@ -13,6 +13,8 @@ export interface PPERecord {
   condition: 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
   status: 'active' | 'expired' | 'returned' | 'lost' | 'damaged' | 'not_required' | 'archived';
   notes: string; issued_by: string; location: string; mine_section: string;
+  /** This issue replaced an item that failed before its expiry (marked when issuing); failure_reason says what failed. */
+  premature_failure?: boolean; failure_reason?: string | null;
   /** Moves on every save; sent back as `expected_updated_at` when editing so a save from a stale copy is refused. */
   updated_at?: string;
 }
@@ -43,5 +45,6 @@ export interface FormState {
   issue_date: string; expiry_date: string;
   condition: string; status: string; notes: string;
   issued_by: string; location: string; mine_section: string;
+  premature_failure?: boolean; failure_reason?: string;
   expected_updated_at?: string;
 }

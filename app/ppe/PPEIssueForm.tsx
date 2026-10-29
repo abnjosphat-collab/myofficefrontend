@@ -1,12 +1,13 @@
 // app/ppe/PPEIssueForm.tsx — issue PPE to someone or edit an issue: who (picked from the personnel register, never
 // typed), what, the size, the dates, the condition and status. The expiry is worked out from the issue date and the
 // replacement matrix until someone types their own. The server stamps the person's details from the register on save.
-// A refused save shows inside the dialog and keeps what was typed.
+// A refused save shows inside the dialog and keeps what was typed. "Premature failure" marks an issue that replaces an
+// item which failed before its expiry, with an optional note of what failed (the Employees tab can show only these).
 'use client';
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Fact, FactList, Field, FormDialog, Input, PersonPicker, Select, Textarea, lookupName } from '@/components/ui-system';
+import { Checkbox, Fact, FactList, Field, FormDialog, Input, PersonPicker, Select, Textarea, lookupName } from '@/components/ui-system';
 import { PersonInput } from '@/components/shared/PersonInput';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
@@ -23,6 +24,7 @@ const seedOf = (r: PPERecord, employee: EmployeeWithPPE | null): FormState => ({
   employee_name: employee?.employee_name || r.employee_name || '', employee_id: employee?.employee_id || r.employee_id || '', position: employee?.position || r.position || '', ppe_type: r.ppe_type || 'helmet',
   item_name: r.item_name || '', size: r.size || '', issue_date: r.issue_date || todayLocal(), expiry_date: r.expiry_date || '', condition: r.condition || 'good', status: r.status || 'active',
   notes: r.notes || '', issued_by: r.issued_by || '', location: r.location || 'Workshop', mine_section: r.mine_section || '',
+  premature_failure: r.premature_failure === true, failure_reason: r.failure_reason || '',
 });
 
 export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenChange, onSave }: {
@@ -88,6 +90,10 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
           <Field label="Condition"><Select aria-label="Condition" value={form.condition} onValueChange={v => set({ condition: v })} options={CONDITIONS.map(c => ({ value: c.value, label: c.label }))} /></Field>
           <Field label="Status"><Select aria-label="Status" value={form.status} onValueChange={v => set({ status: v })} options={STATUSES.map(s => ({ value: s.value, label: s.label }))} /></Field>
           <Field label="Location" optional><Input value={form.location} onChange={e => set({ location: e.target.value })} placeholder="Workshop" /></Field>
+          <div className="flex flex-col gap-3 sm:col-span-2">
+            <Checkbox label="Premature failure" description="This replaces an item that failed before its expiry date." checked={form.premature_failure === true} onChange={e => set({ premature_failure: e.target.checked })} />
+            {form.premature_failure === true && <Field label="What failed" optional description="For example: sole split after three weeks."><Input value={form.failure_reason ?? ''} maxLength={300} onChange={e => set({ failure_reason: e.target.value })} /></Field>}
+          </div>
           <Field label="Notes" optional className="sm:col-span-2"><Textarea rows={2} value={form.notes} onChange={e => set({ notes: e.target.value })} /></Field>
         </div>
       </div>

@@ -1,16 +1,32 @@
 // app/overtime/OTBulkEditDialog.tsx — rewrite the same fields on every selected
-// request. Who worked the hours, the times and the approval state are not here:
-// identity and lifecycle are never bulk operations.
+// request. Who worked the hours and the approval state are not here: identity and
+// lifecycle are never bulk operations. Times move as a pair (a crew's shift
+// changed); the hours then come from the new times, as in a single edit.
 'use client';
 
 import { useMemo } from 'react';
-import { BulkEditDialog, BulkEditLockedNotice, Input, Select, Textarea, type BulkField } from '@/components/ui-system';
+import { ShiftTimeRange } from '@/components/shared/ShiftTimeRange';
+import { BulkEditDialog, BulkEditLockedNotice, Field, Input, Select, Textarea, type BulkField } from '@/components/ui-system';
+import { calcHours } from './calcOvertime';
 import { PAYOUT_LABELS, PLANNING_LABELS, TYPE_LABELS } from './overtimeMeta';
 import { COST_CENTRE_SUGGESTIONS, SELECTABLE_OT_TYPES, type OTRecord, type PayoutMethod, type PlanningStatus } from './types';
 import { bulkEditOT } from './useOvertimeData';
 
+interface TimePair { start: string; end: string }
+
+/** The bulk patch the server takes: the times pair becomes start_time/end_time, everything else passes through. */
+export function toBulkOTPatch(patch: Record<string, unknown>): Record<string, unknown> {
+  const { times, ...rest } = patch;
+  if (times === undefined) return rest;
+  const { start, end } = times as TimePair;
+  if (!start || !end) throw new Error('Give both a start and an end time, or lock the times again.');
+  if (calcHours(start, end) <= 0) throw new Error('The start and end time are the same, so no hours were worked.');
+  return { ...rest, start_time: start, end_time: end };
+}
+
 const FIELDS: BulkField[] = [
   { key: 'date', label: 'Date' },
+  { key: 'times', label: 'Start and end time', hint: 'Sets the same times on every selected request; the hours are worked out from them.' },
   { key: 'overtime_type', label: 'Overtime type' },
   { key: 'planning_status', label: 'Planned or unplanned' },
   { key: 'payout_method', label: 'Payout' },
@@ -36,7 +52,7 @@ export function OTBulkEditDialog({ open, records, onOpenChange, onApplied }: {
       description="Unlock a field to rewrite it on every selected request." count={records.length}
       notice={<BulkEditLockedNotice count={locked} noun="request" />} fields={FIELDS} submitLabel="Apply to selected"
       onSubmit={async patch => {
-        const result = await bulkEditOT(records.map(r => r.id), patch);
+        const result = await bulkEditOT(records.map(r => r.id), toBulkOTPatch(patch));
         onApplied(result.updated, result);
       }}
       renderControl={(field, value, setValue, isLocked) => {
@@ -44,6 +60,15 @@ export function OTBulkEditDialog({ open, records, onOpenChange, onApplied }: {
         switch (field.key) {
           case 'date':
             return <Input type="date" aria-label="Date" value={v} disabled={isLocked} onChange={e => setValue(e.target.value || undefined)} />;
+          case 'times': {
+            if (isLocked) return <Input aria-label="Start and end time" value="" disabled placeholder="Unlock to set new times" />;
+            const { start, end } = (value as TimePair | undefined) ?? { start: '', end: '' };
+            const hours = calcHours(start, end);
+            return (
+              <ShiftTimeRange start={start} end={end} onChange={(s, e) => setValue({ start: s, end: e })}
+                trailing={<Field label="Duration"><p className="flex h-9 items-center font-sans text-body font-semibold text-ink tabular" aria-live="polite">{hours > 0 ? `${hours.toFixed(1)} hours` : 'Not set'}</p></Field>} />
+            );
+          }
           case 'overtime_type':
             return <Select aria-label="Overtime type" value={v} disabled={isLocked} onValueChange={setValue} options={TYPES} placeholder="Choose a type" />;
           case 'planning_status':

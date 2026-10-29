@@ -8,7 +8,7 @@ import { Button, DataTable, EmptyState, Field, Input, MultiSelectFilter, Notice,
 import { fmtDate } from '@/components/shared/utils';
 import { daysUntil } from '@/lib/dates';
 import { thisWeekRange, type OrderListEntry } from './calcPPE';
-import { ItemMenu, StandingBadge, type ItemActions } from './PPEItemViews';
+import { ItemMenu, PrematureBadge, StandingBadge, type ItemActions } from './PPEItemViews';
 import { NO_DUE_FILTERS, dueItems, sizeCounts, sizeOf, type DueFilters, type DueMode } from './ppeLogic';
 import { typeName } from './ppeMeta';
 import { type TypeFilter } from './ppeTypes';
@@ -41,7 +41,7 @@ export function DueItems({ records, counts, actions, onBulkNotRequired, onAddToO
     { id: 'who', header: 'Employee', sticky: true, cell: r => <div className="min-w-0"><p className="font-medium text-ink">{r.employee_name}</p><p className="text-caption text-ink-muted">{[r.employee_id, r.position].filter(Boolean).join(', ')}</p></div> },
     { id: 'item', header: 'Item', cell: r => <div className="min-w-0"><p className="[overflow-wrap:anywhere]">{typeName(r.ppe_type)}{r.size && <span className="text-ink-muted">, size {r.size}</span>}</p><p className="text-caption text-ink-muted">{r.item_name}</p></div> },
     { id: 'expiry', header: 'Expires', cell: r => { const d = r.expiry_date ? daysUntil(r.expiry_date) : null; return <div className="whitespace-nowrap"><p className="tabular">{r.expiry_date ? fmtDate(r.expiry_date) : 'None'}</p>{d !== null && <p className="text-caption text-ink-muted tabular">{d <= 0 ? `${Math.abs(d)} ${Math.abs(d) === 1 ? 'day' : 'days'} overdue` : `in ${d} ${d === 1 ? 'day' : 'days'}`}</p>}</div>; } },
-    { id: 'standing', header: 'State', cell: r => <StandingBadge r={r} /> },
+    { id: 'standing', header: 'State', cell: r => <span className="inline-flex flex-wrap gap-1"><StandingBadge r={r} /><PrematureBadge r={r} /></span> },
   ];
   const markNotRequired = async () => { setBusy(true); try { await onBulkNotRequired(chosen.map(r => String(r.id))); setSelected(new Set()); } finally { setBusy(false); } };
 
