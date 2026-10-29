@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { BellBadge, Button, Glyph, IconButton, Notice, Popover, PopoverContent, PopoverTrigger, cn, LoadingPulse } from '@/components/ui-system';
+import { BellBadge, Button, Glyph, IconButton, MotionList, MotionListItem, Notice, Popover, PopoverContent, PopoverTrigger, Presence, cn, LoadingPulse } from '@/components/ui-system';
 import { useNotifications, type BellGroup, type Notification } from './useNotifications';
 import { useRiseKey } from './useRiseKey';
 import type { SourceResult } from './useDashboardData';
@@ -56,7 +56,7 @@ export function failedSourcesTitle(failed: SourceResult[]): string {
 
 function BellRow({ item, onNavigate }: { item: Notification; onNavigate: (id: string) => void }) {
   return (
-    <li className="border-b border-line-subtle last:border-b-0">
+    <MotionListItem as="li" className="border-b border-line-subtle last:border-b-0">
       <Link
         href={item.href}
         onClick={() => onNavigate(item.id)}
@@ -71,9 +71,9 @@ function BellRow({ item, onNavigate }: { item: Notification; onNavigate: (id: st
             {item.actionLabel ? <span className="font-semibold text-action"> · {item.actionLabel}</span> : null}
           </p>
         </div>
-        {item.unread && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-action" aria-label="Unread" />}
+        <Presence visible={item.unread} fadeOnly><span className="mt-1.5 block size-2 shrink-0 rounded-full bg-action" aria-label="Unread" /></Presence>
       </Link>
-    </li>
+    </MotionListItem>
   );
 }
 
@@ -138,15 +138,15 @@ export function ShellNotifications() {
                       View all
                     </Link>
                   </div>
-                  <ul>
+                  <MotionList as="ul">
                     {items.map(item => <BellRow key={item.id} item={item} onNavigate={onNavigate} />)}
-                  </ul>
+                  </MotionList>
                 </section>
               ))}
               {activityTail.length > 0 && (
-                <ul>
+                <MotionList as="ul">
                   {activityTail.map(item => <BellRow key={item.id} item={item} onNavigate={onNavigate} />)}
-                </ul>
+                </MotionList>
               )}
             </div>
           )}

@@ -2,7 +2,7 @@
 // Canvas signature capture — draw, clear, confirm.
 'use client';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Button, Checkbox, Field, Icon, Input, Segmented } from '@/components/ui-system';
+import { Button, Checkbox, Field, Icon, Input, Presence, Segmented } from '@/components/ui-system';
 import { api } from '@/lib/apiClient';
 
 export interface SignatureResult {
@@ -361,7 +361,7 @@ export function SignaturePad({
         {mode === 'draw' && <Button variant="ghost" size="sm" icon="reset" onClick={clear} disabled={!hasInk}>Clear</Button>}
       </div>
 
-      {reuseSignatures.length > 0 && (
+      <Presence visible={reuseSignatures.length > 0}>
         <div className="flex flex-col gap-2 rounded-card border border-line bg-surface-muted p-3">
           <p className="font-sans text-caption font-medium text-ink-muted">Use the compiler&apos;s signature</p>
           <div className="flex flex-wrap gap-2">
@@ -379,7 +379,7 @@ export function SignaturePad({
             ))}
           </div>
         </div>
-      )}
+      </Presence>
 
       {/* Mode switch — only when a saved signature actually exists on the account */}
       {allowSaved && saved.has_signature && (

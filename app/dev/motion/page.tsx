@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import { roleAtLeast } from '@/lib/roles';
 import { AnimatedIconSection, IconSwapSection, SpringsSection } from './icons';
 import { DataRegionSection, NumberSection, PresenceSection } from './values';
+import { DisclosureSection, ProgressSection, SelectionSection, SidebarSection, ToastSection } from './feedback';
 import { IndicatorSection, MatrixSection, OverlaySection, PressSection } from './chrome';
 import { ZoomSection } from './zoom';
 
@@ -66,6 +67,11 @@ export default function MotionGalleryPage() {
               <IndicatorSection />
               <OverlaySection />
               <PressSection />
+          <SelectionSection />
+          <ProgressSection />
+          <DisclosureSection />
+          <ToastSection />
+          <SidebarSection />
               <ZoomSection />
               <MatrixSection />
             </div>

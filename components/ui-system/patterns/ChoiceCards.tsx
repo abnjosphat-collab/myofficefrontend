@@ -6,6 +6,7 @@
 import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
+import { CheckMark } from '../motion/CheckMark';
 import type { IconMeaning } from '../foundations/icon-meanings';
 
 export interface ChoiceCardOption {
@@ -56,7 +57,7 @@ export function ChoiceCards({ label, description, value, onValueChange, options,
                 selected ? 'border-action bg-action-soft' : 'border-line bg-surface hover:bg-surface-subtle')}
             >
               <span aria-hidden className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border', selected ? 'border-action bg-action text-action-ink' : 'border-line-strong text-transparent')}>
-                <Icon name="check" size="xs" />
+                <CheckMark checked={selected} size={12} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2 font-sans text-body-sm font-semibold text-ink">

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { cn } from '../foundations/cn';
 import { AnimatedIcon } from '../motion/AnimatedIcon';
+import { Presence } from '../motion/Presence';
 import { FIRST_ERROR_EVENT } from '../patterns/focusFirstError';
 
 type FieldIds = { inputId: string; descriptionId: string; errorId: string; hasError: boolean; hasDescription: boolean; isRequired: boolean };
@@ -61,6 +62,26 @@ function ErrorWiggle() {
 }
 const optionalMark = <span aria-hidden="true" className="ml-1.5 font-normal text-ink-muted"> Optional</span>;
 
+/**
+ * The validation message: fades in with a 2 px rise, fades out with no
+ * height jump — space for one line is always reserved, so clearing an error
+ * never moves the controls below it.
+ */
+function FieldError({ id, error }: { id: string; error: ReactNode }) {
+  return (
+    <div className="min-h-[1.25rem]">
+      <Presence visible={!!error} fadeOnly rise={2}>
+        {error ? (
+          <p id={id} role="alert" className={errorText}>
+            <ErrorWiggle />
+            <span>{error}</span>
+          </p>
+        ) : null}
+      </Presence>
+    </div>
+  );
+}
+
 export interface FieldProps {
   label: ReactNode;
   /** Supporting hint shown beneath the control. */
@@ -103,12 +124,7 @@ export function Field({ label, description, error, required, optional, className
         </label>
         {children}
         {description && <p id={ids.descriptionId} className={hintText}>{description}</p>}
-        {error && (
-          <p id={ids.errorId} role="alert" className={errorText}>
-            <ErrorWiggle />
-            <span>{error}</span>
-          </p>
-        )}
+        <FieldError id={ids.errorId} error={error} />
       </div>
     </FieldContext.Provider>
   );
@@ -147,12 +163,7 @@ export function FieldGroup({ label, description, error, required, optional, clas
       </span>
       {children}
       {description && <p id={descriptionId} className={hintText}>{description}</p>}
-      {error && (
-        <p id={errorId} role="alert" className={errorText}>
-          <ErrorWiggle />
-          <span>{error}</span>
-        </p>
-      )}
+      <FieldError id={errorId} error={error} />
     </div>
   );
 }

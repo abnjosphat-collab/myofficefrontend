@@ -56,6 +56,8 @@ export interface PresenceProps {
   swapKey?: string | number;
   /** Fade only, no rise or collapse (DataRegion's skeleton→content crossfade). */
   fadeOnly?: boolean;
+  /** Fade plus this rise in px instead of the standard 6 px (field errors rise 2 px). */
+  rise?: number;
 }
 
 /**
@@ -63,9 +65,10 @@ export interface PresenceProps {
  * rise in, fade + collapse out. Under reduced motion the block appears and
  * disappears instantly.
  */
-export function Presence({ visible, children, className, swapKey = 'content', fadeOnly = false }: PresenceProps) {
+export function Presence({ visible, children, className, swapKey = 'content', fadeOnly = false, rise }: PresenceProps) {
   const reduce = useIsReducedMotion();
-  const enter = fadeOnly ? presenceMotion.enterFadeOnly : presenceMotion.enter;
+  const riseY = rise ?? (fadeOnly ? 0 : 6);
+  const enter = riseY === 0 ? presenceMotion.enterFadeOnly : { ...presenceMotion.enter, initial: { opacity: 0, y: riseY } };
   const exit = fadeOnly ? presenceMotion.exitFadeOnly : presenceMotion.exitCollapse;
   if (reduce) {
     return visible ? <>{children}</> : null;

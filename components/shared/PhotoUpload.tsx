@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { API_BASE } from '@/lib/config';
 import { authFetch } from '@/lib/api';
 import { fileProblem } from '@/lib/files';
-import { Button, Dialog, Icon, IconButton, Progress, useMarkDirty } from '@/components/ui-system';
+import { Button, Dialog, Icon, IconButton, MotionList, MotionListItem, Progress, useMarkDirty } from '@/components/ui-system';
 
 const API = API_BASE;
 
@@ -124,9 +124,9 @@ export function PhotoUpload({
       </div>
 
       {photos.length > 0 && (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-label={`${label} photos`}>
+        <MotionList as="ul" className="grid grid-cols-3 gap-2 sm:grid-cols-4" aria-label={`${label} photos`}>
           {photos.map((url, idx) => (
-            <li key={`${url}-${idx}`} className="relative aspect-square overflow-hidden rounded-card border border-line bg-surface-muted">
+            <MotionListItem as="li" key={`${url}-${idx}`} className="aspect-square overflow-hidden rounded-card border border-line bg-surface-muted">
               <button type="button" onClick={() => setLightbox(url)} aria-label={`View ${label} photo ${idx + 1} full size`} className="focus-ring absolute inset-0 block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`${label} attachment ${idx + 1}`} className="size-full object-cover" />
@@ -134,9 +134,9 @@ export function PhotoUpload({
               {!disabled && (
                 <IconButton icon="delete" size="sm" label={`Remove ${label} photo ${idx + 1}`} onClick={() => removePhoto(idx)} className="absolute right-1 top-1 bg-surface/90 shadow-card" />
               )}
-            </li>
+            </MotionListItem>
           ))}
-        </ul>
+        </MotionList>
       )}
 
       {uploading && <Progress value={progress} label="Uploading photos" />}

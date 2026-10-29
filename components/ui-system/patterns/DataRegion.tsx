@@ -7,7 +7,7 @@ import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { Button, Spinner } from '../primitives/Button';
 import { LoadingPulse } from './LoadingPulse';
-import { Presence } from '../motion';
+import { AnimatedIcon, Presence } from '../motion';
 import type { DataStatus } from './dataStatus';
 
 export interface EmptyStateProps {
@@ -22,7 +22,7 @@ export interface EmptyStateProps {
 export function EmptyState({ icon = 'empty', title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center gap-3 rounded-card border border-line-subtle bg-surface px-6 py-10 text-center', className)}>
-      <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><Icon name={icon} size="xl" /></span>
+      <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-muted text-ink-muted"><AnimatedIcon name={icon} effect="appear" size="xl" /></span>
       <div className="max-w-md">
         <h3 className={type.title}>{title}</h3>
         {description && <p className="mt-1 font-sans text-body-sm text-ink-muted">{description}</p>}
