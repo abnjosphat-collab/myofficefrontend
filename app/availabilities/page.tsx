@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, EmptyState, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Segmented, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, type Column, FilterField, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { latestUpdated } from '@/lib/format';
@@ -76,6 +77,14 @@ function AvailabilitiesContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, eqMap]);
   const periodRows = useMemo(() => computePeriodRows(filtered, period), [filtered, period]);
+  const bulk = useBulkSelection(manual.items, filtered.filter(r => r.source !== 'breakdown'), rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'availability record' : 'availability records'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteAvailabilityRecord(id), singular: 'availability record', plural: 'availability records',
+    after: async () => { bulk.clear(); await refresh(); },
+  });
   const fleet = useMemo(() => ({
     avg: summary.length ? summary.reduce((s, e) => s + e.pct, 0) / summary.length : null,
     downtime: filtered.reduce((s, r) => s + num(r.breakdown_hours), 0),
@@ -193,6 +202,7 @@ function AvailabilitiesContent() {
           <TabsTrigger value="records" icon="documents">Records</TabsTrigger>
         </TabsList>
 
+        <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={recordsExport} filename={`Availability_Records_${dateFrom}_to_${dateTo}`} title="Equipment Availability Records" subtitle={`Period: ${dateFrom} to ${dateTo}`} formats={['excel']} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
         <DataRegion
           className="mt-4"
           status={status}
@@ -250,7 +260,7 @@ function AvailabilitiesContent() {
             </div>
           </TabsContent>
           <TabsContent value="records">
-            <DataTable
+            <DataTable {...bulk.table} rowSelectBlocked={r => (r.source === 'breakdown' ? 'Derived from a breakdown: it cannot be deleted here.' : undefined)} rowSelectLabel={r => `Select the record for ${nameOf(r)} on ${r.date}`}
               caption="Availability records"
               stillKey={listCalm}
               rows={filtered}

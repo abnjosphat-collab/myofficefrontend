@@ -7,10 +7,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
-import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented,
-  StatusBadge, Tag, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented, StatusBadge, Tag, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { useModuleData } from '@/lib/useModuleData';
 import { daysUntil } from '@/lib/dates';
 import { formatDate } from '@/lib/format';
@@ -126,6 +123,7 @@ function ComplianceRegisterContent() {
     refetch();
   };
 
+  const bulk = useBulkSelection(records, displayed, rowId);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -160,6 +158,7 @@ function ComplianceRegisterContent() {
         <Segmented label="Status" value={filter} onValueChange={setFilter} options={FILTERS} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Compliance_Register')} title="Statutory Compliance Register" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS_META[row.status as Status]?.tone ?? 'neutral']} /></>} />
       <DataRegion
         status={status}
         subject="compliance items"
@@ -169,7 +168,7 @@ function ComplianceRegisterContent() {
           ? <EmptyState icon="search" title={`No ${STATUS_META[filter as Status].label.toLowerCase()} items`} description="Choose a different status to see other items." action={<Button onClick={() => setFilter('all')}>Show all</Button>} />
           : scope ? <EmptyState icon="compliance" title={`No ${scope} items registered yet`} description="Add the first certificate or inspection to start tracking expiry dates." action={<ZoomLink zoomId="compliance-register:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button></ZoomLink>} /> : <EmptyState icon="compliance" title="Nothing registered yet" description="Add the first certificate or inspection to start tracking expiry dates." action={<ZoomLink zoomId="compliance-register:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add item</Button></ZoomLink>} />}
       >
-        <DataTable stillKey={listCalm} caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.equipment_name}`} stillKey={listCalm} caption="Statutory compliance items" rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>
 
       <AddItemDialog open={adding} onOpenChange={setAdding} onCreate={createItem} />

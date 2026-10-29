@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Input, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate, formatCurrency } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -112,6 +113,14 @@ function BreakdownsContent() {
     { id: 'cost', header: 'Parts cost', numeric: true, hideBelow: 'lg', cell: b => <span className="tabular">{costOf(b) > 0 ? formatCurrency(costOf(b)) : ''}</span> },
   ];
 
+  const bulk = useBulkSelection(rows, matches, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'breakdown' : 'breakdowns'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteBreakdown(Number(id)), singular: 'breakdown', plural: 'breakdowns',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -171,6 +180,7 @@ function BreakdownsContent() {
         </TabsList>
 
         <TabsContent value="records" className="mt-4 flex flex-col gap-4">
+          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('breakdowns')} title="Equipment Breakdowns" formats={['excel']} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
           <DataRegion
             status={status} subject="breakdowns" error={list.error} onRetry={() => list.refetch()}
             empty={filtered
@@ -183,7 +193,7 @@ function BreakdownsContent() {
                 {visible.map(b => (
                   <MotionListItem as="li" key={b.id} className="relative">
                     <ZoomLink zoomId={`breakdowns:rec:${b.id}`}>
-                    <RecordCard
+                    <RecordCard {...bulk.card(b, `Select breakdown ${b.machine_name}`)}
                       eyebrow={b.machine_id} title={b.machine_name} subtitle={b.breakdown_description || undefined} openLabel={`Open the breakdown of ${b.machine_name}, ${b.breakdown_date ? fmtDate(b.breakdown_date) : 'no date'}`} onOpen={() => setViewingId(b.id)} status={badges(b)}
                       facts={[{ label: 'Date', value: b.breakdown_date ? fmtDate(b.breakdown_date) : 'No date' }, { label: 'Kind', value: typeMeta(b.breakdown_type).label }, ...(b.location ? [{ label: 'Location', value: b.location }] : []), ...(b.artisan_name ? [{ label: 'Artisan', value: b.artisan_name }] : []), { label: 'Downtime', value: downtimeText(b) }, ...(costOf(b) > 0 ? [{ label: 'Parts', value: formatCurrency(costOf(b)) }] : [])]}
                       action={actionsOf(b)}
@@ -193,7 +203,7 @@ function BreakdownsContent() {
                 ))}
               </MotionList>
             ) : (
-              <DataTable caption="Breakdowns" rows={visible} columns={COLUMNS} getRowId={b => String(b.id)} onRowActivate={b => setViewingId(b.id)} rowActions={actionsOf} stillKey={listCalm} />
+              <DataTable {...bulk.table} rowSelectLabel={r => `Select breakdown ${r.machine_name}`} caption="Breakdowns" rows={visible} columns={COLUMNS} getRowId={b => String(b.id)} onRowActivate={b => setViewingId(b.id)} rowActions={actionsOf} stillKey={listCalm} />
             )}
             {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
           </DataRegion>

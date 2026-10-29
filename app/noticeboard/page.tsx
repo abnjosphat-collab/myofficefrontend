@@ -5,7 +5,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EXPORT_CHECK_MS, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, Checkbox, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EXPORT_CHECK_MS, EmptyState, Field, FormDialog, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice as NoticeBanner, PageHeader, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
@@ -273,7 +274,7 @@ function NoticeboardContent() {
     setNotices(ps => ps.map(x => (x.id === n.id ? { ...x, is_pinned: !before } : x)));
     try { await togglePin(n.id, before); } catch (e) { setNotices(ps => ps.map(x => (x.id === n.id ? { ...x, is_pinned: before } : x))); toast.error(`Pin was not changed: ${(e as Error).message}`); }
   };
-  const bulk = async (targets: Notice[], act: (n: Notice) => Promise<unknown>, done: string, failed: string) => {
+  const runEach = async (targets: Notice[], act: (n: Notice) => Promise<unknown>, done: string, failed: string) => {
     const results = await Promise.allSettled(targets.map(act));
     const ok = results.filter(r => r.status === 'fulfilled').length;
     if (ok) toast.success(`${done} ${plural(ok, 'notice')}.`);
@@ -284,12 +285,12 @@ function NoticeboardContent() {
     const targets = expiredNotices.filter(n => n.status !== 'Archived');
     if (!targets.length) { toast.info('There are no expired notices to archive.'); return; }
     if (!await confirm({ title: `Archive ${plural(targets.length, 'expired notice')}?`, message: 'Archived notices leave the active board. You can reactivate each one by editing its status.', confirmLabel: 'Archive' })) return;
-    await bulk(targets, n => archiveNotice(n.id), 'Archived', 'could not be archived');
+    await runEach(targets, n => archiveNotice(n.id), 'Archived', 'could not be archived');
   };
   const unpinAll = async () => {
     if (!pinned.length) { toast.info('No notices are pinned.'); return; }
     if (!await confirm({ title: `Unpin ${plural(pinned.length, 'notice')}?`, message: 'They stay on the board but lose their place at the top.', confirmLabel: 'Unpin all' })) return;
-    await bulk([...pinned], n => togglePin(n.id, true), 'Unpinned', 'could not be unpinned');
+    await runEach([...pinned], n => togglePin(n.id, true), 'Unpinned', 'could not be unpinned');
   };
 
   const COLUMNS: Column<Notice>[] = [
@@ -322,6 +323,14 @@ function NoticeboardContent() {
     );
   };
 
+  const bulk = useBulkSelection(notices, rows, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'notice' : 'notices'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteNotice(String(id)), singular: 'notice', plural: 'notices',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -378,6 +387,7 @@ function NoticeboardContent() {
         <Select className="w-40" aria-label="Filter by priority" value={filters.priority} onValueChange={v => setFilter('priority', v)} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Noticeboard')} title="Noticeboard" statusColumn="priority" statusColor={(_v, row) => exportPriorityColor(String(row.priority))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="notices"
@@ -393,7 +403,7 @@ function NoticeboardContent() {
             {regular.length > 0 && <section aria-labelledby="nb-all"><h2 id="nb-all" className="mb-3 font-display text-section font-semibold text-ink">{pinned.length ? 'Other notices' : 'All notices'} <span className="font-sans text-label font-normal text-ink-muted">{regular.length}</span></h2><MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{regular.map(n => <MotionListItem key={n.id}>{card(n)}</MotionListItem>)}</MotionList></section>}
           </div>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select notice ${r.title}`}
             caption="Notices"
             rows={rows}
             columns={COLUMNS}

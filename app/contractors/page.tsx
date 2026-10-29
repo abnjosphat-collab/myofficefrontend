@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, Progress, Rating, RecordCard, Segmented, Select, StatusBadge, Tag, Toolbar, ViewToggle, VIEW_CARDS_TABLE, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, Fact, FactList, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
@@ -190,6 +190,7 @@ function ContractorsContent() {
   const open = contractors.find(c => c.id === openId) ?? null;
   const unavailable = !loaded;
 
+  const bulk = useBulkSelection(contractors, displayed, rowId);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -229,6 +230,7 @@ function ContractorsContent() {
         <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_OPTIONS} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Contractors')} title="Contractors" statusColumn="status" statusColor={(_v, row) => (row.status === 'active' ? '34d399' : '94a3b8')} /></>} />
       <DataRegion
         status={status}
         subject="contractors"
@@ -256,7 +258,7 @@ function ContractorsContent() {
             ))}
           </div>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.company}`}
             caption="Contractor register"
             rows={tableRows}
             columns={COLUMNS}

@@ -5,11 +5,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import {
-  Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge,
-  Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference,
-  type Column, ZoomLink,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, useConfirm, useViewPreference, type Column, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
@@ -121,6 +118,14 @@ function ShiftsContent() {
     { id: 'department', header: 'Department', hideBelow: 'lg', cell: a => a.department || <span className="text-ink-muted">None</span> },
   ];
 
+  const bulk = useBulkSelection(items, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'shift assignment' : 'shift assignments'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteAssignment(Number(id)), singular: 'shift assignment', plural: 'shift assignments',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -166,6 +171,7 @@ function ShiftsContent() {
         employees={employees} onNew={() => { setEditingDuty(null); setDutyOpen(true); }} onEdit={e => { setEditingDuty(e); setDutyOpen(true); }}
       />
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT} filename={exportFilename('Shifts')} title="Shifts" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="shift assignments" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
@@ -186,7 +192,7 @@ function ShiftsContent() {
                   return (
                     <MotionListItem key={a.id}>
                     <ZoomLink zoomId={`shifts:rec:${a.id}`}>
-                    <RecordCard
+                    <RecordCard {...bulk.card(a, `Select ${a.employee_name}'s assignment`)}
                       eyebrow={a.designation || a.department || a.employee_id}
                       title={a.employee_name}
                       status={<StatusTag a={a} />}
@@ -205,7 +211,7 @@ function ShiftsContent() {
                 })}
               </MotionList>
             ) : (
-              <DataTable
+              <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.employee_name}'s assignment`}
                 caption="Shift assignments" rows={filtered} columns={COLUMNS} getRowId={a => String(a.id)} stillKey={listCalm} onRowActivate={a => setViewingId(a.id)}
                 rowActions={a => <span className="inline-flex gap-1"><IconButton icon="edit" size="sm" label={`Edit ${a.employee_name}'s assignment`} onClick={() => openForm(a)} /><IconButton icon="delete" variant="danger" size="sm" label={`Remove ${a.employee_name}'s assignment`} onClick={() => remove(a)} /></span>}
               />

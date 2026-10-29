@@ -6,7 +6,8 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuTrigger, MetricGrid, MetricTile, PageHeader, Pagination, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, pageSlice, usePersistentState, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { formatCurrency, formatCurrencyShort } from '@/components/shared/utils';
 import { apiCreate, apiDelete, apiUpdate } from './api';
 import { CategoryPanel } from './CategoryPanel';
@@ -91,6 +92,14 @@ function SparesContent() {
     { id: 'loc', header: 'Location', hideBelow: 'lg', cell: s => s.storage_location || <span className="text-ink-muted">Not set</span> },
   ];
 
+  const bulk = useBulkSelection(list.items, matches, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'spare part' : 'spare parts'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => apiDelete(Number(id)), singular: 'spare part', plural: 'spare parts',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -139,6 +148,7 @@ function SparesContent() {
         <Select aria-label="Category" className="w-44" value={f.category} onValueChange={v => set({ category: v })} options={categories} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="spares" error={list.error} onRetry={() => list.refetch()}
         empty={filtered
@@ -151,7 +161,7 @@ function SparesContent() {
             {visible.map(s => (
               <MotionListItem as="li" key={s.id} className="relative">
                 <ZoomLink zoomId={`spares:rec:${s.id}`}>
-                <RecordCard
+                <RecordCard {...bulk.card(s, `Select ${s.stock_code}`)}
                   eyebrow={s.stock_code} title={s.description} openLabel={`Open ${s.stock_code}, ${s.description}`} onOpen={() => setViewingId(s.id)} status={badges(s)}
                   facts={[{ label: 'On hand', value: <span className="tabular">{s.current_quantity} {s.unit_of_measure || 'UN'}, min {s.min_quantity}</span> }, { label: 'Price', value: <span className="tabular">{formatCurrency(s.unit_price)}</span> }, ...(categoriesOf(s).length ? [{ label: 'Category', value: categoriesOf(s).join(', ') }] : []), ...(s.storage_location ? [{ label: 'Location', value: s.storage_location }] : [])]}
                   action={actionsOf(s)}
@@ -161,7 +171,7 @@ function SparesContent() {
             ))}
           </MotionList>
         ) : (
-          <DataTable stillKey={listCalm} caption="Spare parts" rows={visible} columns={COLUMNS} getRowId={s => String(s.id)} onRowActivate={s => setViewingId(s.id)} rowActions={actionsOf} />
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.stock_code}`} stillKey={listCalm} caption="Spare parts" rows={visible} columns={COLUMNS} getRowId={s => String(s.id)} onRowActivate={s => setViewingId(s.id)} rowActions={actionsOf} />
         )}
         {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>

@@ -8,7 +8,8 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Distribution, EmptyState, IconButton, MetricGrid, MetricTile, Notice, PageHeader, Panel, Progress, SearchField, Select, StatusBadge, Toolbar, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, FilterField, LoadingPulse, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -69,6 +70,14 @@ function Board({ completedBy }: { completedBy: string }) {
       && (!overdueOnly || isOverdue(i)) && (!q || i.title.toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q)));
   }, [items, statusF, typeF, priorityF, overdueOnly, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof TaskEvent] ?? '').toLowerCase()), [filtered, sort]);
+  const bulk = useBulkSelection(items, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'task or event' : 'tasks and events'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteTaskEvent(Number(id)), singular: 'task or event', plural: 'tasks and events',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, statusF, typeF, priorityF, overdueOnly, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -154,6 +163,7 @@ function Board({ completedBy }: { completedBy: string }) {
         <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, ...TASK_TYPES.map(v => ({ value: v, label: v }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('events_tasks')} title="Events & Tasks" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="events and tasks"
@@ -163,7 +173,7 @@ function Board({ completedBy }: { completedBy: string }) {
           ? <EmptyState icon="search" title="Nothing matches" description="Try a different search or filter." action={<Button onClick={clearFilters}>Clear filters</Button>} />
           : <EmptyState icon="task" title="Nothing on the board yet" description="Add the first event or task." action={<ZoomLink zoomId="tasks-events:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openForm(null)}>New</Button></ZoomLink>} />}
       >
-        <DataTable
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.title}`}
           caption="Events and tasks"
           stillKey={listCalm}
           rows={rows}

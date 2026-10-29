@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -216,6 +217,14 @@ function PacheduContent() {
       && (!riskOnly || hasSeriousImpact(r)) && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo));
   }, [reports, search, effSection, deptF, statusF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof PacheduReport] ?? '').toLowerCase()), [filtered, sort]);
+  const bulk = useBulkSelection(reports, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'care observation' : 'care observations'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deletePacheduReport(String(id)), singular: 'care observation', plural: 'care observations',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, deptF, statusF, riskOnly, dateFrom, dateTo, sort]);
   const count = (s: PacheduStatus) => reports.filter(r => r.status === s).length;
   const intentional = reports.filter(r => r.behaviourType === 'Intentional').length;
@@ -301,6 +310,7 @@ function PacheduContent() {
         <Segmented label="Risk" value={riskOnly ? 'risk' : 'all'} onValueChange={v => setRiskOnly(v === 'risk')} options={[{ value: 'all', label: 'All' }, { value: 'risk', label: `High risk (${risky})` }]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Pachedu_Care_Observations')} title="Pachedu Care Observations" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="Pachedu reports"
@@ -316,7 +326,7 @@ function PacheduContent() {
             {filtered.map(r => (
               <MotionListItem key={r.id}>
               <ZoomLink zoomId={`pachedu:rec:${r.id}`}>
-              <RecordCard
+              <RecordCard {...bulk.card(r, `Select observation of ${formatDate(r.date)}`)}
                 eyebrow={`${formatDate(r.date)}${r.location ? ` · ${r.location}` : ''}`}
                 title={r.observerName || 'Anonymous'}
                 status={<StatusTag status={r.status} />}
@@ -337,7 +347,7 @@ function PacheduContent() {
             ))}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select observation of ${formatDate(r.date)}`}
             caption="Pachedu care observations"
             stillKey={listCalm}
             rows={rows}

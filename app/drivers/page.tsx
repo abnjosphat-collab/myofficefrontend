@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, PageHeader, RecordCard, SearchField, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useConfirm, useViewPreference, type Column, type SortState, RowActions, ZoomLink, EXPORT_CHECK_MS, useActionFeedback, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import type { Driver, DriverForm } from './types';
@@ -152,6 +153,14 @@ function DriversContent() {
     { id: 'phones', header: 'Phone', hideBelow: 'lg', cell: d => <PhoneLinks phones={d.phone_numbers} /> },
   ];
 
+  const bulk = useBulkSelection(drivers, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'driver' : 'drivers'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteDriver(Number(id)), singular: 'driver', plural: 'drivers',
+    after: async () => { bulk.clear(); await loadData(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -190,6 +199,7 @@ function DriversContent() {
         <Segmented label="Status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: 'all', label: 'All' }, ...STATUS_OPTIONS.map(o => ({ value: o.value as Driver['status'], label: o.label }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="drivers"
@@ -208,7 +218,7 @@ function DriversContent() {
                 <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {items.map(d => (
                     <MotionListItem key={d.id}>
-                    <RecordCard
+                    <RecordCard {...bulk.card(d, `Select ${d.full_name}`)}
                       eyebrow={d.license_class || 'No licence class'}
                       title={d.full_name}
                       status={<StatusTag status={d.status} />}
@@ -228,7 +238,7 @@ function DriversContent() {
             ))}
           </div>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.full_name}`}
             caption="Authorised drivers"
             rows={rows}
             columns={COLUMNS}

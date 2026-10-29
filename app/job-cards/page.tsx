@@ -5,10 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { ApprovalGate } from '@/components/shared/ApprovalGate';
 import { useModuleData } from '@/lib/useModuleData';
-import {
-  Button, Checkbox, DataRegion, DataTable, EmptyState, Fact, FactList, Field, FormDialog, Input, PageHeader, Progress, Segmented, SearchField, Select,
-  StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, type Column, type Tone,
-} from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, EmptyState, Fact, FactList, Field, FormDialog, Input, PageHeader, Progress, Segmented, SearchField, Select, StatusBadge, Textarea, Toolbar, deriveDataStatus, isTransientStatus, type Column, type Tone, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -176,6 +173,7 @@ function JobCardsContent() {
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
   const options = (['all', 'open', 'in_progress', 'on_hold', 'completed'] as const).map(s => ({ value: s, label: `${s === 'all' ? 'All' : STATUS[s].label} (${counts[s]})` }));
 
+  const bulk = useBulkSelection(records, filtered, rowId);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -200,6 +198,7 @@ function JobCardsContent() {
         <Segmented label="Status" value={filter} onValueChange={setFilter} options={options} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Job_Cards')} title="Job Cards" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[statusMeta(row.status as string).tone]} /></>} />
       <DataRegion
         status={status}
         subject="job cards"
@@ -209,7 +208,7 @@ function JobCardsContent() {
           ? <EmptyState icon="search" title="No job cards match" description="Try a different search or status." action={<Button onClick={() => { setFilter('all'); setSearch(''); }}>Clear filters</Button>} />
           : scope ? <EmptyState icon="task" title={`No ${scope} job cards yet`} description="Job cards will appear here once they are created." /> : <EmptyState icon="task" title="No job cards yet" description="Job cards will appear here once they are created." />}
       >
-        <DataTable stillKey={listCalm} caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select job card ${r.id}`} stillKey={listCalm} caption="Job cards" rows={filtered} columns={COLUMNS} getRowId={jc => String(jc.id)} onRowActivate={setSelected} rowActions={jc => <Button size="sm" variant="ghost" onClick={() => setSelected(jc)} aria-label={`View job card ${jc.job_no}: ${jc.title}`}>View</Button>} />
       </DataRegion>
 
       {selected && <JobCardDetail key={selected.id} jc={selected} onClose={() => setSelected(null)} onSave={async updated => { await update(updated.id, { ...updated, expected_updated_at: selected?.updated_at }); refetch(); }} />}

@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, MetricGrid, MetricTile, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
@@ -94,6 +95,14 @@ function EquipmentContent() {
     { id: 'criticality', header: 'Criticality', hideBelow: 'md', cell: i => (i.criticality ? <StatusBadge tone={CRIT_TONE[i.criticality] ?? 'neutral'}>{i.criticality}</StatusBadge> : <span className="text-ink-muted">Not set</span>) },
   ];
 
+  const bulk = useBulkSelection(items, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'asset' : 'assets'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteEquipment(id), singular: 'asset', plural: 'assets',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -133,6 +142,7 @@ function EquipmentContent() {
         <Select className="w-44" aria-label="Filter by status" value={f.status} onValueChange={v => set({ status: v })} options={[{ value: ALL, label: 'All statuses' }, ...STATUSES.map(s => ({ value: s, label: STATUS_LABELS[s] }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} pdfColumns={EXPORT_PDF} filename={exportFilename('Equipment_Register')} title="Equipment Register" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="equipment" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
@@ -145,7 +155,7 @@ function EquipmentContent() {
             {pageRows.map(i => (
               <MotionListItem key={i.id}>
               <ZoomLink zoomId={`equipment:rec:${i.id}`}>
-              <RecordCard
+              <RecordCard {...bulk.card(i, `Select ${i.name}`)}
                 eyebrow={<span className="font-mono">{i.equipment_id}{i.category ? <span className="font-sans"> · {i.category}</span> : null}</span>}
                 title={i.name}
                 status={<StatusTag item={i} />}
@@ -169,7 +179,7 @@ function EquipmentContent() {
             ))}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.name}`}
             caption="Equipment register" rows={pageRows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={s => { setSort(s); setPage(1); }} stillKey={listCalm}
             onRowActivate={i => setViewingId(i.id)}
             rowActions={i => (

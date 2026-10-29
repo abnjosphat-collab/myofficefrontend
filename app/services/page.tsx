@@ -5,7 +5,8 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, PageHeader, Pagination, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Toolbar, UpdatedCaption, ViewToggle, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, FilterField, MoreMenu, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { fmtDate } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { ImportDialog } from './ImportDialog';
@@ -97,6 +98,14 @@ function ServicesContent() {
     { id: 'grv', header: 'GRV#', cell: r => r.stores.grv_number },
   ];
 
+  const bulk = useBulkSelection(list.items, matches, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'service job' : 'service jobs'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteService(String(id)), singular: 'service job', plural: 'service jobs',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -138,6 +147,7 @@ function ServicesContent() {
         <Select aria-label="Category" className="w-44" value={filters.category || ALL} onValueChange={v => set({ category: v === ALL ? '' : v })} options={[{ value: ALL, label: 'Every category' }, ...CATEGORIES.map(c => ({ value: c, label: c }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="services" error={list.error} onRetry={() => list.refetch()}
         empty={filtered
@@ -152,7 +162,7 @@ function ServicesContent() {
               return (
                 <MotionListItem as="li" key={r.id} className="relative">
                   <ZoomLink zoomId={`services:rec:${r.id}`}>
-                  <RecordCard
+                  <RecordCard {...bulk.card(r, `Select ${r.description || 'service job'}`)}
                     eyebrow={r.date ? fmtDate(r.date) : 'No date'} title={r.description || 'No description'} subtitle={r.supplier || undefined} openLabel={`Open ${r.description || 'job'}`} onOpen={() => open(r)}
                     status={<><StatusBadge tone={s.tone}>{s.label}</StatusBadge>{r.category && <StatusBadge tone="info">{r.category}</StatusBadge>}</>}
                     facts={[...(r.amount ? [{ label: 'Amount', value: r.amount }] : []), ...(references(r).length ? [{ label: 'References', value: references(r).join(', ') }] : [])]}
@@ -165,7 +175,7 @@ function ServicesContent() {
             })}
           </MotionList>
         ) : (
-          <DataTable stillKey={listCalm} caption={view === 'sheet' ? 'Services sheet' : 'Services register'} rows={visible} columns={view === 'sheet' ? SHEET : TABLE} getRowId={r => r.id} density={view === 'sheet' ? 'compact' : 'comfortable'} onRowActivate={open} rowActions={view === 'sheet' ? undefined : rowActions} />
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.description || 'service job'}`} stillKey={listCalm} caption={view === 'sheet' ? 'Services sheet' : 'Services register'} rows={visible} columns={view === 'sheet' ? SHEET : TABLE} getRowId={r => r.id} density={view === 'sheet' ? 'compact' : 'comfortable'} onRowActivate={open} rowActions={view === 'sheet' ? undefined : rowActions} />
         )}
         {matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>

@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { summarizeActions } from '@/lib/actionPlan';
@@ -307,6 +308,14 @@ function PTOContent() {
     });
   }, [reports, search, effSection, statusF, typeF, riskOnly, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'risk' ? (hasRiskFlag(r.riskAssessment) ? '1' : '0') : String(r[id as keyof PTOReport] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(reports, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'PTO report' : 'PTO reports'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deletePTOReport(String(id)), singular: 'PTO report', plural: 'PTO reports',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, typeF, riskOnly, dateFrom, dateTo, sort]);
   const count = (s: ReportStatus) => reports.filter(r => r.status === s).length;
   const allActions = reports.flatMap(r => r.actionPlan || []);
@@ -392,6 +401,7 @@ function PTOContent() {
         <Select className="w-40" aria-label="Filter by type" value={typeF} onValueChange={setTypeF} options={[{ value: ALL, label: 'All types' }, { value: 'Initial', label: 'Initial' }, { value: 'Follow up', label: 'Follow up' }]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('PTO_Reports')} title="Planned Task Observation" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="PTO reports"
@@ -410,7 +420,7 @@ function PTOContent() {
               return (
                 <MotionListItem key={r.id}>
                 <ZoomLink zoomId={`pto:rec:${r.id}`}>
-                <RecordCard
+                <RecordCard {...bulk.card(r, `Select PTO report ${r.jobTaskObserved}, ${formatDate(r.date)}`)}
                   eyebrow={formatDate(r.date)}
                   title={r.jobTaskObserved}
                   status={<StatusTag status={r.status} />}
@@ -432,7 +442,7 @@ function PTOContent() {
             })}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select PTO report ${r.jobTaskObserved}, ${formatDate(r.date)}`}
             caption="PTO reports"
             stillKey={listCalm}
             rows={rows}

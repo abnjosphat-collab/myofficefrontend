@@ -40,6 +40,9 @@ interface DownloadButtonProps {
   /** Icon-only trigger for dense table row actions ONLY (a docs check fails it
    *  elsewhere). Page and section exports are always labelled. Default false. */
   iconOnly?: boolean;
+  /** The menu trigger's words; "Download" when not given ("Download selected" in a bulk bar). */
+  label?: string;
+  size?: 'sm' | 'md' | 'lg';
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -57,7 +60,7 @@ function getVal(row: Record<string, unknown>, col: DLColumn): string {
 
 export function DownloadButton({
   data, columns, filename, title, subtitle, className = '', formats = ['excel', 'pdf'], pdfColumns,
-  statusColumn, statusColor, iconOnly = false,
+  statusColumn, statusColor, iconOnly = false, label, size,
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
   // The trigger phases: idle → pending → success (held 1.2 s) → idle around
@@ -250,6 +253,8 @@ export function DownloadButton({
   return (
     <ExportButton
       iconOnly={iconOnly}
+      label={label}
+      size={size}
       className={className}
       pending={pending}
       success={success}

@@ -112,6 +112,7 @@ export { usePersistentState, oneOf, asString, readStored, storeValue } from './h
 export { useActionFeedback } from './hooks/useActionFeedback';
 export type { ActionPhase } from './hooks/useActionFeedback';
 export { useMediaQuery, DESKTOP_QUERY } from './hooks/useMediaQuery';
+export { useBulkSelection, rowId } from './hooks/useBulkSelection';
 
 // Shell
 export { NavItem, NavGroup, NavHeading, NavSpotlight } from './shell/Nav';

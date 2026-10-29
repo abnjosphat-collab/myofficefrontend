@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PhotoUpload } from '@/components/shared/PhotoUpload';
 import { SuggestField } from '@/components/shared/SuggestField';
@@ -282,6 +283,14 @@ function InspectionContent() {
       && (!dateFrom || i.date >= dateFrom) && (!dateTo || i.date <= dateTo));
   }, [inspections, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (i, id) => (id === 'findings' ? String(i.findings?.length || 0).padStart(4, '0') : String(i[id as keyof SHEQFormData] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(inspections, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'inspection' : 'inspections'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteInspection(String(id)), singular: 'inspection', plural: 'inspections',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, dateFrom, dateTo, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -359,6 +368,7 @@ function InspectionContent() {
         <Select className="w-40" aria-label="Filter by status" value={statusF} onValueChange={setStatusF} options={[{ value: ALL, label: 'All statuses' }, ...INSPECTION_STATUSES.map(s => ({ value: s, label: INSPECTION_META[s].label }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('SHEQ_Inspections')} title="SHEQ Inspections" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="SHEQ inspections"
@@ -379,7 +389,7 @@ function InspectionContent() {
               return (
                 <MotionListItem key={i.id}>
                 <ZoomLink zoomId={`sheq_inspection:rec:${i.id}`}>
-                <RecordCard
+                <RecordCard {...bulk.card(i, `Select inspection ${i.title}, ${formatDate(i.date)}`)}
                   eyebrow={`${formatDate(i.date)}${i.time ? ` at ${i.time}` : ''}`}
                   title={i.title}
                   status={<InspectionBadge status={i.status} />}
@@ -400,7 +410,7 @@ function InspectionContent() {
             })}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select inspection ${r.title}, ${formatDate(r.date)}`}
             caption="SHEQ inspections"
             stillKey={listCalm}
             rows={rows}

@@ -33,15 +33,15 @@ export type ExportButtonCommon = {
 
 /**
  * The one export trigger. Menu mode (`items`) renders a labelled secondary
- * "Export" button with a caret; single mode (`onPress` + `label`) renders the
- * label ("Export Excel") with no menu. `DownloadButton` renders through this,
+ * "Download" button with a caret (or `label`, e.g. "Download selected"); single
+ * mode (`onPress` + `label`) renders the label ("Download Excel") with no menu. `DownloadButton` renders through this,
  * and bespoke exporters use it directly so every export looks the same.
  *
  * At 390 px and below a single-mode label shortens to `shortLabel`
  * ("Download"), never to a bare icon; the menu trigger already reads "Download".
  */
 export function ExportButton(props: ExportButtonCommon & (
-  | { items: ExportMenuItem[]; onPress?: never; label?: never; shortLabel?: never }
+  | { items: ExportMenuItem[]; onPress?: never; label?: string; shortLabel?: never }
   | { onPress: () => void; label: string; shortLabel?: string; items?: never }
 )) {
   const { icon = 'download', disabled = false, pending = false, success = false, size = 'md', menuAlign = 'end', className, iconOnly = false } = props;
@@ -50,8 +50,8 @@ export function ExportButton(props: ExportButtonCommon & (
   if (props.items) {
     const items = props.items;
     const trigger = iconOnly
-      ? <IconButton icon={icon} label="Download" tooltip="Download" variant="shell" size={iconSize} pending={pending} success={success} className={className} />
-      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} success={success} className={className}>Download</Button>;
+      ? <IconButton icon={icon} label={props.label ?? 'Download'} tooltip={props.label ?? 'Download'} variant="shell" size={iconSize} pending={pending} success={success} className={className} />
+      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} success={success} className={className}>{props.label ?? 'Download'}</Button>;
     return (
       <Menu>
         <MenuTrigger asChild>{trigger}</MenuTrigger>

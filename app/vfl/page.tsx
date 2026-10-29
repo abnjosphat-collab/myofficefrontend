@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Segmented, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -251,6 +252,14 @@ function VFLContent() {
     });
   }, [reports, search, effSection, statusF, behaviourF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof VFLReport] ?? '').toLowerCase()), [filtered, sort]);
+  const bulk = useBulkSelection(reports, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'VFL observation' : 'VFL observations'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteVFLReport(String(id)), singular: 'VFL observation', plural: 'VFL observations',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, behaviourF, dateFrom, dateTo, sort]);
   const count = (s: VFLStatus) => reports.filter(r => r.status === s).length;
   const totalActions = reports.reduce((n, r) => n + (r.actions?.length || 0), 0);
@@ -336,6 +345,7 @@ function VFLContent() {
         <Segmented label="Behaviour" value={behaviourF} onValueChange={setBehaviourF} options={[{ value: ALL, label: 'All' }, { value: 'Safe Behaviour', label: `Safe (${safe})` }, { value: 'Unsafe Behaviour', label: `Unsafe (${unsafe})` }]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('VFL_Observations')} title="Visible Felt Leadership" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="VFL observations"
@@ -353,7 +363,7 @@ function VFLContent() {
               return (
                 <MotionListItem key={r.id}>
                 <ZoomLink zoomId={`vfl:rec:${r.id}`}>
-                <RecordCard
+                <RecordCard {...bulk.card(r, `Select VFL observation by ${r.observerName}, ${formatDate(r.date)}`)}
                   eyebrow={`${formatDate(r.date)}${fmtTime(r.time) ? ` · ${fmtTime(r.time)}` : ''}`}
                   title={r.observerName}
                   subtitle={r.designation || undefined}
@@ -376,7 +386,7 @@ function VFLContent() {
             })}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select VFL observation by ${r.observerName}, ${formatDate(r.date)}`}
             caption="VFL observations"
             stillKey={listCalm}
             rows={rows}

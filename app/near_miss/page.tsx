@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees, useLookupList } from '@/hooks/useLookups';
@@ -171,6 +172,14 @@ function NearMissContent() {
       && (!dateTo || r.date <= dateTo));
   }, [reports, search, effSection, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => String(r[id as keyof NearMissReport] ?? '').toLowerCase()), [filtered, sort]);
+  const bulk = useBulkSelection(reports, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'near-miss report' : 'near-miss reports'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteReport(String(id)), singular: 'near-miss report', plural: 'near-miss reports',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, dateFrom, dateTo, sort]);
   const stats = useMemo(() => {
     const by = (s: Section) => reports.filter(r => r.section === s).length;
@@ -254,6 +263,7 @@ function NearMissContent() {
         </section>
       )}
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Near_Miss_Reports')} title="Near Miss Reports" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="near miss reports"
@@ -264,7 +274,7 @@ function NearMissContent() {
           : scope ? <EmptyState icon="warning" title={`No ${scope} near miss reports yet`} description="Submit the first report to start the register." action={<ZoomLink zoomId="near_miss:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button></ZoomLink>} /> : <EmptyState icon="warning" title="No near miss reports yet" description="Submit the first report to start the register." action={<ZoomLink zoomId="near_miss:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor()}>New report</Button></ZoomLink>} />}
       >
         <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'report' : 'reports'}{filtered.length !== reports.length ? ` of ${reports.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
-        <DataTable
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select report from ${r.department}, ${formatDate(r.date)}`}
           caption="Near miss reports"
           stillKey={listCalm}
           rows={rows}

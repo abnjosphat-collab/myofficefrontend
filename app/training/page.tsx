@@ -10,7 +10,8 @@ import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PersonInput } from '@/components/shared/PersonInput';
-import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink } from '@/components/ui-system';
+import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
@@ -123,6 +124,14 @@ function TrainingContent() {
       .sort((a, b) => (STATUS_ORDER[b.status] ?? 0) - (STATUS_ORDER[a.status] ?? 0));
   }, [certs, statusFilter, deptFilter, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(certs, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'certification' : 'certifications'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteCertification(String(id)), singular: 'certification', plural: 'certifications',
+    after: async () => { bulk.clear(); await fetchAll(); },
+  });
   const listCalm = JSON.stringify([search, statusFilter, deptFilter, sort]);
   const counts = useMemo(() => ({ total: certs.length, valid: certs.filter(c => c.status === 'Valid').length, expired: certs.filter(c => c.status === 'Expired').length, dueSoon: certs.filter(c => c.status === 'Due Soon').length }), [certs]);
   const expiring = useMemo(() => certs.filter(c => { const d = daysUntilExpiry(c.expiry_date); return d >= 0 && d <= 90; }).sort((a, b) => daysUntilExpiry(a.expiry_date) - daysUntilExpiry(b.expiry_date)), [certs]);
@@ -187,6 +196,7 @@ function TrainingContent() {
             <Select className="w-44" aria-label="Filter by status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: ALL, label: 'All statuses' }, { value: 'Valid', label: 'Valid' }, { value: 'Due Soon', label: 'Due soon' }, { value: 'Expired', label: 'Expired' }]} />
             <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} />
           </Toolbar>
+          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
           <DataRegion
             status={registerStatus}
             subject="certifications"
@@ -197,7 +207,7 @@ function TrainingContent() {
               : scope ? <EmptyState icon="training" title={`No ${scope} certifications yet`} description="Add the first certification to start tracking expiry dates." action={<ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>} /> : <EmptyState icon="training" title="No certifications yet" description="Add the first certification to start tracking expiry dates." action={<ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} of {certs.length} certifications<UpdatedCaption at={updatedAt} /></p>
-            <DataTable
+            <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.certification_name} for ${r.employee_name}`}
               caption="Certification register"
               stillKey={listCalm}
               rows={rows}

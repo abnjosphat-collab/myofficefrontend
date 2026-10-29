@@ -4,7 +4,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, ExportButton, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Panel, SearchField, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type SortState, FilterField, Fact, FactList, DetailActions, EXPORT_CHECK_MS, useActionFeedback, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { fmtDateTime, formatCurrency, formatCurrencyShort, lineTotal } from '@/components/shared/utils';
 import { useAuth } from '@/lib/auth-context';
 import { AnalyticsPanel } from './AnalyticsPanel';
@@ -74,6 +75,14 @@ function IssuesContent() {
     { id: 'notes', header: 'Notes', hideBelow: 'lg', cell: i => <span className="line-clamp-2 max-w-[16rem]">{i.notes || <span className="text-ink-muted">None</span>}</span> },
   ];
 
+  const bulk = useBulkSelection(list.items, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'issue record' : 'issue records'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteIssue(Number(id)).then(r => { invalidateSparesCache(); return r; }), singular: 'issue record', plural: 'issue records',
+    after: async () => { bulk.clear(); await refresh(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -143,6 +152,7 @@ function IssuesContent() {
           >
             <SearchField value={search} onValueChange={setSearch} placeholder="Search recipient, item or notes" wrapperClassName="min-w-56 max-w-sm flex-1 max-md:max-w-none max-md:basis-full" />
           </Toolbar>
+          <BulkBar {...bulk.bar} actions={<><ExportButton size="sm" label="Download selected" items={[{ label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => run(() => exportIssuesExcel(bulk.chosen), `Excel downloaded, ${bulk.chosen.length} issues.`) }, { label: 'PDF', icon: 'pdf', onSelect: () => run(() => exportIssuesPdf(bulk.chosen), `PDF downloaded, ${bulk.chosen.length} issues.`) }]} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
           <DataRegion
             status={status} subject="stock issues" error={list.error} onRetry={() => refresh()}
             empty={hasFilters
@@ -150,7 +160,7 @@ function IssuesContent() {
               : scope ? <EmptyState icon="issues" title={`No ${scope} issues recorded yet`} description="Use the form above to record the first one." /> : <EmptyState icon="issues" title="No issues recorded yet" description="Use the form above to record the first one." />}
           >
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'record' : 'records'}{filtered.length !== issues.length ? ` of ${issues.length}` : ''}<UpdatedCaption at={list.updatedAt} /></p>
-            <DataTable
+            <DataTable {...bulk.table} rowSelectLabel={r => `Select the issue to ${r.recipient_name} on ${fmtDateTime(r.issued_at)}`}
               caption="Stock issue log" stillKey={listCalm} rows={rows} columns={COLUMNS} getRowId={i => String(i.id)} sort={sort} onSortChange={setSort}
               onRowActivate={i => setViewingId(i.id)}
               rowActions={i => <IconButton icon="delete" variant="danger" size="sm" label={`Delete the issue to ${i.recipient_name} on ${fmtDateTime(i.issued_at)}`} onClick={() => remove(i)} />}

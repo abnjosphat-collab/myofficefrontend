@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -214,6 +215,14 @@ function RequisitionsContent() {
       && (!q || r.requester.toLowerCase().includes(q) || r.requisitionNumber.toLowerCase().includes(q) || r.required_for.toLowerCase().includes(q) || r.items.some(i => i.description.toLowerCase().includes(q))));
   }, [reqs, statusF, priorityF, effSection, dateFrom, dateTo, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'cost' ? String(Math.round(itemTotal(r.items) * 100)).padStart(14, '0') : String(r[id as keyof Requisition] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(reqs, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'requisition' : 'requisitions'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => apiDelete(String(id)), singular: 'requisition', plural: 'requisitions',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, priorityF, dateFrom, dateTo, sort, tab]);
   const sum = (list: Requisition[]) => list.reduce((s, r) => s + itemTotal(r.items), 0);
   const stats = useMemo(() => ({ total: filtered.length, value: sum(filtered), pending: filtered.filter(r => r.status === 'Pending').length, approved: filtered.filter(r => r.status === 'Approved').length, critical: filtered.filter(r => r.priority === 'Critical').length }), [filtered]);
@@ -289,6 +298,7 @@ function RequisitionsContent() {
         <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: p }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Purchase_Requisitions')} title="Purchase Requisitions" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="requisitions"
@@ -305,7 +315,7 @@ function RequisitionsContent() {
           </TabsList>
           <TabsContent value="records" className="mt-5 flex flex-col gap-3">
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'requisition' : 'requisitions'}{filtered.length !== reqs.length ? ` of ${reqs.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
-            <DataTable
+            <DataTable {...bulk.table} rowSelectLabel={r => `Select requisition ${r.requisitionNumber}`}
               caption="Purchase requisitions"
               stillKey={listCalm}
               rows={rows}

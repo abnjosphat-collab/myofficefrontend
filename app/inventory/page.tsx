@@ -4,11 +4,8 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard,
-  SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference,
-  type Column, type SortState, type Tone, FilterField, ZoomLink
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Notice, PageHeader, Progress, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type SortState, type Tone, FilterField, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -124,6 +121,14 @@ function InventoryPageContent() {
       && (supplier === ALL || item.supplier === supplier));
   }, [inventory, search, statusFilter, category, supplier]);
   const rows = useMemo(() => sortRows(filtered, sort, (i, id) => (id === 'status' ? stockStatus(i) : typeof i[id as keyof InventoryItem] === 'string' ? String(i[id as keyof InventoryItem]).toLowerCase() : i[id as keyof InventoryItem])), [filtered, sort]);
+  const bulk = useBulkSelection(inventory, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'inventory item' : 'inventory items'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteItem(String(id)), singular: 'inventory item', plural: 'inventory items',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   const hasFilters = !!search || statusFilter !== 'all' || category !== ALL || supplier !== ALL;
 
   const openEditor = (item: InventoryItem | null) => { setEditing(item); setDialogOpen(true); };
@@ -199,6 +204,7 @@ function InventoryPageContent() {
         {categories.length > 0 && <Select className="w-44" aria-label="Filter by category" value={category} onValueChange={setCategory} options={[{ value: ALL, label: 'All categories' }, ...categories.map(c => ({ value: c, label: c }))]} />}
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Inventory')} title="Inventory" statusColumn="status" statusColor={(_v, row) => EXPORT_TONE_HEX[STATUS[stockStatus(row as unknown as InventoryItem)].tone]} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="inventory" error={list.error} onRetry={() => list.refetch()}
         empty={hasFilters
@@ -209,7 +215,7 @@ function InventoryPageContent() {
         <MotionList calmKey={listCalm} className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map(item => (
             <MotionListItem key={item.id}>
-            <RecordCard
+            <RecordCard {...bulk.card(item, `Select ${item.name}`)}
               eyebrow={<span className="font-mono">{item.sku}</span>}
               title={item.name}
               subtitle={item.category || undefined}
@@ -230,7 +236,7 @@ function InventoryPageContent() {
           ))}
         </MotionList>
       ) : (
-        <DataTable caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} stillKey={JSON.stringify([listCalm, sort])} onRowActivate={openEditor} rowActions={rowActions} />
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select ${r.name}`} caption="Inventory items" rows={rows} columns={COLUMNS} getRowId={i => i.id} sort={sort} onSortChange={setSort} stillKey={JSON.stringify([listCalm, sort])} onRowActivate={openEditor} rowActions={rowActions} />
       )}
       </DataRegion>
 

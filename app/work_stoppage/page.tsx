@@ -6,7 +6,8 @@ import { PersonInput } from '@/components/shared/PersonInput';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, PageHeader, Progress, MotionList, MotionListItem, RecordCard, SearchField, Select, StatusBadge, Textarea, Toolbar, UpdatedCaption, ViewToggle, VIEW_CARDS_TABLE, deriveDataStatus, isTransientStatus, sortRows, useViewPreference, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, FactSection, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { SuggestField } from '@/components/shared/SuggestField';
 import { useEmployees } from '@/hooks/useLookups';
@@ -267,6 +268,14 @@ function WorkStoppageContent() {
     });
   }, [reports, search, effSection, statusF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (r, id) => (id === 'actions' ? String((r.correctiveActions || []).length).padStart(4, '0') : String(r[id as keyof WorkStoppageReport] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(reports, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'work stoppage report' : 'work stoppage reports'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => deleteReport(String(id)), singular: 'work stoppage report', plural: 'work stoppage reports',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, dateFrom, dateTo, sort]);
 
   const status = deriveDataStatus({ loaded, loading, error, errorStatus, count: filtered.length, transient: isTransientStatus(errorStatus) });
@@ -340,6 +349,7 @@ function WorkStoppageContent() {
         <Select className="w-52" aria-label="Filter by action status" value={statusF} onValueChange={setStatusF} options={STATUS_FILTERS} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Work_Stoppage_Reports')} title="Work Stoppages" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="work stoppages"
@@ -358,7 +368,7 @@ function WorkStoppageContent() {
               return (
                 <MotionListItem key={r.id}>
                 <ZoomLink zoomId={`work_stoppage:rec:${r.id}`}>
-                <RecordCard
+                <RecordCard {...bulk.card(r, `Select work stoppage report from ${r.department}, ${formatDate(r.date)}`)}
                   eyebrow={formatDate(r.date)}
                   title={r.department}
                   status={<span className="inline-flex flex-wrap gap-1.5"><SectionBadge section={r.section} />{o > 0 && <StatusBadge tone="danger" icon="overdue">{o} overdue</StatusBadge>}</span>}
@@ -377,7 +387,7 @@ function WorkStoppageContent() {
             })}
           </MotionList>
         ) : (
-          <DataTable
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select work stoppage report from ${r.department}, ${formatDate(r.date)}`}
             caption="Work stoppages"
             stillKey={listCalm}
             rows={rows}

@@ -7,7 +7,8 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, EXPORT_CHECK_MS, useActionFeedback } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, EXPORT_CHECK_MS, useActionFeedback, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
@@ -129,6 +130,14 @@ function EmployeesContent() {
     { id: 'tenure', header: 'Time here', hideBelow: 'lg', cell: e => <span className="tabular">{tenure(e.date_of_engagement) || 'Not recorded'}</span> },
   ];
 
+  const bulk = useBulkSelection(employees, matches, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'person' : 'people'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => removeEmployee(Number(id)), singular: 'person', plural: 'people',
+    after: async () => { bulk.clear(); await list.refetch(); },
+  });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -183,6 +192,7 @@ function EmployeesContent() {
         <Select aria-label="Designation" className="w-44" value={f.role} onValueChange={v => set({ role: v })} options={roleOptions} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status} subject="personnel" skeletonRows={4} error={list.error} onRetry={() => list.refetch()}
         empty={filtered
@@ -203,7 +213,7 @@ function EmployeesContent() {
             ? <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Personnel">{visible.map(e => <MotionListItem as="li" key={e.id} className="relative">{card(e, true)}</MotionListItem>)}</MotionList>
             : <RosterGroups groups={groups} closed={closed} onToggle={toggleGroup} card={e => card(e, false)} calmKey={listCalm} />
         ) : (
-          <DataTable caption="Personnel" rows={visible} columns={COLUMNS} getRowId={e => String(e.id)} onRowActivate={e => setViewingId(e.id)} rowActions={actionsOf} stillKey={listCalm} />
+          <DataTable {...bulk.table} rowSelectLabel={r => `Select ${fullName(r)}`} caption="Personnel" rows={visible} columns={COLUMNS} getRowId={e => String(e.id)} onRowActivate={e => setViewingId(e.id)} rowActions={actionsOf} stillKey={listCalm} />
         )}
         {(view === 'table' || searching) && matches.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={matches.length} onPageChange={setPage} />}
       </DataRegion>

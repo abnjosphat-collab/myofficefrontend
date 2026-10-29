@@ -7,7 +7,8 @@ import { Bar, BarChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'rec
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
-import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink } from '@/components/ui-system';
+import { Button, Chart, ChartPanel, DataRegion, DataTable, Dialog, Distribution, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, chartColor, chartTheme, deriveDataStatus, isTransientStatus, sortRows, type Column, type IconMeaning, type SortState, type Tone, FilterField, Fact, FactList, DetailActions, RowActions, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { useBulkDelete } from '@/lib/useBulkDelete';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { useLookupList } from '@/hooks/useLookups';
 import { todayLocal } from '@/lib/dates';
@@ -233,6 +234,14 @@ function SafetyComplaintsContent() {
       && (!s || [c.issueRaised, c.raisedBy, c.supervisorName, c.byWho, c.location, c.category].some(v => (v || '').toLowerCase().includes(s))));
   }, [complaints, search, statusF, effSection, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'priority' ? String(PRIORITIES.indexOf(c.priority)) : String(c[id as keyof Complaint] ?? '').toLowerCase())), [filtered, sort]);
+  const bulk = useBulkSelection(complaints, filtered, rowId);
+  const { confirmBulkDelete, deleting } = useBulkDelete();
+  const removeMany = () => void confirmBulkDelete({
+    title: `Delete ${bulk.chosen.length} ${bulk.chosen.length === 1 ? 'complaint' : 'complaints'}?`,
+    message: 'They go to Recently deleted, where a manager can put each one back exactly as it was.',
+    ids: bulk.chosen.map(r => r.id), run: id => api.remove(String(id)), singular: 'complaint', plural: 'complaints',
+    after: async () => { bulk.clear(); await refetch(); },
+  });
   const listCalm = JSON.stringify([search, effSection, statusF, priorityF, categoryF, byWhoF, locationF, dateFrom, dateTo, sort, tab]);
   // Analytics and the tiles read the filtered list, so a filter picked on Records is visible everywhere.
   const stats = useMemo(() => {
@@ -317,6 +326,7 @@ function SafetyComplaintsContent() {
         <Select className="w-40" aria-label="Filter by priority" value={priorityF} onValueChange={setPriorityF} options={[{ value: ALL, label: 'All priorities' }, ...PRIORITIES.map(p => ({ value: p, label: cap(p) }))]} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={EXPORT_COLUMNS} filename={exportFilename('Safety_Complaints')} title="Safety Complaints" statusColumn="status" statusColor={(_v, row) => exportStatusColor(String(row.status))} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
       <DataRegion
         status={status}
         subject="safety complaints"
@@ -333,7 +343,7 @@ function SafetyComplaintsContent() {
           </TabsList>
           <TabsContent value="records" className="mt-5 flex flex-col gap-3">
             <p className="font-sans text-caption text-ink-muted">{filtered.length} {filtered.length === 1 ? 'complaint' : 'complaints'}{filtered.length !== complaints.length ? ` of ${complaints.length}` : ''}<UpdatedCaption at={updatedAt} /></p>
-            <DataTable
+            <DataTable {...bulk.table} rowSelectLabel={r => `Select complaint ${r.category}, ${formatDate(r.date)}`}
               caption="Safety complaints"
               stillKey={listCalm}
               rows={rows}

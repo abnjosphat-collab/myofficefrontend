@@ -7,10 +7,7 @@ import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { useAuth } from '@/lib/auth-context';
 import { SuggestField } from '@/components/shared/SuggestField';
-import {
-  Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select,
-  StatusBadge, Tag, Textarea, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone,
-} from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, PageHeader, Segmented, Select, StatusBadge, Tag, Textarea, Toolbar, ZoomLink, deriveDataStatus, isTransientStatus, sortRows, type Column, type SortState, type Tone, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -114,6 +111,7 @@ function ConditionMonitoringContent() {
   const pending = loading && !loaded;
   const unavailable = !loaded && !loading;
 
+  const bulk = useBulkSelection(readings, displayed, rowId);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -149,6 +147,7 @@ function ConditionMonitoringContent() {
         <Segmented label="Monitoring type" value={tab} onValueChange={setTab} options={TYPE_FILTERS} />
       </Toolbar>
 
+      <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={exportColumns} filename={exportFilename('Condition_Monitoring')} title="Condition Monitoring" statusColumn="result" statusColor={(_v, row) => EXPORT_TONE_HEX[RESULT_META[row.result as CMResult]?.tone ?? 'neutral']} /></>} />
       <DataRegion
         status={status}
         subject="monitoring records"
@@ -158,7 +157,7 @@ function ConditionMonitoringContent() {
           ? <EmptyState icon="search" title={`No ${TYPE_LABEL[tab].toLowerCase()} readings`} description="Choose a different type to see other readings." action={<Button onClick={() => setTab('All')}>Show all types</Button>} />
           : scope ? <EmptyState icon="analytics" title={`No ${scope} readings yet`} description="Add the first oil analysis, vibration or thermography reading." action={<ZoomLink zoomId="condition-monitoring:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button></ZoomLink>} /> : <EmptyState icon="analytics" title="No readings yet" description="Add the first oil analysis, vibration or thermography reading." action={<ZoomLink zoomId="condition-monitoring:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setAdding(true)}>Add reading</Button></ZoomLink>} />}
       >
-        <DataTable stillKey={listCalm} caption="Condition monitoring records" rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} />
+        <DataTable {...bulk.table} rowSelectLabel={r => `Select reading of ${r.date}`} stillKey={listCalm} caption="Condition monitoring records" rows={rows} columns={COLUMNS} getRowId={r => String(r.id)} sort={sort} onSortChange={setSort} />
       </DataRegion>
 
       <AddReadingDialog open={adding} onOpenChange={setAdding} onCreated={fetchReadings} />
