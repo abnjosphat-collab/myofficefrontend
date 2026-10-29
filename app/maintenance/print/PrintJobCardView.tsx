@@ -86,7 +86,7 @@ export function PrintJobCardView({ workOrderId }: { workOrderId: string }) {
           Print
         </Button>
       </div>
-      <article aria-label={`Job card ${w.work_order_number}`} className="flex flex-col gap-5 rounded-card border border-line bg-surface p-6 print:gap-4 print:rounded-none print:border-0 print:p-0">
+      <article aria-label={`Job card ${w.work_order_number}`} className="mo-print-light flex flex-col gap-5 rounded-card border border-line bg-surface p-6 print:gap-4 print:rounded-none print:border-0 print:p-0">
         <header className="border-b border-line pb-4">
           <p className="font-sans text-caption text-ink-muted tabular">Job card #{w.work_order_number}</p>
           <h1 className="font-display text-title font-semibold text-ink">{w.equipment_info}</h1>

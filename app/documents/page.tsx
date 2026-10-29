@@ -105,7 +105,7 @@ function DocumentsContent() {
   const trashView = place.kind === 'trash';
 
   const emptyState = narrowed
-    ? <EmptyState icon="search" title="No files match" description="Try fewer words, or clear the filters." action={<span className="inline-flex flex-wrap gap-2"><Button onClick={() => change({ ...NO_FILTERS, sort: filters.sort })}>Clear search and filters</Button>{place.kind === 'folder' && !filters.everywhere && <Button variant="primary" onClick={() => change({ everywhere: true })}>Search everywhere</Button>}</span>} />
+    ? <EmptyState icon="search" title="No files match" description="Try fewer words, or clear the filters." action={<span className="inline-flex flex-wrap gap-2"><Button onClick={() => change({ ...NO_FILTERS, sort: filters.sort })}>Clear search and filters</Button>{place.kind === 'folder' && !filters.everywhere && <Button onClick={() => change({ everywhere: true })}>Search everywhere</Button>}</span>} />
     : trashView ? <EmptyState icon="delete" title="The trash is empty" description="Deleted files wait here until a manager deletes them for good." />
     : place.kind === 'starred' ? <EmptyState icon="starred" title="Nothing starred" description="Star a file to keep it close." />
     : place.kind === 'unfiled' ? <EmptyState icon="documents" title="Nothing is unfiled" description="Every file is in a folder." />

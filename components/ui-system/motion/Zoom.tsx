@@ -1,9 +1,8 @@
 'use client';
 
-import { AnimatePresence, motion, useAnimate, usePresence } from 'framer-motion';
+import { AnimatePresence, motion, useAnimate, usePresence, useReducedMotionConfig } from 'framer-motion';
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { FADE, SPRING } from './presets';
-import { useIsReducedMotion } from './useMotionSafe';
 import { consumeZoomSource, lookupZoomSource, markZoomSourceUsed, registerZoomSource, unregisterZoomSource } from './zoomRegistry';
 
 export interface ZoomLinkProps {
@@ -98,7 +97,9 @@ export const ZoomTarget = forwardRef<HTMLDivElement, ZoomTargetProps>(function Z
   { zoomId, placement = 'center', className, style, children, ...rest },
   forwarded,
 ) {
-  const reduce = useIsReducedMotion();
+  // The raw config, not the mount-gated hook: the panel mounts when its dialog opens (client-side, settled by then),
+  // and it must decide zoom-vs-fade on its first render — the gated value would stick it in fade mode.
+  const reduce = useReducedMotionConfig() !== false;
   const [scope, animate] = useAnimate<HTMLDivElement>();
   // Radix Slot (Dialog asChild) forwards its own ref for focus measurements;
   // it shares the node with the animation scope.

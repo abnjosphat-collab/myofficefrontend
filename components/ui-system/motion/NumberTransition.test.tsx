@@ -44,9 +44,11 @@ describe('NumberTransition (reduced motion)', () => {
   it('commits once per value change, never per frame', async () => {
     const phases: string[] = [];
     const { rerender } = render(profiled(<NumberTransition value={0} />, phases));
-    expect(phases).toEqual(['mount']);
+    // Mount settles once (SSR match, then the real setting) - not a frame.
+    expect(phases).toEqual(['mount', 'update']);
     rerender(profiled(<NumberTransition value={12345} />, phases));
     await new Promise(resolve => setTimeout(resolve, 700));
-    expect(phases).toEqual(['mount', 'update']);
+    // Exactly one more commit for the value change, then silence: no per-frame work.
+    expect(phases).toEqual(['mount', 'update', 'update']);
   });
 });

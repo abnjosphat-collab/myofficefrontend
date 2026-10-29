@@ -46,7 +46,7 @@ export function NecQuickView({ totals, loading }: { totals: NecPeriodTotals; loa
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <p className="font-sans text-body-sm text-ink-muted">Payable total</p>
-            <p className="font-sans text-title font-semibold tabular text-action">{h(payable)}</p>
+            <p className="font-sans text-title font-semibold tabular text-ink">{h(payable)}</p>
           </div>
           <Progress value={pct} label={`${pct}% filled`} />
           <p className="font-sans text-caption tabular text-ink-muted">{totals.filled} of {totals.possible} days entered</p>

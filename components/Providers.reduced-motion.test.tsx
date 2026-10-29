@@ -20,6 +20,9 @@ vi.mock('@/components/ui-system', async () => {
     AppearanceProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
     ConfirmProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
     TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    // PointerEventsGuard is a real effect in the app; here it is a null
+    // passthrough like the neighbours so this file observes motion config only.
+    PointerEventsGuard: () => null,
     MotionProvider,
   };
 });

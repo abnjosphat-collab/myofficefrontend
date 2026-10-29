@@ -127,7 +127,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
                     <th scope="row" className="sticky left-0 z-10 border-b border-r border-line bg-surface px-3 py-2 text-left font-normal"><span className="block truncate font-medium">{r.employee_name}</span><span className="block truncate text-caption text-ink-muted">{[r.employee_id, r.position].filter(Boolean).join(', ')}</span></th>
                     {view.days.map(d => {
                       const ds = toISODate(d); const h = r.byDate.get(ds) || 0; const weekend = d.getDay() === 0 || d.getDay() === 6;
-                      return <td key={ds} className={cn('border-b border-line-subtle px-1 py-2 text-center tabular', weekend && 'bg-surface-muted', h > 0 ? 'font-semibold text-action' : 'text-ink-muted')}>{h > 0 ? h.toFixed(1) : '–'}</td>;
+                      return <td key={ds} className={cn('border-b border-line-subtle px-1 py-2 text-center tabular', weekend && 'bg-surface-muted', h > 0 ? 'font-semibold text-ink' : 'text-ink-muted')}>{h > 0 ? h.toFixed(1) : '–'}</td>;
                     })}
                     <td className="border-b border-line-subtle px-2 py-2 text-center font-semibold tabular">{r.total.toFixed(1)}</td>
                   </tr>
@@ -135,7 +135,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
                 <tr className="bg-surface-subtle">
                   <th scope="row" className="sticky left-0 z-10 border-r border-line bg-surface-subtle px-3 py-2 text-left font-semibold">Total</th>
                   {view.dayTotals.map((t, i) => <td key={i} className="px-1 py-2 text-center font-semibold tabular text-ink-muted">{t > 0 ? t.toFixed(1) : '–'}</td>)}
-                  <td className="px-2 py-2 text-center font-semibold tabular text-action">{view.totals.all.toFixed(1)}</td>
+                  <td className="px-2 py-2 text-center font-semibold tabular text-ink">{view.totals.all.toFixed(1)}</td>
                 </tr>
               </tbody>
             </table>

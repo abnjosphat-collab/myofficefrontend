@@ -37,19 +37,19 @@ describe('SpareLookup', () => {
   it('typing narrows to the matches, and clearing the search restores the list', async () => {
     const user = userEvent.setup();
     setup();
-    await user.type(screen.getByRole('combobox'), 'seal');
+    await user.type(screen.getByRole('searchbox'), 'seal');
     expect(screen.queryByText('BRG-1')).not.toBeInTheDocument();
     // Highlight splits the code into marked/unmarked runs: SEAL is marked, -9 is not.
     expect(screen.getByText('SEAL', { selector: 'mark' })).toBeInTheDocument();
     expect(screen.getByText('1 match')).toBeInTheDocument();
-    await user.clear(screen.getByRole('combobox'));
+    await user.clear(screen.getByRole('searchbox'));
     expect(screen.getByText('2 parts in the catalogue')).toBeInTheDocument();
   });
 
   it('marks the matched words in code and description', async () => {
     const user = userEvent.setup();
     setup();
-    await user.type(screen.getByRole('combobox'), 'seal');
+    await user.type(screen.getByRole('searchbox'), 'seal');
     const marks = screen.getAllByText((_, el) => el?.tagName === 'MARK');
     expect(marks.map(m => m.textContent).sort()).toEqual(['SEAL', 'Seal']);
   });
@@ -106,19 +106,19 @@ describe('SpareLookup', () => {
     expect(execCommand).toHaveBeenCalledWith('copy');
   });
 
-  it('arrow keys move the active option and Enter adds it', async () => {
+  it('arrow keys move the active row and Enter adds it', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
     setup({ onAdd });
-    const box = screen.getByRole('combobox');
+    const box = screen.getByRole('searchbox');
     await user.type(box, '{ArrowDown}');
-    const options = screen.getAllByRole('option');
-    expect(options[0]).toHaveAttribute('aria-selected', 'true');
-    expect(box.getAttribute('aria-activedescendant')).toBe(options[0].id);
+    const rows = screen.getByRole('list', { name: 'Matching spares' }).querySelectorAll(':scope > li');
+    expect(rows[0]).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByText('BRG-1 Bearing 6204, row 1 of 2')).toBeInTheDocument();
     await user.type(box, '{ArrowDown}');
-    expect(options[1]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[1]).toHaveAttribute('aria-current', 'true');
     await user.type(box, '{ArrowUp}');
-    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+    expect(rows[0]).toHaveAttribute('aria-current', 'true');
     await user.type(box, '{Enter}');
     expect(onAdd).toHaveBeenCalledWith(SPARES[0]);
   });
@@ -127,21 +127,21 @@ describe('SpareLookup', () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
     setup({ onAdd });
-    await user.type(screen.getByRole('combobox'), '{Enter}');
+    await user.type(screen.getByRole('searchbox'), '{Enter}');
     expect(onAdd).not.toHaveBeenCalled();
   });
 
   it('no match suggests trying the other field', async () => {
     const user = userEvent.setup();
     setup();
-    await user.type(screen.getByRole('combobox'), 'gearbox');
+    await user.type(screen.getByRole('searchbox'), 'gearbox');
     expect(screen.getByText(/try words from the name/)).toBeInTheDocument();
   });
 
   it('no match explains itself and offers to clear', async () => {
     const user = userEvent.setup();
     setup();
-    await user.type(screen.getByRole('combobox'), 'gearbox');
+    await user.type(screen.getByRole('searchbox'), 'gearbox');
     expect(screen.getByText('No spare matches')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear the search' }));
     expect(screen.getByText('2 parts in the catalogue')).toBeInTheDocument();

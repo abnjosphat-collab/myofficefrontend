@@ -53,6 +53,7 @@ export { Combobox } from './overlays/Combobox';
 export type { ComboboxOption, ComboboxProps } from './overlays/Combobox';
 export { floatingSurface, optionRow } from './overlays/surfaces';
 export { Menu, MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel } from './overlays/Menu';
+export { PointerEventsGuard } from './overlays/PointerEventsGuard';
 
 // Patterns
 export { LoadingPulse } from './patterns/LoadingPulse';

@@ -65,4 +65,16 @@ html[data-guidance='off'] .mo-hint-content { display: none !important; }
 
 @media print {
   body { background: #fff; }
+  /* Paper is always light: inside .mo-print-light the mono dark tokens fall back to the light floor values
+     (tokens.css :root), so print-first surfaces print dark-on-white. Values copied once; the light floor is stable. */
+  html[data-theme='mono'][data-darkness='dark'] .mo-print-light {
+    --mo-surface: #fbfcfb;
+    --mo-paper: #fbfcfb;
+    --mo-ink: #1b2923;
+    --mo-ink-muted: #52625a;
+    --mo-ink-subtle: #5c6b64;
+    --mo-line: #ccd7d1;
+    --mo-line-subtle: #e2e9e5;
+    color-scheme: light;
+  }
 }

@@ -28,8 +28,8 @@ describe('ExportButton', () => {
     const user = userEvent.setup();
     render(<ExportButton label="Export Excel" onPress={onPress} />);
     const trigger = screen.getByRole('button');
-    // Both forms render; CSS shows exactly one (the short form at <=390px).
-    expect(within(trigger).getByText('Export Excel', { selector: 'span.max-\\[390px\\]\\:hidden' })).toBeInTheDocument();
+    // Both forms render; CSS shows exactly one (the short form at <=390px). The full label defaults hidden: Tailwind 4 max-* is exclusive, so max-[390px] showed BOTH at exactly 390px.
+    expect(within(trigger).getByText('Export Excel', { selector: 'span.hidden.min-\\[391px\\]\\:inline' })).toBeInTheDocument();
     expect(within(trigger).getByText('Export', { selector: 'span.min-\\[391px\\]\\:hidden' })).toBeInTheDocument();
     await user.click(trigger);
     expect(onPress).toHaveBeenCalledTimes(1);
