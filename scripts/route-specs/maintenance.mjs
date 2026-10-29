@@ -176,6 +176,16 @@ const spec = {
     await nf.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     check(await nf.count() === 0, 'cancelling the form shrinks it back into the New button');
 
+    // side-by-side: the same detail from a table row zooms identically to the card
+    await page.getByRole('button', { name: 'Table view' }).click();
+    await page.getByRole('table', { name: 'Work orders' }).getByRole('row', { name: /WO-00002/ }).click();
+    const td = dialog('Work order WO-00002');
+    await td.waitFor({ timeout: 5000 });
+    check(await page.locator('[data-zoom-panel="maintenance:order:2"]').getAttribute('data-zoom-mode') === 'zoom', 'a table row grows into the same detail as the card');
+    await page.keyboard.press('Escape');
+    await td.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await page.getByRole('button', { name: 'Card view' }).click();
+
     // detail: the request (with its Done shortcut), then the artisan's report
     await page.getByRole('button', { name: /^Open work order WO-00002/ }).click();
     const d = dialog('Work order WO-00002');

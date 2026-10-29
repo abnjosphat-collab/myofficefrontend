@@ -241,7 +241,7 @@ function MaintenanceContent() {
                 })}
               </MotionList>
             ) : (
-              <DataTable caption="Work orders" rows={visible} columns={COLUMNS} getRowId={w => String(w.id)} selected={selected} onSelectedChange={setSelected} onRowActivate={w => setViewingId(String(w.id))} rowActions={actionsOf} stillKey={listCalm} />
+              <DataTable caption="Work orders" rows={visible} columns={COLUMNS} getRowId={w => String(w.id)} selected={selected} onSelectedChange={setSelected} onRowActivate={w => setViewingId(String(w.id))} rowZoomId={w => `maintenance:order:${w.id}`} rowActions={actionsOf} stillKey={listCalm} />
             )}
             {rows.length > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />}
           </DataRegion>
