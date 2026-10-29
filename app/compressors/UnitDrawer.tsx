@@ -19,7 +19,7 @@ const num = (v: string) => (v.trim() === '' ? NaN : Number(v));
 
 export interface ReadingInput { running: number; loaded: number; pressure: number; temperature: number; notes: string }
 
-export function UnitDrawer({ compressor, previous, previousUnavailable, previousLoading, dateLabel, recordedToday, onClose, onSave, onStatus, onHistory }: {
+export function UnitDrawer({ compressor, previous, previousUnavailable, previousLoading, dateLabel, recordedToday, onClose, onSave, onStatus, onHistory, zoomId }: {
   compressor: Compressor | null;
   previous: PreviousReading | undefined;
   previousUnavailable: boolean;
@@ -31,6 +31,8 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
   onStatus: (id: number, status: string) => Promise<void>;
   /** Show this compressor's week and month. */
   onHistory: (id: number) => void;
+  /** Zoom the drawer out of its pod (pods register matching ZoomLinks). */
+  zoomId?: string;
 }) {
   const [running, setRunning] = useState('');
   const [loaded, setLoaded] = useState('');
@@ -91,6 +93,7 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
       open={!!c}
       onOpenChange={o => { if (!o) close(); }}
       placement="right"
+      zoomId={zoomId}
       title={c?.name.trim() ?? 'Compressor'}
       description={c ? [c.equipment_code, c.model, c.location].filter(Boolean).join(' · ') || 'Compressor' : undefined}
       dismissible={!saving}

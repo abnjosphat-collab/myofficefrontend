@@ -5,11 +5,11 @@
 // muted.
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, Disclosure, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
+import { Button, DataRegion, Disclosure, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Presence, Select, SlidingIndicator, ZoomLink, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
 import { useLookupList } from '@/hooks/useLookups';
 import { formatDate, formatWeekday } from '@/lib/format';
 import { AnalyticsTab } from './AnalyticsTab';
@@ -36,6 +36,21 @@ const RUNWAY_KEY = 'compressors.floor.runwayOpen';
 type View = 'floor' | 'month' | 'services' | 'analytics' | 'fleet' | 'unit';
 const parseDay = (v: string) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
 const dayLabel = (v: string) => `${formatWeekday(parseDay(v))} ${formatDate(parseDay(v))}`;
+
+/**
+ * The pod grid, memoised on its own props: opening or closing the drawer only
+ * changes `openId` in the floor, which is not a grid prop, so the 25 pods
+ * (and their MotionList/ZoomLink wrappers) never reconcile on open or close.
+ * `calmKey` still settles the grid when the filters change.
+ */
+const UnitGrid = memo(function UnitGrid({ shown, recorded, justSaved, kicks, calmKey, onOpen }: {
+  shown: Compressor[]; recorded: Set<number>; justSaved: number | null; kicks: Record<number, number>; calmKey: string; onOpen: (id: number) => void;
+}) {
+  return (
+    <MotionList as="div" className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" calmKey={calmKey}>{shown.map(c => <MotionListItem as="div" key={c.id}><ZoomLink zoomId={`compressors:unit:${c.id}`}><UnitPod compressor={c} recordedToday={recorded.has(c.id)} justSaved={justSaved === c.id} kick={kicks[c.id] ?? 0} onOpen={onOpen} /></ZoomLink></MotionListItem>)}</MotionList>
+  );
+});
+
 
 function CompressorFloor() {
   const [date, setDate] = useState(() => localDateString(new Date()));
@@ -64,7 +79,7 @@ function CompressorFloor() {
 
   const locations = useMemo(() => [...new Set([...lookupLocations, ...compressors.map(c => c.location).filter(Boolean)])].sort(), [lookupLocations, compressors]);
   const shown = useMemo(() => compressors.filter(c => (location === ALL || c.location === location) && (statusF === ALL || c.status === statusF)), [compressors, location, statusF]);
-  const recorded = new Set(previous.todayIds);
+  const recorded = useMemo(() => new Set(previous.todayIds), [previous.todayIds]);
   const dueSoon = useMemo(() => compressors.map(c => ({ c, life: serviceLife(c.total_running_hours) })).filter(x => x.life.next).sort((a, b) => (a.life.hoursLeft ?? 0) - (b.life.hoursLeft ?? 0)), [compressors]);
   const open = compressors.find(c => c.id === openId) ?? null;
   const status = deriveDataStatus({ loaded: register.loaded, loading: register.loading, error: register.error, errorStatus: register.errorStatus, count: shown.length, transient: isTransientStatus(register.errorStatus) });
@@ -152,7 +167,7 @@ function CompressorFloor() {
                   : <EmptyState icon="compressor" title="No compressors registered" description="Compressors are added in the Equipment register (category Compressors) and appear here." action={<Link href="/equipment" className={buttonVariants({ variant: 'primary' })}><Icon name="plus" size="sm" />Add in Equipment register</Link>} />}
               >
                 {layout === 'pods'
-                  ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{shown.map((c, i) => <UnitPod key={c.id} compressor={c} index={i} recordedToday={recorded.has(c.id)} justSaved={justSaved === c.id} kick={kicks[c.id] ?? 0} onOpen={() => setOpenId(c.id)} />)}</div>
+                  ? <UnitGrid shown={shown} recorded={recorded} justSaved={justSaved} kicks={kicks} calmKey={`${location}|${statusF}`} onOpen={setOpenId} />
                   : <UnitList rows={shown} recorded={recorded} onOpen={setOpenId} />}
               </DataRegion>
             </div>
@@ -176,9 +191,9 @@ function CompressorFloor() {
                 onBack={() => setView('floor')} onOpenDay={day => { setDate(day); setOpenId(u.id); }} />
             ) : null;
           })()}
-          {view === 'services' && <div className={s.viewEnter}><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
-          {view === 'analytics' && <div className={s.viewEnter}><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
-          {view === 'fleet' && <div className={s.viewEnter}><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
+          {view === 'services' && <div><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
+          {view === 'analytics' && <div><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
+          {view === 'fleet' && <div><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
         </div>
       </Presence>
 
@@ -189,6 +204,7 @@ function CompressorFloor() {
         previousLoading={previous.loading}
         dateLabel={dayLabel(date)}
         recordedToday={open ? recorded.has(open.id) : false}
+        zoomId={open ? `compressors:unit:${open.id}` : undefined}
         onClose={() => setOpenId(null)}
         onSave={async (id, v) => { await d.saveReading(id, v); setJustSaved(id); kick(id); signal('saved'); }}
         onStatus={async (id, st) => { await d.changeStatus(id, st); kick(id); signal('status'); }}

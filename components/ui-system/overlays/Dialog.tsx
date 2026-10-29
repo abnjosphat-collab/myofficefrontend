@@ -121,7 +121,18 @@ export function Dialog({
       // so the dialog cancels Radix's automatic focus and leaves the caret to the picker.
       const root = titleRef.current?.closest('[role="dialog"]');
       if (root instanceof HTMLElement && root.querySelector('[data-autofocus-search]')) { event.preventDefault(); return; }
-      if (focusTitle !== false) { event.preventDefault(); (focusTitle ? titleRef.current : (firstDialogField(root instanceof HTMLElement ? root : null) ?? titleRef.current))?.focus(); }
+      if (focusTitle !== false) {
+        event.preventDefault();
+        if (focusTitle) { titleRef.current?.focus(); return; }
+        // The title is the light, measurement-free focus target: take it inside
+        // the commit, then move to the first field on clean layout after paint.
+        // firstDialogField's visibility scan forces a full-page layout; running it
+        // here stalls the open on element-rich pages.
+        titleRef.current?.focus();
+        requestAnimationFrame(() => {
+          firstDialogField(root instanceof HTMLElement ? root : null)?.focus({ preventScroll: true });
+        });
+      }
     },
     onCloseAutoFocus: event => {
       const target = opener.current;

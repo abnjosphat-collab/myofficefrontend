@@ -1,18 +1,17 @@
-// components/shared/floor/motion.tsx — the moving parts of the compressor floor: a raised slab, numbers that count to
-// their value, the service-life ring and the fan. Nothing loops for ever: things move once when they appear or change,
-// while the pointer is on them, or when the floor signals an event. Each one is still under reduced motion.
-// All timing comes from the motion presets (components/ui-system/motion/presets): CountUp rolls on the calm
-// smooth spring via NumberTransition, the ring sweeps on the gentle CSS spring token, animated text rises on
-// the smooth token; the fan's loops stay CSS (ambient floor feel, no preset equivalent).
+// components/shared/floor/motion.tsx — the moving parts of the compressor floor, all on the shared layer:
+// Slab presses (snappy) when it is a control; CountUp rolls through NumberTransition; the service-life ring
+// fills through ProgressFill on the smooth spring; animated text crossfades once through Presence; the fan's
+// loops stay CSS verbatim (ambient floor feel, no preset equivalent — B4-13). Nothing loops for ever and
+// everything stops under prefers-reduced-motion.
 'use client';
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { NumberTransition, useIsReducedMotion } from '@/components/ui-system/motion';
+import type { CSSProperties, ReactNode } from 'react';
+import { NumberTransition, Presence, ProgressFill } from '@/components/ui-system/motion';
 import s from './floor.module.css';
 
 /**
- * A raised surface. A clickable one takes a slightly deeper shade under the pointer or keyboard focus (it does not move);
- * `still` keeps an information-only surface (a figure, not a control) from reacting at all.
+ * A raised surface. A clickable one presses in (snappy) under the pointer or keyboard activation and takes a
+ * slightly deeper shade; `still` keeps an information-only surface (a figure, not a control) from reacting at all.
  */
 export function Slab({ children, className = '', accent, style, still = false, role, tabIndex, onClick, onKeyDown, ...aria }: {
   children: ReactNode; className?: string; accent?: string; style?: CSSProperties; still?: boolean;
@@ -28,6 +27,7 @@ export function Slab({ children, className = '', accent, style, still = false, r
       onKeyDown={onKeyDown}
       className={`${s.slab} ${className}`}
       data-still={still ? '' : undefined}
+      data-press={onClick && !still ? '' : undefined}
       style={{ ...style, ...(accent ? { ['--accent' as string]: accent } : {}) }}
     >
       {children}
@@ -40,31 +40,17 @@ export function CountUp({ value, decimals = 0, suffix = '' }: { value: number | 
   return <NumberTransition value={value ?? NaN} decimals={decimals} suffix={suffix} />;
 }
 
-/** A ring that fills to `fraction` (0..1). The fill sweeps on the gentle token whenever the value changes. */
+/**
+ * A ring that fills to `fraction` (0..1) through ProgressFill on the smooth spring — never overshooting.
+ * Urgent rings nudge three times, then rest (CSS, stopped under reduced motion).
+ */
 export function Ring({ fraction, size = 64, stroke = 6, accent, children, label, urgent = false }: {
   fraction: number; size?: number; stroke?: number; accent: string; children?: ReactNode; label: string; urgent?: boolean;
 }) {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setShown(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const clamped = Math.max(0, Math.min(1, fraction));
   return (
-    <div role="img" aria-label={label} className={`relative grid shrink-0 place-items-center ${urgent ? s.urgent : ''}`} style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--mo-surface-muted)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={accent} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={shown ? c * (1 - clamped) : c}
-          style={{ filter: `drop-shadow(0 0 4px color-mix(in srgb, ${accent} 45%, transparent))`, transition: 'stroke-dashoffset var(--mo-spring-gentle-duration) var(--mo-spring-gentle)' }}
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">{children}</div>
-    </div>
+    <ProgressFill variant="ring" fraction={fraction} size={size} stroke={stroke} accent={accent} label={label} className={urgent ? s.urgent : undefined}>
+      {children}
+    </ProgressFill>
   );
 }
 
@@ -85,27 +71,16 @@ export function Fan({ running, kick = 0, size = 26 }: { running: boolean; kick?:
 }
 
 /**
- * Text that rises in word by word: once when it first appears, and again whenever `text` changes (a new count, a new
- * status). Read out whole by screen readers; still under reduced motion.
+ * Text that crossfades once when it first appears and again whenever `text` changes (a new count, a new
+ * status): one moving thing, never a per-word rise. Read out whole by screen readers; still under reduced motion.
  */
-export function AnimatedText({ text, className = '', as = 'span', stagger = 0.045 }: {
-  text: string; className?: string; as?: 'span' | 'h1' | 'h2' | 'p'; stagger?: number;
+export function AnimatedText({ text, className = '', as = 'span' }: {
+  text: string; className?: string; as?: 'span' | 'h1' | 'h2' | 'p';
 }) {
-  const reduced = useIsReducedMotion();
   const Tag = as;
-  if (reduced) return <Tag className={className}>{text}</Tag>;
-  const words = text.split(' ');
   return (
-    <Tag className={className}>
-      {/* Screen readers get the whole text once; the animated words are decoration. */}
-      <span className="sr-only">{text}</span>
-      <span key={text} aria-hidden="true" className="inline-block">
-        {words.map((w, i) => (
-          <span key={i} className={`${s.riseWord} inline-block whitespace-pre`} style={{ animationDelay: `${i * stagger}s` }}>
-            {w}{i < words.length - 1 ? ' ' : ''}
-          </span>
-        ))}
-      </span>
-    </Tag>
+    <Presence visible fadeOnly swapKey={text}>
+      <Tag className={className}>{text}</Tag>
+    </Presence>
   );
 }

@@ -1,6 +1,6 @@
 // Floor motion off framer (B4s4): Slab is a plain div, CountUp is the shared
-// NumberTransition (in place under the reduced-motion setup), the ring is a
-// plain circle sweeping on the gentle token, animated text is plain, fan is SVG.
+// NumberTransition (in place under the reduced-motion setup), the ring is the shared
+// ProgressFill ring (plain circle under reduced motion), animated text is plain, fan is SVG.
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AnimatedText, CountUp, Fan, Ring, Slab } from './motion';
@@ -26,12 +26,16 @@ describe('floor motion (reduced motion)', () => {
     expect(container.querySelector('.sr-only')).toHaveTextContent('7 h');
   });
 
-  it('sweeps the ring with a CSS transition on the gentle token, no transform', () => {
+  it('sweeps the ring through the shared ProgressFill ring, no own timing', () => {
     const { container } = render(<Ring fraction={0.5} accent="var(--mo-success)" label="Half to service">50%</Ring>);
+    expect(container.querySelector('[data-testid="progressfill"][data-variant="ring"]')).toBeInTheDocument();
     const fill = container.querySelectorAll('circle')[1] as unknown as SVGCircleElement;
-    expect(fill.style.transition).toContain('var(--mo-spring-gentle-duration)');
-    expect(fill.style.transition).toContain('var(--mo-spring-gentle)');
+    expect(fill.getAttribute('stroke')).toBe('var(--mo-success)');
+    // r = (64 - 6) / 2, half swept: dashoffset is half the circumference.
+    expect(parseFloat(fill.getAttribute('stroke-dashoffset') ?? 'NaN')).toBeCloseTo(2 * Math.PI * 29 * 0.5, 3);
+    expect(fill.style.transition).toBe('');
     expect(screen.getByRole('img', { name: 'Half to service' })).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
   });
 
   it('keeps animated text whole and still', () => {

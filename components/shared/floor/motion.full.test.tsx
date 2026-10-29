@@ -1,6 +1,6 @@
-// Floor motion with full motion (real framer module): animated text rises
-// word by word on the CSS smooth token, and CountUp rolls digit columns.
-import { render } from '@testing-library/react';
+// Floor motion with full motion (real framer module): animated text crossfades
+// whole through Presence (no per-word spans), and CountUp rolls digit columns.
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('framer-motion', async (importOriginal) => {
@@ -22,14 +22,12 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 describe('floor motion (full motion)', () => {
-  it('rises animated text word by word with staggered delays', () => {
+  it('crossfades animated text whole, with no per-word spans', () => {
     const { container } = render(<AnimatedText text="Fleet running now" />);
-    expect(container.querySelector('.sr-only')).toHaveTextContent('Fleet running now');
-    const words = container.querySelectorAll('[aria-hidden="true"] span');
-    expect(words).toHaveLength(3);
-    expect((words[1] as HTMLElement).style.animationDelay).toBe('0.045s');
+    expect(screen.getByText('Fleet running now')).toBeInTheDocument();
+    expect(container.querySelectorAll('[aria-hidden="true"] span')).toHaveLength(0);
+    expect(container.querySelector('.sr-only')).toBeNull();
   });
-
   it('rolls count digits in columns', () => {
     const { container } = render(<CountUp value={12} />);
     expect(container.querySelector('.sr-only')).toHaveTextContent('12');
