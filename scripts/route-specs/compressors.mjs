@@ -54,6 +54,26 @@ const spec = {
     check(post?.body.compressor_id === 1 && post.body.date === TODAY && post.body.current_total_running === 995 && post.body.current_total_loaded === 702, 'saving sends the cumulative totals for the chosen day', JSON.stringify(post?.body));
     check(!(await drawer.isVisible()), 'the drawer closes after a save');
 
+    // Pod -> drawer zoom: the drawer grows out of its pod and shrinks back.
+    await pods.filter({ hasText: 'Compressor One' }).click();
+    const zoomed = page.getByRole('dialog', { name: 'Compressor One' });
+    await zoomed.waitFor();
+    check(await page.locator('[data-zoom-panel="compressors:unit:1"]').getAttribute('data-zoom-mode') === 'zoom', 'the drawer grows out of its pod');
+    await page.keyboard.press('Escape');
+    await zoomed.waitFor({ state: 'hidden' });
+    check(!(await zoomed.isVisible().catch(() => false)), 'the drawer shrinks back and closes');
+    // Closing mid-open reverses smoothly, and the zoom still works after.
+    await pods.filter({ hasText: 'Compressor One' }).click();
+    await zoomed.waitFor();
+    await page.keyboard.press('Escape');
+    await zoomed.waitFor({ state: 'hidden' }).catch(() => {});
+    check(!(await zoomed.isVisible().catch(() => false)), 'closing mid-open reverses cleanly');
+    await pods.filter({ hasText: 'Compressor One' }).click();
+    await zoomed.waitFor();
+    check(await page.locator('[data-zoom-panel="compressors:unit:1"]').getAttribute('data-zoom-mode') === 'zoom', 'the zoom recovers after a mid-flight reversal');
+    await page.keyboard.press('Escape');
+    await zoomed.waitFor({ state: 'hidden' });
+
     // Month view: a day with a reading, a missing day shown as no reading (never zero), totals, and a click opens that day.
     await page.getByRole('button', { name: 'Month', exact: true }).click();
     const month = page.getByRole('table');

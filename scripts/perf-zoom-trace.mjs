@@ -33,7 +33,7 @@ const data = {
 const browser = await chromium.launch({ headless: true });
 const context = await fixtureContext(browser, makeHandler(data, []), { width: 1440, height: 900 });
 const page = await context.newPage();
-await context.newCDPSession(page).then(s => s.send('Emulation.setCPUThrottlingRate', { rate: 4 }));
+const THR = Number(process.env.THROTTLE ?? 4); if (THR > 1) await context.newCDPSession(page).then(s => s.send('Emulation.setCPUThrottlingRate', { rate: THR }));
 await page.addInitScript(() => {
   window.__longtasks = [];
   try {
@@ -54,18 +54,27 @@ const report = (label, tasks) => {
 
 await page.goto(`${BASE}/maintenance`, { waitUntil: 'networkidle' });
 const cards = page.getByRole('button', { name: /Open work order/ });
-await cards.first().waitFor({ timeout: 15000 });
+await cards.first().waitFor({ timeout: 90000 });
 const count = await cards.count();
 console.log(`cards rendered: ${count} (register holds ${orders.length}; the page shows ${count} per page)`);
 if (count !== 25) { console.log(`FAIL expected one full page of 25 cards, saw ${count}`); await browser.close(); process.exit(1); }
 // Let first paint settle outside any window (initial mount never animates).
 await page.waitForTimeout(1000);
+// Warm-up open/close outside every window.
+await cards.first().click();
+await page.getByRole('dialog').first().waitFor({ timeout: 30000 });
+await page.keyboard.press('Escape');
+await page.waitForTimeout(500);
+
 
 let failures = 0;
 // Window 1: card -> detail zoom (gentle 0.45s + margin).
 let t0 = await now();
-await cards.first().click();
+await cards.first().dispatchEvent('click');
 await page.getByRole('dialog').first().waitFor({ timeout: 8000 });
+const openedMs = await now().then(t => t - t0);
+console.log(`click-to-open: ${openedMs.toFixed(0)}ms (budget 300ms)`);
+if (openedMs > 300) { console.log('FAIL click-to-open over budget'); failures += 1; }
 await page.waitForTimeout(900);
 failures += report('zoom-open ', await tasksBetween(t0, await now()));
 

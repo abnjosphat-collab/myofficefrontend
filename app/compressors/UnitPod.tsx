@@ -2,15 +2,15 @@
 // and whether today's reading is in. The whole pod is one button that opens the unit drawer.
 'use client';
 
+import { memo } from 'react';
 import { Icon } from '@/components/ui-system';
 import { STATUS_META, hours } from './meta';
 import type { Compressor } from './types';
 import { AnimatedText, CountUp, Fan, Ring, Slab } from '@/components/shared/floor/motion';
 import { serviceLife, statusAccent, type ServiceLife } from './floorLogic';
 import s from '@/components/shared/floor/floor.module.css';
-
-export function UnitPod({ compressor, recordedToday, justSaved, kick, onOpen }: {
-  compressor: Compressor; recordedToday: boolean; justSaved: boolean; kick: number; onOpen: () => void;
+export const UnitPod = memo(function UnitPod({ compressor, recordedToday, justSaved, kick, onOpen }: {
+  compressor: Compressor; recordedToday: boolean; justSaved: boolean; kick: number; onOpen: (id: number) => void;
 }) {
   const accent = statusAccent(compressor.status);
   const life: ServiceLife = serviceLife(compressor.total_running_hours);
@@ -23,8 +23,8 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, onOpen }: 
         role="button"
         tabIndex={0}
         aria-label={`${compressor.name}, ${status}, ${hours(compressor.total_running_hours)} running. ${recordedToday ? 'Reading recorded today.' : 'Reading due today.'} Open to record a reading.`}
-        onClick={onOpen}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+        onClick={() => onOpen(compressor.id)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(compressor.id); } }}
       >
         <div className="flex flex-col gap-4 p-4">
           <header className={`flex items-start gap-3`}>
@@ -69,4 +69,4 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, onOpen }: 
         </div>
       </Slab>
   );
-}
+});
