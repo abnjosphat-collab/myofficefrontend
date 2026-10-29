@@ -396,6 +396,16 @@ Motion-and-fixes batch B5 (full account in workspace `audit/motion-and-fixes-202
 - Gate: tsc clean, eslint 0 errors (17 pre-existing warnings), vitest 330 files/2361 tests green (full; 2 NumberTransition count tests repaired mid-run for the mount gate), docs:check clean, build green, FULL verify-routes ALL CHECKS PASSED, FULL a11y 0 violations, post-fix renders inspected 1440+390 (incl dark set-password, print emulation light).
 - Worktree note: backend untracked reset SQL preserved, never staged or run. Port-scoped server stops only (old :3019 node killed by port; dev :3020 stopped after diagnosis).
 
+## 8v. Overtime bulk edit: start and end time (Claude, 29 Oct 2026; owner said "wire both into the live site"; backend `f44fe56` then frontend, tagged `release-2026-10-29-1`)
+
+Owner report: overtime bulk editing did not allow editing time. Times had been deliberately excluded from bulk edit on both sides; the owner's request reverses that for times only.
+
+- Frontend `app/overtime/OTBulkEditDialog.tsx`: new "Start and end time" field using the shared `ShiftTimeRange` (quick shifts + duration), sent as `start_time`/`end_time` by `toBulkOTPatch`; half a pair or a zero-length window is explained, never saved.
+- Backend `POST /api/overtime/bulk-edit`: `start_time`/`end_time` accepted as a pair (HH:MM, not equal, overnight allowed); new times clear directly-typed `hours` (as a single edit does); each record is overlap-checked on its own (or new) date with the new times, and clashes are skipped with a reason. Hours, identity and lifecycle fields stay out of bulk edit; locked (approved/paid/rejected) records still need a manager.
+- Gate: backend pytest 2809 passed (4 new, proven failing on the old code), pyright 184/196; frontend overtime vitest 80 passed (6 new), tsc clean, eslint clean on changed files, docs:check clean. NOT run: route specs and 1440/390 renders (RAM was taken by the parallel Muse N2 run); covered by a live read-only check after release and the owner's own check.
+- No schema or data changes. Built in worktree `frontend-otbulk` so Muse's `n2-compressors-ratchet-zoom` work in `frontend/` was untouched.
+- Rollback: revert the frontend commit, then backend `f44fe56` (the backend change is additive; reverting the frontend alone is enough to hide the field).
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
