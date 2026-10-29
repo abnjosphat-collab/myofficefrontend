@@ -204,7 +204,8 @@ export function useToolsWorkspace() {
     try {
       if (!current?.backendId) throw new Error('This equipment record has not been saved yet.');
       const employee=employees.find(item=>item.id===input.person||item.name===input.person||employeeLabel(item)===input.person);
-      await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:input.kind,employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,assigned_equipment:input.assignedEquipment||[],condition:input.condition,notes:input.notes,approval_ref:input.approvalRef,calibration:input.calibration,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,idempotency_key:crypto.randomUUID()});
+      const memberConditions=input.memberConditions?Object.fromEntries(Object.entries(input.memberConditions).map(([registerId,condition])=>{const member=tools.find(item=>item.id===registerId);return [member?.backendId||registerId,condition];}).filter(([backendId])=>!!backendId)):undefined;
+      await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:input.kind,employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,assigned_equipment:input.assignedEquipment||[],condition:input.condition,notes:input.notes,approval_ref:input.approvalRef,calibration:input.calibration,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,member_conditions:memberConditions||undefined,idempotency_key:crypto.randomUUID()});
       await reloadWorkspace(); setModal(null); setFeedback('Change saved.'); notify.success('Change saved');
     } catch(error) { notify.error(error instanceof Error?error.message:'The movement could not be saved.'); }
   }
@@ -237,6 +238,15 @@ export function useToolsWorkspace() {
     try { await uploadNewEvidence(tool,files); await reloadWorkspace(); setModal(null); notify.success('Attachments saved'); }
     catch(error) { notify.error(error instanceof Error?error.message:'Attachments could not be saved.'); }
   }
+  async function syncSetMembers(headBackendId:string,wantRegisterIds:string[]) {
+    const token=requireToken();
+    const head=tools.find(item=>item.backendId===headBackendId);
+    const have=new Set(head?.memberIds??[]);
+    const want=new Set(wantRegisterIds);
+    const byId=new Map(tools.map(item=>[item.id,item]));
+    for (const registerId of want) { if(have.has(registerId)) continue; const member=byId.get(registerId); if(!member?.backendId) continue; await toolsApi.post(`/tools/${headBackendId}/members`,token,{member_ids:[member.backendId]}); }
+    for (const registerId of have) { if(want.has(registerId)) continue; const member=byId.get(registerId); if(!member?.backendId) continue; await toolsApi.remove(`/tools/${headBackendId}/members/${member.backendId}`,token); }
+  }
   async function saveTool(tool: Tool) {
     try {
       const editing=modal?.kind==='edit';
@@ -244,7 +254,7 @@ export function useToolsWorkspace() {
       let saved:ServerTool;
       if (editing) { if (!tool.backendId) throw new Error('This equipment record has not been saved yet.'); saved=await toolsApi.patch(`/tools/${tool.backendId}`,requireToken(),payload); }
       else saved=await toolsApi.post('/tools',requireToken(),payload);
-      const mapped=toolFromServer(saved); await uploadNewEvidence(mapped,tool.evidence||[]);
+      const mapped=toolFromServer(saved); if (tool.memberIds!==undefined&&mapped.backendId) { await syncSetMembers(mapped.backendId,tool.memberIds); } await uploadNewEvidence(mapped,tool.evidence||[]);
       await reloadWorkspace(); setModal(null); clearFilters(); setTab('register'); setDepartment(departmentOf(tool)); notify.success(editing?'Equipment updated':'Equipment added');
     } catch(error) { notify.error(error instanceof Error?error.message:'The equipment could not be saved.'); }
   }

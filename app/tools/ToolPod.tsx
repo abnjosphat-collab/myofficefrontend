@@ -22,7 +22,7 @@ export function ToolPod({ tool, onOpen, onAction }: { tool: Tool; onOpen: () => 
       title={tool.name}
       subtitle={tool.make || undefined}
       status={<StatusBadge tone={tool.archived ? 'neutral' : statusTone(tool.status)}>{tool.archived ? 'Archived' : label}</StatusBadge>}
-      meta={<>{whereIs(tool)}{' · '}{out && tool.due ? <span className={tool.status === 'overdue' ? 'font-medium text-danger' : undefined}>Due {tool.due}</span> : tool.category}</>}
+      meta={<>{whereIs(tool)}{' · '}{out && tool.due ? <span className={tool.status === 'overdue' ? 'font-medium text-danger' : undefined}>Due {tool.due}</span> : tool.category}{tool.memberIds && tool.memberIds.length > 0 ? (tool.memberIds.length === 1 ? ' · 1-piece set' : ` · Set of ${tool.memberIds.length}`) : ''}{tool.setHeadId ? ` · Part of ${tool.setHeadName || 'set'}` : ''}</>}
       action={quick && onAction ? <Button size="sm" disabled={quick === 'issue' && nobodyCanUse(tool)} title={quick === 'issue' && nobodyCanUse(tool) ? 'Nobody can use it yet.' : undefined} onClick={() => onAction(quick, tool)}>{quick === 'issue' ? 'Issue' : 'Receive'}</Button> : undefined}
       onOpen={onOpen}
       openLabel={`${tool.name}, ${tool.id}, ${label}. ${whereIs(tool)}. Open for details.`}

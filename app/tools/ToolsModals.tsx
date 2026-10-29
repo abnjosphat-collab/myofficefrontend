@@ -94,7 +94,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (modal.kind === 'edit-employee-number') return <EmployeeNumberForm employee={modal.employee} onSave={number => w.saveEmployeeNumber(modal.employee, number)} onCancel={close} />;
     if (modal.kind === 'edit-employee-section') return <EmployeeSectionForm employee={modal.employee} onSave={section => w.saveEmployeeSection(modal.employee, section)} onCancel={close} />;
     if (modal.kind === 'new' || modal.kind === 'edit') {
-      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} suggestTradeSections={w.suggestTradeSections} />;
+      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} suggestTradeSections={w.suggestTradeSections} tools={w.scope} />;
     }
     if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => w.saveAttachments(modal.tool, files)} />;
     if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => w.markToolReady(modal.tool, note)} onCancel={close} />;

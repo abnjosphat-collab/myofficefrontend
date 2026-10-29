@@ -73,5 +73,6 @@ export const toolsApi = {
   put: <T>(path: string, token: string, body: unknown) => request<T>(path, token, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(path: string, token: string, body: unknown) => request<T>(path, token, { method: 'PATCH', body: JSON.stringify(body) }),
   download,
+  remove: <T>(path: string, token: string) => request<T>(path, token, { method: 'DELETE' }),
   anonymousPost: <T>(path: string, body: unknown) => retryUndelivered(() => request<T>(path, undefined, { method: 'POST', body: JSON.stringify(body) })),
 };

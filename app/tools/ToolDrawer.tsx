@@ -30,7 +30,7 @@ function PreUseForm({ w, toolId }: { w: ToolsWorkspace; toolId: string }) {
 }
 
 export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
-  const { selected: tool, selectedFacts, activity, employees, currentAccount, options } = w;
+  const { selected: tool, selectedFacts, activity, employees, currentAccount, options, tools } = w;
   const manage = !!currentAccount && ['admin', 'issuer'].includes(currentAccount.role);
   const history = tool ? activity.filter(a => a.toolId === tool.id) : [];
   const accent = tool ? statusAccent(tool.status) : 'var(--mo-neutral)';
@@ -91,6 +91,20 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
                   </>
                 )}
               </div>
+            </section>
+          )}
+
+          {(!!tool.memberIds?.length || tool.setHeadId) && (
+            <section aria-label="Set contents" className="flex flex-col gap-2 border-t border-line-subtle pt-5">
+              <h3 className="font-sans text-caption font-medium text-ink-muted">Set contents</h3>
+              {tool.memberIds?.length ? (
+                <ul className="flex flex-col gap-1">
+                  {tool.memberIds.map(id => { const member = tools.find(t => t.id === id); return (
+                    <li key={id} className="font-sans text-body-sm text-ink">{id} · {member?.name ?? 'Removed from register'}<span className="block font-sans text-caption text-ink-muted">{member ? `${member.status === 'available' ? 'Ready' : member.holder ? `With ${member.holder.split(' · ')[0]}` : member.status} · ${member.condition}` : ''}</span></li>); })}
+                </ul>
+              ) : (
+                <p className="font-sans text-body-sm text-ink-muted">Part of set {tool.setHeadName || tool.setHeadId} — record movements on the set.</p>
+              )}
             </section>
           )}
 
