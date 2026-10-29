@@ -105,7 +105,7 @@ function addGroupSpacer(ws: import('exceljs').Worksheet) {
 /** `title` heads the sheet and names its tab, so a filtered export (for example NEC only) says what it covers. */
 export async function exportPersonnelRegistryExcel(employees: Employee[], filename: string, title = 'Personnel Registry'): Promise<void> {
   if (employees.length === 0) {
-    toast.error('No employees to export');
+    toast.error('No employees to download');
     return;
   }
 
@@ -214,8 +214,8 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
       new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
       `${filename}.xlsx`,
     );
-    toast.success(`${title} exported — ${employees.length} employees, ${groups.length} designations`);
+    toast.success(`${title} downloaded — ${employees.length} employees, ${groups.length} designations`);
   } catch (err) {
-    toast.error(`Export failed: ${(err as Error).message}`);
+    toast.error(`Download failed: ${(err as Error).message}`);
   }
 }

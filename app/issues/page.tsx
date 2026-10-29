@@ -63,7 +63,7 @@ function IssuesContent() {
     catch (e) { toast.error(`The record was not deleted: ${(e as Error).message}`); }
   };
   const fb = useActionFeedback(EXPORT_CHECK_MS);
-  const run = (fn: () => Promise<void>, done: string) => fb.run(async () => { try { await fn(); toast.success(done); } catch (e) { toast.error(`Export failed: ${(e as Error).message}`); throw e; } });
+  const run = (fn: () => Promise<void>, done: string) => fb.run(async () => { try { await fn(); toast.success(done); } catch (e) { toast.error(`Download failed: ${(e as Error).message}`); throw e; } });
 
   const COLUMNS: Column<StockIssue>[] = [
     { id: 'issued_at', header: 'Date and time', sortable: true, sticky: true, cell: i => <span className="whitespace-nowrap tabular">{fmtDateTime(i.issued_at)}</span> },
@@ -127,8 +127,8 @@ function IssuesContent() {
             trailing={(<ExportButton
               disabled={issues.length === 0} pending={fb.pending} success={fb.success}
               items={[
-                { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => run(() => exportIssuesExcel(issues), `Excel exported, ${issues.length} issues.`) },
-                { label: 'PDF', icon: 'pdf', onSelect: () => run(() => exportIssuesPdf(issues), `PDF exported, ${issues.length} issues.`) },
+                { label: 'Excel (.xlsx)', icon: 'table-view', onSelect: () => run(() => exportIssuesExcel(issues), `Excel downloaded, ${issues.length} issues.`) },
+                { label: 'PDF', icon: 'pdf', onSelect: () => run(() => exportIssuesPdf(issues), `PDF downloaded, ${issues.length} issues.`) },
               ]}
             />)}
             filtered={hasFilters}

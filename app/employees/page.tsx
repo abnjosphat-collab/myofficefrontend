@@ -86,14 +86,14 @@ function EmployeesContent() {
     await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${formatMineNumber(e.employee_id)}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
   const downloadRegistry = () => fb.run(async () => {
-    try { await exportPersonnelRegistryExcel(active, exportFilename('Personnel_Registry')); toast.success(`Registry exported, ${active.length} people.`); }
-    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); throw e; }
+    try { await exportPersonnelRegistryExcel(active, exportFilename('Personnel_Registry')); toast.success(`Registry downloaded, ${active.length} people.`); }
+    catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
 
   const necList = useMemo(() => necEmployees(active), [active]);
   const downloadNecRegistry = () => fb.run(async () => {
     try { await exportPersonnelRegistryExcel(necList, exportFilename('NEC_Personnel_Registry'), 'NEC Personnel Registry'); }
-    catch (e) { toast.error(`The export failed: ${(e as Error).message}`); throw e; }
+    catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
 
   const actionsOf = (e: Employee) => (

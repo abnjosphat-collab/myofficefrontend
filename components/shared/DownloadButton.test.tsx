@@ -40,7 +40,7 @@ describe('DownloadButton Excel export', () => {
   it('opens the export menu and exposes both formats', async () => {
     const user = userEvent.setup();
     render(<DownloadButton data={data} columns={columns} filename="test" />);
-    await user.click(screen.getByRole('button', { name: 'Export' }));
+    await user.click(screen.getByRole('button', { name: 'Download' }));
     expect(screen.getByRole('menuitem', { name: 'Excel (.xlsx)' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'PDF' })).toBeInTheDocument();
   });
@@ -92,23 +92,23 @@ describe('DownloadButton phases', () => {
 });
 
 describe('DownloadButton trigger', () => {
-  it('defaults to a labelled Export button, not an icon', () => {
+  it('defaults to a labelled Download button, not an icon', () => {
     render(<DownloadButton data={data} columns={columns} filename="test" />);
-    const trigger = screen.getByRole('button', { name: 'Export' });
-    expect(trigger.textContent).toContain('Export');
+    const trigger = screen.getByRole('button', { name: 'Download' });
+    expect(trigger.textContent).toContain('Download');
     cleanup();
   });
 
-  it('a single format renders its Export label with no menu', () => {
+  it('a single format renders its Download label with no menu', () => {
     render(<DownloadButton data={data} columns={columns} filename="test" formats={['excel']} />);
-    expect(screen.getByRole('button').textContent).toContain('Export Excel');
+    expect(screen.getByRole('button').textContent).toContain('Download Excel');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     cleanup();
   });
 
-  it('iconOnly renders an icon trigger named Export, for dense table row actions', () => {
+  it('iconOnly renders an icon trigger named Download, for dense table row actions', () => {
     render(<DownloadButton data={data} columns={columns} filename="test" iconOnly />);
-    expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
     cleanup();
   });
 });

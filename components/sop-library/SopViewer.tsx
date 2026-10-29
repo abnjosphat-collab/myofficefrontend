@@ -47,8 +47,8 @@ export function SopViewer({ sop, onClose, loadRevisions, canEdit, archived, onEd
           <ExportButton
             pending={fb.pending} success={fb.success}
             items={[
-              { label: 'Export Word', icon: 'download', onSelect: () => { void fb.run(() => Promise.resolve(onExportWord(sop))); } },
-              { label: 'Export PDF', icon: 'pdf', onSelect: () => { void fb.run(() => Promise.resolve(onExportPdf(sop))); } },
+              { label: 'Download Word', icon: 'download', onSelect: () => { void fb.run(() => Promise.resolve(onExportWord(sop))); } },
+              { label: 'Download PDF', icon: 'pdf', onSelect: () => { void fb.run(() => Promise.resolve(onExportPdf(sop))); } },
             ]}
           />
           {canEdit && !archived && <Button variant="primary" icon="edit" onClick={() => onEdit(sop)}>Edit</Button>}

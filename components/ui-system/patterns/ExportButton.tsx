@@ -38,7 +38,7 @@ export type ExportButtonCommon = {
  * and bespoke exporters use it directly so every export looks the same.
  *
  * At 390 px and below a single-mode label shortens to `shortLabel`
- * ("Export"), never to a bare icon; the menu trigger already reads "Export".
+ * ("Download"), never to a bare icon; the menu trigger already reads "Download".
  */
 export function ExportButton(props: ExportButtonCommon & (
   | { items: ExportMenuItem[]; onPress?: never; label?: never; shortLabel?: never }
@@ -50,8 +50,8 @@ export function ExportButton(props: ExportButtonCommon & (
   if (props.items) {
     const items = props.items;
     const trigger = iconOnly
-      ? <IconButton icon={icon} label="Export" tooltip="Export" variant="shell" size={iconSize} pending={pending} success={success} className={className} />
-      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} success={success} className={className}>Export</Button>;
+      ? <IconButton icon={icon} label="Download" tooltip="Download" variant="shell" size={iconSize} pending={pending} success={success} className={className} />
+      : <Button variant="secondary" size={size} icon={icon} iconAfter="chevron-down" disabled={disabled} pending={pending} success={success} className={className}>Download</Button>;
     return (
       <Menu>
         <MenuTrigger asChild>{trigger}</MenuTrigger>
@@ -62,7 +62,7 @@ export function ExportButton(props: ExportButtonCommon & (
     );
   }
 
-  const { onPress, label, shortLabel = 'Export' } = props;
+  const { onPress, label, shortLabel = 'Download' } = props;
   if (iconOnly) {
     return <IconButton icon={icon} label={label} tooltip={label} variant="shell" size={iconSize} disabled={disabled} pending={pending} success={success} onClick={onPress} className={className} />;
   }

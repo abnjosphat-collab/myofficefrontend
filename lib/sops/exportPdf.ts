@@ -68,7 +68,7 @@ function buildSopPdfDocument(sop: SopDocument) {
     }),
 
     h(View, { style: styles.footer, key: 'footer', fixed: true }, [
-      h(Text, { key: '1' }, `Exported ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`),
+      h(Text, { key: '1' }, `Downloaded ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`),
       h(Text, { key: '2' }, 'This is a versioned snapshot as saved at export time — future changes will not update this downloaded file.'),
     ]),
   ]));

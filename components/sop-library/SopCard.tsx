@@ -51,8 +51,8 @@ export function SopCard({ sop, canEdit, archived, onOpen, onEdit, onExportWord, 
         <Menu>
           <MenuTrigger asChild><IconButton icon="more" label={`Actions for ${sop.code}`} size="sm" /></MenuTrigger>
           <MenuContent align="end">
-            <MenuItem icon="download" onSelect={onExportWord}>Export Word</MenuItem>
-            <MenuItem icon="pdf" onSelect={onExportPdf}>Export PDF</MenuItem>
+            <MenuItem icon="download" onSelect={onExportWord}>Download Word</MenuItem>
+            <MenuItem icon="pdf" onSelect={onExportPdf}>Download PDF</MenuItem>
             {canEdit && <MenuSeparator />}
             {canEdit && !archived && <MenuItem icon="edit" onSelect={onEdit}>Edit</MenuItem>}
             {canEdit && !archived && onArchive && <MenuItem icon="archive" tone="danger" onSelect={onArchive}>Archive</MenuItem>}

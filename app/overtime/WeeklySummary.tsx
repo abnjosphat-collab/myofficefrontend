@@ -39,7 +39,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
         <Field label="To" className="w-40"><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></Field>
         <Button onClick={() => { setFrom(week.from); setTo(week.to); }} title="The last completed Monday to Sunday">Last week</Button>
         <Select aria-label="Order" className="w-52" value={sort} onValueChange={v => setSort(v as WeeklySort)} options={SORTS} />
-        {!invalid && view.rows.length > 0 && <ExportButton label="Export Excel" onPress={download} pending={fb.pending} success={fb.success} className="ml-auto" />}
+        {!invalid && view.rows.length > 0 && <ExportButton label="Download Excel" onPress={download} pending={fb.pending} success={fb.success} className="ml-auto" />}
       </div>
 
       {view.excluded > 0 && <Notice tone="info" title="Engineering cost centre only">This summary leaves out {view.excluded} {view.excluded === 1 ? 'record' : 'records'} charged to another department.</Notice>}

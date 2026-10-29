@@ -63,7 +63,7 @@ export function CompanyPanel({ company, onChange }: { company: Company; onChange
 export function ClientPanel({ client, onChange, recent }: { client: Party; onChange: (c: Party) => void; recent: { label: string; party: Party }[] }) {
   const set = (patch: Partial<Party>) => onChange({ ...client, ...patch });
   return (
-    <Section title="Who it is for" description="A name or a company is enough to export.">
+    <Section title="Who it is for" description="A name or a company is enough to download it.">
       {recent.length > 0 && (
         <div role="group" aria-label="Clients from saved quotations" className="flex flex-wrap items-center gap-1.5">
           <span className="font-sans text-caption text-ink-muted">From your saved quotations:</span>

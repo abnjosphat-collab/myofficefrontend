@@ -133,7 +133,7 @@ describe('NecPersonView', () => {
     expect(p.onEditDay).toHaveBeenCalledWith(days[1], entries[1]);
     await user.click(screen.getByRole('button', { name: 'Add an entry for 18 Sept 2026' }));
     expect(p.onEditDay).toHaveBeenCalledWith(days[4], undefined);
-    await user.click(screen.getByRole('button', { name: 'Export this person' }));
+    await user.click(screen.getByRole('button', { name: 'Download this person' }));
     expect(p.onDownload).toHaveBeenCalledTimes(1);
   });
 

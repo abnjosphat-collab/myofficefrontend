@@ -57,7 +57,7 @@ function QuotationsContent() {
 
   const run = (kind: 'pdf' | 'word') => {
     const p = problems(draft);
-    if (p.length) { setBlocked(p); toast.error('The quotation is not ready to export.'); return; }
+    if (p.length) { setBlocked(p); toast.error('The quotation is not ready to download.'); return; }
     void fb.run(async () => {
       try { const name = await (kind === 'pdf' ? exportPdf(draft, company) : exportWord(draft, company)); toast.success(`${name} saved to your downloads.`); }
       catch (e) { toast.error(`The ${kind === 'pdf' ? 'PDF' : 'Word file'} could not be made: ${(e as Error).message}`); throw e; }
@@ -91,7 +91,7 @@ function QuotationsContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Quotations' }]}
         title="Quotations"
-        description="Write a quotation and export it as a PDF or Word file. The draft and your company details stay in this browser; saved quotations are kept on the server for everyone. The page cannot email a quotation: export it and send the file."
+        description="Write a quotation and download it as a PDF or Word file. The draft and your company details stay in this browser; saved quotations are kept on the server for everyone. The page cannot email a quotation: download it and send the file."
         actions={(
           <>
             <Button icon="save" onClick={save}>Save</Button>
@@ -106,7 +106,7 @@ function QuotationsContent() {
           </>
         )}
       />
-      {blocked.length > 0 && <Notice tone="danger" title="Fix these before exporting"><span className="flex flex-col gap-0.5">{blocked.map(b => <span key={b}>{b}</span>)}</span></Notice>}
+      {blocked.length > 0 && <Notice tone="danger" title="Fix these before downloading"><span className="flex flex-col gap-0.5">{blocked.map(b => <span key={b}>{b}</span>)}</span></Notice>}
 
       <MetricGrid compact>
         <MetricTile compact label="Line items" value={used} />

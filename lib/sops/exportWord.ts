@@ -85,7 +85,7 @@ export async function exportSopToWord(sop: SopDocument): Promise<void> {
 
         new Paragraph({
           children: [new TextRun({
-            text: `Exported ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`,
+            text: `Downloaded ${formatDateTime(new Date())} · saved version ${sop.version} · last updated ${formatDateTime(sop.updated_at)}`,
             size: 14, italics: true, color: MUTED,
           })],
           spacing: { before: 500 },

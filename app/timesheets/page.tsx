@@ -177,7 +177,7 @@ function TimesheetsContent() {
               loading={loading}
             />
 
-            <Toolbar filtered={search !== ''} trailing={<ExportButton label="Export" onPress={() => openDownload(null)} disabled={unavailable} />}>
+            <Toolbar filtered={search !== ''} trailing={<ExportButton label="Download" onPress={() => openDownload(null)} disabled={unavailable} />}>
               <SearchField value={search} onValueChange={setSearch} placeholder="Search name, position or department" wrapperClassName="min-w-48 max-w-md flex-1" />
               <Button icon="sort" onClick={() => setSortBy(s => (s === 'name' ? 'dept' : 'name'))}>{sortBy === 'name' ? 'Sorted by name' : 'Sorted by department'}</Button>
               {search !== '' && <Button variant="ghost" icon="close" onClick={() => setSearch('')}>Clear search</Button>}

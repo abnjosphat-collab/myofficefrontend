@@ -75,8 +75,8 @@ export function ArtisanEditor({ draft, onChange, saved, dirty, blocked, sourcesF
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button icon="download" pending={exporting === 'excel'} success={exportDone === 'excel'} disabled={!!exporting} onClick={() => onExport('excel')}>Export Excel</Button>
-        <Button icon="pdf" pending={exporting === 'pdf'} success={exportDone === 'pdf'} disabled={!!exporting} onClick={() => onExport('pdf')}>Export PDF</Button>
+        <Button icon="download" pending={exporting === 'excel'} success={exportDone === 'excel'} disabled={!!exporting} onClick={() => onExport('excel')}>Download Excel</Button>
+        <Button icon="pdf" pending={exporting === 'pdf'} success={exportDone === 'pdf'} disabled={!!exporting} onClick={() => onExport('pdf')}>Download PDF</Button>
         <Button variant="primary" icon="save" pending={saving} onClick={onSave}>{saved ? 'Update timesheet' : 'Save timesheet'}</Button>
       </div>
     </div>

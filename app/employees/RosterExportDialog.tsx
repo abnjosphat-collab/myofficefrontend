@@ -23,7 +23,7 @@ export function RosterExportDialog({ open, employees, onOpenChange }: { open: bo
     void fb.run(async () => {
       try {
         if (format === 'excel') await exportRosterExcel(employees, by); else await exportRosterPdf(employees, by);
-        ok = true; toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} exported, ${employees.length} employees.`);
+        ok = true; toast.success(`${format === 'excel' ? 'Excel' : 'PDF'} downloaded, ${employees.length} employees.`);
       } catch (e) { setError(e instanceof Error ? e.message : 'The export failed.'); throw e; }
     }).then(() => { if (ok) window.setTimeout(() => onOpenChange(false), SAVE_CHECK_MS); });
   };
@@ -36,11 +36,11 @@ export function RosterExportDialog({ open, employees, onOpenChange }: { open: bo
       <div className="flex flex-col gap-5">
         <FieldGroup label="Group by" description={hint}><Segmented label="Group by" value={by} onValueChange={setBy} options={EXPORT_GROUPS.map(g => ({ value: g.value, label: g.label }))} /></FieldGroup>
         <FieldGroup label="Format"><Segmented label="Format" value={format} onValueChange={setFormat} options={[{ value: 'excel', label: 'Excel' }, { value: 'pdf', label: 'PDF' }]} /></FieldGroup>
-        <section aria-label="Groups in this export" className="flex flex-col gap-2">
+        <section aria-label="Groups in this download" className="flex flex-col gap-2">
           <p className="font-sans text-caption text-ink-muted" role="status">{preview.length} {preview.length === 1 ? 'group' : 'groups'}, {employees.length} people</p>
           <ul className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">{preview.map(g => <li key={g.label} className="min-w-20 rounded-control border border-line bg-surface-subtle px-3 py-2 text-center"><p className="font-sans text-title font-semibold tabular text-ink">{g.count}</p><p className="max-w-[7rem] truncate font-sans text-caption text-ink-muted" title={g.label}>{g.label}</p></li>)}</ul>
         </section>
-        {error && <Notice tone="danger" title="The export failed">{error}</Notice>}
+        {error && <Notice tone="danger" title="The download failed">{error}</Notice>}
       </div>
     </Dialog>
   );

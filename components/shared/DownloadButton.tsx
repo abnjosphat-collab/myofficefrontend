@@ -175,10 +175,10 @@ export function DownloadButton({
         new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
         `${filename}.xlsx`,
       );
-      toast.success(`Excel exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      toast.success(`Excel downloaded — ${data.length} record${data.length !== 1 ? 's' : ''}`);
       return true;
     } catch (err) {
-      toast.error(`Export failed: ${(err as Error).message}`);
+      toast.error(`Download failed: ${(err as Error).message}`);
       return false;
     }
   };
@@ -232,10 +232,10 @@ export function DownloadButton({
       });
 
       doc.save(`${filename}.pdf`);
-      toast.success(`PDF exported — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      toast.success(`PDF downloaded — ${data.length} record${data.length !== 1 ? 's' : ''}`);
       return true;
     } catch (err) {
-      toast.error(`Export failed: ${(err as Error).message}`);
+      toast.error(`Download failed: ${(err as Error).message}`);
       return false;
     }
   };
@@ -244,7 +244,7 @@ export function DownloadButton({
   if (formats.length === 1) {
     const onlyFormat = formats[0];
     const build = onlyFormat === 'excel' ? downloadExcel : downloadPDF;
-    return <ExportButton label={onlyFormat === 'excel' ? 'Export Excel' : 'Export PDF'} onPress={download(build)} pending={pending} success={success} iconOnly={iconOnly} className={className} />;
+    return <ExportButton label={onlyFormat === 'excel' ? 'Download Excel' : 'Download PDF'} onPress={download(build)} pending={pending} success={success} iconOnly={iconOnly} className={className} />;
   }
 
   return (

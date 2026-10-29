@@ -203,7 +203,7 @@ export function NecPersonView({ employee, period, days, entries, approvedLeaves,
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-surface-subtle px-4 py-2.5">
         <p className="max-w-3xl font-sans text-caption text-ink-muted">Days marked with a dot came from leave, overtime or a holiday and are not saved yet. Tap a day to enter or change it — entries save as you make them.</p>
-        <Button icon="download" onClick={onDownload}>Export this person</Button>
+        <Button icon="download" onClick={onDownload}>Download this person</Button>
       </div>
 
       <Tabs value={daysView} onValueChange={v => setDaysView(v === 'quick' ? 'quick' : 'cards')}>

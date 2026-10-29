@@ -61,7 +61,7 @@ export function RequisitionPanel({ open, onOpenChange, spares, saved, header, on
   return (
     <Drawer
       open={open} onOpenChange={onOpenChange} title="Parts requisition" description="Build a list of parts, then save, copy or download it."
-      footer={<><Button variant="ghost" onClick={() => { onLines([]); onHeader({ requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' }); }} disabled={lines.length === 0}>Clear</Button><Button icon="documents" onClick={copy} disabled={usable === 0} success={copied}>Copy</Button><Button variant="primary" icon="pdf" onClick={pdf} disabled={usable === 0} pending={fb.pending} success={fb.success}>Export PDF</Button></>}
+      footer={<><Button variant="ghost" onClick={() => { onLines([]); onHeader({ requester: '', reason: '', urgency: 'routine', priority: 'medium', required_for: '' }); }} disabled={lines.length === 0}>Clear</Button><Button icon="documents" onClick={copy} disabled={usable === 0} success={copied}>Copy</Button><Button variant="primary" icon="pdf" onClick={pdf} disabled={usable === 0} pending={fb.pending} success={fb.success}>Download PDF</Button></>}
     >
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

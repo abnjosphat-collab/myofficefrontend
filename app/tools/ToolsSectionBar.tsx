@@ -60,7 +60,7 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
         ) : undefined}
         trailing={(
           <>
-            <ExportButton label="Export" onPress={() => w.setModal({ kind: 'export' })} />
+            <ExportButton label="Download" onPress={() => w.setModal({ kind: 'export' })} />
             {tools_ && <ViewToggle value={view} onValueChange={w.setView} options={VIEW_GRID_LIST} />}
             <MoreMenu items={items} label="Actions" />
             {tab === 'employees' && <ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button></ZoomLink>}
