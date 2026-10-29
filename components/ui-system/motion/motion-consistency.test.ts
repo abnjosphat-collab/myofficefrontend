@@ -57,4 +57,29 @@ describe('motion-consistency', () => {
     expect(rules('app/leaves/page.tsx', `transition={{ ease: 'linear' }}`)).toContain('linear-ease');
     expect(rules('components/ui-system/motion/presets.ts', `ease: 'linear'`)).not.toContain('linear-ease');
   });
+
+  it('flags inline ease arrays except in the study', () => {
+    expect(rules('app/leaves/page.tsx', `<motion.div transition={{ ease: [0.16, 1, 0.3, 1] }} />`)).toContain('raw-ease');
+    expect(rules('app/test-homepage/page.tsx', `<motion.div transition={{ ease: [0.16, 1, 0.3, 1] }} />`)).not.toContain('raw-ease');
+    expect(rules('components/ui-system/motion/X.tsx', `ease: [0.16, 1, 0.3, 1]`)).not.toContain('raw-ease');
+  });
+
+  it('flags raw cubic-bezier except tokens + the fan spin-up', () => {
+    expect(rules('app/leaves/x.css', `.x { transition-timing-function: cubic-bezier(.2, .8, .2, 1); }`)).toContain('raw-bezier');
+    expect(rules('components/ui-system/foundations/tokens.css', `--mo-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);`)).not.toContain('raw-bezier');
+    expect(rules('components/shared/floor/floor.module.css', `.fan { animation-timing-function: cubic-bezier(.2, .8, .2, 1); }`)).not.toContain('raw-bezier');
+  });
+
+  it('flags @keyframes except the allow-listed loops and markers', () => {
+    expect(rules('app/leaves/x.css', `@keyframes slideUp { from { opacity: 0; } }`)).toContain('raw-keyframes');
+    expect(rules('components/shared/floor/floor.module.css', `@keyframes spinUp { 0% { transform: rotate(0); } }`)).not.toContain('raw-keyframes');
+    expect(rules('app/globals.css', `@keyframes mo-caret-blink { 50% { opacity: 0; } }`)).not.toContain('raw-keyframes');
+    expect(rules('app/login-preview/login-preview.module.css', `@keyframes drift { from { transform: none; } }`)).not.toContain('raw-keyframes');
+  });
+
+  it('flags animate-bounce and animate-ping with no exceptions', () => {
+    expect(rules('app/leaves/page.tsx', `<span className="animate-bounce" />`)).toContain('banned-animate');
+    expect(rules('app/leaves/page.tsx', `<span className="animate-ping" />`)).toContain('banned-animate');
+    expect(rules('app/leaves/page.tsx', `<span className="animate-pulse" />`)).not.toContain('banned-animate');
+  });
 });

@@ -10,6 +10,10 @@
 //     bounce/mass/delay) outside motion/ + the migration allowlist
 //   - a literal duration-[<n>ms] class anywhere (use a token)
 //   - ease: 'linear' outside motion/ (linear lives only in SPIN)
+//   - an inline ease array (ease: [...]) outside the study exception
+//   - a cubic-bezier() outside the token definitions + the fan spin-up curve
+//   - a @keyframes block outside the allow-list below (each entry carries why)
+//   - animate-bounce / animate-ping anywhere (banned; pulse and spin have named owners)
 // Usage: node scripts/motion-consistency.mjs [--json]
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -39,6 +43,24 @@ const LAYOUT_ALLOW = new Set([
   // B4s1: ActiveNoticesPopup migrated to Presence (was: card layout exception).
 ]);
 const LAYOUT_ALLOW_DIRS = ['app/test-homepage/', 'components/ui-system/motion/'];
+// Inline ease arrays: only the design study (its choreography is the exhibit).
+const EASE_ARRAY_ALLOW_DIRS = ['app/test-homepage/'];
+// Raw cubic-bezier(): only where the curve IS the sanctioned value.
+const BEZIER_ALLOW = new Set([
+  // The three easing tokens themselves (the only sanctioned raw curves).
+  'components/ui-system/foundations/tokens.css',
+  // The fan spin-up curve (kept CSS loops, B4-13): no preset equivalent.
+  'components/shared/floor/floor.module.css',
+]);
+// @keyframes blocks: only the loops and markers below, each with its reason.
+const KEYFRAMES_ALLOW = new Set([
+  // Fan spin-up/spin, saved-ring, ripple, attention nudges (kept CSS loops + markers, B4-13/B5).
+  'components/shared/floor/floor.module.css',
+  // Typewriter caret blink (the permanent typewriter exception).
+  'app/globals.css',
+  // Untouched-by-rule route: the login preview is not redesigned by this plan.
+  'app/login-preview/login-preview.module.css',
+]);
 
 const MOTION_DIR = 'components/ui-system/motion/';
 
@@ -107,6 +129,21 @@ export function scanText(rel, text) {
     if (complete >= 0) flag(complete, 'animation-complete', 'logic must never wait on an animation (no onAnimationComplete outside ui-system/motion)');
     const linear = code.search(/\bease\s*:\s*['"]linear['"]/);
     if (linear >= 0) flag(linear, 'linear-ease', "linear easing lives only in SPIN (presets.ts) — never for movement, never for fades");
+    if (!inDirs(rel, EASE_ARRAY_ALLOW_DIRS)) {
+      const arr = code.search(/\bease\s*:\s*\[/);
+      if (arr >= 0) flag(arr, 'raw-ease', 'inline ease arrays live nowhere — use a spring preset (study exception only)');
+    }
+    if (!BEZIER_ALLOW.has(rel)) {
+      const bez = code.search(/cubic-bezier\s*\(/);
+      if (bez >= 0) flag(bez, 'raw-bezier', 'raw cubic-bezier() lives only in the easing tokens + the fan spin-up curve');
+    }
+    if (!KEYFRAMES_ALLOW.has(rel)) {
+      for (const m of code.matchAll(/@keyframes\s+([\w-]+)/g)) {
+        flag(m.index, 'raw-keyframes', `keyframes @${m[1]} live only in the allow-listed loops and markers`);
+      }
+    }
+    const banned = code.search(/animate-(bounce|ping)\b/);
+    if (banned >= 0) flag(banned, 'banned-animate', 'animate-bounce/animate-ping are banned — waiting pulses through the calm pulse, loading through the shared Spinner');
   }
   const layoutAllowed = inMotion || LAYOUT_ALLOW.has(rel) || inDirs(rel, LAYOUT_ALLOW_DIRS);
   if (!layoutAllowed && importsFramer) {
@@ -130,13 +167,13 @@ export function scanText(rel, text) {
   return findings;
 }
 
-function walk(dir, out = []) {
+function walk(dir, out = [], ext = /\.tsx?$/) {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === '.next') continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
-      walk(full, out);
-    } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry) && !/\.stories\.tsx?$/.test(entry)) {
+      walk(full, out, ext);
+    } else if (ext.test(entry) && !/\.test\.(tsx?|css)$/.test(entry) && !/\.stories\.(tsx?|css)$/.test(entry)) {
       out.push(full);
     }
   }
@@ -150,7 +187,7 @@ if (invokedDirectly) {
   const asJson = process.argv.includes('--json');
   const findings = [];
   for (const dir of ROOTS) {
-    for (const file of walk(join(root, dir))) {
+    for (const file of walk(join(root, dir), [], /\.(tsx?|css)$/)) {
       const rel = relative(root, file).replace(/\\/g, '/');
       findings.push(...scanText(rel, readFileSync(file, 'utf8')));
     }
