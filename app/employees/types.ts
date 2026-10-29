@@ -32,6 +32,10 @@ export interface Employee {
   /** Hidden from the active roster — used for roles like Hoist Driver that may return later. */
   archived?: boolean;
   updated_at?: string;
+  /** The trade discipline (electrical, mechanical) as the register holds it. Read-only here. */
+  discipline?: string;
+  /** The register's internal key (EMP_0058), separate from the mine number. Read-only. */
+  employee_id_string?: string;
 }
 
 export interface EmployeeFormData {
