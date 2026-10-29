@@ -385,6 +385,17 @@ Motion-and-fixes plan 5.4 slice 4 (the B4-28 deferral: floors + charts first-dra
 - Gate: tsc clean, eslint 0 errors (17 pre-existing warnings), vitest 329 files/2355 tests green (full) + focused greens for the two class-only follow-ups, docs:check clean, build green, verify-routes touched 572+ pass with only the pre-existing failures, a11y touched pass except pre-existing /issues, 1440+390 renders inspected incl compressors. Live: 8 pages 200, zero console errors (signed-out).
 - Worktree note: backend untracked reset SQL preserved, never staged or run. Caution: a broad node stop during the gate also stopped another session's :3005 server (mine was :3015); :3016 main-comparison server stopped and its worktree removed.
 
+## 8u. B5 review pass + release (Muse, 28-29 Oct 2026; merged to main, pushed and live 29 Oct 2026, tagged release-2026-10-28-b5)
+
+Motion-and-fixes batch B5 (full account in workspace `audit/motion-and-fixes-2026-10-27/HANDOFF_B5.md`, plan `PLAN_B5.md`). Frontend branch `b5-review` (13 commits incl one test-repair by the owner); backend untouched. No schema/data changes; no live writes.
+
+- Review harness: `scripts/b5-shots.mjs` shot all 68 ledger/spec route-runs (incl register-script trio, own-chrome, redirects) at 1440+390, light+dark, motion+reduced (544 stills); `scripts/b5-sheets.mjs` contact sheets, all inspected. Captures (zoom, bulk bar, export swap, number roll) under `audit/.../captures/`.
+- 5.3a: 6 co-visible primaries demoted (standby Name official, EmaintImportFlow Check matches, ToolDrawer pre-use, documents Search everywhere + SetupBanner, tasks-events Post); 4 static-emphasis accents to ink (overtime weekly, NEC totals); truncation/default-views/state-separation audited, no change (filters/sort stay ephemeral by decision).
+- B1-owed /issues axe fixed: SpareLookup listbox to plain list (aria-current + live row announcements); full a11y 0 serious/critical.
+- Found and fixed: Export label doubled at exactly 390px (Tailwind 4 max- exclusive); sign-in stage washed out under dark app (now follows stored darkness post-mount); job card printed dark-on-white; React error 418 hydration on /tools (reduce hook matches SSR pre-mount; Zoom reads settled config); leaked body pointer-events lock wedging pages after menu-to-dialog handoffs (PointerEventsGuard).
+- Gate: tsc clean, eslint 0 errors (17 pre-existing warnings), vitest 330 files/2361 tests green (full; 2 NumberTransition count tests repaired mid-run for the mount gate), docs:check clean, build green, FULL verify-routes ALL CHECKS PASSED, FULL a11y 0 violations, post-fix renders inspected 1440+390 (incl dark set-password, print emulation light).
+- Worktree note: backend untracked reset SQL preserved, never staged or run. Port-scoped server stops only (old :3019 node killed by port; dev :3020 stopped after diagnosis).
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
