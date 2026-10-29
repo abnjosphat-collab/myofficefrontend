@@ -1,5 +1,6 @@
 // app/documents/viewer/printing.ts — print from inside the page, with no download first. Everything prints through a hidden frame, so
 // the page behind the viewer is never printed by mistake and nothing is left on screen afterwards.
+import type { PrintRoute } from '../documentLogic';
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -64,4 +65,22 @@ export const printText = (text: string, title: string) =>
 export function printTable(rows: readonly (readonly string[])[], title: string): Promise<void> {
   const body = rows.map(r => `<tr>${r.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
   return printHtml(`<h1>${escapeHtml(title)}</h1><table>${body}</table>`, title, 'h1{font-size:14px;margin:8mm 8mm 3mm}table{border-collapse:collapse;margin:0 8mm;font-size:11px}td{border:1px solid gray;padding:2px 5px;vertical-align:top}@page{size:landscape;margin:8mm}');
+}
+
+/** Fetch a stored PDF and print it, page for page as its author laid it out. */
+async function printStoredPdf(url: string): Promise<void> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`the server said ${res.status}`);
+  await printPdf(await res.blob());
+}
+
+/**
+ * Print a file without opening it: its PDF print copy, or the PDF or picture itself. Returns false for a file the page must
+ * draw first (a Word file or a spreadsheet with no print copy): open it and print from the viewer.
+ */
+export async function printWithoutOpening(doc: { url: string; name: string; printCopyUrl: string }, route: PrintRoute): Promise<boolean> {
+  if (route === 'copy') { await printStoredPdf(doc.printCopyUrl); return true; }
+  if (route === 'pdf') { await printStoredPdf(doc.url); return true; }
+  if (route === 'image') { await printImage(doc.url, doc.name); return true; }
+  return false;
 }

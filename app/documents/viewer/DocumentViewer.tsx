@@ -7,12 +7,13 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button, Dialog, Fact, FactList, IconButton, StatusBadge, Tag } from '@/components/ui-system';
 import { fmtDateTime } from '@/components/shared/utils';
-import { activityLabel, canPrint, formatSize, neighbours, previewKind, shortLocation, typeMeta } from '../documentLogic';
+import { activityLabel, formatSize, neighbours, previewKind, printRoute, shortLocation, takesPrintCopy, typeMeta } from '../documentLogic';
 import type { DocumentFile } from '../types';
 import { useActivity } from '../useDocumentsData';
 import { saveFile, openInNewTab } from './download';
 import type { PrintHandle } from './OfficeViewers';
-import { printImage, printPdf } from './printing';
+import { PrintCopyPanel } from './PrintCopyPanel';
+import { printWithoutOpening } from './printing';
 import { ViewerBody } from './ViewerBody';
 
 export interface ViewerActions {
@@ -23,6 +24,8 @@ export interface ViewerActions {
   onRestore: (d: DocumentFile) => void;
   onPurge: (d: DocumentFile) => void;
   onShowFolder: (d: DocumentFile) => void;
+  onKeepPrintCopy: (d: DocumentFile, pdf: File) => Promise<unknown>;
+  onDropPrintCopy: (d: DocumentFile) => Promise<unknown>;
 }
 
 const reason = (e: unknown) => (e instanceof Error ? e.message : 'something went wrong');
@@ -67,15 +70,13 @@ export function DocumentViewer({ doc, list, onNavigate, onClose, actions, isMana
 
   if (!doc || !meta) return <Dialog open={false} onOpenChange={() => {}} title="File" description="File preview">{null}</Dialog>;
 
+  const route = printRoute(doc);
   const print = async () => {
     setBusy('print');
     try {
-      if (kind === 'image') await printImage(doc.url, doc.name);
-      else if (kind === 'pdf') {
-        const res = await fetch(doc.url);
-        if (!res.ok) throw new Error(`the server said ${res.status}`);
-        await printPdf(await res.blob());
-      } else if (printRef.current) await printRef.current();
+      // The print copy, a PDF or a picture print as they are; anything else prints the page's drawing of it.
+      if (await printWithoutOpening(doc, route)) return;
+      if (printRef.current) await printRef.current();
       else toast.info('The file is still opening. Try again in a moment.');
     } catch (e) {
       toast.error(`${doc.name} could not be printed: ${reason(e)}. Use Open to print it from its own tab.`);
@@ -100,7 +101,7 @@ export function DocumentViewer({ doc, list, onNavigate, onClose, actions, isMana
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button icon="external" disabled={!doc.url} onClick={() => openInNewTab(doc)}>Open</Button>
-            <Button icon="print" disabled={!doc.url || !canPrint(kind) || busy !== null} pending={busy === 'print'} title={canPrint(kind) ? undefined : 'This kind of file cannot be printed from the page. Use Open.'} onClick={print}>Print</Button>
+            <Button icon="print" disabled={!doc.url || route === 'none' || busy !== null} pending={busy === 'print'} title={route === 'none' ? 'This kind of file cannot be printed from the page. Use Open.' : undefined} onClick={print}>Print</Button>
             <Button variant="primary" icon="download" disabled={!doc.url || busy !== null} pending={busy === 'download'} onClick={download}>Download</Button>
           </div>
         </div>
@@ -140,6 +141,7 @@ export function DocumentViewer({ doc, list, onNavigate, onClose, actions, isMana
               </>
             )}
           </div>
+          {!trashed && takesPrintCopy(doc) && <PrintCopyPanel doc={doc} onKeep={actions.onKeepPrintCopy} onDrop={actions.onDropPrintCopy} />}
           <div className="flex flex-col gap-2 rounded-control bg-surface-subtle p-3">
             <p className="font-sans text-label font-medium text-ink">History</p>
             <History id={doc.id} />

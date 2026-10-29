@@ -1,13 +1,16 @@
 // app/documents/BulkBar.tsx — what can be done to the ticked files at once: move, tag, star, download, delete (to the trash), and in
-// the trash restore or delete for good. "Select all" reaches every file the search found, not just the page on screen.
+// the trash restore or delete for good; in Quick print, Print sends the ticked papers to the printer one after another. "Select
+// all" reaches every file the search found, not just the page on screen.
 'use client';
 
 import { Button, Menu, MenuContent, MenuItem, MenuTrigger, NumberTransition, Presence } from '@/components/ui-system';
 
-export function BulkBar({ count, total, trash, isManager, onSelectAll, onClear, onMove, onTags, onStar, onUnstar, onDownload, onTrash, onRestore, onPurge }: {
+export function BulkBar({ count, total, trash, isManager, onSelectAll, onClear, onMove, onTags, onStar, onUnstar, onDownload, onTrash, onRestore, onPurge, onPrint, printing = false }: {
   count: number; total: number; trash: boolean; isManager: boolean;
   onSelectAll: () => void; onClear: () => void; onMove: () => void; onTags: () => void; onStar: () => void; onUnstar: () => void;
   onDownload: () => void; onTrash: () => void; onRestore: () => void; onPurge: () => void;
+  /** Quick print only. */
+  onPrint?: () => void; printing?: boolean;
 }) {
   return (
     <Presence visible={count > 0}>
@@ -21,6 +24,7 @@ export function BulkBar({ count, total, trash, isManager, onSelectAll, onClear, 
         </>
       ) : (
         <>
+          {onPrint && <Button size="sm" variant="primary" icon="print" pending={printing} disabled={printing} onClick={onPrint}>Print</Button>}
           <Button size="sm" icon="move" onClick={onMove}>Move</Button>
           <Button size="sm" icon="tag" onClick={onTags}>Tags</Button>
           <Menu>

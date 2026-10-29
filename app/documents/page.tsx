@@ -4,6 +4,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { AppShell, useRouteSidebarCollapsed } from '@/components/app-shell';
 import { Button, Drawer, EmptyState, Notice, PageHeader, VIEW_CARDS_TABLE, ZoomLink, useViewPreference } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
@@ -17,12 +18,13 @@ import { LocationHeader } from './LocationHeader';
 import { SearchBar } from './SearchBar';
 import { SetupBanner } from './SetupBanner';
 import { UploadDialog } from './UploadDialog';
-import { NO_FILTERS, buildTree, flattenTree, isNarrowed } from './documentLogic';
+import { NO_FILTERS, buildTree, flattenTree, isNarrowed, printRoute } from './documentLogic';
 import type { DocFilters, DocFolder, DocumentFile, Place } from './types';
 import { useDocumentSearch, useOverview } from './useDocumentsData';
 import { useFileDrop } from './useFileDrop';
 import { useLibraryActions } from './useLibraryActions';
 import { DocumentViewer } from './viewer/DocumentViewer';
+import { printWithoutOpening } from './viewer/printing';
 
 const EMPTY_FOLDERS: DocFolder[] = [];
 
@@ -55,6 +57,7 @@ function DocumentsContent() {
   const [treeOpen, setTreeOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dropped, setDropped] = useState<File[]>([]);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const folders = overview.overview?.folders ?? EMPTY_FOLDERS;
   const listCalm = JSON.stringify([filters, place]);
@@ -89,6 +92,29 @@ function DocumentsContent() {
   const dragging = useFileDrop(!blocked && !overview.upgradeNeeded, onFiles);
 
   const open = (d: DocumentFile) => { setSeed(d); setPreviewId(d.id); };
+  const quickPrintHere = !!folderHere?.quickPrint && !narrowed;
+  const failedToPrint = (d: DocumentFile, e: unknown) => toast.error(`${d.name} could not be printed: ${e instanceof Error ? e.message : 'something went wrong'}.`);
+  // One click: the print copy, a PDF or a picture goes straight to the printer. A Word or Excel paper with no print copy opens
+  // first, because the page must draw it; the viewer says how to add its PDF for exact pages.
+  const printOne = async (d: DocumentFile) => {
+    setPrintingId(d.id);
+    try {
+      if (!(await printWithoutOpening(d, printRoute(d)))) {
+        open(d);
+        toast.info(`${d.name} has no print copy, so it opened here: press Print. Add its PDF for the exact pages.`);
+      }
+    } catch (e) { failedToPrint(d, e); } finally { setPrintingId(null); }
+  };
+  const printMany = async (docs: readonly DocumentFile[]) => {
+    setPrintingId('bulk');
+    const skipped: string[] = [];
+    try {
+      for (const d of docs) {
+        try { if (!(await printWithoutOpening(d, printRoute(d)))) skipped.push(d.name); } catch (e) { failedToPrint(d, e); }
+      }
+    } finally { setPrintingId(null); }
+    if (skipped.length) toast.info(`${skipped.length} without a print copy ${skipped.length === 1 ? 'was' : 'were'} not printed: ${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? '…' : ''}. Open each to print it, or add its PDF.`);
+  };
   const showFolder = (d: DocumentFile) => { if (d.folderId) { go({ kind: 'folder', id: d.folderId }); } };
   const fileActions: FileActions = {
     onOpen: open, onStar: act.star, onDownload: d => { void act.download([d]); }, onEdit: setEditing,
@@ -166,10 +192,12 @@ function DocumentsContent() {
                   onSelectAll={() => setSelected(new Set(items.map(d => d.id)))} onClear={() => setSelected(new Set())} onMove={bulkMove} onTags={bulkTags}
                   onStar={() => { void act.setStars(chosen, 'star'); }} onUnstar={() => { void act.setStars(chosen, 'unstar'); }} onDownload={() => { void act.download(chosen); }}
                   onTrash={() => { void act.trash(chosen); }} onRestore={() => { void act.restore(chosen); }} onPurge={() => { void act.purge(chosen); }}
+                  onPrint={quickPrintHere ? () => { void printMany(chosen); } : undefined} printing={printingId === 'bulk'}
                 />
                 <FileList
                   calmKey={listCalm} items={items} terms={search.result?.terms ?? []} view={view} state={search} subject={folderHere?.name ?? 'the library'} actions={fileActions}
                   selected={selected} onSelectedChange={setSelected} showLocation={place.kind !== 'folder' || narrowed} isManager={isManager} emptyHint="Nothing to show here." empty={emptyState}
+                  quickPrint={quickPrintHere ? { onPrint: d => { void printOne(d); }, printingId } : undefined}
                 />
               </section>
             )}
@@ -185,6 +213,8 @@ function DocumentsContent() {
           onStar: d => { void act.star(d).then(() => setSeed(s => (s && s.id === d.id ? { ...s, starred: !d.starred } : s))); }, onEdit: d => { setPreviewId(null); setEditing(d); },
           onMove: d => { setPreviewId(null); setMoving({ kind: 'files', ids: [d.id], names: [d.name], currentFolder: d.folderId }); },
           onTrash: d => { void act.trash([d]); }, onRestore: d => { void act.restore([d]); }, onPurge: d => { void act.purge([d]); }, onShowFolder: showFolder,
+          onKeepPrintCopy: (d, pdf) => act.keepPrintCopy(d, pdf).then(saved => { if (saved) setSeed(saved); }),
+          onDropPrintCopy: d => act.dropPrintCopy(d).then(saved => { if (saved) setSeed(saved); }),
         }}
       />
 

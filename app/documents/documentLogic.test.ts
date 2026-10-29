@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   activityLabel, buildTree, canPrint, dateRange, descendantIds, downloadName, effectiveSort, extOf, filterChips, fileTypeOf, flattenTree,
   folderFromRow, folderTrail, fromRow, hasFilters, highlightParts, isNarrowed, matchFolders, neighbours, NO_FILTERS, pathLabel, previewKind,
-  removeChip, searchPath, shortLocation, toggled, uploadProblem,
+  printRoute, removeChip, searchPath, shortLocation, takesPrintCopy, toggled, uploadProblem,
 } from './documentLogic';
 import type { DocFilters, DocFolder } from './types';
 
@@ -12,7 +12,7 @@ const NOW = new Date(2026, 9, 19, 12, 0, 0); // 19 October 2026, local
 const filters = (patch: Partial<DocFilters> = {}): DocFilters => ({ ...NO_FILTERS, ...patch });
 const query = (path: string) => Object.fromEntries(new URL(path, 'http://x').searchParams);
 const folder = (id: string, name: string, parentId: string | null = null, sortOrder = 1000): DocFolder =>
-  ({ id, name, parentId, sortOrder, seeded: false, description: '', createdBy: '', fileCount: 0, totalCount: 0 });
+  ({ id, name, parentId, sortOrder, seeded: false, quickPrint: false, description: '', createdBy: '', fileCount: 0, totalCount: 0 });
 
 describe('kinds of file', () => {
   it('reads the extension, and none for names without one', () => {
@@ -67,6 +67,30 @@ describe('rows from the server', () => {
   it('maps a folder', () => {
     expect(folderFromRow({ id: 'f', parent_id: 'p', name: 'X', seed_key: 'ams/x', file_count: 2, total_count: 5 })).toMatchObject({ parentId: 'p', seeded: true, fileCount: 2, totalCount: 5 });
     expect(folderFromRow({ id: 'f', name: 'X' })).toMatchObject({ parentId: null, seeded: false, sortOrder: 1000 });
+  });
+
+  it('knows the Quick print folder by its key, not its name, and reads a print copy', () => {
+    expect(folderFromRow({ id: 'q', name: 'Papers to print', seed_key: 'quick-print' }).quickPrint).toBe(true);
+    expect(folderFromRow({ id: 'q', name: 'Quick print' }).quickPrint).toBe(false);
+    expect(fromRow({ id: 'a', print_copy_url: 'https://x/c.pdf', print_copy_name: 'c.pdf', print_copy_size: 9 })).toMatchObject({ printCopyUrl: 'https://x/c.pdf', printCopyName: 'c.pdf', printCopySize: 9 });
+    expect(fromRow({ id: 'b' })).toMatchObject({ printCopyUrl: '', printCopyName: '', printCopySize: 0 });
+  });
+});
+
+describe('Quick print', () => {
+  it('prints from the print copy first, then a PDF or picture as it is, then the page drawing it', () => {
+    expect(printRoute({ ext: 'docx', printCopyUrl: 'https://x/c.pdf' })).toBe('copy');
+    expect(printRoute({ ext: 'pptx', printCopyUrl: 'https://x/c.pdf' })).toBe('copy');
+    expect(printRoute({ ext: 'pdf', printCopyUrl: '' })).toBe('pdf');
+    expect(printRoute({ ext: 'png', printCopyUrl: '' })).toBe('image');
+    expect(printRoute({ ext: 'xlsx', printCopyUrl: '' })).toBe('render');
+    expect(printRoute({ ext: 'pptx', printCopyUrl: '' })).toBe('none');
+    expect(printRoute({ ext: 'zip', printCopyUrl: '' })).toBe('none');
+  });
+
+  it('asks for a print copy only for files whose layout the browser cannot keep', () => {
+    expect(['docx', 'xlsx', 'csv', 'doc', 'pptx'].every(ext => takesPrintCopy({ ext }))).toBe(true);
+    expect(['pdf', 'png', 'txt', 'zip'].some(ext => takesPrintCopy({ ext }))).toBe(false);
   });
 });
 

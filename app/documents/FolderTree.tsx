@@ -45,7 +45,7 @@ export function FolderTree({ tree, flat, place, counts, onSelect }: {
             </button>
           ) : <span aria-hidden className="size-6 shrink-0" />}
           <button type="button" className={cn(row, 'flex-1', selected && 'bg-action-soft font-medium text-ink')} aria-current={selected ? 'page' : undefined} onClick={() => onSelect({ kind: 'folder', id: n.id })}>
-            <Icon name={selected || open ? 'folder-open' : 'folder'} size="sm" className="shrink-0 text-ink-muted" />
+            <Icon name={n.quickPrint ? 'print' : selected || open ? 'folder-open' : 'folder'} size="sm" className="shrink-0 text-ink-muted" />
             <span className="min-w-0 flex-1 truncate" title={n.name}>{n.name}</span>
             {n.totalCount > 0 && <span className="shrink-0 font-sans text-caption text-ink-muted tabular">{n.totalCount}</span>}
           </button>

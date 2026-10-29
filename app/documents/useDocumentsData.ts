@@ -72,6 +72,13 @@ export async function bulkInBatches(ids: string[], action: BulkAction, extra: { 
 }
 
 export const deleteDocumentForGood = async (id: string) => { await api.delete(`/api/documents/${id}?permanent=true`); };
+/** Keep a PDF with a Word or Excel paper so Print sends its exact pages; replaces the one it had. */
+export async function setPrintCopy(id: string, pdf: File): Promise<DocumentFile> {
+  const form = new FormData();
+  form.append('file', pdf);
+  return fromRow(await api.post<Record<string, unknown>>(`/api/documents/${id}/print-copy`, form));
+}
+export const removePrintCopy = async (id: string): Promise<DocumentFile> => fromRow(await api.delete<Record<string, unknown>>(`/api/documents/${id}/print-copy`));
 
 /** Read the words of files uploaded before text search existed, a few at a time, until none are left. Reports progress. */
 export async function reindexAll(onProgress: (remaining: number) => void): Promise<void> {

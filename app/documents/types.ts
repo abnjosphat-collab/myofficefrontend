@@ -24,6 +24,10 @@ export interface DocumentFile {
   deletedBy: string;
   /** A search matched this file only by the words written inside it. */
   foundInside: boolean;
+  /** A PDF kept with a Word or Excel paper so Print sends the exact pages; '' when it has none. */
+  printCopyUrl: string;
+  printCopyName: string;
+  printCopySize: number;
 }
 
 export interface DocFolder {
@@ -33,6 +37,8 @@ export interface DocFolder {
   sortOrder: number;
   /** Part of the Asset Management System structure (as opposed to made by hand). Every folder works the same. */
   seeded: boolean;
+  /** The Quick print folder: papers printed often, each with a Print button in the list. */
+  quickPrint: boolean;
   description: string;
   createdBy: string;
   /** Files directly in this folder. */

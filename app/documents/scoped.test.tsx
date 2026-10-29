@@ -12,7 +12,7 @@ vi.mock('@/lib/auth-context', () => ({
 }));
 
 const folder = (id: string, name: string, parentId: string | null = null): FolderNode =>
-  ({ id, name, parentId, sortOrder: 1000, seeded: false, description: '', createdBy: '', fileCount: 0, totalCount: 0, children: [], depth: parentId ? 1 : 0 });
+  ({ id, name, parentId, sortOrder: 1000, seeded: false, quickPrint: false, description: '', createdBy: '', fileCount: 0, totalCount: 0, children: [], depth: parentId ? 1 : 0 });
 
 const ROOT = folder('r', 'Projects');
 const SUB = folder('s', 'Drawings', 'r');

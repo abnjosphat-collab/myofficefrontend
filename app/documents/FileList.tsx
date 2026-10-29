@@ -9,7 +9,7 @@ import {
   StatusBadge, Tag, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, sortRows, type Column, type SortState,
 } from '@/components/ui-system';
 import { fmtDateTime } from '@/components/shared/utils';
-import { formatSize, highlightParts, shortLocation, typeMeta } from './documentLogic';
+import { formatSize, highlightParts, shortLocation, takesPrintCopy, typeMeta } from './documentLogic';
 import type { DocumentFile } from './types';
 
 export interface FileActions {
@@ -29,10 +29,17 @@ function Marked({ text, terms }: { text: string; terms: readonly string[] }) {
   return <>{highlightParts(text, terms).map((p, i) => (p.hit ? <mark key={i} className="rounded-xs bg-warning-soft px-0.5 text-ink">{p.text}</mark> : <span key={i}>{p.text}</span>))}</>;
 }
 
-function FileMenu({ doc, a, isManager }: { doc: DocumentFile; a: FileActions; isManager: boolean }) {
+/** In Quick print: whether a Word or Excel paper has the PDF it prints exactly from. Nothing for a PDF or picture: they are exact. */
+function PrintCopyBadge({ doc }: { doc: DocumentFile }) {
+  if (!takesPrintCopy(doc)) return null;
+  return doc.printCopyUrl ? <StatusBadge tone="success">Print copy</StatusBadge> : <StatusBadge tone="warning">No print copy</StatusBadge>;
+}
+
+function FileMenu({ doc, a, isManager, onPrint, printing }: { doc: DocumentFile; a: FileActions; isManager: boolean; onPrint?: (d: DocumentFile) => void; printing?: boolean }) {
   const trashed = !!doc.deletedAt;
   return (
     <span className="inline-flex items-center gap-1">
+      {onPrint && !trashed && <IconButton icon="print" size="sm" variant="ghost" label={`Print ${doc.name}`} pending={printing} onClick={() => onPrint(doc)} />}
       {!trashed && <IconButton icon="starred" size="sm" variant="ghost" label={doc.starred ? `Remove ${doc.name} from starred` : `Star ${doc.name}`} pressed={doc.starred} className={doc.starred ? 'text-warning' : undefined} onClick={() => a.onStar(doc)} />}
       <Menu>
         <MenuTrigger asChild><IconButton icon="more-vertical" size="sm" variant="ghost" label={`More actions for ${doc.name}`} /></MenuTrigger>
@@ -58,13 +65,16 @@ function FileMenu({ doc, a, isManager }: { doc: DocumentFile; a: FileActions; is
   );
 }
 
-export function FileList({ items, terms, view, state, subject, actions: a, selected, onSelectedChange, showLocation, isManager, emptyHint, empty, calmKey }: {
+export function FileList({ items, terms, view, state, subject, actions: a, selected, onSelectedChange, showLocation, isManager, emptyHint, empty, calmKey, quickPrint }: {
   items: readonly DocumentFile[]; terms: readonly string[]; view: 'cards' | 'table';
   state: { loaded: boolean; loading: boolean; error: string | null; errorStatus: number | null; refetch: () => Promise<void> };
   subject: string; actions: FileActions; selected: ReadonlySet<string>; onSelectedChange: (s: Set<string>) => void; showLocation: boolean; isManager: boolean;
   /** Said under "no files" when nothing is narrowing the list. */
   emptyHint: ReactNode; empty?: ReactNode; calmKey?: string;
+  /** The Quick print folder: a Print button on every file, and whether each Word or Excel paper has its print copy. */
+  quickPrint?: { onPrint: (d: DocumentFile) => void; printingId: string | null };
 }) {
+  const menu = (d: DocumentFile) => <FileMenu doc={d} a={a} isManager={isManager} onPrint={quickPrint?.onPrint} printing={quickPrint?.printingId === d.id} />;
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(1);
   const rows = useMemo(() => sortRows(items, sort, (d, id) => (id === 'size' ? d.size : id === 'added' ? new Date(d.createdAt).getTime() || 0 : id === 'type' ? d.type : d.name.toLowerCase())), [items, sort]);
@@ -77,7 +87,7 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
   const COLUMNS: Column<DocumentFile>[] = [
     { id: 'name', header: 'Name', sortable: true, sticky: true, cell: d => (
       <div className="min-w-0">
-        <p className="flex flex-wrap items-center gap-1.5 font-medium text-ink [overflow-wrap:anywhere]"><Marked text={d.name} terms={terms} />{d.starred && <span className="text-warning" role="img" aria-label="Starred"><Icon name="starred" size="xs" /></span>}{d.foundInside && <StatusBadge tone="info">Found inside</StatusBadge>}</p>
+        <p className="flex flex-wrap items-center gap-1.5 font-medium text-ink [overflow-wrap:anywhere]"><Marked text={d.name} terms={terms} />{d.starred && <span className="text-warning" role="img" aria-label="Starred"><Icon name="starred" size="xs" /></span>}{d.foundInside && <StatusBadge tone="info">Found inside</StatusBadge>}{quickPrint && <PrintCopyBadge doc={d} />}</p>
         {d.tags.length > 0 && <p className="mt-0.5 flex flex-wrap gap-1">{d.tags.slice(0, 4).map(t => <Tag key={t}>{t}</Tag>)}</p>}
       </div>
     ) },
@@ -99,7 +109,7 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
           <DataTable
             caption={`Files in ${subject}`} stillKey={listCalm} rows={visible} columns={COLUMNS} getRowId={d => d.id} sort={sort} onSortChange={setSort}
             selected={selected} onSelectedChange={onSelectedChange} rowSelectLabel={d => `Select ${d.name}`} onRowActivate={a.onOpen}
-            rowActions={d => <FileMenu doc={d} a={a} isManager={isManager} />}
+            rowActions={menu}
           />
           {rows.length > PAGE_SIZE && <Pagination page={current} pageSize={PAGE_SIZE} total={rows.length} onPageChange={setPage} />}
         </div>
@@ -115,14 +125,14 @@ export function FileList({ items, terms, view, state, subject, actions: a, selec
                   <RecordCard
                     eyebrow={<span className="pl-7">{m.label}</span>} title={<Marked text={d.name} terms={terms} />} openLabel={`Preview ${d.name}`} onOpen={() => a.onOpen(d)} selected={selected.has(d.id)}
                     subtitle={d.originalName && d.originalName !== d.name ? d.originalName : undefined}
-                    status={<span className="inline-flex flex-wrap gap-1">{d.foundInside && <StatusBadge tone="info">Found inside</StatusBadge>}{d.starred && <StatusBadge tone="warning">Starred</StatusBadge>}</span>}
+                    status={<span className="inline-flex flex-wrap gap-1">{quickPrint && <PrintCopyBadge doc={d} />}{d.foundInside && <StatusBadge tone="info">Found inside</StatusBadge>}{d.starred && <StatusBadge tone="warning">Starred</StatusBadge>}</span>}
                     facts={[
                       { label: 'Size', value: formatSize(d.size) }, { label: 'Added', value: fmtDateTime(d.createdAt) },
                       ...(showLocation ? [{ label: 'Folder', value: shortLocation(d.folderPath) }] : []),
                       ...(d.description ? [{ label: 'Comment', value: <span className="line-clamp-2"><Marked text={d.description} terms={terms} /></span> }] : []),
                     ]}
                     meta={d.tags.length > 0 ? <span className="flex flex-wrap gap-1">{d.tags.slice(0, 4).map(t => <Tag key={t}>{t}</Tag>)}</span> : undefined}
-                    action={<FileMenu doc={d} a={a} isManager={isManager} />}
+                    action={menu(d)}
                   />
                   </ZoomLink>
                 </MotionListItem>

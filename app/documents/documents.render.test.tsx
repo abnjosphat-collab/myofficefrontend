@@ -21,13 +21,13 @@ vi.mock('@/lib/useApiList', () => ({ useApiList: () => ({ items: [], loading: fa
 vi.mock('./useDocumentsData', async importOriginal => ({ ...(await importOriginal<typeof import('./useDocumentsData')>()), seedAmsFolders: vi.fn(async () => ({ created: 80, adopted: 1, skipped: 5, total: 85 })), reindexAll: vi.fn(async (progress: (n: number) => void) => { progress(0); }) }));
 
 const folder = (id: string, name: string, parentId: string | null = null, sortOrder = 1000, over: Partial<DocFolder> = {}): DocFolder =>
-  ({ id, name, parentId, sortOrder, seeded: false, description: '', createdBy: '', fileCount: 0, totalCount: 0, ...over });
+  ({ id, name, parentId, sortOrder, seeded: false, quickPrint: false, description: '', createdBy: '', fileCount: 0, totalCount: 0, ...over });
 const FOLDERS = [folder('r', 'AMS', null, 10, { totalCount: 9 }), folder('s4', '4. Support', 'r', 40, { totalCount: 9 }), folder('d44', '4.4 Documented Information', 's4', 10, { totalCount: 9 }), folder('mine', 'Contracts')];
 const TREE = buildTree(FOLDERS);
 const FLAT = flattenTree(TREE);
 const doc = (id: string, name: string, over: Partial<DocumentFile> = {}): DocumentFile => ({
   id, name, originalName: name, type: 'pdf', ext: 'pdf', folderId: 'd44', folderPath: 'AMS > 4. Support > 4.4 Documented Information', size: 2048, starred: false, description: '',
-  tags: [], uploadedBy: 'Edson', createdAt: '2026-10-10T08:00:00Z', updatedAt: '2026-10-10T08:00:00Z', url: `https://files.test/${id}`, deletedAt: null, deletedBy: '', foundInside: false, ...over,
+  tags: [], uploadedBy: 'Edson', createdAt: '2026-10-10T08:00:00Z', updatedAt: '2026-10-10T08:00:00Z', url: `https://files.test/${id}`, deletedAt: null, deletedBy: '', foundInside: false, printCopyUrl: '', printCopyName: '', printCopySize: 0, ...over,
 });
 
 describe('TagField', () => {
@@ -147,6 +147,34 @@ describe('FileList', () => {
   });
 });
 
+describe('FileList in Quick print', () => {
+  const state = { loaded: true, loading: false, error: null, errorStatus: null, refetch: vi.fn(async () => {}) };
+  const actions: FileActions = { onOpen: vi.fn(), onStar: vi.fn(), onDownload: vi.fn(), onEdit: vi.fn(), onMove: vi.fn(), onTrash: vi.fn(), onRestore: vi.fn(), onPurge: vi.fn() };
+  const props = { terms: [], state, subject: 'Quick print', actions, selected: new Set<string>(), onSelectedChange: vi.fn(), showLocation: false, isManager: true, emptyHint: 'Nothing.' };
+  const papers = [
+    doc('w', 'Checklist.docx', { ext: 'docx', type: 'document' }),
+    doc('x', 'Roster.xlsx', { ext: 'xlsx', type: 'spreadsheet', printCopyUrl: 'https://files.test/c.pdf', printCopyName: 'Roster.pdf' }),
+    doc('p', 'Permit.pdf'),
+  ];
+
+  it('puts a Print button on every paper and says which Word or Excel papers lack their print copy', async () => {
+    const user = userEvent.setup();
+    const onPrint = vi.fn();
+    render(<FileList {...props} view="table" items={papers} quickPrint={{ onPrint, printingId: null }} />);
+    expect(screen.getByText('No print copy')).toBeInTheDocument();
+    expect(screen.getByText('Print copy')).toBeInTheDocument();
+    expect(screen.getAllByText(/print copy/i)).toHaveLength(2); // nothing for the PDF: it prints exactly as it is
+    await user.click(screen.getByRole('button', { name: 'Print Permit.pdf' }));
+    expect(onPrint).toHaveBeenCalledWith(expect.objectContaining({ id: 'p' }));
+  });
+
+  it('shows no Print buttons or badges outside Quick print', () => {
+    render(<FileList {...props} view="table" items={papers} />);
+    expect(screen.queryByRole('button', { name: /^Print / })).not.toBeInTheDocument();
+    expect(screen.queryByText('No print copy')).not.toBeInTheDocument();
+  });
+});
+
 describe('BulkBar', () => {
   const handlers = { onSelectAll: vi.fn(), onClear: vi.fn(), onMove: vi.fn(), onTags: vi.fn(), onStar: vi.fn(), onUnstar: vi.fn(), onDownload: vi.fn(), onTrash: vi.fn(), onRestore: vi.fn(), onPurge: vi.fn() };
 
@@ -239,7 +267,7 @@ describe('needing the upgrade SQL', () => {
 });
 
 describe('DocumentViewer', () => {
-  const actions: ViewerActions = { onStar: vi.fn(), onEdit: vi.fn(), onMove: vi.fn(), onTrash: vi.fn(), onRestore: vi.fn(), onPurge: vi.fn(), onShowFolder: vi.fn() };
+  const actions: ViewerActions = { onStar: vi.fn(), onEdit: vi.fn(), onMove: vi.fn(), onTrash: vi.fn(), onRestore: vi.fn(), onPurge: vi.fn(), onShowFolder: vi.fn(), onKeepPrintCopy: vi.fn(async () => {}), onDropPrintCopy: vi.fn(async () => {}) };
   const view = (d: DocumentFile | null, list: DocumentFile[], isManager = true, onNavigate = vi.fn()) =>
     render(<ConfirmProvider><DocumentViewer doc={d} list={list} onNavigate={onNavigate} onClose={vi.fn()} actions={actions} isManager={isManager} /></ConfirmProvider>);
 
@@ -280,6 +308,33 @@ describe('DocumentViewer', () => {
     expect(open).toHaveBeenCalledWith(expect.stringContaining('view.officeapps.live.com'), '_blank', 'noopener,noreferrer');
     expect(screen.getByRole('button', { name: 'Print' })).toBeDisabled();
     open.mockRestore();
+  });
+
+  it('lets an older Office file print once it has a PDF print copy', () => {
+    const d = doc('o', 'Old.doc', { type: 'document', ext: 'doc', printCopyUrl: 'https://files.test/old.pdf', printCopyName: 'Old.pdf' });
+    view(d, [d]);
+    expect(screen.getByRole('button', { name: 'Print' })).toBeEnabled();
+    expect(within(screen.getByRole('group', { name: 'Print copy' })).getByText('Old.pdf')).toBeInTheDocument();
+  });
+
+  it('offers to add a print copy to a paper that has none, and to replace or remove one that has', async () => {
+    const user = userEvent.setup();
+    const d = doc('w', 'Checklist.docx', { type: 'document', ext: 'docx' });
+    const { unmount } = view(d, [d]);
+    const panel = screen.getByRole('group', { name: 'Print copy' });
+    expect(panel).toHaveTextContent(/None yet/);
+    expect(within(panel).getByRole('button', { name: 'Add the PDF' })).toBeInTheDocument();
+    unmount();
+    const withCopy = { ...d, printCopyUrl: 'https://files.test/c.pdf', printCopyName: 'Checklist.pdf' };
+    view(withCopy, [withCopy]);
+    await user.click(within(screen.getByRole('group', { name: 'Print copy' })).getByRole('button', { name: 'Remove' }));
+    expect(actions.onDropPrintCopy).toHaveBeenCalledWith(withCopy);
+  });
+
+  it('shows no print-copy panel for a PDF: it prints exactly as it is', () => {
+    const d = doc('p', 'Permit.pdf');
+    view(d, [d]);
+    expect(screen.queryByRole('group', { name: 'Print copy' })).not.toBeInTheDocument();
   });
 
   it('shows restore and delete-for-good for a trashed file, and only managers can delete', async () => {

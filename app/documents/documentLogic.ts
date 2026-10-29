@@ -80,6 +80,20 @@ export function previewKind(ext: string): PreviewKind {
 /** Kinds that print from inside the page. A "office" file prints from Microsoft's viewer; the rest cannot be printed here. */
 export const canPrint = (kind: PreviewKind): boolean => kind === 'image' || kind === 'pdf' || kind === 'text' || kind === 'docx' || kind === 'sheet';
 
+/**
+ * How a file prints, best first. 'copy': its PDF print copy, the author's exact pages. 'pdf' / 'image': the file itself, exact.
+ * 'render': the page draws it (Word, a spreadsheet, text) and prints that, close but not the author's layout. 'none': it cannot.
+ */
+export type PrintRoute = 'copy' | 'pdf' | 'image' | 'render' | 'none';
+export function printRoute(doc: Pick<DocumentFile, 'ext' | 'printCopyUrl'>): PrintRoute {
+  if (doc.printCopyUrl) return 'copy';
+  const kind = previewKind(doc.ext);
+  if (kind === 'pdf' || kind === 'image') return kind;
+  return canPrint(kind) ? 'render' : 'none';
+}
+/** Files whose own layout the browser cannot reproduce (Word, Excel, PowerPoint...): these want a PDF print copy. */
+export const takesPrintCopy = (doc: Pick<DocumentFile, 'ext'>): boolean => ['docx', 'sheet', 'office'].includes(previewKind(doc.ext));
+
 /** The name a download is saved under: the display name, with the real extension when the display name has none. */
 export function downloadName(doc: Pick<DocumentFile, 'name' | 'ext'>): string {
   return doc.ext && !doc.name.toLowerCase().endsWith(`.${doc.ext}`) ? `${doc.name}.${doc.ext}` : doc.name;
@@ -94,13 +108,14 @@ export function fromRow(row: Record<string, unknown>): DocumentFile {
     description: String(row.description ?? ''), tags: Array.isArray(row.tags) ? row.tags.map(String) : [], uploadedBy: String(row.uploaded_by ?? ''),
     createdAt: String(row.created_at ?? ''), updatedAt: String(row.updated_at ?? row.created_at ?? ''), url: String(row.file_url ?? ''),
     deletedAt: row.deleted_at ? String(row.deleted_at) : null, deletedBy: String(row.deleted_by ?? ''), foundInside: Boolean(row.found_inside),
+    printCopyUrl: String(row.print_copy_url ?? ''), printCopyName: String(row.print_copy_name ?? ''), printCopySize: Number(row.print_copy_size ?? 0),
   };
 }
 
 export function folderFromRow(row: Record<string, unknown>): DocFolder {
   return {
     id: String(row.id), parentId: row.parent_id ? String(row.parent_id) : null, name: String(row.name ?? ''), sortOrder: Number(row.sort_order ?? 1000),
-    seeded: Boolean(row.seed_key), description: String(row.description ?? ''), createdBy: String(row.created_by ?? ''),
+    seeded: Boolean(row.seed_key), quickPrint: row.seed_key === 'quick-print', description: String(row.description ?? ''), createdBy: String(row.created_by ?? ''),
     fileCount: Number(row.file_count ?? 0), totalCount: Number(row.total_count ?? 0),
   };
 }

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { useConfirm } from '@/components/ui-system';
 import { saveFile } from './viewer/download';
 import {
-  bulkInBatches, createFolder, deleteDocumentForGood, deleteFolder, updateDocument, updateFolder, uploadDocument,
+  bulkInBatches, createFolder, deleteDocumentForGood, deleteFolder, removePrintCopy, setPrintCopy, updateDocument, updateFolder, uploadDocument,
 } from './useDocumentsData';
 import type { BulkResult, DocFolder, DocumentFile } from './types';
 
@@ -44,6 +44,26 @@ export function useLibraryActions(refresh: () => Promise<unknown>, onGone: (ids:
     if (docs.length > 10) { toast.error('Download up to 10 files at a time. Open a file to download it on its own.'); return; }
     for (const d of docs) { try { await saveFile(d); } catch (e) { toast.error(`${d.name}: ${reason(e)}`); } }
   }, []);
+
+  /** Keep (or replace) a paper's PDF print copy. Returns the updated file, or null when it was not saved (already said why). */
+  const keepPrintCopy = useCallback(async (d: DocumentFile, pdf: File): Promise<DocumentFile | null> => {
+    try {
+      const saved = await setPrintCopy(d.id, pdf);
+      toast.success(`${d.name} now prints from ${saved.printCopyName || 'its PDF'}.`);
+      await refresh();
+      return saved;
+    } catch (e) { toast.error(`The print copy was not saved: ${reason(e)}`); return null; }
+  }, [refresh]);
+
+  const dropPrintCopy = useCallback(async (d: DocumentFile): Promise<DocumentFile | null> => {
+    if (!(await confirm({ title: 'Remove the print copy?', message: `${d.name} will print from the page's drawing of it again, which can differ from its own layout.`, confirmLabel: 'Remove', destructive: true }))) return null;
+    try {
+      const saved = await removePrintCopy(d.id);
+      toast.success('Print copy removed.');
+      await refresh();
+      return saved;
+    } catch (e) { toast.error(`The print copy was not removed: ${reason(e)}`); return null; }
+  }, [confirm, refresh]);
 
   const saveDetails = useCallback(async (d: DocumentFile, patch: { name: string; description: string; tags: string[] }) => {
     await updateDocument(d.id, { ...patch, expected_updated_at: d.updatedAt });
@@ -135,5 +155,5 @@ export function useLibraryActions(refresh: () => Promise<unknown>, onGone: (ids:
     return uploadDocument(form);
   }, []);
 
-  return { star, setStars, download, saveDetails, moveFiles, applyTags, restore, trash, purge, makeFolder, renameFolder, moveFolder, removeFolder, upload };
+  return { star, setStars, download, keepPrintCopy, dropPrintCopy, saveDetails, moveFiles, applyTags, restore, trash, purge, makeFolder, renameFolder, moveFolder, removeFolder, upload };
 }
