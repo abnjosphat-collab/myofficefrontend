@@ -6,7 +6,7 @@ import { Icon } from '../foundations/Icon';
 import { IconButton } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { nextSort, selectionState, toggleAllVisible, toggleOne, type SortState } from './tableLogic';
-import { MotionTableBody, MotionTableRow } from '../motion';
+import { MotionTableBody, MotionTableRow, markZoomSourceUsed, registerZoomSource, unregisterZoomSource } from '../motion';
 
 export type Column<T> = {
   id: string;
@@ -39,6 +39,9 @@ export interface DataTableProps<T> {
   /** A reason a row cannot be ticked (shown as its tooltip), or nothing when it can. Blocked rows are skipped by "select all". */
   rowSelectBlocked?: (row: T) => string | undefined;
   onRowActivate?: (row: T) => void;
+  /** Stable zoom id per row: the row registers its tr as a zoom source, so a detail opened from
+   * the table grows out of the row like it does from the card (same id namespace as the cards). */
+  rowZoomId?: (row: T) => string | undefined;
   /** Trailing per-row actions (icon buttons / menu). */
   rowActions?: (row: T) => ReactNode;
   density?: 'comfortable' | 'compact';
@@ -61,7 +64,7 @@ export interface DataTableProps<T> {
  * crisp — never a layout animation. Sorting and selection logic live in tableLogic.ts (pure, tested).
  */
 export function DataTable<T>({
-  rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, rowSelectLabel, rowSelectBlocked, onRowActivate, rowActions, density = 'comfortable', className,
+  rows, columns, getRowId, caption, sort = null, onSortChange, selected, onSelectedChange, rowSelectLabel, rowSelectBlocked, onRowActivate, rowZoomId, rowActions, density = 'comfortable', className,
   renderExpanded, expandLabel, stillKey,
 }: DataTableProps<T>) {
   const ids = useMemo(() => rows.map(getRowId), [rows, getRowId]);
@@ -128,11 +131,13 @@ export function DataTable<T>({
             const isSelected = selected?.has(id) ?? false;
             const cell = cn('border-b border-line-subtle', pad, isSelected ? 'bg-action-soft/60' : 'bg-surface group-hover:bg-surface-subtle');
             const open = openId === id;
+            const zoomId = rowZoomId?.(row);
             return (
               <Fragment key={id}>
               <MotionTableRow
                 data-selected={isSelected || undefined}
-                onClick={onRowActivate ? () => onRowActivate(row) : undefined}
+                ref={zoomId ? (el: HTMLTableRowElement | null) => { if (el) { registerZoomSource(zoomId, el); return () => unregisterZoomSource(zoomId, el); } } : undefined}
+                onClick={onRowActivate ? event => { if (zoomId) markZoomSourceUsed(zoomId, event.currentTarget); onRowActivate(row); } : undefined}
                 className={cn('group', onRowActivate && 'cursor-pointer')}
               >
                 {selectable && (

@@ -247,6 +247,8 @@ export interface MotionTableRowProps {
   className?: string;
   onClick?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
   [key: `data-${string}`]: unknown;
+  /** Row zoom sources register their tr (see DataTable rowZoomId). React 19 ref-as-prop. */
+  ref?: Ref<HTMLTableRowElement>;
 }
 
 /**
@@ -255,13 +257,14 @@ export interface MotionTableRowProps {
  * id so exits track the right row. No highlight wash: a tr cannot host the
  * overlay, so the fade-in IS the insert motion.
  */
-export function MotionTableRow({ children, className, onClick, ...rest }: MotionTableRowProps) {
+export function MotionTableRow({ children, className, onClick, ref, ...rest }: MotionTableRowProps) {
   const reduce = useIsReducedMotion();
   if (reduce) {
-    return <tr className={className} onClick={onClick} {...rest}>{children}</tr>;
+    return <tr ref={ref} className={className} onClick={onClick} {...rest}>{children}</tr>;
   }
   return (
     <motion.tr
+      ref={ref}
       data-testid="motion-table-row"
       className={className}
       onClick={onClick}
