@@ -1,6 +1,6 @@
-// Compressor motion off framer (B4s4): pods enter on CSS, the drawer day-line
-// is Presence, week bars are plain divs. Runs under the reduced-motion setup,
-// so enters are instant and bars sit at their final height.
+// Compressor motion on the shared layer (N2): pods carry no own timing (the
+// grid MotionList owns inserts), the drawer day-line is Presence, week bars
+// sweep by scaleY. Runs under the reduced-motion setup, so enters are instant
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,10 +16,11 @@ const compressor: Compressor = {
 } as Compressor;
 
 describe('compressor motion (reduced motion)', () => {
-  it('enters the pod on CSS with a staggered delay and no framer wrapper', () => {
-    const { container } = render(<UnitPod compressor={compressor} recordedToday={false} justSaved={false} kick={0} index={2} onOpen={() => {}} />);
+  it('carries no own enter timing: the grid MotionList owns inserts', () => {
+    const { container } = render(<UnitPod compressor={compressor} recordedToday={false} justSaved={false} kick={0} onOpen={() => {}} />);
     const pod = container.firstElementChild as HTMLElement;
-    expect(pod.style.animationDelay).toBe('0.08s');
+    expect(pod.style.animationDelay).toBe('');
+    expect(pod.className).not.toMatch(/rowIn/);
     expect(screen.getByRole('button', { name: /C-1, Running/ })).toBeInTheDocument();
   });
 

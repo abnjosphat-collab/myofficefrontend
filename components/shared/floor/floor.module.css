@@ -15,6 +15,12 @@
   transition: background-color var(--mo-duration-base) var(--mo-ease-standard), border-color var(--mo-duration-base) var(--mo-ease-standard), box-shadow var(--mo-duration-base) var(--mo-ease-standard);
 }
 
+/* A slab that is a control presses in on the snappy spring instead of just tinting. */
+.slab[data-press] {
+  transition: background-color var(--mo-duration-base) var(--mo-ease-standard), border-color var(--mo-duration-base) var(--mo-ease-standard), box-shadow var(--mo-duration-base) var(--mo-ease-standard), transform var(--mo-spring-snappy-duration) var(--mo-spring-snappy);
+}
+.slab[data-press]:active { transform: scale(.98); }
+
 /* Information only (the quick figures): quieter still, the page shows through and there is no shadow. */
 .slab[data-still] {
   background: color-mix(in srgb, var(--mo-surface-raised) 55%, transparent);
@@ -54,18 +60,6 @@
 /* Urgent service: the ring nudges three times to draw the eye, then rests (and nudges again on hover). */
 .urgent { animation: attention 2.8s ease-in-out 3; }
 :global(.group):hover .urgent { animation: attentionHover 2.8s ease-in-out infinite; }
-
-/* A view's panels come in once, one after another (Services, Analytics, Fleet). */
-.viewEnter > * > * { animation: riseIn var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
-.viewEnter > * > *:nth-child(2) { animation-delay: .06s; }
-.viewEnter > * > *:nth-child(3) { animation-delay: .12s; }
-.viewEnter > * > *:nth-child(4) { animation-delay: .18s; }
-.viewEnter > * > *:nth-child(n+5) { animation-delay: .24s; }
-@keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-
-/* Animated text: each word rises and unblurs on the smooth token (stagger delay is inline choreography). */
-.riseWord { animation: riseBlur var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
-@keyframes riseBlur { from { opacity: 0; transform: translateY(0.45em); filter: blur(3px); } to { opacity: 1; transform: none; filter: blur(0); } }
 
 /* The background. All of the depth is here, not in the cards: a calm wash that brightens towards the top and
    deepens towards the viewer, a whisper of perspective grid melting into the horizon, and two faint glass planes
@@ -107,15 +101,15 @@
 @keyframes attention { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.08); } 90% { transform: scale(.98); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse], .viewEnter > * > *, .riseWord,
+  .fan[data-running], .saved::before, .urgent, .ripple[data-pulse],
   :global(.group):hover .fan[data-running='true'], :global(.group):hover .urgent { animation: none; }
   .slab { transition: none; }
+  .slab[data-press]:active { transform: none; }
 }
 
-/* Month view: a reading after a gap carries a small corner mark; rows come in once, top to bottom. */
+/* Month view: a reading after a gap carries a small corner mark. */
 .spanMark { display: inline-block; width: 6px; height: 6px; border-radius: 1px; background: var(--mo-warning); }
-.rowIn { animation: riseIn var(--mo-spring-smooth-duration) var(--mo-spring-smooth) both; }
-@media (prefers-reduced-motion: reduce) { .rowIn { animation: none; } }
+
 
 /* The in-app 3D floor (every page): a faint wireframe plane receding to a horizon low on the page. It fades out towards the horizon, so it
    is only a soft texture under the working screens. Nothing for print. */

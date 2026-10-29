@@ -9,15 +9,14 @@ import { AnimatedText, CountUp, Fan, Ring, Slab } from '@/components/shared/floo
 import { serviceLife, statusAccent, type ServiceLife } from './floorLogic';
 import s from '@/components/shared/floor/floor.module.css';
 
-export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onOpen }: {
-  compressor: Compressor; recordedToday: boolean; justSaved: boolean; kick: number; index: number; onOpen: () => void;
+export function UnitPod({ compressor, recordedToday, justSaved, kick, onOpen }: {
+  compressor: Compressor; recordedToday: boolean; justSaved: boolean; kick: number; onOpen: () => void;
 }) {
   const accent = statusAccent(compressor.status);
   const life: ServiceLife = serviceLife(compressor.total_running_hours);
   const status = STATUS_META[compressor.status]?.label ?? compressor.status;
   const efficiency = compressor.total_running_hours ? (compressor.total_loaded_hours / compressor.total_running_hours) * 100 : null;
   return (
-    <div className={s.rowIn} style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}>
       <Slab
         accent={accent}
         className={`group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-focus ${justSaved ? s.saved : ''}`}
@@ -69,6 +68,5 @@ export function UnitPod({ compressor, recordedToday, justSaved, kick, index, onO
           </footer>
         </div>
       </Slab>
-    </div>
   );
 }

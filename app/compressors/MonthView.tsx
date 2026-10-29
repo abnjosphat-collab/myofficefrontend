@@ -4,7 +4,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { IconButton } from '@/components/ui-system';
+import { IconButton, MotionTableBody, MotionTableRow } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
 import { formatDate } from '@/lib/format';
@@ -84,9 +84,9 @@ export function MonthView({ compressors, history, loading, year, month, today, o
               <th scope="col" className="whitespace-nowrap px-2 py-2 text-right font-medium text-ink-muted">Readings</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map(({ c, m }, ri) => (
-              <tr key={c.id} className={s.rowIn} style={{ animationDelay: `${Math.min(ri * 30, 300)}ms` }}>
+          <MotionTableBody stillKey={`${year}-${month}`}>
+            {rows.map(({ c, m }) => (
+              <MotionTableRow key={c.id}>
                 <th scope="row" className="sticky left-0 z-10 max-w-44 truncate border-t border-line-subtle bg-surface-raised px-3 py-1.5 text-left font-medium text-ink"><button type="button" onClick={() => onOpenUnit(c.id)} aria-label={`${c.name.trim()}: week and month in detail`} className="max-w-full truncate rounded-xs text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">{c.name}</button></th>
                 {m.days.map(d => (
                   <td key={d.date} className={`border-t border-line-subtle px-px py-1.5 text-center ${d.date === today ? 'bg-action-soft' : ''}`}>
@@ -96,9 +96,9 @@ export function MonthView({ compressors, history, loading, year, month, today, o
                 <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right"><span className="floor-meter text-ink">{m.running.toFixed(1)}</span> <span className="text-ink-muted">h</span></td>
                 <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right tabular text-ink">{m.loadedPct == null ? <span className="text-ink-muted">—</span> : `${m.loadedPct}%`}</td>
                 <td className="whitespace-nowrap border-t border-line-subtle px-2 py-1.5 text-right tabular" style={{ color: m.recorded < m.expected ? 'var(--mo-warning)' : 'var(--mo-ink)' }}>{m.recorded}/{m.expected}</td>
-              </tr>
+              </MotionTableRow>
             ))}
-          </tbody>
+          </MotionTableBody>
         </table>
       </div>
       {fleetHours === 0 && !loading && <p className="font-sans text-caption text-ink-muted">No readings recorded in {label} yet. Readings saved from the floor appear here day by day.</p>}

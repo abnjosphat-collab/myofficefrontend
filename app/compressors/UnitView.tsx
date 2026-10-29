@@ -120,9 +120,11 @@ export function UnitView({ compressor, history, loading, today, onBack, onOpenDa
               return (
                 <div key={d.date} title={tip} className="relative flex h-full items-end justify-center">
                   {d.state === 'reading' && (
-                    <div className="relative w-full overflow-hidden rounded-t-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)', height: reduced || barsShown ? `${Math.max(2, height)}%` : '0%', transition: reduced ? undefined : 'height var(--mo-spring-smooth-duration) var(--mo-spring-smooth)', transitionDelay: reduced ? undefined : `${i * 0.015}s` }}>
+                    <div className="relative w-full overflow-hidden rounded-t-xs" style={{ background: 'color-mix(in srgb, var(--mo-action) 30%, transparent)', height: `${Math.max(2, height)}%` }}>
+                      <div className="absolute inset-0 origin-bottom" style={{ transform: reduced || barsShown ? 'scaleY(1)' : 'scaleY(0)', transition: reduced ? undefined : 'transform var(--mo-spring-smooth-duration) var(--mo-spring-smooth)', transitionDelay: reduced ? undefined : `${i * 0.015}s` }}>
                       <span className="absolute inset-x-0 bottom-0" style={{ height: `${share * 100}%`, background: 'var(--mo-action)' }} />
                       {d.span > 1 && <span className={`${s.spanMark} absolute right-0.5 top-0.5`} />}
+                      </div>
                     </div>
                   )}
                   {d.state === 'missing' && <span className="mb-1 size-1.5 rounded-full bg-ink-subtle" />}

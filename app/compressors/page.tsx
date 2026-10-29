@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, Disclosure, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
+import { Button, DataRegion, Disclosure, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, MotionList, MotionListItem, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
 import { useLookupList } from '@/hooks/useLookups';
 import { formatDate, formatWeekday } from '@/lib/format';
 import { AnalyticsTab } from './AnalyticsTab';
@@ -152,7 +152,7 @@ function CompressorFloor() {
                   : <EmptyState icon="compressor" title="No compressors registered" description="Compressors are added in the Equipment register (category Compressors) and appear here." action={<Link href="/equipment" className={buttonVariants({ variant: 'primary' })}><Icon name="plus" size="sm" />Add in Equipment register</Link>} />}
               >
                 {layout === 'pods'
-                  ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{shown.map((c, i) => <UnitPod key={c.id} compressor={c} index={i} recordedToday={recorded.has(c.id)} justSaved={justSaved === c.id} kick={kicks[c.id] ?? 0} onOpen={() => setOpenId(c.id)} />)}</div>
+                  ? <MotionList as="div" className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" calmKey={`${location}|${statusF}`}>{shown.map(c => <MotionListItem as="div" key={c.id}><UnitPod compressor={c} recordedToday={recorded.has(c.id)} justSaved={justSaved === c.id} kick={kicks[c.id] ?? 0} onOpen={() => setOpenId(c.id)} /></MotionListItem>)}</MotionList>
                   : <UnitList rows={shown} recorded={recorded} onOpen={setOpenId} />}
               </DataRegion>
             </div>
@@ -176,9 +176,9 @@ function CompressorFloor() {
                 onBack={() => setView('floor')} onOpenDay={day => { setDate(day); setOpenId(u.id); }} />
             ) : null;
           })()}
-          {view === 'services' && <div className={s.viewEnter}><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
-          {view === 'analytics' && <div className={s.viewEnter}><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
-          {view === 'fleet' && <div className={s.viewEnter}><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
+          {view === 'services' && <div><ServicesTab services={d.services} compressors={compressors} registerLoaded={register.loaded} onRetry={() => d.refresh()} /></div>}
+          {view === 'analytics' && <div><AnalyticsTab metrics={d.metrics} trends={d.trends} comparison={d.comparison} period={d.period} onPeriod={d.setPeriod} metric={d.metric} onMetric={d.setMetric} onRetry={() => d.refresh()} /></div>}
+          {view === 'fleet' && <div><ManagementTab summary={d.summary} onRetry={() => d.refresh()} /></div>}
         </div>
       </Presence>
 
