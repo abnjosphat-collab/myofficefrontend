@@ -285,3 +285,34 @@ describe('thisWeekRange', () => {
     expect(thisWeekRange(new Date('2026-09-01T12:00:00'))).toEqual({ from: '2026-08-31', to: '2026-09-06' });
   });
 });
+
+describe('order list by section', () => {
+  const lines = [
+    orderEntry({ record_id: '1', employee_name: 'Ann', section: 'Electrical', size: '8' }),
+    orderEntry({ record_id: '2', employee_name: 'Ben', section: 'Mechanical', size: '8' }),
+    orderEntry({ record_id: '3', employee_name: 'Cy', section: 'Electrical', size: '8', qty: 2 }),
+    orderEntry({ record_id: 'free:1', employee_id: '', employee_name: '', size: '8' }),
+  ];
+
+  it('filters to one section, with Unassigned for lines that have none', () => {
+    expect(filterOrderList(lines, { section: 'Electrical' }).map(l => l.record_id)).toEqual(['1', '3']);
+    expect(filterOrderList(lines, { section: 'Unassigned' }).map(l => l.record_id)).toEqual(['free:1']);
+    expect(filterOrderList(lines, { section: 'all' })).toHaveLength(4);
+  });
+
+  it('keeps each section apart in the purchase order lines, sections in register order', () => {
+    const rows = groupOrderList(lines, { bySection: true });
+    expect(rows.map(r => [r.section, r.count])).toEqual([['Mechanical', 1], ['Electrical', 3], ['Unassigned', 1]]);
+    expect(rows[1].people).toEqual(['Ann', 'Cy']);
+  });
+
+  it('merges sections into one line per item and size when not split', () => {
+    const rows = groupOrderList(lines);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ section: '', count: 5 });
+  });
+
+  it('sorts by section in register order', () => {
+    expect(sortOrderList(lines, 'section').map(l => l.record_id)).toEqual(['2', '1', '3', 'free:1']);
+  });
+});

@@ -9,7 +9,8 @@ import { Button, DataTable, DataRegion, EmptyState, Icon, MoreMenu, MultiSelectF
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
 import { exportFilename } from '@/lib/exportUtils';
-import { filterOrderList, groupOrderList, isExpired, isExpiringSoon, sortOrderList, type OrderListEntry, type OrderListSortKey, type OrderListUrgency } from './calcPPE';
+import { normalizeSection } from '@/lib/sections';
+import { compareSections, filterOrderList, groupOrderList, isExpired, isExpiringSoon, sortOrderList, type OrderGroupRow, type OrderListEntry, type OrderListSortKey, type OrderListUrgency } from './calcPPE';
 import { toOrderEntry } from './DueItems';
 import { ChooseSoonDialog, FreeLineDialog, LineEditDialog } from './OrderLineDialogs';
 import { type Basket, type BasketLine } from './orderBasket';
@@ -20,7 +21,25 @@ import type { PPERecord } from './types';
 
 const ALL = 'all';
 const COLUMNS_EXPORT: DLColumn[] = [{ key: 'item_name', label: 'Item', width: 22 }, { key: 'size', label: 'Size', width: 10 }, { key: 'count', label: 'Qty', width: 8 }, { key: 'people', label: 'For (Employees)', width: 44 }];
-const SORTS: { value: OrderListSortKey; label: string }[] = [{ value: 'expiry', label: 'Expiry date' }, { value: 'employee', label: 'Employee' }, { value: 'type', label: 'PPE type' }, { value: 'item', label: 'Item name' }, { value: 'added', label: 'Date added' }];
+// The whole list downloads with a Section column so each section's lines stay apart; one section downloads without it.
+const COLUMNS_EXPORT_BY_SECTION: DLColumn[] = [{ key: 'section', label: 'Section', width: 14 }, ...COLUMNS_EXPORT];
+const SORTS: { value: OrderListSortKey; label: string }[] = [{ value: 'expiry', label: 'Expiry date' }, { value: 'employee', label: 'Employee' }, { value: 'section', label: 'Section' }, { value: 'type', label: 'PPE type' }, { value: 'item', label: 'Item name' }, { value: 'added', label: 'Date added' }];
+
+/** "Ann Alpha, Ben Beta and 3 more": who the renewed lines were for, short enough for the banner. */
+function summariseRenewed(entries: OrderListEntry[]): string {
+  const names = [...new Set(entries.map(e => e.employee_name).filter(Boolean))];
+  return names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
+}
+
+/** Purchase order lines with a section heading wherever the section changes (the groups arrive sorted by section). */
+function bySectionHeading(groups: OrderGroupRow[]): { section: string; groups: OrderGroupRow[] }[] {
+  const out: { section: string; groups: OrderGroupRow[] }[] = [];
+  for (const g of groups) {
+    const last = out[out.length - 1];
+    if (last && last.section === g.section) last.groups.push(g); else out.push({ section: g.section, groups: [g] });
+  }
+  return out;
+}
 const URGENCY = [{ value: 'all', label: 'Any urgency' }, { value: 'overdue', label: 'Overdue only' }, { value: 'soon', label: 'Expiring soon' }];
 const normSize = (s?: string) => (s || '').trim() || 'Unspecified';
 
@@ -30,8 +49,10 @@ export interface BasketAddables {
   soon: PPERecord[];
 }
 
-export function OrderListView({ basket, addables, typeFilter, typeOptions, onTypeFilterChange, onIssue, onRemove, onRemoveMany, onExclude, onRestore, onUpdate, onKeepManual, onAddMany, onAddFree, onClearManual }: {
+export function OrderListView({ basket, addables, typeFilter, typeOptions, onTypeFilterChange, registerSections = [], onIssue, onRemove, onRemoveMany, onExclude, onRestore, onUpdate, onKeepManual, onAddMany, onAddFree, onClearManual }: {
   basket: Basket; addables: BasketAddables; typeFilter: TypeFilter; typeOptions: FilterOption[]; onTypeFilterChange: (patch: Partial<TypeFilter>) => void;
+  /** Every section on the personnel register (offered when adding a free line). */
+  registerSections?: string[];
   onIssue: (line: BasketLine) => void;
   onRemove: (id: string) => void; onRemoveMany: (ids: string[]) => void;
   onExclude: (line: BasketLine) => void; onRestore: (id: string) => void;
@@ -41,6 +62,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   const confirm = useConfirm();
   const [search, setSearch] = useState('');
   const [size, setSize] = useState(ALL);
+  const [section, setSection] = useState(ALL);
   const [urgency, setUrgency] = useState<OrderListUrgency>('all');
   const [sort, setSort] = useState<OrderListSortKey>('expiry');
   const [linesOpen, setLinesOpen] = useState(false); // the purchase order lines start closed; open them when a purchase order is being prepared
@@ -48,16 +70,24 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   const [editing, setEditing] = useState<BasketLine | null>(null);
   const [chooseOpen, setChooseOpen] = useState(false);
   const [freeOpen, setFreeOpen] = useState(false);
-  const { lines, counts, excluded, twins, notDueLegacy } = basket;
+  const { lines, counts, excluded, twins, notDueLegacy, renewed } = basket;
   const sizes = useMemo(() => [...new Set(lines.map(e => normSize(e.size)))].sort(), [lines]);
-  const rows = useMemo(() => sortOrderList(filterOrderList(lines, { type: typeFilter, size, search, urgency }), sort), [lines, typeFilter, size, search, urgency, sort]);
-  const listCalm = JSON.stringify([typeFilter, size, search, urgency, sort]);
+  const sections = useMemo(() => {
+    const counts = new Map<string, number>();
+    lines.forEach(l => { const s = normalizeSection(l.section); counts.set(s, (counts.get(s) ?? 0) + (l.qty ?? 1)); });
+    return [...counts.entries()].sort((a, b) => compareSections(a[0], b[0]));
+  }, [lines]);
+  const rows = useMemo(() => sortOrderList(filterOrderList(lines, { type: typeFilter, size, section, search, urgency }), sort), [lines, typeFilter, size, section, search, urgency, sort]);
+  const listCalm = JSON.stringify([typeFilter, size, section, search, urgency, sort]);
   const visibleExcluded = useMemo(() => excluded.filter(e => matchesTypeFilter(e.ppe_type, typeFilter)), [excluded, typeFilter]);
-  const groups = useMemo(() => groupOrderList(rows), [rows]);
-  const poLines = useMemo(() => groupOrderList(lines), [lines]);
-  const totalQty = useMemo(() => poLines.reduce((s, g) => s + g.count, 0), [poLines]);
-  const localActive = size !== ALL || search !== '' || urgency !== 'all'; // Clear is for these; the shared lens has its own Reset
-  const nothing = lines.length === 0 && excluded.length === 0;
+  // With every section showing, each section's purchase order lines are kept apart; one chosen section needs no split.
+  const splitBySection = section === ALL;
+  const groups = useMemo(() => groupOrderList(rows, { bySection: splitBySection }), [rows, splitBySection]);
+  const groupsBySection = useMemo(() => bySectionHeading(groups), [groups]);
+  const poLines = useMemo(() => groupOrderList(lines, { bySection: true }), [lines]);
+  const shownQty = useMemo(() => groups.reduce((s, g) => s + g.count, 0), [groups]);
+  const localActive = size !== ALL || section !== ALL || search !== '' || urgency !== 'all'; // Clear is for these; the shared lens has its own Reset
+  const nothing = lines.length === 0 && excluded.length === 0 && renewed.length === 0;
   const manualCount = counts.manual + counts.free;
 
   const addWeek = async (which: 'thisWeek' | 'nextWeek') => {
@@ -75,6 +105,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   const COLUMNS: Column<BasketLine>[] = [
     { id: 'who', header: 'For', sticky: true, cell: l => <div><p className="font-medium text-ink">{l.employee_name || 'Free line'}</p><p className="text-caption text-ink-muted">{l.employee_id}</p></div> },
     { id: 'item', header: 'Item', cell: l => <div className="[overflow-wrap:anywhere]"><p>{typeName(l.ppe_type)}{l.size && <span className="text-ink-muted">, size {l.size}</span>}{(l.qty ?? 1) > 1 && <span className="font-semibold text-ink"> × {l.qty}</span>}</p><p className="text-caption text-ink-muted">{l.item_name}</p>{l.note && <p className="text-caption text-ink-muted">{l.note}</p>}</div> },
+    { id: 'section', header: 'Section', hideBelow: 'md', cell: l => <span className="whitespace-nowrap">{normalizeSection(l.section)}</span> },
     { id: 'state', header: 'State', cell: l => (isExpired(l.expiry_date) ? <StatusBadge tone="danger">Overdue</StatusBadge> : isExpiringSoon(l.expiry_date) ? <StatusBadge tone="warning">Expiring soon</StatusBadge> : <StatusBadge tone="info">{l.expiry_date ? 'In date' : 'No expiry'}</StatusBadge>) },
     { id: 'expires', header: 'Expires', hideBelow: 'md', cell: l => <span className="whitespace-nowrap tabular">{l.expiry_date ? fmtDate(l.expiry_date) : 'None'}</span> },
   ];
@@ -100,8 +131,12 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
         )
       ) : (
         <>
-          {(twins.length > 0 || notDueLegacy.length > 0) && (
+          {(twins.length > 0 || notDueLegacy.length > 0 || renewed.length > 0) && (
             <Notice tone="warning" title="Tidy the order list">
+              {renewed.length > 0 && (
+                <span>{renewed.length} {renewed.length === 1 ? 'line is' : 'lines are'} for items already renewed since {renewed.length === 1 ? 'it was' : 'they were'} flagged ({summariseRenewed(renewed)}), so {renewed.length === 1 ? 'it is' : 'they are'} not ordered. <Button size="sm" className="ml-1" onClick={() => onRemoveMany(renewed.map(e => e.record_id))}>Remove {renewed.length === 1 ? 'it' : 'them'}</Button></span>
+              )}
+              {renewed.length > 0 && (twins.length > 0 || notDueLegacy.length > 0) && <br />}
               {twins.length > 0 && (
                 <span>{twins.length} {twins.length === 1 ? 'line is' : 'lines are'} already covered by the automatic list. <Button size="sm" className="ml-1" onClick={() => onRemoveMany(twins.map(t => t.record_id))}>Remove twins</Button></span>
               )}
@@ -115,10 +150,11 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
           <div className="flex flex-wrap items-center gap-3">
             <SearchField value={search} onValueChange={setSearch} placeholder="Search the order list" wrapperClassName="min-w-48 max-w-sm flex-1" />
             <MultiSelectFilter label="PPE types" unit="types" allLabel="All types" options={typeOptions} value={typeFilter.types} onChange={types => onTypeFilterChange({ types })} mode={typeFilter.mode} onModeChange={mode => onTypeFilterChange({ mode })} />
+            <Select aria-label="Section" className="w-44" value={section} onValueChange={setSection} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />
             <Select aria-label="Size" className="w-32" value={size} onValueChange={setSize} options={[{ value: ALL, label: 'All sizes' }, ...sizes.map(s => ({ value: s, label: s }))]} />
             <Select aria-label="Urgency" className="w-40" value={urgency} onValueChange={v => setUrgency(v as OrderListUrgency)} options={URGENCY} />
             <Select aria-label="Sort by" className="w-36" value={sort} onValueChange={v => setSort(v as OrderListSortKey)} options={SORTS} />
-            {localActive && <Button variant="ghost" icon="close" onClick={() => { setSearch(''); setSize(ALL); setUrgency('all'); }}>Clear filters</Button>}
+            {localActive && <Button variant="ghost" icon="close" onClick={() => { setSearch(''); setSize(ALL); setSection(ALL); setUrgency('all'); }}>Clear filters</Button>}
             <MoreMenu label="Add items" iconOnly={false} items={[
               { label: `Due this week (Mon–Sun) (${addables.thisWeek.records.length})`, icon: 'cart', disabled: addables.thisWeek.records.length === 0, onSelect: () => { void addWeek('thisWeek'); } },
               { label: `Due next week (Mon–Sun) (${addables.nextWeek.records.length})`, icon: 'calendar', disabled: addables.nextWeek.records.length === 0, onSelect: () => { void addWeek('nextWeek'); } },
@@ -137,10 +173,17 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
                       <Icon name={linesOpen ? 'chevron-up' : 'chevron-down'} size="md" />Purchase order lines<span className="font-sans text-body-sm font-normal text-ink-muted">{poLines.length} {poLines.length === 1 ? 'line' : 'lines'}</span>
                     </button>
                   </h2>
-                  {linesOpen && <DownloadButton data={groups.map(g => ({ item_name: g.item_name, size: g.size, count: g.count, people: g.people.join(', ') })) as unknown as Record<string, unknown>[]} columns={COLUMNS_EXPORT} filename={exportFilename('PPE_Order_List')} title="PPE Order List" subtitle={`${totalQty} items`} />}
+                  {linesOpen && <DownloadButton data={groups.map(g => ({ section: g.section, item_name: g.item_name, size: g.size, count: g.count, people: g.people.join(', ') })) as unknown as Record<string, unknown>[]} columns={splitBySection ? COLUMNS_EXPORT_BY_SECTION : COLUMNS_EXPORT} filename={exportFilename(splitBySection ? 'PPE_Order_List' : `PPE_Order_List_${section.replace(/\W+/g, '_')}`)} title={splitBySection ? 'PPE Order List' : `PPE Order List: ${section}`} subtitle={`${shownQty} items`} />}
                 </div>
-                <ul id="po-lines" hidden={!linesOpen} className="flex flex-col divide-y divide-line-subtle" aria-label="Purchase order lines">
-                  {groups.map(g => <li key={`${g.ppe_type}-${g.size}`} className="flex flex-wrap items-baseline gap-x-3 py-2 font-sans text-body-sm"><span className="font-semibold tabular text-ink">{g.count} ×</span><span className="font-medium text-ink">{typeName(g.ppe_type)}, size {g.size}</span>{g.people.length > 0 && <span className="min-w-0 flex-1 text-ink-muted [overflow-wrap:anywhere]">for {g.people.join(', ')}</span>}</li>)}
+                <ul id="po-lines" hidden={!linesOpen} className="flex flex-col gap-3" aria-label="Purchase order lines">
+                  {groupsBySection.map(block => (
+                    <li key={block.section || 'all'}>
+                      {block.section && <h3 className="font-sans text-body-sm font-semibold text-ink">{block.section}<span className="font-normal text-ink-muted"> · {block.groups.reduce((s, g) => s + g.count, 0)} items</span></h3>}
+                      <ul className="flex flex-col divide-y divide-line-subtle" aria-label={block.section ? `${block.section} purchase order lines` : undefined}>
+                        {block.groups.map(g => <li key={`${g.section}-${g.ppe_type}-${g.size}`} className="flex flex-wrap items-baseline gap-x-3 py-2 font-sans text-body-sm"><span className="font-semibold tabular text-ink">{g.count} ×</span><span className="font-medium text-ink">{typeName(g.ppe_type)}, size {g.size}</span>{g.people.length > 0 && <span className="min-w-0 flex-1 text-ink-muted [overflow-wrap:anywhere]">for {g.people.join(', ')}</span>}</li>)}
+                      </ul>
+                    </li>
+                  ))}
                 </ul>
               </section>
               <DataTable stillKey={listCalm} caption="Items on the order list" rows={rows} columns={COLUMNS} getRowId={l => l.record_id} rowActions={rowActions} />
@@ -165,7 +208,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
       )}
       <LineEditDialog line={editing} onClose={() => setEditing(null)} onSave={onUpdate} />
       <ChooseSoonDialog open={chooseOpen} records={addables.soon} onClose={() => setChooseOpen(false)} onAdd={ids => onAddMany(ids.map(id => toOrderEntry(addables.soon.find(r => String(r.id) === id)!)))} />
-      <FreeLineDialog open={freeOpen} onClose={() => setFreeOpen(false)} onSave={onAddFree} />
+      <FreeLineDialog open={freeOpen} onClose={() => setFreeOpen(false)} onSave={onAddFree} knownSections={[...registerSections, ...sections.map(([s]) => s)]} />
     </div>
   );
 }

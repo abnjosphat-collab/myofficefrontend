@@ -147,3 +147,67 @@ describe('addableInWindow / addableSoon', () => {
     expect(addableSoon(rows(), register, new Set(), new Set(), TODAY).map(r => r.id)).toEqual(['2', '3']);
   });
 });
+
+describe('buildBasket sections', () => {
+  const REG: BasketRegister = { ...register, sections: new Map([['C100', 'electrical '], ['C200', 'Mechanical']]) };
+
+  it("gives a person's line their current register section (normalised), automatic or flagged", () => {
+    const b = buildBasket([rec('1')], [line('9', { employee_id: 'C200', employee_name: 'Ben Beta', kind: 'line' })], REG, TODAY);
+    expect(b.lines.map(l => [l.record_id, l.section])).toEqual([['1', 'Electrical'], ['9', 'Mechanical']]);
+  });
+
+  it('follows the register, not what was saved on the PPE record, when the person has moved section', () => {
+    const b = buildBasket([rec('1', { mine_section: 'Mechanical' })], [], REG, TODAY);
+    expect(b.lines[0].section).toBe('Electrical');
+  });
+
+  it('falls back to the PPE record section for someone the register has no section for', () => {
+    const noSection: BasketRegister = { ...register, sections: new Map() };
+    const b = buildBasket([rec('1', { mine_section: 'Underground' })], [], noSection, TODAY);
+    expect(b.lines[0].section).toBe('Underground');
+  });
+
+  it('keeps the section a free line was added with, and calls an unknown one Unassigned', () => {
+    const b = buildBasket([], [line('free:1', { kind: 'free', employee_id: '', employee_name: '', section: 'Electrical' }), line('free:2', { kind: 'free', employee_id: '', employee_name: '' })], REG, TODAY);
+    expect(b.lines.map(l => l.section)).toEqual(['Electrical', 'Unassigned']);
+  });
+});
+
+describe('buildBasket renewed lines', () => {
+  // TODAY is 2026-10-22; "not due soon" means an expiry after 2026-11-21.
+  it('takes a flagged line out of the order once its item has been renewed since', () => {
+    const b = buildBasket([rec('5', { expiry_date: '2027-03-16' })], [line('5', { kind: 'line', expiry_date: '2026-09-03' })], register, TODAY);
+    expect(b.lines).toEqual([]);
+    expect(b.renewed.map(e => e.record_id)).toEqual(['5']);
+  });
+
+  it('treats a line that stored no expiry, against a far-off record expiry, as renewed (moved off one browser before it was shared)', () => {
+    const b = buildBasket([rec('298', { expiry_date: '2027-03-08' })], [line('298', { kind: 'line', expiry_date: null })], register, TODAY);
+    expect(b.lines).toEqual([]);
+    expect(b.renewed).toHaveLength(1);
+  });
+
+  it('keeps a line deliberately flagged early: its stored expiry is still the record expiry', () => {
+    const b = buildBasket([rec('7', { expiry_date: '2027-01-15' })], [line('7', { kind: 'line', expiry_date: '2027-01-15' })], register, TODAY);
+    expect(b.lines.map(l => l.record_id)).toEqual(['7']);
+    expect(b.renewed).toEqual([]);
+  });
+
+  it("keeps a line due soon that stored no expiry, and shows the record's real expiry instead of none", () => {
+    const b = buildBasket([rec('8', { expiry_date: '2026-11-10' })], [line('8', { kind: 'line', expiry_date: null })], register, TODAY);
+    expect(b.lines.map(l => [l.record_id, l.expiry_date])).toEqual([['8', '2026-11-10']]);
+    expect(b.renewed).toEqual([]);
+  });
+
+  it('offers a renewed legacy line once, as renewed, not also as "not due yet"', () => {
+    const b = buildBasket([rec('9', { expiry_date: '2027-03-08' })], [line('9', { expiry_date: null })], register, TODAY);
+    expect(b.renewed.map(e => e.record_id)).toEqual(['9']);
+    expect(b.notDueLegacy).toEqual([]);
+  });
+
+  it('leaves free lines and lines for records that are gone alone', () => {
+    const b = buildBasket([], [line('free:1', { kind: 'free', employee_id: '', employee_name: '' }), line('404', { kind: 'line' })], register, TODAY);
+    expect(b.renewed).toEqual([]);
+    expect(b.lines.map(l => l.record_id).sort()).toEqual(['404', 'free:1']);
+  });
+});

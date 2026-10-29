@@ -3,6 +3,7 @@
 // "extract + test business logic" standard (app/timesheets/calcTotals.ts precedent).
 // Previously inline in page.tsx with no test coverage at all.
 import { daysUntil } from '@/lib/dates';
+import { normalizeSection, SECTION_ORDER } from '@/lib/sections';
 import { matchesTypeFilter, normalizePpeType, type TypeFilter } from './ppeTypes';
 import type { PPERecord } from './types';
 
@@ -142,14 +143,19 @@ export interface OrderListEntry {
   note?: string;
   /** Where a basket line comes from — display-only, never stored (the server drops it). Set by buildBasket, not by callers. */
   origin?: 'auto' | 'manual' | 'free';
+  /** The ordering section (Electrical, Mechanical, ...). Stored only on free lines (chosen when added); on a person's line
+   *  buildBasket sets it from the person's current register section, so a section move is never stale on the list. */
+  section?: string;
 }
 
-export type OrderListSortKey = 'expiry' | 'employee' | 'type' | 'item' | 'added';
+export type OrderListSortKey = 'expiry' | 'employee' | 'type' | 'item' | 'added' | 'section';
 export type OrderListUrgency = 'all' | 'overdue' | 'soon';
 
 export interface OrderListFilters {
   type?: TypeFilter;
   size?: string;
+  /** 'all', or a normalised section name ('Unassigned' for lines with none). */
+  section?: string;
   search?: string;
   urgency?: OrderListUrgency;
 }
@@ -157,11 +163,12 @@ export interface OrderListFilters {
 const normSize = (size?: string) => (size || '').trim() || 'Unspecified';
 
 export function filterOrderList<T extends OrderListEntry>(entries: readonly T[], filters: OrderListFilters): T[] {
-  const { type, size = 'all', search = '', urgency = 'all' } = filters;
+  const { type, size = 'all', section = 'all', search = '', urgency = 'all' } = filters;
   const q = search.trim().toLowerCase();
   return entries.filter(e => {
     if (type && !matchesTypeFilter(e.ppe_type, type)) return false;
     if (size !== 'all' && normSize(e.size) !== size) return false;
+    if (section !== 'all' && normalizeSection(e.section) !== section) return false;
     if (urgency === 'overdue' && !isExpired(e.expiry_date)) return false;
     if (urgency === 'soon' && !(isExpiringSoon(e.expiry_date) && !isExpired(e.expiry_date))) return false;
     if (q) {
@@ -183,6 +190,7 @@ export function sortOrderList<T extends OrderListEntry>(entries: readonly T[], s
       case 'employee': cmp = a.employee_name.localeCompare(b.employee_name); break;
       case 'type': cmp = a.ppe_type.localeCompare(b.ppe_type) || a.item_name.localeCompare(b.item_name); break;
       case 'item': cmp = a.item_name.localeCompare(b.item_name) || normSize(a.size).localeCompare(normSize(b.size)); break;
+      case 'section': cmp = compareSections(normalizeSection(a.section), normalizeSection(b.section)) || dateKey(a.expiry_date) - dateKey(b.expiry_date); break;
     }
     return cmp * mul || a.employee_name.localeCompare(b.employee_name);
   });
@@ -198,23 +206,33 @@ export function orderEntryFulfilled(entry: OrderListEntry, employeeId: string, p
 
 export interface OrderGroupRow {
   ppe_type: string; item_name: string; size: string;
+  /** The section these lines are ordered for; '' when the list is not split by section. */
+  section: string;
   count: number; people: string[];
+}
+
+/** Section display order: the register's known sections first, then any others A-Z, 'Unassigned' last. */
+export function compareSections(a: string, b: string): number {
+  const rank = (s: string) => (s === 'Unassigned' ? 1e6 : SECTION_ORDER.includes(s) ? SECTION_ORDER.indexOf(s) : 1e3);
+  return rank(a) - rank(b) || a.localeCompare(b);
 }
 
 // Groups the order list the way a purchase order actually needs it: "Safety Shoes,
 // size 8, qty 3" with who each one is for — not a flat per-person list. Quantities
 // add up (a line edited to 4 counts 4); each person is named once no matter how
 // many lines they have. Sorted by qty descending (biggest reorder need first),
-// then item name for a stable order among ties.
-export function groupOrderList(entries: OrderListEntry[]): OrderGroupRow[] {
+// then item name for a stable order among ties. `bySection` keeps each section's
+// lines apart (Electrical and Mechanical order separately), sections in display order.
+export function groupOrderList(entries: OrderListEntry[], { bySection = false }: { bySection?: boolean } = {}): OrderGroupRow[] {
   const byKey = new Map<string, OrderGroupRow>();
   entries.forEach(e => {
     const size = (e.size || '').trim() || 'Unspecified';
-    const key = `${e.ppe_type}::${size}`;
-    const row = byKey.get(key) ?? { ppe_type: e.ppe_type, item_name: e.item_name, size, count: 0, people: [] };
+    const section = bySection ? normalizeSection(e.section) : '';
+    const key = `${section}::${e.ppe_type}::${size}`;
+    const row = byKey.get(key) ?? { ppe_type: e.ppe_type, item_name: e.item_name, size, section, count: 0, people: [] };
     row.count += e.qty ?? 1;
     if (e.employee_name && !row.people.includes(e.employee_name)) row.people.push(e.employee_name);
     byKey.set(key, row);
   });
-  return [...byKey.values()].sort((a, b) => b.count - a.count || a.item_name.localeCompare(b.item_name));
+  return [...byKey.values()].sort((a, b) => compareSections(a.section, b.section) || b.count - a.count || a.item_name.localeCompare(b.item_name));
 }

@@ -80,3 +80,25 @@ describe('PPEIssueForm person-pick', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ employee_id: 'C100' }), '9');
   });
 });
+
+describe('PPEIssueForm premature failure', () => {
+  it('marks an issue as a premature failure and saves what failed', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(async () => {});
+    render(<ConfirmProvider><PPEIssueForm open record={null} prefill={null} employee={null} matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
+    await user.click(screen.getByRole('option', { name: /Dee Delta/ }));
+    await user.type(screen.getByLabelText(/^Item or brand/), 'Gumboots');
+    expect(screen.queryByLabelText(/^What failed/)).toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: /Premature failure/ }));
+    await user.type(screen.getByLabelText(/^What failed/), 'Sole split after three weeks');
+    await user.click(screen.getByRole('button', { name: 'Issue PPE' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ premature_failure: true, failure_reason: 'Sole split after three weeks' }), undefined);
+  });
+
+  it('opens an edit with the premature mark and what failed already filled', () => {
+    const record = issue({ premature_failure: true, failure_reason: 'Torn at the knee' });
+    render(<ConfirmProvider><PPEIssueForm open record={record} prefill={null} employee={holder({ records: [record] })} matrix={{}} onOpenChange={() => {}} onSave={async () => {}} /></ConfirmProvider>);
+    expect(screen.getByRole('checkbox', { name: /Premature failure/ })).toBeChecked();
+    expect(screen.getByLabelText(/^What failed/)).toHaveValue('Torn at the knee');
+  });
+});

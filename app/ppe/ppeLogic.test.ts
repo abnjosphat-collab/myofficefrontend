@@ -195,3 +195,14 @@ describe('countBulkIssueDupes (bulk-issue warning only; the server 409 is the re
     expect(countBulkIssueDupes(rows, ['C1'], 'helmet', '')).toBe(0);
   });
 });
+
+describe('premature failures view', () => {
+  it('shows only the people holding an item issued as a premature-failure replacement', () => {
+    const holders = groupByEmployee([
+      rec({ id: '1', employee_id: 'C1', employee_name: 'Ann Alpha' }),
+      rec({ id: '2', employee_id: 'C2', employee_name: 'Ben Beta', premature_failure: true, failure_reason: 'Sole split' }),
+      rec({ id: '3', employee_id: 'C3', employee_name: 'Cy Gamma', premature_failure: false }),
+    ], []);
+    expect(filterEmployees(holders, { ...NO_EMPLOYEE_FILTERS, view: 'premature' }).map(h => h.employee_id)).toEqual(['C2']);
+  });
+});

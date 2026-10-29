@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react';
 import { Button, DetailActions, Dialog, Field, Input, OptionChecklist, Select } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
+import { SECTION_ORDER } from '@/lib/sections';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import type { BasketLine } from './orderBasket';
 import { TYPE_OPTIONS, typeName } from './ppeMeta';
@@ -67,15 +68,21 @@ export function ChooseSoonDialog({ open, records, onClose, onAdd }: { open: bool
   );
 }
 
-export function FreeLineDialog({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (draft: FreeLineDraft) => void }) {
+export function FreeLineDialog({ open, onClose, onSave, knownSections = [] }: {
+  open: boolean; onClose: () => void; onSave: (draft: FreeLineDraft) => void;
+  /** Sections already on the order list (the register has some beyond the standard four, e.g. Underground). */
+  knownSections?: string[];
+}) {
+  const sectionOptions = useMemo(() => [{ value: '', label: 'None' }, ...[...new Set([...SECTION_ORDER, ...knownSections.filter(s => s !== 'Unassigned')])].map(s => ({ value: s, label: s }))], [knownSections]);
   const [ppeType, setPpeType] = useState('');
   const [item, setItem] = useState('');
   const [size, setSize] = useState('');
   const [qty, setQty] = useState('1');
   const [who, setWho] = useState('');
+  const [section, setSection] = useState('');
   const [note, setNote] = useState('');
   const [problems, setProblems] = useState<{ ppe_type?: string; item_name?: string; qty?: string }>({});
-  useResetOnOpen(dialogKey(open, null), () => { setPpeType(''); setItem(''); setSize(''); setQty('1'); setWho(''); setNote(''); setProblems({}); });
+  useResetOnOpen(dialogKey(open, null), () => { setPpeType(''); setItem(''); setSize(''); setQty('1'); setWho(''); setSection(''); setNote(''); setProblems({}); });
   const save = () => {
     const next: typeof problems = {};
     if (!ppeType) next.ppe_type = 'Choose the PPE type.';
@@ -84,7 +91,7 @@ export function FreeLineDialog({ open, onClose, onSave }: { open: boolean; onClo
     if (!Number.isFinite(n) || n < 1) next.qty = 'Quantity must be at least 1.';
     setProblems(next);
     if (Object.keys(next).length > 0) return;
-    onSave({ ppe_type: ppeType, item_name: item.trim(), size: size.trim(), qty: n, note: note.trim(), ...(who.trim() ? { employee_name: who.trim() } : {}) });
+    onSave({ ppe_type: ppeType, item_name: item.trim(), size: size.trim(), qty: n, note: note.trim(), ...(who.trim() ? { employee_name: who.trim() } : {}), ...(section ? { section } : {}) });
     onClose();
   };
   return (
@@ -99,6 +106,7 @@ export function FreeLineDialog({ open, onClose, onSave }: { open: boolean; onClo
         <Field label="Size" optional><Input value={size} onChange={e => setSize(e.target.value)} /></Field>
         <Field label="Quantity" error={problems.qty} required><Input inputMode="numeric" value={qty} onChange={e => { setQty(e.target.value); setProblems(p => ({ ...p, qty: undefined })); }} /></Field>
         <Field label="For" description="A name to print on the order, when someone is known." optional><Input value={who} onChange={e => setWho(e.target.value)} placeholder="Optional" /></Field>
+        <Field label="Section" description="Which section's order this goes on." optional><Select aria-label="Section" value={section} onValueChange={setSection} options={sectionOptions} /></Field>
         <Field label="Note for the purchaser" optional><Input value={note} onChange={e => setNote(e.target.value)} /></Field>
       </div>
     </Dialog>

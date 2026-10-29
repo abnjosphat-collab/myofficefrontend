@@ -49,7 +49,8 @@ export function groupByEmployee(records: PPERecord[], roster: EmployeeRow[]): Em
 }
 
 /** 'none' lists the register people with no PPE at all: the blank cards, for follow-up. */
-export type EmployeeView = 'all' | 'active' | 'soon' | 'overdue' | 'none';
+/** 'premature': people holding an item issued as a premature-failure replacement. */
+export type EmployeeView = 'all' | 'active' | 'soon' | 'overdue' | 'none' | 'premature';
 export interface EmployeeFilters { view: EmployeeView; section: string; search: string }
 export const NO_EMPLOYEE_FILTERS: EmployeeFilters = { view: 'all', section: 'all', search: '' };
 
@@ -61,6 +62,7 @@ export function filterEmployees(list: EmployeeWithPPE[], f: EmployeeFilters): Em
     if (f.view === 'soon' && !e.records.some(r => standing(r) === 'soon')) return false;
     if (f.view === 'overdue' && !e.records.some(r => standing(r) === 'overdue')) return false;
     if (f.view === 'none' && e.records.length > 0) return false;
+    if (f.view === 'premature' && !e.records.some(r => r.premature_failure === true)) return false;
     return !q || [e.employee_name, e.employee_id, e.position].some(v => norm(v).includes(q));
   });
 }
