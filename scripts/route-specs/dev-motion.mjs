@@ -5,7 +5,7 @@ const spec = {
   h1: 'Motion gallery',
   data: {},
   async ready(page, calls, { check, shot }) {
-    for (const name of ['Springs', 'Animated icons', 'Icon swap', 'Numbers', 'Presence and lists', 'Data loading', 'Selection indicators', 'Overlays', 'Press', 'Zoom', 'Effect matrix']) {
+    for (const name of ['Springs', 'Animated icons', 'Icon swap', 'Numbers', 'Presence and lists', 'Data loading', 'Selection indicators', 'Overlays', 'Press', 'Selection ticks', 'Progress fill', 'Disclosures', 'Toasts', 'Sidebar collapse', 'Zoom', 'Effect matrix']) {
       check(await page.getByRole('heading', { name }).isVisible(), `section "${name}" renders`);
     }
     // The gallery is never in the navigation.

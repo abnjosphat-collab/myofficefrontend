@@ -8,6 +8,8 @@ import { useMemo, useState } from 'react';
 import { Checkbox } from '../primitives/Checkbox';
 import { SearchField } from '../primitives/SearchField';
 import { Tag } from '../primitives/Badge';
+import { MotionList, MotionListItem } from '../motion/Presence';
+import { NumberTransition } from '../motion/NumberTransition';
 import type { ReactNode } from 'react';
 
 export interface ChecklistOption {
@@ -61,18 +63,27 @@ export function OptionChecklist({ label, options, value, onChange, searchPlaceho
         </div>
       )}
       <p className="font-sans text-caption text-ink-muted" aria-live="polite">
-        {value.length === 0 ? noneText : `${value.length} ${pickedWord}.`}{' '}
-        {filtered.length} shown.
+        {value.length > 0 && (
+          <span className="sr-only">
+            {`${value.length} ${pickedWord}.`} {filtered.length} shown.
+            {unchosen.length > 0 ? ` Select all ${unchosen.length}.` : ''}
+          </span>
+)}
+        {/* When empty the line below is already a single text node, so no separate announcement is needed. */}
+        <span aria-hidden="true">
+          {value.length === 0 ? noneText : (<><NumberTransition value={value.length} /> {pickedWord}. </>)}
+          <NumberTransition value={filtered.length} /> shown.
+        </span>
         {unchosen.length > 0 && (
           <> <button type="button" className="font-medium text-action underline" onClick={() => onChange([...value, ...unchosen.map(o => o.value)])}>Select all {unchosen.length}</button></>
         )}
       </p>
       {showChips && value.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label={chipsLabel ?? `${label}, picked`}>
+        <MotionList as="ul" className="flex flex-wrap gap-1.5" aria-label={chipsLabel ?? `${label}, picked`}>
           {value.map(v => (
-            <li key={v}><Tag onRemove={() => onChange(value.filter(x => x !== v))}>{textOf(v)}</Tag></li>
+            <MotionListItem as="li" key={v}><Tag onRemove={() => onChange(value.filter(x => x !== v))}>{textOf(v)}</Tag></MotionListItem>
           ))}
-        </ul>
+        </MotionList>
       )}
       {filtered.length === 0 ? (
         <p className="font-sans text-body-sm text-ink-muted">{emptyText}</p>

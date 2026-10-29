@@ -8,7 +8,7 @@ import "./globals.css";
 // while JS-imported CSS (floor-themes.css) survives everywhere. Order stays:
 // overrides load after the base tokens they beat on specificity.
 import "../components/ui-system/foundations/themes.css";
-import { Toaster } from "sonner";
+import { MotionToaster } from "@/components/ui-system/patterns/ToastSetup";
 import { Providers } from "@/components/Providers";
 import { MyOfficeAccessBoundary } from "@/components/MyOfficeAccessBoundary";
 // Server component: import the pure appearance module, not the client barrel.
@@ -116,18 +116,8 @@ export default function RootLayout({
         <Providers>
           <MyOfficeAccessBoundary>{children}</MyOfficeAccessBoundary>
         </Providers>
-        {/* Bottom centre: top-right sat on every page header's primary action for the few seconds after a save. */}
-        <Toaster
-          position="bottom-center"
-          richColors
-          toastOptions={{
-            style: {
-              fontFamily: "var(--mo-font-body)",
-              border: "1px solid var(--mo-line)",
-              boxShadow: "var(--mo-shadow-popover)",
-            },
-          }}
-        />
+        {/* Bottom centre: the toast stack (MotionToaster: sonner through its own options, no fork). */}
+        <MotionToaster />
       </body>
     </html>
   );

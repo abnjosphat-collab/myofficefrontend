@@ -54,7 +54,7 @@ export function NavItem({ label, icon, href, onClick, active, collapsed, badge, 
   const inner = (
     <>
       <span className={cn('grid size-6.5 shrink-0 place-items-center', active ? 'text-action' : 'text-ink-muted group-hover/nav:text-action')}><NavGlyph icon={icon} /></span>
-      <span className={cn('min-w-0 flex-1 text-left leading-[1.25]', collapsed && 'sr-only')}>
+      <span aria-hidden={collapsed || undefined} className={cn('min-w-0 flex-1 overflow-hidden text-left leading-[1.25] transition-[max-width,opacity] duration-[var(--mo-spring-quick-duration)] ease-spring-quick motion-reduce:transition-none max-w-full', collapsed && 'max-w-0 opacity-0')}>
         <span className="block [overflow-wrap:anywhere] line-clamp-2" title={label}>{label}</span>
         {hint && !collapsed && <small className="mt-0.5 block font-sans text-caption text-ink-muted line-clamp-2">{hint}</small>}
       </span>
@@ -86,7 +86,7 @@ export function NavSpotlight({ label, icon, href, collapsed, onNavigate, current
       )}
     >
       <span className="grid size-[30px] shrink-0 place-items-center rounded-sm bg-action text-action-ink"><NavGlyph icon={icon} weight="emphasis" /></span>
-      {!collapsed && <strong className="min-w-0 font-sans text-spotlight leading-[1.25] text-ink [overflow-wrap:anywhere] line-clamp-2" title={label}>{label}</strong>}
+      <strong aria-hidden={collapsed || undefined} className={cn('min-w-0 max-w-full overflow-hidden font-sans text-spotlight leading-[1.25] text-ink [overflow-wrap:anywhere] line-clamp-2 transition-[max-width,opacity] duration-[var(--mo-spring-quick-duration)] ease-spring-quick motion-reduce:transition-none', collapsed && 'max-w-0 opacity-0')} title={label}>{label}</strong>
     </Link>
   );
   return collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link;

@@ -4,6 +4,7 @@ import { cn } from '../foundations/cn';
 import { Icon } from '../foundations/Icon';
 import type { IconMeaning } from '../foundations/icon-meanings';
 import { closeTurn } from '../foundations/gestures';
+import { Presence } from '../motion/Presence';
 
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'brand';
 
@@ -29,15 +30,16 @@ export interface StatusBadgeProps extends VariantProps<typeof badgeVariants> {
   children: ReactNode;
   /** Replace the default dot with a semantic icon. */
   icon?: IconMeaning;
+  changeKey?: string | number;
   className?: string;
 }
 
 /** A record state: dot (or icon) + label, tone-coloured. For statuses only, never decoration. */
-export function StatusBadge({ tone = 'neutral', icon, children, className }: StatusBadgeProps) {
+export function StatusBadge({ tone = 'neutral', icon, children, changeKey, className }: StatusBadgeProps) {
   return (
     <span className={cn(badgeVariants({ tone }), className)}>
       {icon ? <Icon name={icon} size="xs" weight="emphasis" /> : <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
-      <span className="truncate">{children}</span>
+      <Presence visible fadeOnly swapKey={changeKey ?? 'content'} className="contents"><span className="truncate">{children}</span></Presence>
     </span>
   );
 }

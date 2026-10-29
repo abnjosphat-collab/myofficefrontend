@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button, Dialog, Field, Icon, Input, Presence, Textarea, useDismissGuard } from '@/components/ui-system';
+import { Button, Dialog, Disclosure, Field, Icon, Input, Presence, Textarea, useDismissGuard } from '@/components/ui-system';
 import { calculateDailyDelta, calculateEfficiency, readingProblems } from './calcCompressors';
 import { STATUS_KEYS, STATUS_META, hours } from './meta';
 import type { Compressor, PreviousReading } from './types';
@@ -163,22 +163,15 @@ export function UnitDrawer({ compressor, previous, previousUnavailable, previous
               </p>
             </Presence>
 
-            <button type="button" aria-expanded={more} onClick={() => setMore(m => !m)}
-              className="flex w-fit items-center gap-1 rounded-sm font-sans text-body-sm text-ink-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-              <Icon name="chevron-down" size="xs" className={`transition-transform duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy motion-reduce:transition-none ${more ? 'rotate-180' : ''}`} />
-              Pressure, temperature and notes
-            </button>
-            <Presence visible={more}>
-              <div>
-                  <div className="flex flex-col gap-3 pb-1">
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Pressure" optional><Input type="number" inputMode="decimal" value={pressure} onChange={e => setPressure(e.target.value)} placeholder="bar" /></Field>
-                      <Field label="Temperature" optional><Input type="number" inputMode="decimal" value={temperature} onChange={e => setTemperature(e.target.value)} placeholder="°C" /></Field>
-                    </div>
-                    <Field label="Notes" optional><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything the next shift should know" /></Field>
-                  </div>
+            <Disclosure open={more} onOpenChange={setMore} label="Pressure, temperature and notes">
+              <div className="flex flex-col gap-3 pb-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Pressure" optional><Input type="number" inputMode="decimal" value={pressure} onChange={e => setPressure(e.target.value)} placeholder="bar" /></Field>
+                  <Field label="Temperature" optional><Input type="number" inputMode="decimal" value={temperature} onChange={e => setTemperature(e.target.value)} placeholder="°C" /></Field>
+                </div>
+                <Field label="Notes" optional><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything the next shift should know" /></Field>
               </div>
-            </Presence>
+            </Disclosure>
           </section>
         </div>
       )}

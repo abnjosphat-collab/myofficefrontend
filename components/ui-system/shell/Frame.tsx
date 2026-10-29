@@ -74,7 +74,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
         data-collapsed={collapsed || undefined}
         className={cn(
           'sticky top-0 z-sidebar flex h-dvh shrink-0 flex-col border-r border-line bg-surface py-[18px]',
-          'transition-[width] duration-[var(--mo-duration-slow)] ease-[ease]',
+          'transition-[width] duration-[var(--mo-spring-gentle-duration)] ease-spring-gentle motion-reduce:transition-none',
           // The left safe area (a landscape notch) widens the column so the content keeps its full width.
           collapsed ? 'w-[calc(var(--mo-sidebar-collapsed)+var(--mo-safe-left))] pl-[calc(0.5rem+var(--mo-safe-left))] pr-2' : 'w-[calc(var(--mo-sidebar-width)+var(--mo-safe-left))] pl-[calc(0.75rem+var(--mo-safe-left))] pr-3',
         )}
@@ -89,7 +89,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
             onClick={onToggleCollapsed}
-            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-duration-slow)]', collapsed ? 'absolute -right-[19px] top-1 border-line bg-surface [&_svg]:rotate-180' : 'ml-auto')}
+            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-spring-snappy-duration)] [&_svg]:ease-spring-snappy motion-reduce:[&_svg]:transition-none', collapsed ? 'absolute -right-[19px] top-1 border-line bg-surface [&_svg]:rotate-180' : 'ml-auto')}
           />
         </div>
         {panel}

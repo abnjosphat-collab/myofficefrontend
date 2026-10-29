@@ -151,9 +151,12 @@ Effect–meaning matrix (one meaning per effect, applied everywhere):
 | connecting (while true) | trying to reach the server | the "still trying" line while the service wakes |
 | scale (while selected) | this is the selected one | selected MetricTile filter / ViewToggle icon (1.0 → 1.08) |
 | replace | the state of this control flipped | star/pin, mute, show/hide, copy → copied, download → done (down-up; up-up for progress; slash draw for slash pairs) |
-| appear/disappear | it came or went | badges, bulk bar, chips |
-| number roll | the value changed | metric tiles, counts, badges, percentages |
+| appear/disappear | it came or went | badges, bulk bar, chips, thumbnails, toasts, saved-signature options |
+| number roll | the value changed | metric tiles, counts, badges, percentages (filter and checklist counts too) |
 | zoom | this became that | card → detail; row thumbnail → detail; "New …" button → its form |
+| tick draw (once) | this choice is picked | checkbox tick and radio-circle check, checklist selection (CheckMark; indeterminate dash scales from the centre) |
+| fill sweep | how far along the work is | progress bars, upload progress, service-life rings (ProgressFill: bars scaleX, rings sweep offset, never overshoot) |
+| disclose | folded detail opened / closed | "show more" sections, service runway, drawer extras (Disclosure: chevron 90° + Presence fade/height, reversible) |
 
 Not used, by decision: breathe (pulse already says "ongoing"); bouncy springs,
 parallax, page-to-page transitions, scroll-linked transforms, confetti and
@@ -161,7 +164,14 @@ celebratory flips. One small scroll behaviour: horizontal strips snap with CSS
 `scroll-snap`, no transforms. The Personell study page keeps its 3D tilt.
 
 The gallery at `/dev/motion` (signed-in admin only, not in the nav) shows every
-piece and every matrix row with a simulated reduce-motion switch.
+piece and every matrix row with a simulated reduce-motion switch, including
+Selection, Progress fill, Disclosures, Toasts and Sidebar collapse sections.
+
+Toast and sidebar notes: the toast stack is sonner configured through its own
+options (`patterns/ToastSetup`, no fork): edge enter, re-flow, swipe keeps
+release velocity, success appears once, error wiggles once. The sidebar rail
+eases width on one CSS gentle spring while labels crossfade out first on the
+quick token; the main content never moves.
 
 ## Recipe: migrating a page
 

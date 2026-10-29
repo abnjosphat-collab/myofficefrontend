@@ -53,6 +53,40 @@ function codeOnly(text) {
   return text.split('\n').map(line => stripComments(line, state)).join('\n');
 }
 
+/**
+ * N1 inventory coverage: every non-test ts/tsx under the four inventoried
+ * dirs must appear in MOTION_INVENTORY.md (one row per element, nothing
+ * unlisted). The inventory lives beside the frontend checkout
+ * (../audit/motion-search-next-2026-10-27/); when it is absent (CI without
+ * the audit folder) the coverage part skips with a warning, while the
+ * ratchet above still enforces.
+ */
+const INVENTORY_DIRS = ['components/ui-system', 'components/shared', 'components/app-shell', 'components/home'];
+
+function loadInventorySpans(invPath) {
+  const text = readFileSync(invPath, 'utf8');
+  const spans = new Set();
+  for (const m of text.matchAll(/`([^`]+)`/g)) {
+    const s = m[1].trim().replace(/:\d+.*$/, '');
+    if (/^[A-Za-z0-9@_.*/-]+\.(tsx?|css|mjs)$/i.test(s) || s.endsWith('/*') || /\/\*\.(tsx?|css)$/.test(s)) spans.add(s);
+  }
+  return spans;
+}
+
+function inventoryCovers(spans, rel) {
+  const stripped = rel.replace(/^components\//, '');
+  const candidates = [rel, stripped];
+  for (const span of spans) {
+    const prefix = span.endsWith('/*') ? span.slice(0, -1) : /\/\*\.(tsx?|css)$/.test(span) ? span.slice(0, span.indexOf('/*') + 1) : null;
+    if (prefix) {
+      if (candidates.some(c => c.startsWith(prefix))) return true;
+      continue;
+    }
+    if (candidates.some(c => c === span || c.endsWith('/' + span))) return true;
+  }
+  return false;
+}
+
 export function scanText(rel, text) {
   const findings = [];
   const flag = (index, rule, message) => {
@@ -122,6 +156,22 @@ if (invokedDirectly) {
     }
   }
 
+  const invPath = path.resolve(root, '..', 'audit', 'motion-search-next-2026-10-27', 'MOTION_INVENTORY.md');
+  let uncovered = [];
+  try {
+    const spans = loadInventorySpans(invPath);
+    for (const dir of INVENTORY_DIRS) {
+      for (const file of walk(join(root, dir))) {
+        const rel = relative(root, file).replace(/\\/g, '/');
+        if (!inventoryCovers(spans, rel)) uncovered.push(rel);
+      }
+    }
+  } catch {
+    if (!asJson) console.log('motion-consistency: inventory not found, coverage skipped');
+  }
+  for (const rel of uncovered) {
+    findings.push({ rule: 'inventory-coverage', file: rel, line: 1, col: 1, message: 'component file missing from MOTION_INVENTORY.md' });
+  }
   if (asJson) {
     console.log(JSON.stringify({ findings }, null, 2));
   } else if (findings.length > 0) {

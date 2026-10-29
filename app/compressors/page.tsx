@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
+import { Button, DataRegion, Disclosure, EmptyState, Icon, IconButton, Input, MetricGrid, MetricTile, Presence, Select, SlidingIndicator, deriveDataStatus, isTransientStatus, buttonVariants, useSlidingIndicator } from '@/components/ui-system';
 import { useLookupList } from '@/hooks/useLookups';
 import { formatDate, formatWeekday } from '@/lib/format';
 import { AnalyticsTab } from './AnalyticsTab';
@@ -235,8 +235,7 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading it during render would differ from the server render
     try { if (window.localStorage.getItem(RUNWAY_KEY) === '1') setOpen(true); } catch { /* storage unavailable: stays folded */ }
   }, []);
-  const toggle = () => {
-    const next = !open;
+  const toggle = (next: boolean) => {
     setOpen(next);
     try { window.localStorage.setItem(RUNWAY_KEY, next ? '1' : '0'); } catch { /* the choice lasts this visit */ }
   };
@@ -244,21 +243,24 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
   const week = items.filter(x => x.life.urgent).length;
   const month = items.filter(x => (x.life.daysLeft ?? Infinity) <= 30).length;
   const shown = all ? items : items.slice(0, 6);
-  const bodyId = 'service-runway-list';
   return (
     <section aria-label="Service runway" className={`${s.slab} px-4 py-2`} data-still="">
-      <button type="button" aria-expanded={open} aria-controls={bodyId} onClick={toggle}
-        className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-control py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
-        <span className="font-sans text-body-sm font-medium text-ink">Services</span>
-        <span className="min-w-0 flex-1 truncate font-sans text-caption text-ink-muted">
-          {first ? <>Next: <span className="text-ink">{first.c.name.trim()}</span> in {first.life.hoursLeft?.toFixed(0)} h</> : 'No planned services ahead'}
-        </span>
-        <span className="font-sans text-caption tabular" style={{ color: week ? 'var(--mo-danger)' : 'var(--mo-ink-muted)' }}>{week} within a week</span>
-        <span className="font-sans text-caption tabular text-ink-muted">{month} within 30 days</span>
-        <Icon name="chevron-down" size="xs" className={`transition-transform duration-[var(--mo-spring-snappy-duration)] ease-spring-snappy motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
-      </button>
-      <Presence visible={open}>
-        <div id={bodyId}>
+      <Disclosure
+        open={open}
+        onOpenChange={toggle}
+        buttonClassName="w-full rounded-control py-1 text-left"
+        label={(
+          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+            <span className="font-sans text-body-sm font-medium text-ink">Services</span>
+            <span className="min-w-0 flex-1 truncate font-sans text-caption text-ink-muted">
+              {first ? <>Next: <span className="text-ink">{first.c.name.trim()}</span> in {first.life.hoursLeft?.toFixed(0)} h</> : 'No planned services ahead'}
+            </span>
+            <span className="font-sans text-caption tabular" style={{ color: week ? 'var(--mo-danger)' : 'var(--mo-ink-muted)' }}>{week} within a week</span>
+            <span className="font-sans text-caption tabular text-ink-muted">{month} within 30 days</span>
+          </span>
+        )}
+      >
+        <div>
             <ul className="mt-1 divide-y divide-line-subtle border-t border-line-subtle">
               {shown.map(({ c, life }) => (
                 <li key={c.id} style={{ ['--accent' as string]: life.tone }}>
@@ -279,7 +281,7 @@ function ServiceRunway({ items, onOpen }: { items: { c: Compressor; life: Return
               <DownloadButton data={servicesFromRegister(items.map(x => x.c)) as unknown as Record<string, unknown>[]} columns={SERVICES_COLUMNS} filename={exportFilename('Compressor_Upcoming_Services')} title="Upcoming compressor services" />
             </div>
         </div>
-      </Presence>
+      </Disclosure>
     </section>
   );
 }

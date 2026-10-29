@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Button, Field, Input, Tag, useMarkDirty } from '@/components/ui-system';
+import { MotionList, MotionListItem } from '@/components/ui-system/motion';
 
 export function TagField({ label, value, onChange, placeholder, description }: { label: string; value: string[]; onChange: (items: string[]) => void; placeholder?: string; description?: string }) {
   const [text, setText] = useState('');
@@ -18,11 +19,11 @@ export function TagField({ label, value, onChange, placeholder, description }: {
         <Button icon="plus" disabled={!text.trim()} onClick={add}>Add</Button>
       </div>
       {value.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5" aria-label={label}>
+        <MotionList as="ul" className="flex flex-wrap gap-1.5" aria-label={label}>
           {value.map((item, i) => (
-            <li key={`${item}-${i}`}><Tag onRemove={() => { markDirty(); onChange(value.filter((_, n) => n !== i)); }}>{item}</Tag></li>
+            <MotionListItem as="li" key={`${item}-${i}`}><Tag onRemove={() => { markDirty(); onChange(value.filter((_, n) => n !== i)); }}>{item}</Tag></MotionListItem>
           ))}
-        </ul>
+        </MotionList>
       )}
     </div>
   );
