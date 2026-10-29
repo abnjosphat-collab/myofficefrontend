@@ -12,7 +12,8 @@ import { DEFAULT_OPTIONS } from './ToolsCustomize';
 import { type ClientError, type FeedbackRecord, type UsageEvent } from './ToolsAnalytics';
 import { type SourceRegisterRecord } from './ToolsSourceRegisters';
 import { INCIDENT_LABELS } from './ToolsCompliance';
-import { ApprovalRole, ComplianceData, InspectionType } from './complianceTypes';
+import { ApprovalRole, ComplianceData, InspectionType, ToolboxCheckItem, ToolboxItemKind, ToolboxItemState } from './complianceTypes';
+import { mapToolboxRow, type ServerOpenCheck, type ServerSetContents, type ServerToolboxDetail } from './workspaceLoad';
 import { clearToolsSession, readToolsSession, saveToolsSession } from './toolsSession';
 import { ExportTable } from './toolsExports';
 import { historyReducer } from './history';
@@ -26,7 +27,7 @@ import { toolFromServer } from './toolFromServer';
 import { loadToolsWorkspace, mapAnalytics, type ServerTool, type ToolNotification, type WorkspaceSource, type WorkspaceSourceResult } from './workspaceLoad';
 
 export type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register'|'bulk-issue' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | { kind: 'edit-employee-number'; employee: Employee } | { kind: 'edit-employee-section'; employee: Employee } | null;
-export const tabs = [{ value: 'homepage', label: 'Overview', icon: 'home' }, { value: 'register', label: 'Equipment', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'compliance', label: 'Compliance', icon: 'check', signedInOnly:true }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
+export const tabs = [{ value: 'homepage', label: 'Overview', icon: 'home' }, { value: 'register', label: 'Equipment', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'compliance', label: 'Compliance', icon: 'check', signedInOnly:true }, { value: 'toolbox', label: 'Sets & checks', icon: 'toolbox', signedInOnly:true }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
 export type SourceState={loaded:boolean;loading:boolean;error?:string};
 export const emptySourceState=():Record<WorkspaceSource,SourceState>=>({employees:{loaded:false,loading:false},tools:{loaded:false,loading:false},history:{loaded:false,loading:false},sources:{loaded:false,loading:false},notifications:{loaded:false,loading:false},compliance:{loaded:false,loading:false},analytics:{loaded:false,loading:false},accounts:{loaded:false,loading:false}});
 
@@ -43,7 +44,7 @@ export function useToolsWorkspace() {
   const [feedbackRecords,setFeedbackRecords]=useState<FeedbackRecord[]>([]);
   const [notificationAlerts,setNotificationAlerts]=useState<ToolNotification[]>([]);
   const [feedbackSeenAt,setFeedbackSeenAt]=useState(()=>{ try { return typeof window!=='undefined'?Number(window.localStorage.getItem('myoffice.tools.feedbackSeenAt'))||0:0; } catch { return 0; } });
-  const [complianceData,setComplianceData]=useState<ComplianceData>({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]});
+  const [complianceData,setComplianceData]=useState<ComplianceData>({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[],toolbox_checks:[]});
   const [sourceState,setSourceState]=useState(emptySourceState);
   const [sessionChecking,setSessionChecking]=useState(true);
   const [tab, setTab] = useState<ToolsTab>('homepage');
@@ -161,14 +162,14 @@ export function useToolsWorkspace() {
   // New Tools feedback for the admin bell. Client-side, not a server alert kind: the server only
   // accepts read receipts for keys it computed, so inbox feedback is tracked as seen-since here.
   const newFeedbackCount=currentAccount?.role==='admin'?feedbackRecords.filter(record=>new Date(record.at).getTime()>feedbackSeenAt).length:0;
-  const counts={...countTools(scope),inspectionDue:scopedNotifications.filter(alert=>alert.kind==='inspection_due').length,investigationsOverdue:scopedNotifications.filter(alert=>alert.kind==='investigation_overdue').length,overdueEscalations:scopedNotifications.filter(alert=>alert.kind==='overdue_6h').length,passwordRequests:scopedNotifications.filter(alert=>alert.kind==='password_request').length,feedback:newFeedbackCount};
+  const counts={...countTools(scope),inspectionDue:scopedNotifications.filter(alert=>alert.kind==='inspection_due').length,toolboxDue:scopedNotifications.filter(alert=>alert.kind==='toolbox_due').length,toolboxOverdue:scopedNotifications.filter(alert=>alert.kind==='toolbox_overdue').length,investigationsOverdue:scopedNotifications.filter(alert=>alert.kind==='investigation_overdue').length,overdueEscalations:scopedNotifications.filter(alert=>alert.kind==='overdue_6h').length,passwordRequests:scopedNotifications.filter(alert=>alert.kind==='password_request').length,feedback:newFeedbackCount};
   useEffect(()=>{ if(tab==='feedback'&&currentAccount?.role==='admin'&&feedbackRecords.length){ const at=Date.now(); try { window.localStorage.setItem('myoffice.tools.feedbackSeenAt',String(at)); } catch { /* storage unavailable — the count simply stays */ } setFeedbackSeenAt(at); } },[tab,currentAccount?.role,feedbackRecords.length]);
   const unreadNotifications=scopedNotifications.filter(alert=>!alert.read).length+newFeedbackCount;
   const visibleTools = useMemo(() => selectVisibleTools(tools,{department,status,search,category,location,tab,sort}), [tools, department, status, search, category, location, tab, sort]);
   const visibleActivity = selectVisibleActivity(activity,scope,search);
-  const activeSource:WorkspaceSource=tab==='employees'?'employees':tab==='activity'?'history':tab==='sources'?'sources':tab==='accounts'?'accounts':tab==='compliance'?'compliance':tab==='analytics'||tab==='feedback'?'analytics':'tools';
+  const activeSource:WorkspaceSource=tab==='employees'?'employees':tab==='activity'?'history':tab==='sources'?'sources':tab==='accounts'?'accounts':tab==='compliance'||tab==='toolbox'?'compliance':tab==='analytics'||tab==='feedback'?'analytics':'tools';
   const activeSourceState=sourceState[activeSource];
-  const activeSourceTitle=tab==='employees'?'Employee register':tab==='activity'?'Issue and return history':tab==='sources'?'Source registers':tab==='accounts'?'Account access':tab==='compliance'?'Compliance records':tab==='analytics'?'Analytics':tab==='feedback'?'Feedback':'Equipment register';
+  const activeSourceTitle=tab==='employees'?'Employee register':tab==='activity'?'Issue and return history':tab==='sources'?'Source registers':tab==='accounts'?'Account access':tab==='compliance'?'Compliance records':tab==='toolbox'?'Sets and monthly checks':tab==='analytics'?'Analytics':tab==='feedback'?'Feedback':'Equipment register';
   const authenticationRequired=!sessionChecking&&!currentAccount;
   const retryWorkspace=()=>void reloadWorkspace(currentAccount);
   const selected = tools.find(t => t.id === selectedId);
@@ -309,7 +310,7 @@ export function useToolsWorkspace() {
     try { const data=await toolsApi.anonymousPost<{token:string;account:{id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:ApprovalRole[];signing_pin_configured?:boolean}}>('/auth/login',{username,password}); const account:WorkspaceAccount={id:data.account.id,name:data.account.name,username:data.account.username,password:'',role:data.account.role,department:data.account.department,canIssue:data.account.can_issue,approvalRoles:data.account.approval_roles||[],signingPinConfigured:data.account.signing_pin_configured,token:data.token}; saveToolsSession(window.localStorage,account); setCurrentAccount(account); setModal(null); notify.success(`Signed in as ${account.name}`); return true; }
     catch(error) { return toolsLoginErrorMessage(error); }
   }
-  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)notify.success('Signed out'); }
+  function signOut(showToast=true) { loadAbortRef.current?.abort();loadRequestId.current+=1;clearToolsSession(window.localStorage);setCurrentAccount(null);setSourceState(emptySourceState());setEmployees([]);setSourceRegisters([]);setUsage([]);setClientErrors([]);setFeedbackRecords([]);setNotificationAlerts([]);setComplianceData({competencies:[],inspections:[],incidents:[],gate_passes:[],inspection_plan:[],toolbox_checks:[]});dispatch({type:'reset',snapshot:{tools:SEED_TOOLS,activity:SEED_ACTIVITY}});setModal({kind:'auth'});if(showToast)notify.success('Signed out'); }
   function track(name:string,detail?:string) { const event={id:crypto.randomUUID(),name,detail,at:new Date().toISOString()}; setUsage(current=>[event,...current]); if(currentAccount?.token)void toolsApi.post('/analytics/usage',currentAccount.token,{event:name,detail}).catch(()=>{}); }
   async function updateAccountRole(accountId:string,role:WorkspaceAccount['role'],assignedDepartment?:string,approvalRoles:ApprovalRole[]=[] ) {
     try { await toolsApi.patch(`/accounts/${accountId}`,requireToken(),{role,department:assignedDepartment,approval_roles:approvalRoles}); await reloadWorkspace(); notify.success(role==='issuer'?`Issuer access granted for ${assignedDepartment}`:'Account access updated'); }
@@ -358,6 +359,45 @@ export function useToolsWorkspace() {
     try { await toolsApi.post(`/incidents/${incidentId}/close`,requireToken(),value);await reloadWorkspace();notify.success('Investigation closed'); }
     catch(error){notify.error(error instanceof Error?error.message:'The investigation could not be closed.');}
   }
+  async function saveSetLine(headBackendId:string,value:{name:string;size?:string;qty?:number;notes?:string}) {
+    if(!headBackendId) { notify.error('This equipment record has not been saved yet.'); return; }
+    try { await toolsApi.post(`/sets/${headBackendId}/lines`,requireToken(),{name:value.name,size:value.size||undefined,qty:value.qty||1,notes:value.notes||undefined});await reloadWorkspace();notify.success('Set line added'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The set line could not be saved.');}
+  }
+  async function removeSetLine(lineId:string) {
+    try { await toolsApi.remove(`/sets/lines/${lineId}`,requireToken());await reloadWorkspace();notify.success('Set line removed'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The set line could not be removed.');}
+  }
+  async function getSetContents(headBackendId:string) {
+    try {
+      const data=await toolsApi.get<ServerSetContents>(`/sets/${headBackendId}/contents`,requireToken());
+      return { members:data.members.map(member=>({id:member.id,registerNumber:member.register_number,name:member.name})), lines:data.lines.map(line=>({id:line.id,name:line.name,size:line.size??undefined,qty:line.qty,notes:line.notes??undefined})) };
+    } catch(error){notify.error(error instanceof Error?error.message:'The set contents could not be loaded.');return undefined;}
+  }
+  function blankToolboxItems(open:ServerOpenCheck):ToolboxCheckItem[] {
+    return [
+      ...open.members.map(member=>({id:`member:${member.id}`,kind:'member' as const,refId:member.id,toolName:`${member.register_number} · ${member.name}`,size:undefined,expected:1,found:1,state:'available' as const,note:'',howHappened:'',prevention:'',followUp:''})),
+      ...open.lines.map(line=>({id:`line:${line.id}`,kind:'line' as const,refId:line.id,toolName:line.name,size:line.size??undefined,expected:line.qty,found:line.qty,state:'available' as const,note:'',howHappened:'',prevention:'',followUp:''})),
+    ];
+  }
+  async function openToolboxCheck(setHeadBackendId:string,period?:string) {
+    try {
+      const opened=await toolsApi.post<ServerOpenCheck>('/toolbox-checks',requireToken(),{set_tool_id:setHeadBackendId,period:period||undefined});
+      const header=mapToolboxRow(opened.check);
+      return {...header,items:blankToolboxItems(opened)};
+    } catch(error){notify.error(error instanceof Error?error.message:'The check could not be opened.');return undefined;}
+  }
+  async function getToolboxCheck(checkId:string) {
+    try {
+      const data=await toolsApi.get<ServerToolboxDetail>(`/toolbox-checks/${checkId}`,requireToken());
+      const header=mapToolboxRow(data.check);
+      return {...header,items:data.items.map(item=>({id:item.id,kind:item.kind,refId:item.kind==='member'?(item.member_tool_id||''): (item.line_id||''),toolName:item.name_snapshot,size:item.size_snapshot??undefined,expected:item.qty_expected,found:item.qty_found,state:item.state,note:item.note||'',howHappened:item.how_happened||'',prevention:item.prevention||'',followUp:item.follow_up||''}))};
+    } catch(error){notify.error(error instanceof Error?error.message:'The check could not be loaded.');return undefined;}
+  }
+  async function submitToolboxCheck(checkId:string,value:{items:Array<{kind:ToolboxItemKind;ref_id:string;state:ToolboxItemState;qty_found?:number;note?:string;how_happened?:string;prevention?:string;follow_up?:string}>}) {
+    try { await toolsApi.post(`/toolbox-checks/${checkId}/submit`,requireToken(),{items:value.items});await reloadWorkspace();notify.success('Monthly check submitted'); }
+    catch(error){notify.error(error instanceof Error?error.message:'The check could not be submitted.');}
+  }
   function chooseSearchResult(result:WorkspaceSearchResult) {
     track('used workspace search',result.kind);
     const target=result.target;
@@ -396,7 +436,7 @@ export function useToolsWorkspace() {
   // The overview opens as soon as the equipment (the figures) has answered; the movements and needs-attention panels show their own loading until theirs do.
   const homePending=!sourceState.tools.loaded&&!sourceState.tools.error;
   const panelLoading=(key:'history'|'compliance')=>!sourceState[key].loaded&&!sourceState[key].error;
-  return { reloadWorkspace, saveMovement, saveBulkIssue, uploadNewEvidence, saveAttachments, saveTool, archiveTool, archiveTools, markToolReady, saveSourceRegister, saveEmployee, saveEmployeeNumber, saveEmployeeSection, createAccount, login, signOut, track, suggestTradeSections, updateAccountRole, setAccountPassword, requestPasswordReset, changePassword, deactivateEmployees, setEmployeeActive, saveCompetency, recordInspection, reportIncident, closeIncident, chooseSearchResult, submitFeedback, applyImport, markNotificationsViewed, options, setOptions, history, dispatch, employees, setEmployees, accounts, setAccounts, sourceRegisters, setSourceRegisters, currentAccount, setCurrentAccount, usage, setUsage, clientErrors, setClientErrors, feedbackRecords, setFeedbackRecords, notificationAlerts, setNotificationAlerts, complianceData, setComplianceData, sourceState, setSourceState, sessionChecking, setSessionChecking, tab, setTab, view, setViewState, viewChosen, setViewChosen, department, setDepartment, search, setSearch, status, setStatus, category, setCategory, location, setLocation, sort, setSort, sidebarCollapsed, setSidebarCollapsed, preferencesReady, setPreferencesReady, selectedId, setSelectedId, modal, setModal, feedback, setFeedback, sidebarNav, setSidebarNav, setView, searchRef, reloadRef, loadRequestId, loadAbortRef, objectUrls, departments, accountDepartments, canSeeAllDepartments, departmentOptions, visibleTabs, scope, activeTools, scopedNotifications, counts, unreadNotifications, visibleTools, visibleActivity, activeSource, activeSourceState, activeSourceTitle, authenticationRequired, retryWorkspace, selected, selectedFacts, workspaceSearchIndex, workspaceSearchResults, locationSuggestions, equipmentSuggestions, activeFilters, activeRefinements, clearFilters, resetRefinements, openManageModal, openSourceRegister, openAction, filterTo, addFiles, requireToken, exportData, homeIncidents, overdueCheckTools, homeAttention, homeStats, homePending, panelLoading, tools, activity };
+  return { reloadWorkspace, saveMovement, saveBulkIssue, uploadNewEvidence, saveAttachments, saveTool, archiveTool, archiveTools, markToolReady, saveSourceRegister, saveEmployee, saveEmployeeNumber, saveEmployeeSection, createAccount, login, signOut, track, suggestTradeSections, updateAccountRole, setAccountPassword, requestPasswordReset, changePassword, deactivateEmployees, setEmployeeActive, saveCompetency, recordInspection, reportIncident, closeIncident, saveSetLine, removeSetLine, getSetContents, openToolboxCheck, getToolboxCheck, submitToolboxCheck, chooseSearchResult, submitFeedback, applyImport, markNotificationsViewed, options, setOptions, history, dispatch, employees, setEmployees, accounts, setAccounts, sourceRegisters, setSourceRegisters, currentAccount, setCurrentAccount, usage, setUsage, clientErrors, setClientErrors, feedbackRecords, setFeedbackRecords, notificationAlerts, setNotificationAlerts, complianceData, setComplianceData, sourceState, setSourceState, sessionChecking, setSessionChecking, tab, setTab, view, setViewState, viewChosen, setViewChosen, department, setDepartment, search, setSearch, status, setStatus, category, setCategory, location, setLocation, sort, setSort, sidebarCollapsed, setSidebarCollapsed, preferencesReady, setPreferencesReady, selectedId, setSelectedId, modal, setModal, feedback, setFeedback, sidebarNav, setSidebarNav, setView, searchRef, reloadRef, loadRequestId, loadAbortRef, objectUrls, departments, accountDepartments, canSeeAllDepartments, departmentOptions, visibleTabs, scope, activeTools, scopedNotifications, counts, unreadNotifications, visibleTools, visibleActivity, activeSource, activeSourceState, activeSourceTitle, authenticationRequired, retryWorkspace, selected, selectedFacts, workspaceSearchIndex, workspaceSearchResults, locationSuggestions, equipmentSuggestions, activeFilters, activeRefinements, clearFilters, resetRefinements, openManageModal, openSourceRegister, openAction, filterTo, addFiles, requireToken, exportData, homeIncidents, overdueCheckTools, homeAttention, homeStats, homePending, panelLoading, tools, activity };
 }
 
 export type ToolsWorkspace = ReturnType<typeof useToolsWorkspace>;

@@ -19,7 +19,7 @@ import { tabs, type ToolsWorkspace } from './useToolsWorkspace';
 
 // One glyph component per meaning, cached so a destination keeps one identity between renders (NavItem takes
 // a component). The glyphs are the app-wide set — Tools uses the same icons as every other module.
-const TAB_MEANINGS: Record<string, IconMeaning> = { home: 'home', box: 'equipment', out: 'recipients', user: 'employees', check: 'compliance', history: 'history', upload: 'upload', accounts: 'accounts', analytics: 'analytics', edit: 'edit' };
+const TAB_MEANINGS: Record<string, IconMeaning> = { home: 'home', box: 'equipment', out: 'recipients', user: 'employees', check: 'compliance', toolbox: 'task', history: 'history', upload: 'upload', accounts: 'accounts', analytics: 'analytics', edit: 'edit' };
 const navGlyphs = new Map<IconMeaning, ElementType>();
 function navGlyph(tabIcon: string): ElementType {
   const meaning = TAB_MEANINGS[tabIcon] ?? 'app';
@@ -89,7 +89,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
                 triggerLabel={option => abbreviateDepartment(option.label)} title="Department scope: filters every section, counts and notifications." />
               <ToolsNotifications counts={w.counts} unread={w.unreadNotifications} unavailable={w.sourceState.notifications.error} loading={w.sourceState.notifications.loading}
                 onRetry={w.retryWorkspace} onViewed={w.markNotificationsViewed}
-                onShowOverdue={() => w.filterTo('overdue', 'loans')} onShowInspection={() => w.setTab('compliance')} onShowAccounts={() => w.setTab('accounts')} onShowFeedback={() => w.setTab('feedback')} />
+                onShowOverdue={() => w.filterTo('overdue', 'loans')} onShowInspection={() => w.setTab('compliance')} onShowAccounts={() => w.setTab('accounts')} onShowFeedback={() => w.setTab('feedback')} onShowToolbox={() => w.setTab('toolbox')} />
               <IconButton icon="settings" label="Settings" variant="ghost" onClick={() => w.setModal({ kind: 'customize' })} />
               <ToolsProfileMenu account={currentAccount} onSignIn={() => w.setModal({ kind: 'auth' })} onSignOut={() => w.signOut()} />
             </>

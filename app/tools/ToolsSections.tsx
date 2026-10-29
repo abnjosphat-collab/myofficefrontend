@@ -11,6 +11,7 @@ import { ToolsHomepage, type HomepageAttention, type HomepageStat } from './Tool
 import { ToolsPeople } from './ToolsPeople';
 import { ToolsSectionBar } from './ToolsSectionBar';
 import { ToolsSourceRegisters } from './ToolsSourceRegisters';
+import { ToolsToolbox } from './ToolsToolbox';
 import { RegisterView } from './RegisterView';
 import type { ToolsWorkspace } from './useToolsWorkspace';
 
@@ -56,6 +57,13 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
   const failed = <DataState title={activeSourceTitle} state={activeSourceState} onRetry={w.retryWorkspace} />;
   switch (tab) {
     case 'accounts': return <>{failed}<ToolsAccountAccess accounts={w.accounts} departments={w.departments} requestUsernames={w.notificationAlerts.filter(alert => alert.kind === 'password_request' && alert.username).map(alert => alert.username as string)} onUpdateRole={w.updateAccountRole} onSetPassword={w.setAccountPassword} /></>;
+    case 'toolbox':
+      return (
+        <>{failed}
+          <ToolsToolbox tools={w.tools} checks={w.complianceData.toolbox_checks ?? []}
+            canManage={manage} onOpenCheck={w.openToolboxCheck} onSubmitCheck={w.submitToolboxCheck} getCheck={w.getToolboxCheck} />
+        </>
+      );
     case 'compliance':
       return (
         <>{failed}

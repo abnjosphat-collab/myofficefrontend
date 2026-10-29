@@ -64,4 +64,19 @@ export type GatePass = {
   approvals: GatePassApproval[];
 };
 export type InspectionPlanRow = { id: string; tool_id: string; quarter: string; planned_date: string; completed_inspection_id?: string | null };
-export type ComplianceData = { competencies: CompetencyRecord[]; inspections: InspectionRecord[]; incidents:IncidentRecord[]; gate_passes: GatePass[]; inspection_plan: InspectionPlanRow[] };
+export type ComplianceData = { competencies: CompetencyRecord[]; inspections: InspectionRecord[]; incidents:IncidentRecord[]; gate_passes: GatePass[]; inspection_plan: InspectionPlanRow[]; toolbox_checks: ToolboxCheck[] };
+export type ToolboxItemState = 'available' | 'missing' | 'damaged' | 'borrowed' | 'stolen';
+export type ToolboxCheckStatus = 'open' | 'submitted';
+export type ToolboxItemKind = 'member' | 'line';
+export type ToolboxCheckItem = {
+  id: string; kind: ToolboxItemKind; refId: string;
+  toolName: string; size?: string; expected: number; found: number;
+  state: ToolboxItemState; note: string; howHappened: string; prevention: string; followUp: string;
+};
+export type SetContentLine = { id: string; name: string; size?: string; qty: number; notes?: string };
+export type SetContentMember = { id: string; registerNumber: string; name: string };
+export type ToolboxCheck = {
+  id: string; setHeadId: string; setName: string; holder: string; period: string;
+  status: ToolboxCheckStatus; checkedBy: string; checkedAt: string; itemCount: number;
+  items: ToolboxCheckItem[]; summary: Record<string, number>;
+};

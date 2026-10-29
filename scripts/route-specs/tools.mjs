@@ -57,7 +57,7 @@ const spec = {
     await page.getByRole('button', { name: 'Actions' }).click();
     check((await page.getByRole('menuitem', { name: /Download|Export/ }).count()) === 0, 'nothing export-related hides inside More');
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    await page.getByRole('button', { name: 'Download', exact: true }).click();
     const expo = page.getByRole('dialog', { name: 'Download this view' });
     await expo.waitFor({ timeout: 5000 });
     check(await expo.getByText('Excel workbook').isVisible() && await expo.getByText('Word document').isVisible() && await expo.getByText('PDF', { exact: true }).isVisible(), 'the export dialog offers Excel, Word and PDF');

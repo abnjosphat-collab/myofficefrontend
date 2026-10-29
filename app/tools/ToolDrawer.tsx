@@ -2,8 +2,8 @@
 // transfer, extend, mark ready), who may take it, its full record, recent activity and condition evidence.
 'use client';
 
-import { useState } from 'react';
-import { Button, Dialog, Fact, FactList, Field, FieldGroup, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
+import { useEffect, useState } from 'react';
+import { Button, Dialog, Fact, FactList, Field, FieldGroup, IconButton, Input, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
 import { EligibleEmployeesList } from './ToolsEligibility';
 import { RecordCheckDialog } from './ToolsResolve';
 import { EvidenceGallery } from './ToolsUI';
@@ -26,6 +26,52 @@ function PreUseForm({ w, toolId }: { w: ToolsWorkspace; toolId: string }) {
       </Field>
       <div><Button type="submit" size="sm" pending={saving}>Record pre-use check</Button></div>
     </form>
+  );
+}
+
+function SetChecklistSection({ w, head, manage, onStartCheck }: { w: ToolsWorkspace; head: { id: string; backendId?: string; holder?: string }; manage: boolean; onStartCheck: () => void }) {
+  const [lines, setLines] = useState<Array<{ id: string; name: string; size?: string; qty: number }>>([]);
+  const [name, setName] = useState('');
+  const [size, setSize] = useState('');
+  const [qty, setQty] = useState('1');
+  const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    let live = true;
+    setLines([]);
+    if (head.backendId) void w.getSetContents(head.backendId).then(data => { if (live && data) setLines(data.lines); });
+    return () => { live = false; };
+  }, [head.backendId]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to the opened set head only
+  const add = async () => {
+    if (!name.trim() || !head.backendId) return;
+    setAdding(true);
+    try { await w.saveSetLine(head.backendId, { name: name.trim(), size: size.trim() || undefined, qty: Math.max(1, Number(qty) || 1) }); setName(''); setSize(''); setQty('1'); const data = await w.getSetContents(head.backendId); if (data) setLines(data.lines); }
+    finally { setAdding(false); }
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <h4 className="font-sans text-caption font-medium text-ink-muted">Checklist lines ({lines.length})</h4>
+        {manage && head.backendId && <Button size="sm" onClick={onStartCheck}>Start monthly check</Button>}
+      </div>
+      {lines.length === 0
+        ? <p className="font-sans text-body-sm text-ink-muted">No loose pieces listed. Add each spanner, bit or accessory with its size and quantity.</p>
+        : <ul className="flex flex-col gap-1">
+          {lines.map(line => (
+            <li key={line.id} className="flex items-center justify-between gap-2 font-sans text-body-sm text-ink">
+              <span>{line.name}{line.size ? ` \u00b7 ${line.size}` : ''}{line.qty > 1 ? ` \u00d7 ${line.qty}` : ''}</span>
+              {manage && <IconButton variant="ghost" size="sm" icon="delete" label={`Remove ${line.name}`} onClick={() => { void (async () => { if (!head.backendId) return; await w.removeSetLine(line.id); const data = await w.getSetContents(head.backendId); if (data) setLines(data.lines); })(); }} />}
+            </li>
+          ))}
+        </ul>}
+      {manage && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-0 flex-1"><Field label="Piece name" required><Input aria-label="Piece name" value={name} onChange={event => setName(event.target.value)} placeholder="Spanner" /></Field></div>
+          <div className="w-20"><Field label="Size" optional><Input aria-label="Piece size" value={size} onChange={event => setSize(event.target.value)} placeholder="14" /></Field></div>
+          <div className="w-16"><Field label="Qty" required><Input aria-label="Piece quantity" type="number" min={1} value={qty} onChange={event => setQty(event.target.value)} /></Field></div>
+          <Button size="sm" disabled={adding || !name.trim()} onClick={() => void add()}>{adding ? 'Adding...' : 'Add'}</Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -104,6 +150,9 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
                 </ul>
               ) : (
                 <p className="font-sans text-body-sm text-ink-muted">Part of set {tool.setHeadName || tool.setHeadId} — record movements on the set.</p>
+                            )}
+              {(!!tool.memberIds?.length || (tool.lineCount ?? 0) > 0) && (
+                <SetChecklistSection w={w} head={tool} manage={manage} onStartCheck={() => { close(); w.setTab('toolbox'); }} />
               )}
             </section>
           )}

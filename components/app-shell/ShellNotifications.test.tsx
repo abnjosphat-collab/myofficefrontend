@@ -95,8 +95,8 @@ describe('ShellNotifications badge tone', () => {
   });
 
   it('both bells render the same badge for the same counts', () => {
-    const toolsBase = { unread: 0, onRetry: () => {}, onViewed: () => {}, onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {}, onShowFeedback: () => {} };
-    const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0 };
+    const toolsBase = { unread: 0, onRetry: () => {}, onViewed: () => {}, onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {}, onShowFeedback: () => {}, onShowToolbox: () => {} };
+    const toolsZero = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0, toolboxDue: 0, toolboxOverdue: 0 };
     // Urgent pair: unread critical here, an overdue return there.
     show([{ ...n('sheq-1', 'sheq'), status: 'critical', unread: true }]);
     const shellUrgent = (screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span.inline-flex') as HTMLElement).className;

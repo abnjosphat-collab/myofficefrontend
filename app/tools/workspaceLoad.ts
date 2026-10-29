@@ -2,17 +2,25 @@ import { toolsApi, ToolsApiError } from './toolsApi';
 import type { WorkspaceAccount } from './prototype';
 import type { ClientError, FeedbackRecord, UsageEvent } from './ToolsAnalytics';
 import type { SourceRegisterRecord } from './ToolsSourceRegisters';
-import type { ComplianceData } from './complianceTypes';
+import type { ComplianceData, ToolboxCheck } from './complianceTypes';
 
-export type ServerTool = { id:string; register_number:string; name:string; make_model?:string; serial_number?:string; category?:string; equipment_kind?:'hand-tool'|'power-tool'|'measurement'|'lifting'|'safety'|'other-equipment'; storage_location:string; department:string; section?:string; trade_sections?:string[]|null; status:'available'|'issued'|'overdue'|'attention'; condition?:string; notes?:string; approval_ref?:string; calibration?:string; specifications?:Record<string,string>; archived?:boolean; custody?:{employee_name?:string;expected_return_at?:string;original_due_at?:string;job_reference?:string;assigned_equipment?:string[];pre_use_pending?:boolean}; evidence?:Array<{id:string;original_name:string;content_type:string;size_bytes:number;url?:string}>; home_storage_location?:string;storage_conditions?:string;maintenance_requirements?:string;pre_use_check_required?:boolean;competency_required?:boolean;weekly_inspection_required?:boolean;monthly_inspection_required?:boolean;quarterly_inspection_required?:boolean;calibration_required?:boolean;calibration_frequency_days?:number;replacement_value?:number;criticality?:'standard'|'high'|'safety_critical';cctv_required?:boolean;gps_required?:boolean;required_ppe?:string[];ownership_type?:'company'|'contractor';contractor_name?:string;oem_manual_ref?:string;purchase_date?:string|null;procurement_cost?:number|null;insured?:boolean|null;last_verified?:string|null;working_status?:'working'|'not_working'|null;member_ids?:string[];set_head_id?:string|null;set_head_name?:string|null;eligible_employees?:Array<{id:string;employee_number:string|null;name:string;department:string;job_title?:string;via_section?:string|null}>;inspection_due?:string[];latest_inspections?:Record<string,{outcome:string;inspected_at:string;next_due_at?:string;colour_code?:string}> };
+export type ServerTool = { id:string; register_number:string; name:string; make_model?:string; serial_number?:string; category?:string; equipment_kind?:'hand-tool'|'power-tool'|'measurement'|'lifting'|'safety'|'other-equipment'; storage_location:string; department:string; section?:string; trade_sections?:string[]|null; status:'available'|'issued'|'overdue'|'attention'; condition?:string; notes?:string; approval_ref?:string; calibration?:string; specifications?:Record<string,string>; archived?:boolean; custody?:{employee_name?:string;expected_return_at?:string;original_due_at?:string;job_reference?:string;assigned_equipment?:string[];pre_use_pending?:boolean}; evidence?:Array<{id:string;original_name:string;content_type:string;size_bytes:number;url?:string}>; home_storage_location?:string;storage_conditions?:string;maintenance_requirements?:string;pre_use_check_required?:boolean;competency_required?:boolean;weekly_inspection_required?:boolean;monthly_inspection_required?:boolean;quarterly_inspection_required?:boolean;calibration_required?:boolean;calibration_frequency_days?:number;replacement_value?:number;criticality?:'standard'|'high'|'safety_critical';cctv_required?:boolean;gps_required?:boolean;required_ppe?:string[];ownership_type?:'company'|'contractor';contractor_name?:string;oem_manual_ref?:string;purchase_date?:string|null;procurement_cost?:number|null;insured?:boolean|null;last_verified?:string|null;working_status?:'working'|'not_working'|null;member_ids?:string[];set_head_id?:string|null;set_head_name?:string|null;line_count?:number;line_pieces?:number;eligible_employees?:Array<{id:string;employee_number:string|null;name:string;department:string;job_title?:string;via_section?:string|null}>;inspection_due?:string[];latest_inspections?:Record<string,{outcome:string;inspected_at:string;next_due_at?:string;colour_code?:string}> };
 export type ServerEmployee = {id:string;employee_number:string|null;name:string;department:string;job_title?:string;supervisor_name?:string;section?:string|null;active:boolean};
 export type ServerHistory = {id:string;tool_id:string;tool_name:string;action:string;detail?:string;actor_name?:string;employee_name?:string;event_at:string};
-export type ToolNotification = { key:string; kind:'overdue'|'overdue_6h'|'attention'|'inspection_due'|'investigation_overdue'|'password_request'; inspection_type?:string; tool_id?:string; tool_name?:string; account_name?:string; username?:string; department:string; read:boolean };
+export type ToolNotification = { key:string; kind:'overdue'|'overdue_6h'|'attention'|'inspection_due'|'investigation_overdue'|'password_request'|'toolbox_due'|'toolbox_overdue'; inspection_type?:string; tool_id?:string; tool_name?:string; account_name?:string; username?:string; department:string; read:boolean };
 export type ServerAnalytics = {
   usage:Array<{id:string;event:string;detail?:string;created_at:string;account_name?:string}>;
   errors:Array<{id:string;message:string;created_at:string}>;
   feedback:Array<{id:string;text?:string;audio_filename?:string;audio_url?:string;created_at:string;account_name?:string}>;
 };
+export type ServerToolboxRow = { id:string; set_tool_id:string; period:string; holder_employee_id?:string|null; holder_name:string; status:'open'|'submitted'; checked_by_account_id?:string|null; checked_by_name?:string|null; checked_at?:string|null; created_at:string; set_register_number?:string; set_name?:string; department?:string; item_count?:number; exceptions?:Record<string,number> };
+export type ServerToolboxDetail = { check:ServerToolboxRow; items:Array<{ id:string; check_id:string; kind:'member'|'line'; member_tool_id?:string|null; line_id?:string|null; name_snapshot:string; size_snapshot?:string|null; qty_expected:number; qty_found:number; state:'available'|'missing'|'damaged'|'borrowed'|'stolen'; note?:string|null; how_happened?:string|null; prevention?:string|null; follow_up?:string|null }> };
+export type ServerSetContents = { set_tool:{ id:string }; members:Array<{ id:string; register_number:string; name:string }>; lines:Array<{ id:string; name:string; size?:string|null; qty:number; notes?:string|null }> };
+export type ServerOpenCheck = { check:ServerToolboxRow; members:ServerSetContents['members']; lines:ServerSetContents['lines']; items:Array<unknown> };
+/** A toolbox-check header becomes a list row: names come from the list endpoint, items only load on demand. */
+export function mapToolboxRow(row:ServerToolboxRow):ToolboxCheck {
+  return { id:row.id, setHeadId:row.set_tool_id, setName:row.set_name||row.set_register_number||'Set', holder:row.holder_name||'Unknown holder', period:row.period, status:row.status, checkedBy:row.checked_by_name||'', checkedAt:row.checked_at||'', itemCount:row.item_count??0, items:[], summary:row.exceptions||{} };
+}
 export type ServerAccount = {id:string;name:string;username:string;role:WorkspaceAccount['role'];department?:string;can_issue:boolean;approval_roles?:WorkspaceAccount['approvalRoles'];signing_pin_configured?:boolean};
 
 export type WorkspaceSource = 'employees'|'tools'|'history'|'sources'|'notifications'|'compliance'|'analytics'|'accounts';
@@ -88,6 +96,7 @@ function validateSource(source:WorkspaceSource,value:unknown):unknown {
   }
   if(source==='compliance') {
     if(!value||typeof value!=='object'||!Array.isArray((value as ComplianceData).competencies)||!Array.isArray((value as ComplianceData).inspections)||!Array.isArray((value as ComplianceData).incidents)||!Array.isArray((value as ComplianceData).gate_passes)||!Array.isArray((value as ComplianceData).inspection_plan)) throw new Error('compliance returned an unexpected response.');
+    if(!Array.isArray((value as ComplianceData).toolbox_checks)) (value as ComplianceData).toolbox_checks=[];
     return value;
   }
   if(!value||typeof value!=='object'||!Array.isArray((value as {usage?:unknown}).usage)||!Array.isArray((value as {errors?:unknown}).errors)||!Array.isArray((value as {feedback?:unknown}).feedback)) throw new Error('analytics returned an unexpected response.');
@@ -100,6 +109,12 @@ export async function loadToolsWorkspace(token:string,role:WorkspaceAccount['rol
   const results=await Promise.allSettled(requests.map(async([source,path])=>{
     try {
       const value=validateSource(source,await getAfterWake<unknown>(path,token,get,retryTransient,signal)) as WorkspaceLoadValues[WorkspaceSource];
+      if(source==='compliance') {
+        try {
+          const list=await getAfterWake<unknown>('/toolbox-checks',token,get,retryTransient,signal);
+          if(Array.isArray(list)) (value as unknown as ComplianceData).toolbox_checks=(list as ServerToolboxRow[]).map(mapToolboxRow);
+        } catch { /* headers already carry periods and states; names and exception counts are a bonus */ }
+      }
       onSourceSettled?.({source,value} as WorkspaceSourceResult);
       return value;
     } catch(error) {

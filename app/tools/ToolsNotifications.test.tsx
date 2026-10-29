@@ -2,10 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ToolsNotifications, type ToolAttentionCounts } from './ToolsNotifications';
 
-const zero: ToolAttentionCounts = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0 };
+const zero: ToolAttentionCounts = { overdue: 0, attention: 0, inspectionDue: 0, investigationsOverdue: 0, overdueEscalations: 0, passwordRequests: 0, feedback: 0, toolboxDue: 0, toolboxOverdue: 0 };
 const base = {
   unread: 0, onRetry: () => {}, onViewed: () => {},
-  onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {}, onShowFeedback: () => {},
+  onShowOverdue: () => {}, onShowInspection: () => {}, onShowAccounts: () => {}, onShowFeedback: () => {}, onShowToolbox: () => {},
 };
 
 describe('ToolsNotifications password requests', () => {
@@ -20,7 +20,7 @@ describe('ToolsNotifications password requests', () => {
   it('mentions password requests in the all-clear state', () => {
     render(<ToolsNotifications {...base} counts={zero} />);
     fireEvent.click(screen.getByRole('button', { name: '0 unread tool notifications' }));
-    expect(screen.getByText(/no overdue returns, scheduled checks, holds, investigations, password requests or new feedback/i)).toBeInTheDocument();
+    expect(screen.getByText(/no overdue returns, scheduled checks, toolbox checks, holds, investigations, password requests or new feedback/i)).toBeInTheDocument();
   });
 });
 
@@ -60,5 +60,35 @@ describe('ToolsNotifications badge tone', () => {
   it('caps a large unread value at 9+', () => {
     render(<ToolsNotifications {...base} counts={{ ...zero, inspectionDue: 12 }} unread={12} />);
     expect(screen.getByText('9+', { selector: '.sr-only' })).toBeInTheDocument();
+  });
+});
+
+describe('ToolsNotifications toolbox checks', () => {
+  it('routes a due toolbox check to Sets & checks', () => {
+    const onShowToolbox = vi.fn();
+    render(<ToolsNotifications {...base} counts={{ ...zero, toolboxDue: 2 }} unread={2} onShowToolbox={onShowToolbox} />);
+    fireEvent.click(screen.getByRole('button', { name: '2 unread tool notifications' }));
+    fireEvent.click(screen.getByRole('button', { name: /2 toolbox checks due/ }));
+    expect(onShowToolbox).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes an overdue toolbox check to Sets & checks', () => {
+    const onShowToolbox = vi.fn();
+    render(<ToolsNotifications {...base} counts={{ ...zero, toolboxOverdue: 1 }} unread={1} onShowToolbox={onShowToolbox} />);
+    fireEvent.click(screen.getByRole('button', { name: '1 unread tool notifications' }));
+    fireEvent.click(screen.getByRole('button', { name: /1 overdue toolbox check/ }));
+    expect(onShowToolbox).toHaveBeenCalledTimes(1);
+  });
+
+  it('is red when a toolbox check is overdue', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, toolboxOverdue: 1 }} unread={1} />);
+    const badge = screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span[class*="bg-"]');
+    expect(badge?.className).toContain('bg-danger');
+  });
+
+  it('stays dark green when a toolbox check is only due', () => {
+    render(<ToolsNotifications {...base} counts={{ ...zero, toolboxDue: 1 }} unread={1} />);
+    const badge = screen.getByText('1', { selector: '[aria-hidden="true"]' }).closest('span[class*="bg-"]');
+    expect(badge?.className).toContain('bg-action');
   });
 });
