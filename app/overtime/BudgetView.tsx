@@ -16,7 +16,7 @@ import {
   MetricTile, Notice, StatusBadge, useActionFeedback, type Column,
 } from '@/components/ui-system';
 import type { EmployeeLookup } from '@/hooks/useLookups';
-import { adhocTotals, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, isExcludedFromBudget, toBudgetEmployees, type BudgetRow } from './budgetReport';
+import { adhocTotals, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, toBudgetEmployees, type BudgetRow } from './budgetReport';
 import { ENGINEERING_TEMPLATE_ROSTER } from './engineeringRoster';
 import { downloadSplitBudgetReport } from './exportBudgetReport';
 import { bookShiftAverages, parseShiftBook } from './parseShiftBook';
@@ -132,7 +132,6 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
   const incomplete = shown.filter(r => r.status === 'Incomplete').length;
   const missing = shown.filter(r => r.status === 'Missing').length;
   const unclassified = shown.filter(r => r.status === 'Unclassified').length;
-  const excluded = engEmployees.filter(isExcludedFromBudget).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -145,8 +144,7 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
             NEC timesheet book on this machine (TOTAL HRS minus T/M Hours per month, averaged over
             the months each employee appears in). OT @ 2.0 Shift covers holiday and off-day working,
             and OT @ 1.5 Adhoc every other overtime hour — both averaged from Overtime-module
-            records for July to September 2026 (total ÷ 3). Graduate trainees, engineers, managers,
-            foremen and Takudzwa Chibi are left off entirely.
+            records for July to September 2026 (total ÷ 3).
             {computed && ` Covering the ${engEmployees.length} people on the sheet (${shown.length} shown after exclusions); the download matches the sheet order for direct copy-paste.`}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -196,14 +194,13 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
             <MetricTile compact label="OT @ 2.0 Shift" value={`${hrs(computed.totals.total20Shift)}`} detail="Sum of 2.0 averages" />
           </MetricGrid>
 
-          {(incomplete > 0 || missing > 0 || unclassified > 0 || excluded > 0 || computed.orphanCount > 0) && (
+          {(incomplete > 0 || missing > 0 || unclassified > 0 || computed.orphanCount > 0) && (
             <Notice tone={missing > 0 ? 'warning' : 'info'} title="Data quality">
               <p className="font-sans text-body-sm">
                 {[
                   incomplete > 0 ? `${incomplete} incomplete book ${incomplete === 1 ? 'record' : 'records'}` : '',
                   missing > 0 ? `${missing} without monthly-book data (shift blank)` : '',
                   unclassified > 0 ? `${unclassified} without an employment type in Personnel` : '',
-                  excluded > 0 ? `${excluded} left off (trainees, engineers, managers, foremen, named exclusion)` : '',
                   computed.orphanCount > 0 ? `${computed.orphanCount} overtime ${computed.orphanCount === 1 ? 'record' : 'records'} for people outside the register (${computed.orphanHours}h, excluded from rows)` : '',
                 ].filter(Boolean).join(' · ')}.
               </p>

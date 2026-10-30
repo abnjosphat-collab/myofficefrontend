@@ -135,36 +135,6 @@ export function buildEngineeringRoster(
   });
 }
 
-/**
- * Roles kept off the budget entirely: graduate trainees (including INTERN
- * rows), engineers, managers and foremen — matched on occupation only, never
- * on department — plus Takudzwa Chibi by name. Returns the reason, or null
- * when the employee stays in. 'ELECTRICIAN' deliberately does not match
- * 'engineer', and 'Chibi' never matches 'Chiwara'.
- */
-const EXCLUDED_OCCUPATIONS: { match: string; reason: string }[] = [
-  { match: 'trainee', reason: 'Graduate trainee' },
-  { match: 'intern', reason: 'Graduate trainee' },
-  { match: 'engineer', reason: 'Engineer' },
-  { match: 'manager', reason: 'Manager' },
-  { match: 'foreman', reason: 'Foreman' },
-];
-
-export function budgetExclusionReason(emp: Pick<BudgetEmployee, 'occupation' | 'firstName' | 'surname'>): string | null {
-  const role = (emp.occupation || '').toLowerCase();
-  for (const { match, reason } of EXCLUDED_OCCUPATIONS) {
-    if (role.includes(match)) return reason;
-  }
-  const surname = (emp.surname || '').trim().toLowerCase();
-  if (surname === 'chibi') return 'Named exclusion';
-  return null;
-}
-
-/** True when the employee is kept off the budget (see budgetExclusionReason). */
-export function isExcludedFromBudget(emp: Pick<BudgetEmployee, 'occupation' | 'firstName' | 'surname'>): boolean {
-  return budgetExclusionReason(emp) != null;
-}
-
 export interface BudgetRow {
   employeeId: string;
   firstName: string;
@@ -280,9 +250,9 @@ function bookStatus(emp: BudgetEmployee, avg: number | null): BudgetStatus {
   return avg != null ? 'OK' : 'Missing';
 }
 
-/** One row per register employee, ordered like the template workbook: sheet,
- * then CostCentre group, then employee number ascending — so the downloaded
- * rows line up with the online sheet for a straight copy-paste. */
+/** One row per roster employee. The roster itself carries the sheet's exact row
+ * order, so this only groups sheets (stable sort) — register values can never
+ * scramble the copy-paste alignment. */
 export function buildSplitBudgetRows(
   employees: BudgetEmployee[],
   bookAvg: Map<string, number>,
@@ -294,7 +264,6 @@ export function buildSplitBudgetRows(
     return i < 0 ? BUDGET_SHEET_NAMES.length : i;
   };
   return employees
-    .filter(emp => !isExcludedFromBudget(emp))
     .map(emp => {
       const key = normalizeTimesheetEmployeeCode(emp.employeeId);
       // NEC-only: a book average for a non-NEC employee is not shift overtime.
@@ -315,10 +284,7 @@ export function buildSplitBudgetRows(
         comment: budgetComment(shift, causes.get(key)),
       } satisfies BudgetRow;
     })
-    .sort((a, b) =>
-      sheetOrder(a.sheet) - sheetOrder(b.sheet)
-      || a.costCentre.localeCompare(b.costCentre)
-      || a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }));
+    .sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet));
 }
 
 /** Column totals are the sums of the rows' rounded averages — never a workforce-wide average. */

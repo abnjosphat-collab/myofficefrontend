@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ADHOC_FROM, ADHOC_TO,
-  adhocTotals, budgetComment, budgetExclusionReason, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, isExcludedFromBudget, sheetForDepartment, toBudgetEmployees,
+  adhocTotals, budgetComment, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, sheetForDepartment, toBudgetEmployees,
   type BudgetEmployee,
 } from './budgetReport';
 import type { OTRecord } from './types';
@@ -31,37 +31,6 @@ describe('budget windows', () => {
   it('covers July to September 2026 for overtime-module hours', () => {
     expect(ADHOC_FROM).toBe('2026-07-01');
     expect(ADHOC_TO).toBe('2026-09-30');
-  });
-});
-
-describe('budget exclusions (trainees, engineers, managers, foremen, Chibi)', () => {
-  it('removes the listed roles and the named person, nothing else', () => {
-    expect(budgetExclusionReason({ occupation: 'GRADUATE TRAINEE', firstName: 'X', surname: 'Y' })).toBe('Graduate trainee');
-    expect(budgetExclusionReason({ occupation: 'INTERN ELECTRICAL', firstName: 'P', surname: 'M' })).toBe('Graduate trainee');
-    expect(budgetExclusionReason({ occupation: 'ELECTRICAL ENGINEER', firstName: 'X', surname: 'Y' })).toBe('Engineer');
-    expect(budgetExclusionReason({ occupation: 'SECTION MANAGER', firstName: 'X', surname: 'Y' })).toBe('Manager');
-    expect(budgetExclusionReason({ occupation: 'FOREMAN', firstName: 'X', surname: 'Y' })).toBe('Foreman');
-    expect(budgetExclusionReason({ occupation: 'FITTER', firstName: 'TAKUDZWA', surname: 'CHIBI' })).toBe('Named exclusion');
-    expect(isExcludedFromBudget({ occupation: 'FITTER', firstName: 'A', surname: 'Moyo' })).toBe(false);
-  });
-
-  it('never confuses electricians with engineers or Chiwara with Chibi', () => {
-    expect(isExcludedFromBudget({ occupation: 'ELECTRICIAN CLASS 2', firstName: 'J', surname: 'Mapamba' })).toBe(false);
-    expect(isExcludedFromBudget({ occupation: 'CLASS 2 ELECTRICIAN', firstName: 'J', surname: 'Sezi' })).toBe(false);
-    expect(isExcludedFromBudget({ occupation: 'FITTER CLASS 2', firstName: 'S', surname: 'Dodzo' })).toBe(false);
-    expect(isExcludedFromBudget({ occupation: 'INTERN ELECTRICAL', firstName: 'TANAKA', surname: 'CHIWARA' })).toBe(true);
-    expect(budgetExclusionReason({ occupation: 'FITTER', firstName: 'TANAKA', surname: 'CHIWARA' })).toBeNull();
-  });
-
-  it('drops excluded employees from the rows entirely', () => {
-    const employees = [
-      emp(),
-      emp({ dbId: '8', employeeId: 'C1002', firstName: 'T', surname: 'Chibi', occupation: 'FITTER' }),
-      emp({ dbId: '9', employeeId: 'C1003', firstName: 'F', surname: 'Bar', occupation: 'FOREMAN' }),
-    ];
-    const rows = buildSplitBudgetRows(employees, new Map([['C1001', 20], ['C1002', 8], ['C1003', 8]]), new Map());
-    expect(rows.map(r => r.employeeId)).toEqual(['C1001']);
-    expect(budgetTotals(rows).total15Shift).toBe(20);
   });
 });
 
@@ -230,17 +199,30 @@ describe('department sheets', () => {
     expect(rows.map(r => r.sheet)).toEqual(['ENGINEERING', 'MINING', 'MINING']);
   });
 
-  it('orders rows like the template: CostCentre group, then employee number', () => {
-    // Mirrors the ENGINEERING sheet: ELECTRICAL C0226…C2216, then MECHANICAL
-    // C0106…, PP codes last — so pasted columns line up with the online sheet.
+  it('keeps roster order within a sheet so pasted columns line up', () => {
+    // Register values must never scramble the sheet order: scrambled input
+    // sections and codes still come out in roster sequence.
     const employees = [
-      emp({ dbId: '8', employeeId: 'C2216', firstName: 'T', surname: 'Chiwara', costCentre: 'ELECTRICAL' }),
-      emp({ dbId: '9', employeeId: 'C0226', firstName: 'V', surname: 'Zhou', costCentre: 'ELECTRICAL' }),
-      emp({ dbId: '10', employeeId: 'PP058', firstName: 'A', surname: 'Chidakwa', costCentre: 'MECHANICAL' }),
-      emp({ dbId: '11', employeeId: 'C0106', firstName: 'W', surname: 'Chipangura', costCentre: 'MECHANICAL' }),
+      emp({ dbId: '11', employeeId: 'C0106', firstName: 'W', surname: 'Chipangura', costCentre: 'ZZZ' }),
+      emp({ dbId: '8', employeeId: 'C2216', firstName: 'T', surname: 'Chiwara', costCentre: 'AAA' }),
+      emp({ dbId: '9', employeeId: 'C0226', firstName: 'V', surname: 'Zhou', costCentre: 'MMM' }),
     ];
     const rows = buildSplitBudgetRows(employees, new Map(), new Map());
-    expect(rows.map(r => r.employeeId)).toEqual(['C0226', 'C2216', 'C0106', 'PP058']);
+    expect(rows.map(r => r.employeeId)).toEqual(['C0106', 'C2216', 'C0226']);
+  });
+
+  it('emits the template ENGINEERING sheet in its exact row order', async () => {
+    const { ENGINEERING_TEMPLATE_ROSTER } = await import('./engineeringRoster');
+    const roster = buildEngineeringRoster([], ENGINEERING_TEMPLATE_ROSTER);
+    const rows = buildSplitBudgetRows(roster, new Map(), new Map());
+    expect(rows.map(r => r.employeeId)).toEqual([
+      'C0226', 'C0340', 'C0353', 'C0393', 'C0492', 'C0688', 'C0717', 'C1069',
+      'C1096', 'C1121', 'C1161', 'C1189', 'C1190', 'C1342', 'C1420', 'C1911',
+      'C2038', 'C2216', 'C0106', 'C0322', 'C0351', 'C0355', 'C0357', 'C0379',
+      'C0394', 'C0819', 'C0928', 'C0929', 'C0984', 'C1160', 'C1165', 'C1184',
+      'C1188', 'C1202', 'C1527', 'C1748', 'C1750', 'C1763', 'C1909', 'C1910',
+      'C2217', 'C2218', 'C2290', 'C2291', 'PP058', 'PP288', 'PP291',
+    ]);
   });
 
   it('totals are the sums of the rows’ rounded averages', () => {
