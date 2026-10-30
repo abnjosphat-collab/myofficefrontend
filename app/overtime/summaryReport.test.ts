@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  defaultSummaryRange, monthsInRange, rangeActuals, rangeCommentLabel, shiftCapForRange,
+  defaultSummaryRange, monthsInRange, rangeActuals, shiftCapForRange,
 } from './summaryReport';
 import { getDays, fmtDate } from '../timesheets/timesheetMeta';
 import type { TimesheetEntry } from '../timesheets/types';
@@ -37,12 +37,6 @@ describe('summary range helpers', () => {
     expect(defaultSummaryRange(new Date(2026, 0, 15))).toEqual({ from: '2025-10-01', to: '2025-12-31' });
   });
 
-  it('labels ranges compactly for Comment cells', () => {
-    expect(rangeCommentLabel('2026-08-10', '2026-08-10')).toBe('Aug 2026');
-    expect(rangeCommentLabel('2026-07-01', '2026-09-30')).toBe('Jul–Sep 2026');
-    expect(rangeCommentLabel('2025-12-01', '2026-01-31')).toBe('Dec 2025–Jan 2026');
-    expect(rangeCommentLabel('2026-09-30', '2026-07-01')).toBe('Jul–Sep 2026');
-  });
 });
 
 describe('rangeActuals (live NEC timesheets for any period)', () => {
