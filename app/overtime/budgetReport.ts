@@ -236,12 +236,22 @@ export function adhocTotals(
  * Comment-cell text: what is driving one person's overtime. Whole hours,
  * cause first, rostered shift second — blank when there is nothing to say.
  */
-export function budgetComment(shift: number | null, cause: AdhocCause | null | undefined, rangeLabel = 'Jul–Sep'): string {
-  const trimLabel = (label: string) => (label.length > 60 ? `${label.slice(0, 57)}…` : label);
+/**
+ * Comment-cell text in plain words: what the person's overtime was made of —
+ * the top cause from their overtime reasons, plus rostered shift overtime.
+ * No arithmetic: the hour columns already carry the numbers.
+ */
+export function budgetComment(shift: number | null, cause: AdhocCause | null | undefined): string {
+  const plain = (label: string) => {
+    const t = label.trim().replace(/\s+/g, ' ');
+    return t.length > 60 ? `${t.slice(0, 57)}…` : t;
+  };
   const parts: string[] = [];
-  if (cause) parts.push(`“${trimLabel(cause.label)}” — ${cause.hours}h of ${cause.total}h ${rangeLabel}`);
-  if (shift != null && shift > 0) parts.push(`shift overtime above 208 (${shift} h/mo avg)`);
-  return parts.join('; ');
+  if (cause) parts.push(plain(cause.label));
+  if (shift != null && shift > 0) parts.push('shift overtime above 208hrs');
+  if (parts.length === 0) return '';
+  const sentence = parts.join(' and ');
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
 function bookStatus(emp: BudgetEmployee, avg: number | null): BudgetStatus {
@@ -262,7 +272,6 @@ export function buildSplitBudgetRows(
   adhoc: Map<string, AdhocBuckets>,
   causes: Map<string, AdhocCause | null> = new Map(),
   months = ADHOC_MONTHS,
-  rangeLabel = 'Jul–Sep',
 ): BudgetRow[] {
   const sheetOrder = (s: BudgetSheet) => {
     const i = BUDGET_SHEET_NAMES.indexOf(s as (typeof BUDGET_SHEET_NAMES)[number]);
@@ -286,7 +295,7 @@ export function buildSplitBudgetRows(
         ot15Adhoc: Math.round(ad.adhoc15.total / months),
         ot20Shift: Math.round(ad.shift20.total / months),
         status: bookStatus(emp, shift),
-        comment: budgetComment(shift, causes.get(key), rangeLabel),
+        comment: budgetComment(shift, causes.get(key)),
       } satisfies BudgetRow;
     })
     .sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet));

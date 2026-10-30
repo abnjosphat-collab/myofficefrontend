@@ -66,14 +66,14 @@ describe('cause comments', () => {
     expect(cause?.label.toLowerCase()).toContain('winder daily check');
     expect(cause).toMatchObject({ hours: 12, total: 19 });
     const rows = buildSplitBudgetRows(employees, new Map(), byKey, causeByKey);
-    expect(rows[0].comment).toContain('12h of 19h Jul–Sep');
+    expect(rows[0].comment).toBe('Winder daily checks');
   });
 
-  it('combines the cause with rostered shift overtime, and stays blank with nothing to say', () => {
+  it('combines the cause with rostered shift overtime in plain words, and stays blank with nothing to say', () => {
     expect(budgetComment(27, { label: 'Daily checks', hours: 12, total: 19 })).toBe(
-      '“Daily checks” — 12h of 19h Jul–Sep; shift overtime above 208 (27 h/mo avg)',
+      'Daily checks and shift overtime above 208hrs',
     );
-    expect(budgetComment(27, null)).toBe('shift overtime above 208 (27 h/mo avg)');
+    expect(budgetComment(27, null)).toBe('Shift overtime above 208hrs');
     expect(budgetComment(null, null)).toBe('');
     expect(budgetComment(0, null)).toBe('');
   });
@@ -89,7 +89,7 @@ describe('book-sourced OT @ 1.5 Shift', () => {
     const rows = buildSplitBudgetRows([emp()], new Map([['C1001', 20]]), new Map());
     expect(rows[0].ot15Shift).toBe(20);
     expect(rows[0].status).toBe('OK');
-    expect(rows[0].comment).toBe('shift overtime above 208 (20 h/mo avg)');
+    expect(rows[0].comment).toBe('Shift overtime above 208hrs');
   });
 
   it('leaves the shift cell blank when the employee has no book data', () => {

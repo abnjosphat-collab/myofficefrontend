@@ -19,7 +19,7 @@ import type { ShiftAssignment } from '../shifts/types';
 import { api as tsApi } from '../timesheets/useTimesheetsData';
 import { adhocTotals, budgetTotals, buildSplitBudgetRows, toBudgetEmployees, type BudgetRow, type BudgetTotals } from './budgetReport';
 import { downloadSummaryWorkbook } from './exportBudgetReport';
-import { daysInRange, defaultSummaryRange, monthsInRange, rangeActuals, rangeCommentLabel, shiftCapForRange } from './summaryReport';
+import { daysInRange, defaultSummaryRange, monthsInRange, rangeActuals, shiftCapForRange } from './summaryReport';
 import type { OTRecord } from './types';
 
 const hrs = (n: number | null) => (n == null ? '—' : `${n.toFixed(0)}`);
@@ -81,7 +81,6 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
       const actuals = rangeActuals(employees, ts, lv, approvedOt, shifts as ShiftAssignment[], lo, hi);
       const cap = shiftCapForRange(daysInRange(lo, hi));
       const months = monthsInRange(lo, hi);
-      const label = rangeCommentLabel(lo, hi);
       const shift = new Map<string, number>();
       for (const emp of employees) {
         if (emp.employmentType !== 'NEC') continue;
@@ -91,7 +90,7 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
         shift.set(emp.employeeId, ot);
       }
       const adhoc = adhocTotals(records, employees, lo, hi);
-      const rows = buildSplitBudgetRows(employees, shift, adhoc.byKey, adhoc.causeByKey, months, label);
+      const rows = buildSplitBudgetRows(employees, shift, adhoc.byKey, adhoc.causeByKey, months);
       setComputed({ rows, totals: budgetTotals(rows), months, cap, orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The summary could not be generated.');

@@ -40,18 +40,6 @@ export function daysInRange(from: string, to: string): number {
   return Math.max(1, days.length);
 }
 
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** Short human label for a range, for Comment cells: Jul 2026 · Jul–Sep 2026 · Dec 2025–Jan 2026. */
-export function rangeCommentLabel(from: string, to: string): string {
-  const [a, b] = from <= to ? [from, to] : [to, from];
-  const [y1, m1] = a.split('-').map(Number);
-  const [y2, m2] = b.split('-').map(Number);
-  if (y1 === y2 && m1 === m2) return `${SHORT_MONTHS[m1 - 1]} ${y1}`;
-  if (y1 === y2) return `${SHORT_MONTHS[m1 - 1]}–${SHORT_MONTHS[m2 - 1]} ${y1}`;
-  return `${SHORT_MONTHS[m1 - 1]} ${y1}–${SHORT_MONTHS[m2 - 1]} ${y2}`;
-}
-
 /** The last three full calendar months before `now` — the default summary window. */
 export function defaultSummaryRange(now: Date = new Date()): { from: string; to: string } {
   const endMonth = new Date(now.getFullYear(), now.getMonth(), 0); // last day of previous month

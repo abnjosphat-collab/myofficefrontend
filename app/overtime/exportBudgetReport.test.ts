@@ -53,7 +53,7 @@ describe('split-budget workbook format', () => {
     expect([7, 8, 9].map(c => engRow.getCell(c).value)).toEqual([27, 10, 3]);
     expect(engRow.getCell(7).numFmt).toBe('0');
     expect(engRow.getCell(10).value).toBeNull();
-    expect(engRow.getCell(11).value).toBe('shift overtime above 208 (27 h/mo avg)');
+    expect(engRow.getCell(11).value).toBe('Shift overtime above 208hrs');
     const min = wb.getWorksheet('MINING')!;
     // Salaried, no book data: blank 1.5 Shift, also no comment, 4 Adhoc and 2 at 2.0.
     const minRow = min.getRow(2);
