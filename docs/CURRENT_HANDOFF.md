@@ -437,6 +437,17 @@ First batch of the tools-sets-mining-ppe-budget run (plan audit/tools-sets-minin
 - Rollback: revert the frontend merge commit.
 - Release note: Tools now says Tools everywhere, with one Add a tool button; sets follow next.
 
+## 8z. Batch 2: tool sets (Muse, 30 Oct 2026; merged to main, pushed and live 30 Oct 2026, tagged release-2026-10-30-2)
+
+Second batch of the tools-sets-mining-ppe-budget run (plan audit/tools-sets-mining-ppe-budget-2026-10-30/PLAN.md, prompt MUSE_PROMPT.md). Sets are entered once as a set type, then issued to several people; each person gets their own numbered physical set (SET-07) with numbered pieces (SET-07/001) that each carry their own condition and status.
+
+- Backend (`6a318de`, tag release-2026-10-30-2): `supabase_migration_tools_workspace_set_types_2026-10-30.sql` ran live with backups and guards — new `tools_workspace_set_types` / `tools_workspace_set_type_lines`, `set_type_id` on equipment, piece columns (`piece_number` unique, condition, status, `set_type_line_id`) on `tools_workspace_set_lines`. New router `tools_workspace_set_types.py` (set-type CRUD, make-in-store, issue-to-several atomic per person, piece edit, set return); old link-a-tool POST now 410 (auth-gated), GET/DELETE retained. Fresh sets are exempt from weekly/monthly/quarterly dues and live under the toolbox cadence; headless type-sets get a head-requirement incident on toolbox checks.
+- Frontend (`0357f80`, tag release-2026-10-30-2): Add a set (title, lines table, paste/upload from Excel, store count), Issue a set (multi-pick, per-piece exceptions, counted button, per-person results with View links), Set types view on Sets & checks, drawer piece list with Pieces XLSX/PDF, Set badge in the register, piece-number search hits. Return dialog records per-piece condition/status. New spec `scripts/route-specs/sets.mjs`.
+- Gates: tsc clean, eslint 0 errors, production build green, `verify-routes --only /tools` ALL CHECKS PASSED, add-set + set-return renders inspected, full vitest 343 files / 2397 tests passed (2 pool worker-start flakes on a loaded box; both files re-run clean, 68/68). docs:check: typedoc 0 errors, ledger regenerated; motion-consistency still reports the same 2 pre-existing problems on untouched files. Backend: full pytest 2850 passed, pyright baseline 196/196. Live read-only SQL: new tables exist with 0 rows, piece columns present.
+- Live check 30 Oct: live /tools HTML plus its 25 chunk files — "Add a set" in 1 chunk (4x), "Issue a set" in 1 chunk (3x), "Paste from Excel" in 1 chunk (2x); live OpenAPI shows the set-type/issue/piece endpoints with the new backend commit `6a318de`; old link POST answers 401 before sign-in (410 after, per backend tests).
+- Rollback: revert the frontend merge `0357f80`, then backend `6a318de`; set tables are new/empty so only sets typed after release would be lost (export first).
+- Release note: Tools can now Add a set, Issue a set to several people at once, and track every numbered piece; nothing changes for single tools.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:
