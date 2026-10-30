@@ -4,14 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { ToolsHomepage } from './ToolsHomepage';
 
 const stats = [
-  { key: 'total', label: 'Equipment', value: 12, icon: 'box' as const, tab: 'register' as const, filter: 'all' as const },
+  { key: 'total', label: 'Tools', value: 12, icon: 'box' as const, tab: 'register' as const, filter: 'all' as const },
   { key: 'overdue', label: 'Past return date', value: 2, icon: 'clock' as const, tab: 'loans' as const, filter: 'overdue' as const, tone: 'amber' as const },
   { key: 'employees', label: 'Employees', value: 0, icon: 'user' as const, tab: 'employees' as const, filter: 'all' as const, unavailable: true },
 ];
 const attention = [{ id: 'a1', tone: 'red' as const, title: 'Angle grinder overdue', detail: 'Tariro Moyo · 10 Sept', tab: 'loans' as const }];
 const movements = [{ id: 'm1', title: 'Torque wrench · return', detail: 'Returned in good condition', time: '25/09/2026' }];
 const sections = [
-  { value: 'register' as const, label: 'Equipment', icon: 'box' as const },
+  { value: 'register' as const, label: 'Tools', icon: 'box' as const },
   { value: 'employees' as const, label: 'Employees', icon: 'user' as const },
 ];
 const scopeLabel = 'Showing All departments';
@@ -21,7 +21,7 @@ describe('ToolsHomepage', () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} onIssue={() => {}} canIssue />);
-    await user.click(screen.getByRole('button', { name: /Equipment\s*12/ }));
+    await user.click(screen.getByRole('button', { name: /Tools\s*12/ }));
     expect(onNavigate).toHaveBeenCalledWith('register', 'all');
     await user.click(screen.getByRole('button', { name: /Angle grinder overdue/ }));
     expect(onNavigate).toHaveBeenCalledWith('loans', 'all');
@@ -50,7 +50,7 @@ describe('ToolsHomepage', () => {
   it('leads with the stat tiles and shortcuts, and puts recent movements last', () => {
     window.localStorage.removeItem('myoffice.tools.movementsOpen');
     render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue />);
-    const order = [screen.getByRole('button', { name: /Equipment\s*12/ }), screen.getByRole('heading', { name: 'Needs attention' }), screen.getByRole('navigation', { name: 'Workspace shortcuts' }), screen.getByRole('button', { name: /Recent movements/ })];
+    const order = [screen.getByRole('button', { name: /Tools\s*12/ }), screen.getByRole('heading', { name: 'Needs attention' }), screen.getByRole('navigation', { name: 'Workspace shortcuts' }), screen.getByRole('button', { name: /Recent movements/ })];
     for (let i = 0; i < order.length - 1; i++) expect(order[i].compareDocumentPosition(order[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -88,7 +88,7 @@ describe('ToolsHomepage', () => {
   it('opens before the movements and needs-attention records arrive, and says they are loading instead of "clear"', () => {
     const loadingStats = [...stats.slice(0, 2), { ...stats[2], unavailable: false, loading: true }];
     render(<ToolsHomepage stats={loadingStats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} historyLoading attentionLoading sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue />);
-    expect(screen.getByRole('button', { name: /Equipment\s*12/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Tools\s*12/ })).toBeInTheDocument();
     expect(screen.getAllByText('Employees').length).toBeGreaterThan(0);
     expect(screen.getByText('Loading the latest records…')).toBeInTheDocument();
     expect(screen.getByText('Loading the latest records…')).toBeInTheDocument();

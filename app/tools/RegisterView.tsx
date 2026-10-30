@@ -1,4 +1,4 @@
-// app/tools/RegisterView.tsx — the equipment register as cards or a table. A person who may archive can tick several
+// app/tools/RegisterView.tsx — the tools register as cards or a table. A person who may archive can tick several
 // items (not ones out on loan) and archive them together after one confirmation.
 'use client';
 
@@ -34,7 +34,7 @@ export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany, c
       {canSelect && (selecting
         ? (
           <div role="toolbar" aria-label="Archive several items" className="flex flex-wrap items-center gap-2">
-            <strong role="status" className="font-sans text-body-sm font-medium text-ink">{chosen.length ? `${chosen.length} selected` : 'Tick the equipment to archive'}</strong>
+            <strong role="status" className="font-sans text-body-sm font-medium text-ink">{chosen.length ? `${chosen.length} selected` : 'Tick the tools to archive'}</strong>
             <Button variant="ghost" size="sm" onClick={() => setPicked(chosen.length === pickable.length ? new Set() : new Set(pickable.map(t => t.id)))}>{chosen.length === pickable.length ? 'Clear selection' : `Select all ${pickable.length}`}</Button>
             <span className="ml-auto flex gap-2">
               <Button onClick={stop}>Cancel</Button>
@@ -45,7 +45,7 @@ export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany, c
         : <div className="flex"><Button icon="archive" onClick={() => setSelecting(true)}>Select to archive</Button></div>)}
       <DataTable
         stillKey={calmKey}
-        caption="Equipment register"
+        caption="Tools register"
         rows={tools}
         getRowId={tool => tool.id}
         onRowActivate={tool => onSelect(tool.id)}

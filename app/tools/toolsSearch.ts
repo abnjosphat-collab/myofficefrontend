@@ -11,7 +11,7 @@ export type SearchTarget =
 
 export type WorkspaceSearchResult = {
   id: string;
-  kind: 'Page' | 'Equipment' | 'Employee' | 'Document' | 'History' | 'Setting' | 'Action';
+  kind: 'Page' | 'Tool' | 'Employee' | 'Document' | 'History' | 'Setting' | 'Action';
   title: string;
   subtitle: string;
   keywords: string;
@@ -21,15 +21,15 @@ export type WorkspaceSearchResult = {
 
 const fixedResults: WorkspaceSearchResult[] = [
   { id: 'page-home', kind: 'Page', title: 'Overview', subtitle: 'Attention list and recent movements', keywords: 'home homepage overview dashboard start summary attention', icon: 'home', target: { type: 'tab', tab: 'homepage' } },
-  { id: 'page-equipment', kind: 'Page', title: 'Equipment register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'equipment', target: { type: 'tab', tab: 'register' } },
-  { id: 'page-loans', kind: 'Page', title: 'Equipment in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'overdue', target: { type: 'tab', tab: 'loans' } },
+  { id: 'page-equipment', kind: 'Page', title: 'Tools register', subtitle: 'Browse every active and archived item', keywords: 'tools assets register inventory equipment', icon: 'equipment', target: { type: 'tab', tab: 'register' } },
+  { id: 'page-loans', kind: 'Page', title: 'Tools in use', subtitle: 'See current custody and overdue returns', keywords: 'issued borrowed loan handover custody overdue', icon: 'overdue', target: { type: 'tab', tab: 'loans' } },
   { id: 'page-employees', kind: 'Page', title: 'Employee register', subtitle: 'Find people who can receive equipment', keywords: 'staff personnel workers people employees', icon: 'user', target: { type: 'tab', tab: 'employees' } },
   { id: 'page-history', kind: 'Page', title: 'Movement history', subtitle: 'Review the issue and return audit trail', keywords: 'activity movements audit trail issue return transfer', icon: 'history', target: { type: 'tab', tab: 'activity' } },
   { id: 'page-sources', kind: 'Page', title: 'Source registers', subtitle: 'Original PDF, Excel, Word and scanned registers', keywords: 'documents source files pdf spreadsheet excel word scan register', icon: 'upload', target: { type: 'tab', tab: 'sources' } },
   { id: 'page-accounts', kind: 'Page', title: 'Account access', subtitle: 'Grant or revoke roles and departmental access', keywords: 'admin users accounts roles permissions grant revoke issuer viewer', icon: 'admin-role', target: { type: 'tab', tab: 'accounts' } },
   { id: 'page-analytics', kind: 'Page', title: 'Analytics', subtitle: 'Usage, errors and feedback', keywords: 'charts metrics insights errors usage reports', icon: 'analytics', target: { type: 'tab', tab: 'analytics' } },
   { id: 'page-feedback', kind: 'Page', title: 'Feedback inbox', subtitle: 'Read saved text and audio feedback', keywords: 'suggestions recordings voice comments', icon: 'edit', target: { type: 'tab', tab: 'feedback' } },
-  { id: 'action-add-tool', kind: 'Action', title: 'Add equipment', subtitle: 'Create a new register record', keywords: 'new tool asset create register', icon: 'plus', target: { type: 'modal', modal: 'new' } },
+  { id: 'action-add-tool', kind: 'Action', title: 'Add a tool', subtitle: 'Create a new register record', keywords: 'new tool asset create register', icon: 'plus', target: { type: 'modal', modal: 'new' } },
   { id: 'action-add-employee', kind: 'Action', title: 'Add employee', subtitle: 'Add a person to the employee register', keywords: 'new worker person personnel staff create', icon: 'user', target: { type: 'modal', modal: 'employee' } },
   { id: 'action-import', kind: 'Action', title: 'Import a register', subtitle: 'Upload Excel, CSV or Word data', keywords: 'upload spreadsheet xlsx excel csv docx word', icon: 'upload', target: { type: 'modal', modal: 'import' } },
   { id: 'action-source-register', kind: 'Action', title: 'Upload a source register', subtitle: 'Keep an original PDF, spreadsheet, document or scan', keywords: 'source permanent original pdf excel word scan document upload', icon: 'upload', target: { type: 'modal', modal: 'source-register' } },
@@ -43,7 +43,7 @@ export function buildWorkspaceSearchIndex(tools: Tool[], employees: Employee[], 
   const dynamic: WorkspaceSearchResult[] = [];
   for (const tool of tools) {
     dynamic.push({
-      id: `tool-${tool.id}`, kind: 'Equipment', title: tool.name,
+      id: `tool-${tool.id}`, kind: 'Tool', title: tool.name,
       subtitle: `${tool.id} · ${departmentOf(tool)} · ${tool.location}`,
       keywords: `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.job ?? ''} ${tool.notes ?? ''} ${departmentOf(tool)} ${tool.section ?? ''}`,
       icon: 'equipment', target: { type: 'tool', toolId: tool.id },

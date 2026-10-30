@@ -1,5 +1,5 @@
-// /tools: the Tools & Equipment workspace on the shared frame — a saved Tools session (its own sign-in, not the app's), the
-// overview, the equipment register as cards and as a table, one tool's side panel, a real issue with the overdue-check override,
+// /tools: the Tools workspace on the shared frame — a saved Tools session (its own sign-in, not the app's), the
+// overview, the tools register as cards and as a table, one tool's side panel, a real issue with the overdue-check override,
 // a refused past return date, a bulk issue of two tools to one borrower, employees, compliance and the shared settings dialog.
 const iso = days => new Date(Date.now() + days * 86400000).toISOString();
 const PEOPLE = [
@@ -38,12 +38,12 @@ const spec = {
   },
   async ready(page, calls, { check, shot }) {
     check(await page.getByRole('navigation', { name: 'Workspace shortcuts' }).isVisible(), 'the overview offers shortcuts to the sections');
-    check(await page.getByRole('button', { name: /Equipment\s*5/ }).isVisible(), 'the overview counts the active equipment');
+    check(await page.getByRole('button', { name: /Tools\s*5/ }).isVisible(), 'the overview counts the active tools');
     check(await page.getByRole('button', { name: '1 unread tool notifications' }).isVisible(), 'the bell shows the unread notification');
     await shot(page, 'overview@1440');
 
     // The register as cards: one per tool, status filters in the figure row.
-    await page.getByRole('button', { name: 'Equipment', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Tools', exact: true }).first().click();
     await page.getByRole('button', { name: 'Grid view' }).click();
     // U1: the cards are native buttons now (they were divs with role="button"), so locate by role+name.
     const pods = page.getByRole('button', { name: /Open for details/ });
@@ -78,7 +78,7 @@ const spec = {
     const nobodyPanel = page.getByRole('dialog', { name: 'Digital multimeter' });
     await nobodyPanel.waitFor();
     check(await nobodyPanel.getByRole('button', { name: 'Issue tool' }).isDisabled(), 'Issue is greyed when nobody can use the tool');
-    check(await nobodyPanel.getByText('Nobody is eligible yet').isVisible(), 'and the panel says nobody is eligible yet');
+    check(await nobodyPanel.getByText('Nobody can use this tool yet').isVisible(), 'and the panel says nobody can use it yet');
     check(await nobodyPanel.getByRole('button', { name: 'Set who can use it' }).isVisible(), 'with the shortcut to set who can use it');
     await nobodyPanel.getByRole('button', { name: 'Close', exact: true }).click();
 
@@ -177,11 +177,11 @@ const spec = {
 
     // The table, then the other sections.
     await page.getByRole('button', { name: 'List view' }).click();
-    check(await page.getByRole('table', { name: 'Equipment register' }).isVisible(), 'the register also reads as a table');
+    check(await page.getByRole('table', { name: 'Tools register' }).isVisible(), 'the register also reads as a table');
     await page.getByRole('button', { name: 'Employees', exact: true }).first().click();
     check(await page.getByRole('button', { name: /A\. Moyo/ }).isVisible(), 'employees are listed by department');
     await page.getByRole('button', { name: 'Compliance', exact: true }).first().click();
-    check(await page.getByRole('table', { name: 'Inspections by equipment' }).isVisible(), 'compliance opens on the inspections that are overdue');
+    check(await page.getByRole('table', { name: 'Inspections by tool' }).isVisible(), 'compliance opens on the inspections that are overdue');
     const plan = page.getByRole('region', { name: "This quarter's plan" });
     check(await plan.isVisible(), "and this quarter's plan is shown below");
     check(await plan.getByText('Done', { exact: true }).isVisible(), 'with completed tools marked done');

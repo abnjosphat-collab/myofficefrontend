@@ -23,10 +23,10 @@ describe('ToolsBrand', () => {
 
 describe('Dallaglio logo on the sign-in card', () => {
   it('renders the full lockup above the title when given', () => {
-    render(<AuthCard title="Tools & Equipment" logo={<DallaglioLogo />} />);
+    render(<AuthCard title="Tools" logo={<DallaglioLogo />} />);
     const logo = screen.getByRole('img', { name: /Dallaglio: mines are not found/ });
     expect(logo).toHaveAttribute('src', '/brand/dallaglio-logo.png');
     expect(logo).toHaveAttribute('width', '115');
-    expect(screen.getByRole('heading', { name: 'Tools & Equipment' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
   });
 });

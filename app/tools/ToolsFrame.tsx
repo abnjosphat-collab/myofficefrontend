@@ -66,7 +66,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
               onValueChange={w.setSearch}
               results={results}
               onChoose={result => { const original = w.workspaceSearchResults.find(item => item.id === result.id); if (original) w.chooseSearchResult(original); }}
-              placeholder="Search equipment, people, documents or settings…"
+              placeholder="Search tools, people, documents or settings…"
               label="Search the Tools workspace"
               shortcutHint="/"
               inputRef={w.searchRef}
@@ -74,7 +74,7 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
           )}
           onSearchExpand={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }}
           strip={<><IconButton icon="sidebar" label="Open navigation" variant="ghost" onClick={() => setNavOpen(true)} /><IconButton icon="search" label="Search" variant="ghost" onClick={() => setNavOpen(true)} /><h1 className="font-sans text-body-sm font-semibold text-ink sm:hidden">{current.label}</h1></>}
-          drawerBrand={<strong className="font-sans text-body-sm text-ink">Equipment E-System</strong>}
+          drawerBrand={<strong className="font-sans text-body-sm text-ink">Tools E-System</strong>}
         >
           {nav}
         </SidebarFrame>

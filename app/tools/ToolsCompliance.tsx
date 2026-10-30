@@ -1,4 +1,4 @@
-// app/tools/ToolsCompliance.tsx — compliance for the equipment register: inspections and maintenance, incidents (loss, damage,
+// app/tools/ToolsCompliance.tsx — compliance for the tool register: inspections and maintenance, incidents (loss, damage,
 // theft) with their investigations, and the approvals behind who may use what. Managers also record each of these here.
 'use client';
 
@@ -120,7 +120,7 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
     if (outcome === 'failed' && !defects.trim()) { setDefectsError('Describe the defects.'); inspectionRefused(); return; }
     if (inspectionType === 'repair' && !repairQuote.trim()) { setRepairQuoteError('Enter the repair quotation.'); inspectionRefused(); return; }
     if (inspectionType === 'repair' && Number(repairQuote) < 0) { setRepairQuoteError('Enter 0 or more.'); inspectionRefused(); return; }
-    if (inspectionType === 'repair' && !newPrice.trim()) { setNewPriceError('Enter the new-equipment price.'); inspectionRefused(); return; }
+    if (inspectionType === 'repair' && !newPrice.trim()) { setNewPriceError('Enter the new-tool price.'); inspectionRefused(); return; }
     if (inspectionType === 'repair' && Number(newPrice) < 0.01) { setNewPriceError('Enter 0.01 or more.'); inspectionRefused(); return; }
     setSaving(true);
     try {
@@ -190,7 +190,7 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
             <form ref={competencyFormRef} className="flex flex-col gap-4" onSubmit={submitCompetency} noValidate>
               <Row>
                 <Field label="Employee"><Select aria-label="Competency employee" value={employeeId} onValueChange={setEmployeeId} options={employeeOptions} /></Field>
-                <Field label="Equipment"><Select aria-label="Competency equipment" value={toolId} onValueChange={setToolId} options={toolOptions} /></Field>
+                <Field label="Tool"><Select aria-label="Competency tool" value={toolId} onValueChange={setToolId} options={toolOptions} /></Field>
               </Row>
               <div className="flex flex-wrap gap-x-6 gap-y-2">
                 <Checkbox label="Trained" checked={trained} onChange={event => setTrained(event.target.checked)} />
@@ -205,15 +205,15 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
                 <Field label="Authorization expiry" optional><Input type="date" value={authorizationExpiry} onChange={event => setAuthorizationExpiry(event.target.value)} /></Field>
                 <Field label="Notes" optional><Input value={competencyNotes} onChange={event => setCompetencyNotes(event.target.value)} /></Field>
               </Row>
-              {(!employeeOptions.length || !toolOptions.length) && <p className="font-sans text-caption text-ink-muted">There is no employee or equipment to record this against yet.</p>}
+              {(!employeeOptions.length || !toolOptions.length) && <p className="font-sans text-caption text-ink-muted">There is no employee or tool to record this against yet.</p>}
               <Submit disabled={!employeeId || !toolId} pending={saving}>Save competency</Submit>
             </form>
           </FormCard>
 
-          <FormCard name="inspection" open={openForm === 'inspection'} onToggle={toggleForm} title="Record inspection or maintenance" note="Failed checks place equipment on hold">
+          <FormCard name="inspection" open={openForm === 'inspection'} onToggle={toggleForm} title="Record inspection or maintenance" note="Failed checks place tools on hold">
             <form ref={inspectionFormRef} className="flex flex-col gap-4" onSubmit={submitInspection} noValidate>
               <Row>
-                <Field label="Equipment"><Select aria-label="Inspection equipment" value={inspectionToolId} onValueChange={setInspectionToolId} options={toolOptions} /></Field>
+                <Field label="Tool"><Select aria-label="Inspection tool" value={inspectionToolId} onValueChange={setInspectionToolId} options={toolOptions} /></Field>
                 <Field label="Check type"><Select aria-label="Inspection type" value={inspectionType} onValueChange={value => { setInspectionType(value as InspectionType); setRepairQuoteError(undefined); setNewPriceError(undefined); }} options={Object.entries(INSPECTION_LABELS).map(([value, text]) => ({ value, label: text }))} /></Field>
                 <Field label="Outcome"><Select aria-label="Inspection outcome" value={outcome} onValueChange={value => { setOutcome(value as typeof outcome); setDefectsError(undefined); }} options={[{ value: 'passed', label: 'Passed · fit for use' }, { value: 'conditional', label: 'Conditional · follow-up required' }, { value: 'failed', label: 'Failed · quarantine' }]} /></Field>
                 <Field label="Next due" optional><Input type="date" value={nextDue} onChange={event => setNextDue(event.target.value)} /></Field>
@@ -222,14 +222,14 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
                 {inspectionType === 'repair' && (
                   <>
                     <Field label="Repair quotation" error={repairQuoteError}><Input type="number" min="0" step="0.01" value={repairQuote} onChange={event => { setRepairQuote(event.target.value); setRepairQuoteError(undefined); }} /></Field>
-                    <Field label="New equipment price" error={newPriceError}><Input type="number" min="0.01" step="0.01" value={newPrice} onChange={event => { setNewPrice(event.target.value); setNewPriceError(undefined); }} /></Field>
+                    <Field label="New tool price" error={newPriceError}><Input type="number" min="0.01" step="0.01" value={newPrice} onChange={event => { setNewPrice(event.target.value); setNewPriceError(undefined); }} /></Field>
                   </>
                 )}
               </Row>
               {inspectionType === 'repair' && repairPercentage !== undefined && (
-                <Notice tone={repairPercentage <= 60 ? 'info' : 'warning'} title={repairPercentage <= 60 ? 'Repair is within the 60% limit' : 'Replacement review required'}>Repair quotation is {repairPercentage.toFixed(1)}% of the new-equipment price.</Notice>
+                <Notice tone={repairPercentage <= 60 ? 'info' : 'warning'} title={repairPercentage <= 60 ? 'Repair is within the 60% limit' : 'Replacement review required'}>Repair quotation is {repairPercentage.toFixed(1)}% of the new-tool price.</Notice>
               )}
-              {!toolOptions.length && <p className="font-sans text-caption text-ink-muted">There is no equipment to inspect yet.</p>}
+              {!toolOptions.length && <p className="font-sans text-caption text-ink-muted">There is no tool to inspect yet.</p>}
               <Submit disabled={!inspectionToolId} pending={saving}>Record check</Submit>
             </form>
           </FormCard>
@@ -237,20 +237,20 @@ export function ToolsCompliance({ tools, employees, competencies, inspections, i
           <FormCard name="incident" open={openForm === 'incident'} onToggle={toggleForm} title="Report loss, damage or theft" note="Investigation is due within 24 hours">
             <form ref={incidentFormRef} className="flex flex-col gap-4" onSubmit={submitIncident} noValidate>
               <Row>
-                <Field label="Equipment"><Select aria-label="Incident equipment" value={incidentToolId} onValueChange={setIncidentToolId} options={toolOptions} /></Field>
+                <Field label="Tool"><Select aria-label="Incident tool" value={incidentToolId} onValueChange={setIncidentToolId} options={toolOptions} /></Field>
                 <Field label="Incident type"><Select aria-label="Incident type" value={incidentType} onValueChange={value => setIncidentType(value as IncidentRecord['incident_type'])} options={Object.entries(INCIDENT_LABELS).map(([value, text]) => ({ value, label: text }))} /></Field>
                 <Field label="Occurred at" required error={occurredAtError}><Input type="datetime-local" value={occurredAt} onChange={event => { setOccurredAt(event.target.value); setOccurredAtError(undefined); }} /></Field>
                 <Field label="Employee involved" optional><Select aria-label="Employee involved" value={incidentEmployeeId} onValueChange={setIncidentEmployeeId} options={[{ value: '', label: 'Not assigned' }, ...employeeOptions]} /></Field>
               </Row>
               <Field label="Immediate report" required error={explanationError}><Textarea rows={4} value={explanation} onChange={event => { setExplanation(event.target.value); setExplanationError(undefined); }} placeholder="What happened, where, when, and what immediate action was taken?" /></Field>
-              {!toolOptions.length && <p className="font-sans text-caption text-ink-muted">There is no equipment to report against yet.</p>}
+              {!toolOptions.length && <p className="font-sans text-caption text-ink-muted">There is no tool to report against yet.</p>}
               <Submit disabled={!incidentToolId} pending={saving}>Report incident</Submit>
             </form>
           </FormCard>
 
           <FormCard name="close" open={openForm === 'close'} onToggle={toggleForm} title="Close investigation" note="Record accountability and recovery terms">
             <form ref={closeFormRef} className="flex flex-col gap-4" onSubmit={submitCloseIncident} noValidate>
-              <Field label="Open incident"><Select aria-label="Open incident" value={closingIncidentId} onValueChange={setClosingIncidentId} options={openIncidents.map(item => ({ value: item.id, label: `${toolById.get(item.tool_id)?.id || 'Equipment'} · ${INCIDENT_LABELS[item.incident_type]}` }))} /></Field>
+              <Field label="Open incident"><Select aria-label="Open incident" value={closingIncidentId} onValueChange={setClosingIncidentId} options={openIncidents.map(item => ({ value: item.id, label: `${toolById.get(item.tool_id)?.id || 'Tool'} · ${INCIDENT_LABELS[item.incident_type]}` }))} /></Field>
               <Field label="Investigation outcome" required error={outcomeError}><Textarea rows={4} value={investigationOutcome} onChange={event => { setInvestigationOutcome(event.target.value); setOutcomeError(undefined); }} /></Field>
               <Checkbox label="Negligence confirmed" description="Replacement recovery may be scheduled over no more than six months." checked={negligenceConfirmed} onChange={event => { setNegligenceConfirmed(event.target.checked); setCostError(undefined); setMonthsError(undefined); }} />
               {negligenceConfirmed && (

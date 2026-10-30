@@ -425,6 +425,18 @@ Three owner asks in one batch (all in `app/ppe/`; backend `app/routers/ppe.py`, 
 - Wording: Download, not Export, on every button, menu, toast and notice (component names unchanged). Measured: 51 visible "Export" vs 29 "Download" for the same action.
 - Released in that order: SQL, backend fast-forward (live OpenAPI shows `/api/documents/{doc_id}/print-copy` POST/DELETE and `employee_id` on leaves/overtime), frontend, tag. Rollback: revert the frontend merge, then backend `7de21f3` and `72105a3`; the print-copy columns and the Quick print folder can stay (statements in the SQL header). Not run: `verify-routes` (preview behind Vercel Authentication; no RAM for a local server beside Muse).
 
+## 8y. Batch 1: Tools wording and Add a tool (Muse, 30 Oct 2026; merged to main, pushed and live 30 Oct 2026, tagged release-2026-10-30-1)
+
+First batch of the tools-sets-mining-ppe-budget run (plan audit/tools-sets-mining-ppe-budget-2026-10-30/PLAN.md, prompt MUSE_PROMPT.md). Frontend only; no backend changes, no SQL, no live data touched.
+
+- Wording: every visible Equipment/equipment meaning the portable tools is now Tools/tool: nav tab and stat tile (Tools), Tools register, Tools in use, Add a tool, Edit tool details, toasts (Tool added, Tool updated, Tool archived/restored), eligibility (Tools Alex Moyo can use, Add a tool, 1 tool / 5 tools), empty states (No matching tools, Start your tools register), hints, search (Search tools, results badge Tool), downloads (Tools register, Dallaglio Portable Tools header). Workspace title Tools & Equipment is now Tools (Tools E-System drawer brand, page metadata Dallaglio Portable Tools E-System). Equipment being worked on (machines) is now Machines being worked on. Code identifiers, API paths, table names, storage keys and category values unchanged.
+- Buttons: the register toolbar ships with the one button Add a tool (todays form; submit already said Add tool). Add a set and Issue a set arrive with Batch 2.
+- 37 files changed (25 app/tools sources, 9 app/tools tests, DestinationSearch comment, docs/TOOLS_WORKSPACE.md, scripts/route-specs/tools.mjs); changed strings listed in the branch diff.
+- Gate: tsc clean, eslint 0 errors (1 pre-existing max-lines warning on ToolsForms.tsx), full vitest 343 files / 2456 tests green, production build green, verify-routes --only /tools ALL CHECKS PASSED (49/49), 1440 + 390 renders inspected (0px overflow). docs:check: typedoc 0 errors, ledger/links/css/export/refresh clean; motion-consistency reports 2 problems (nameMatch.ts, NameTypeahead.tsx missing from the external MOTION_INVENTORY.md) that pre-date this batch, both files untouched by it.
+- Live check: production chunks contain Add a tool and no Add equipment (verified after push, results below).
+- Rollback: revert the frontend merge commit.
+- Release note: Tools now says Tools everywhere, with one Add a tool button; sets follow next.
+
 ## 8. Next bounded item
 
 Every route is migrated (4 Oct 2026; the last ones were `/breakdowns`, `/breakdowns/analytics`, `/quotations`, `/artisan-timesheets` and `/timesheets`). What remains of the layout pass, in order:

@@ -113,11 +113,11 @@ describe('Tools interaction controls', () => {
     const employees=[{id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true}];
     const ineligibleTool={...SEED_TOOLS[0],eligibleEmployees:[]};
     render(<MovementForm kind="issue" initialTool={ineligibleTool} tools={[ineligibleTool,...SEED_TOOLS.slice(1)]} employees={employees} issuerDepartment="Engineering" locationSuggestions={LOCATIONS} addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
-    expect(screen.getByRole('status')).toHaveTextContent('No eligible employee for this equipment');
+    expect(screen.getByRole('status')).toHaveTextContent('No eligible employee for this tool');
     await user.click(screen.getByRole('combobox',{name:'Employee'}));
     expect(screen.getByRole('listbox',{name:'Employee suggestions'})).toHaveTextContent('No employee is currently trained, qualified and authorized');
   });
-  it('shows approved equipment plus greyed-out tools nobody can use when issue starts from an employee', async () => {
+  it('shows approved tools plus greyed-out tools nobody can use when issue starts from an employee', async () => {
     const user=userEvent.setup();
     const employee={id:'employee-1',backendId:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering',active:true};
     const approved={...SEED_TOOLS[0],id:'APPROVED',backendId:'approved',eligibleEmployees:[{id:'employee-1',employeeNumber:'C1042',name:'Mina Dube',department:'Engineering'}]};
@@ -202,11 +202,11 @@ describe('Tools interaction controls', () => {
     await user.click(screen.getByRole('button',{name:'Close dialog'}));
     await waitFor(()=>expect(screen.queryByRole('dialog',{name:'clamp-meter.jpg'})).not.toBeInTheDocument());
   });
-  it('keeps the equipment type compatible with its category', async () => {
+  it('keeps the tool type compatible with its category', async () => {
     const user=userEvent.setup();
     render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     const category=screen.getByRole('combobox',{name:'Category'});
-    const equipmentType=screen.getByRole('combobox',{name:'Equipment type'});
+    const equipmentType=screen.getByRole('combobox',{name:'Tool type'});
     expect(equipmentType).toHaveTextContent('Cordless drill / driver');
     await user.click(category); await user.click(await screen.findByRole('option',{name:'Welding'}));
     expect(equipmentType).toHaveTextContent('Inverter welder');
@@ -230,7 +230,7 @@ describe('Tools interaction controls', () => {
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({ competencyRequired: false, preUseCheckRequired: false });
   });
-  it('requires a repair or inspection note before returning equipment to service', async () => {
+  it('requires a repair or inspection note before returning tools to service', async () => {
     const user = userEvent.setup();
     const onSave=vi.fn();
     render(<MarkReadyForm tool={{...SEED_TOOLS[0],status:'attention'}} onSave={onSave} onCancel={()=>{}}/>);
@@ -418,7 +418,7 @@ describe('Tools form validation messages', () => {
     expect(screen.getByText('Enter the storage location.')).toBeVisible();
     expect(screen.getByText('Enter the designated storage place.')).toBeVisible();
   });
-  it('asks for a longer note before returning equipment to service', () => {
+  it('asks for a longer note before returning tools to service', () => {
     const onSave = vi.fn();
     render(<MarkReadyForm tool={{ ...SEED_TOOLS[0], status: 'attention' }} onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByLabelText('Repair or inspection completed'), { target: { value: 'x' } });
@@ -479,12 +479,12 @@ describe('Tools form validation messages', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('not ready to issue');
     expect(screen.getByRole('button', { name: 'Record repair' })).toBeInTheDocument();
   });
-  it('commits the lone equipment suggestion on Tab and sends it with the issue', async () => {
+  it('commits the lone machine suggestion on Tab and sends it with the issue', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
     render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
-    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
-    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'Convey');
+    await user.click(screen.getByRole('combobox', { name: 'Machines being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add machines being worked on…'), 'Convey');
     await user.tab();
     expect(screen.getByText('Conveyor CV-01')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Employee' }), { target: { value: PEOPLE[0] } });
@@ -492,22 +492,22 @@ describe('Tools form validation messages', () => {
     await user.click(screen.getByRole('button', { name: 'Issue tool' }));
     expect(onSave.mock.calls[0][0]).toMatchObject({ assignedEquipment: ['Conveyor CV-01'] });
   });
-  it('commits typed-new equipment on Tab and a highlighted suggestion on Enter', async () => {
+  it('commits typed-new machine text on Tab and a highlighted suggestion on Enter', async () => {
     const user = userEvent.setup();
     render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
-    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
-    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'New crusher CR-9');
+    await user.click(screen.getByRole('combobox', { name: 'Machines being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add machines being worked on…'), 'New crusher CR-9');
     await user.tab();
     expect(screen.getByText('New crusher CR-9')).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
-    await user.type(screen.getByPlaceholderText('Search add equipment being worked on…'), 'Pump');
+    await user.click(screen.getByRole('combobox', { name: 'Machines being worked on' }));
+    await user.type(screen.getByPlaceholderText('Search add machines being worked on…'), 'Pump');
     await user.keyboard('{Enter}');
     expect(screen.getByText('Pump P-12')).toBeInTheDocument();
   });
-  it('never commits the first equipment row on an empty Tab', async () => {
+  it('never commits the first machine row on an empty Tab', async () => {
     const user = userEvent.setup();
     render(<MovementForm kind="issue" initialTool={SEED_TOOLS[0]} tools={SEED_TOOLS} employees={placeholderPeople} equipmentSuggestions={['Conveyor CV-01', 'Pump P-12']} addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
-    await user.click(screen.getByRole('combobox', { name: 'Equipment being worked on' }));
+    await user.click(screen.getByRole('combobox', { name: 'Machines being worked on' }));
     await user.tab();
     expect(screen.queryByRole('button', { name: 'Remove Conveyor CV-01' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove Pump P-12' })).not.toBeInTheDocument();

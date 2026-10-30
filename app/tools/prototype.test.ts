@@ -37,7 +37,7 @@ describe('Tools preview handovers', () => {
     for (const query of [' GRINDER ', 'eng-ag', 'demo-mk5030', 'alex']) expect(matchesTool(SEED_TOOLS[1], query)).toBe(true);
     expect(matchesTool(SEED_TOOLS[1], 'missing-tool')).toBe(false);
   });
-  it('keeps materially different sample equipment on distinct visual types', () => {
+  it('keeps materially different sample tools on distinct visual types', () => {
     expect(new Set(SEED_TOOLS.map(tool => tool.kind)).size).toBe(SEED_TOOLS.length);
     for (const tool of SEED_TOOLS) expect(equipmentTypesForCategory(tool.category).map(type => type.value)).toContain(tool.kind);
   });

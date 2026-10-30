@@ -20,7 +20,7 @@ export function ToolsCustomize({ options, setOptions }: { options: WorkspaceOpti
       <Checkbox label="Notification sounds" description="Play a soft sound with the success and failure popups."
         aria-label="Notification sounds" checked={sounds} onChange={e => { setSounds(e.target.checked); setSoundEnabled(e.target.checked); }} />
 
-      <Checkbox label="Archive and deactivate buttons" description="Turn off to hide them for equipment and employees, so nothing is removed by accident. Restore and Reactivate stay available."
+      <Checkbox label="Archive and deactivate buttons" description="Turn off to hide them for tools and employees, so nothing is removed by accident. Restore and Reactivate stay available."
         aria-label="Archive and deactivate buttons" checked={options.showRemoval} onChange={e => setOptions(p => ({ ...p, showRemoval: e.target.checked }))} />
 
       <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">

@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
-const appName = "Dallaglio Portable Tools and Equipment E-System";
+const appName = "Dallaglio Portable Tools E-System";
 const description =
-  "Find, issue, return and account for portable tools and equipment across Dallaglio departments with searchable registers, clear custody records and a permanent history.";
+  "Find, issue, return and account for portable tools across Dallaglio departments with searchable registers, clear custody records and a permanent history.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
   applicationName: appName,
   keywords: [
     "portable tools",
-    "equipment management",
+    "tool management",
     "tool register",
-    "equipment custody",
+    "tool custody",
     "Dallaglio",
   ],
   manifest: "/tools/manifest.webmanifest",

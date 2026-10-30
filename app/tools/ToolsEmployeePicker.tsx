@@ -1,4 +1,4 @@
-// app/tools/ToolsEmployeePicker.tsx — choosing who receives a tool. The people eligible for the chosen equipment are always listed
+// app/tools/ToolsEmployeePicker.tsx — choosing who receives a tool. The people eligible for the chosen tool are always listed
 // under the search box, each with their job title and number, so the choice can be made by looking; typing narrows the list, Enter or
 // Tab takes the top match, the arrow keys move through it, and a click picks one. The list is a list, not a dropdown: nothing is hidden
 // until you type, and with a few dozen people it scrolls.

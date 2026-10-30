@@ -20,13 +20,13 @@ describe('ToolsCompliance',()=>{
     await user.click(screen.getByRole('combobox',{name:'Check type'}));
     await user.click(await screen.findByRole('option',{name:'Repair verification'}));
     fireEvent.change(screen.getByLabelText('Repair quotation'),{target:{value:'600'}});
-    fireEvent.change(screen.getByLabelText('New equipment price'),{target:{value:'1000'}});
+    fireEvent.change(screen.getByLabelText('New tool price'),{target:{value:'1000'}});
     expect(screen.getByText('Repair is within the 60% limit')).toBeInTheDocument();
     await user.click(screen.getByRole('button',{name:'Record check'}));
     await waitFor(()=>expect(onRecordInspection).toHaveBeenCalledWith('tool-1',expect.objectContaining({inspection_type:'repair',repair_quote:600,new_equipment_price:1000})));
   });
 
-  it('reports an equipment incident with its occurrence time and employee',async()=>{
+  it('reports a tool incident with its occurrence time and employee',async()=>{
     const user=userEvent.setup();
     const onReportIncident=vi.fn().mockResolvedValue(undefined);
     render(<ToolsCompliance {...baseProps} onReportIncident={onReportIncident}/>);
@@ -63,21 +63,21 @@ describe('ToolsCompliance',()=>{
   });
 
   const rowTool=(over:Partial<Tool>):Tool=>({...tool,...over});
-  it('opens on the equipment with overdue checks and lists the rest on request',async()=>{
+  it('opens on the tools with overdue checks and lists the rest on request',async()=>{
     const user=userEvent.setup();
     const tools=[rowTool({id:'T-OK',backendId:'t-ok',name:'Torque wrench',inspectionDue:[]}),rowTool({id:'T-DUE',backendId:'t-due',name:'Megger',inspectionDue:['monthly','quarterly']})];
     render(<ToolsCompliance {...baseProps} tools={tools}/>);
-    const table=screen.getByRole('table',{name:'Inspections by equipment'});
+    const table=screen.getByRole('table',{name:'Inspections by tool'});
     expect(within(table).getByText('Megger')).toBeVisible();
     expect(within(table).getByText('monthly overdue')).toBeVisible();
     expect(within(table).queryByText('Torque wrench')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button',{name:/All equipment/}));
-    const rows=within(screen.getByRole('table',{name:'Inspections by equipment'})).getAllByRole('row');
+    await user.click(screen.getByRole('button',{name:/All tools/}));
+    const rows=within(screen.getByRole('table',{name:'Inspections by tool'})).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('Megger');
     expect(rows[2]).toHaveTextContent('Torque wrench');
   });
 
-  it('opens the inspection form for the chosen equipment from its Record check button',async()=>{
+  it('opens the inspection form for the chosen tool from its Record check button',async()=>{
     const user=userEvent.setup();
     const onRecordInspection=vi.fn().mockResolvedValue(undefined);
     const tools=[rowTool({id:'T-1',backendId:'t-1',name:'Torque wrench',inspectionDue:['weekly']}),rowTool({id:'T-2',backendId:'t-2',name:'Megger',inspectionDue:['monthly']})];
@@ -105,7 +105,7 @@ describe('ToolsCompliance',()=>{
     expect(screen.getByText(/No open incidents/)).toBeVisible();
   });
 
-  it('shows where cover has gaps: equipment nobody is eligible for, and approvals about to expire',async()=>{
+  it('shows where cover has gaps: tools nobody can use, and approvals about to expire',async()=>{
     const user=userEvent.setup();
     const onOpenEmployees=vi.fn();
     const covered=rowTool({id:'T-1',backendId:'t-1',name:'Torque wrench',eligibleEmployees:[{id:'employee-1',employeeNumber:'E-1',name:'Tariro Moyo',department:'Engineering'}]});
@@ -116,10 +116,10 @@ describe('ToolsCompliance',()=>{
     await user.click(screen.getByRole('tab',{name:'Approvals'}));
     const expiring=screen.getByRole('table',{name:'Approvals expiring soon'});
     expect(within(expiring).getByText('Tariro Moyo')).toBeVisible();
-    const cover=screen.getByRole('table',{name:'Eligible people by equipment'});
+    const cover=screen.getByRole('table',{name:'Eligible people by tool'});
     expect(within(cover).getByText('Megger')).toBeVisible();
     expect(within(cover).queryByText('Torque wrench')).not.toBeInTheDocument();
-    expect(within(cover).getByText(/Nobody eligible, cannot be issued/)).toBeVisible();
+    expect(within(cover).getByText(/Nobody can use it, cannot be issued/)).toBeVisible();
     await user.click(screen.getByRole('button',{name:'Manage who can use what'}));
     expect(onOpenEmployees).toHaveBeenCalled();
   });

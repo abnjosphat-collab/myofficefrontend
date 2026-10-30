@@ -1,4 +1,4 @@
-// app/tools/ToolsPeople.tsx — the employee register: who may receive which equipment, by person or by equipment, with the
+// app/tools/ToolsPeople.tsx — the employee register: who may receive which tools, by person or by equipment, with the
 // approvals (trained, qualified, authorised) behind each, bulk deactivation, and a detailed approvals panel per person.
 'use client';
 
@@ -133,7 +133,7 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
   const shown = selected?.backendId ? employees.find(employee => employee.backendId === selected.backendId) ?? selected : selected;
 
   if (!employees.length) {
-    return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools and equipment. This register is separate from MyOffice." action={<ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button></ZoomLink>} />;
+    return <EmptyState icon="user" title="Build your employee register" description="Add the people who may receive tools. This register is separate from MyOffice." action={<ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={onAdd}>Add the first employee</Button></ZoomLink>} />;
   }
   return (
     <div className="flex flex-col gap-4">
@@ -148,9 +148,9 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
         </Notice>
       )}
       <Tabs value={view} onValueChange={v => setView(v as typeof view)}>
-        <TabsList aria-label="Show eligibility" guideId="tools-people" guideText="Switch between the per-person and per-equipment views here">
+        <TabsList aria-label="Show eligibility" guideId="tools-people" guideText="Switch between the per-person and per-tool views here">
           <TabsTrigger value="person">By person</TabsTrigger>
-          <TabsTrigger value="equipment">By equipment</TabsTrigger>
+          <TabsTrigger value="equipment">By tool</TabsTrigger>
         </TabsList>
         <TabsContent value="person">
           {bulkBar}
@@ -186,23 +186,23 @@ export function ToolsPeople({ employees, tools, competencies, approvals, search,
               <div className="flex items-baseline justify-between gap-2"><h3 className="font-sans text-caption font-medium text-ink-muted">Currently assigned</h3><span className="font-sans text-caption text-ink-muted">{held.length} {held.length === 1 ? 'item' : 'items'}</span></div>
               {held.length
                 ? <ul className="flex flex-col divide-y divide-line-subtle">{held.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span><strong className="block font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="font-sans text-caption text-ink-muted">{tool.id} · {tool.location}</small></span></li>)}</ul>
-                : <p className="font-sans text-body-sm text-ink-muted">No tools or equipment are currently assigned to this person.</p>}
+                : <p className="font-sans text-body-sm text-ink-muted">No tools are currently assigned to this person.</p>}
             </section>
             <section className="flex flex-col gap-3 border-t border-line-subtle pt-4">
               <div className="flex items-baseline justify-between gap-2">
                 <div><h3 className="font-sans text-body-sm font-semibold text-ink">Tool eligibility</h3><p className="font-sans text-caption text-ink-muted">Individual approval needs all three requirements current; people in a matching trade section are eligible without it.</p></div>
                 <span className="shrink-0 font-sans text-caption text-ink-muted">{eligibleTools.length} eligible</span>
               </div>
-              <SearchField label="Find equipment" placeholder="Find equipment by name, ID or category…" value={toolSearch} onValueChange={setToolSearch} />
+              <SearchField label="Find tools" placeholder="Find tools by name, ID or category…" value={toolSearch} onValueChange={setToolSearch} />
               <div className="flex flex-col gap-2">
                 {employeeTools.map(tool => { const record = competencyForEmployeeTool(shown, tool, competencies); return <EmployeeToolEligibilityRow key={`${shown.id}-${tool.id}-${record?.updated_at || 'new'}`} employee={shown} tool={tool} record={record} basis={tool.backendId && shown.backendId ? eligibility.basis.get(eligibilityKey(tool.backendId, shown.backendId)) : undefined} canManage={canManage} onSave={onSaveCompetency} />; })}
-                {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No equipment in {shown.department} matches this search.</p>}
+                {!employeeTools.length && <p className="font-sans text-body-sm text-ink-muted">No tools in {shown.department} matches this search.</p>}
               </div>
               {!canManage && <p className="font-sans text-caption text-ink-muted">Only an administrator or issuer can update competency approvals.</p>}
             </section>
             <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
               <Button onClick={() => setSelected(null)}>Close</Button>
-              <Button variant="primary" disabled={!shown.active || !eligibleTools.length} title={!shown.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one equipment item first.' : undefined}
+              <Button variant="primary" disabled={!shown.active || !eligibleTools.length} title={!shown.active ? 'This employee is inactive.' : !eligibleTools.length ? 'Approve at least one tool first.' : undefined}
                 onClick={() => { const employee = shown; setSelected(null); onIssue(employee); }}>Issue a tool</Button>
             </div>
           </div>

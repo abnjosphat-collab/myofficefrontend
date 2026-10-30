@@ -22,7 +22,7 @@ export type ExportTable = {
   subtitle?: string;
 };
 
-const ORGANISATION = 'Dallaglio Portable Tools and Equipment';
+const ORGANISATION = 'Dallaglio Portable Tools';
 const INK = '233B31';          // deep green: title band, header row
 const STRIPE = 'F4F7F5';       // body stripe
 const RULE = 'DDE5E0';         // hairline between rows
