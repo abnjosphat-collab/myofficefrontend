@@ -20,7 +20,7 @@
 // normalizeTimesheetEmployeeCode — never by name alone.
 import { normalizeTimesheetEmployeeCode } from '../timesheets/employeeCode';
 import { OT_TYPE_TO_BUCKET } from '../timesheets/mergeEffectiveTimesheets';
-import { calcHours } from './calcOvertime';
+import { calcHours, groupSimilarReasons } from './calcOvertime';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { OTRecord } from './types';
 
@@ -104,6 +104,67 @@ export function toBudgetEmployees(lookups: EmployeeLookup[]): BudgetEmployee[] {
 
 export type BudgetStatus = 'OK' | 'Incomplete' | 'Missing' | 'Non-NEC' | 'Unclassified';
 
+/**
+ * The report roster is exactly the template ENGINEERING sheet: live register
+ * data enriches each row where the employee number matches, and the template's
+ * own details stand in otherwise (Unclassified until Personnel confirms them).
+ */
+export function buildEngineeringRoster(
+  register: BudgetEmployee[],
+  template: { code: string; firstName: string; surname: string; occupation: string; costCentre: string }[],
+): BudgetEmployee[] {
+  const byCode = new Map(register.map(e => [normalizeTimesheetEmployeeCode(e.employeeId), e]));
+  return template.map(t => {
+    const reg = byCode.get(normalizeTimesheetEmployeeCode(t.code));
+    if (!reg) {
+      return {
+        dbId: '', employeeId: t.code.trim(), firstName: t.firstName, surname: t.surname,
+        occupation: t.occupation, costCentre: t.costCentre, department: 'ENGINEERING',
+        sheet: 'ENGINEERING' as const, employmentType: '' as const, archived: false,
+      };
+    }
+    return {
+      ...reg,
+      sheet: 'ENGINEERING' as const,
+      department: 'ENGINEERING',
+      firstName: reg.firstName || t.firstName,
+      surname: reg.surname || t.surname,
+      occupation: reg.occupation || t.occupation,
+      costCentre: reg.costCentre || t.costCentre,
+    };
+  });
+}
+
+/**
+ * Roles kept off the budget entirely: graduate trainees (including INTERN
+ * rows), engineers, managers and foremen — matched on occupation only, never
+ * on department — plus Takudzwa Chibi by name. Returns the reason, or null
+ * when the employee stays in. 'ELECTRICIAN' deliberately does not match
+ * 'engineer', and 'Chibi' never matches 'Chiwara'.
+ */
+const EXCLUDED_OCCUPATIONS: { match: string; reason: string }[] = [
+  { match: 'trainee', reason: 'Graduate trainee' },
+  { match: 'intern', reason: 'Graduate trainee' },
+  { match: 'engineer', reason: 'Engineer' },
+  { match: 'manager', reason: 'Manager' },
+  { match: 'foreman', reason: 'Foreman' },
+];
+
+export function budgetExclusionReason(emp: Pick<BudgetEmployee, 'occupation' | 'firstName' | 'surname'>): string | null {
+  const role = (emp.occupation || '').toLowerCase();
+  for (const { match, reason } of EXCLUDED_OCCUPATIONS) {
+    if (role.includes(match)) return reason;
+  }
+  const surname = (emp.surname || '').trim().toLowerCase();
+  if (surname === 'chibi') return 'Named exclusion';
+  return null;
+}
+
+/** True when the employee is kept off the budget (see budgetExclusionReason). */
+export function isExcludedFromBudget(emp: Pick<BudgetEmployee, 'occupation' | 'firstName' | 'surname'>): boolean {
+  return budgetExclusionReason(emp) != null;
+}
+
 export interface BudgetRow {
   employeeId: string;
   firstName: string;
@@ -117,7 +178,7 @@ export interface BudgetRow {
   ot15Adhoc: number;
   ot20Shift: number;
   status: BudgetStatus;
-  /** Always blank: the template's Comment column is left unwritten. */
+  /** What is driving this person's overtime (top cause + shift); blank when there is nothing to say. */
   comment: string;
 }
 
@@ -135,15 +196,25 @@ export interface AdhocBuckets {
   adhoc15: { total: number; count: number };
 }
 
+/** One employee's top overtime cause from free-text reasons (fuzzy-grouped, so "daily check" and "daily checks" count as one). */
+export interface AdhocCause {
+  label: string;
+  /** Whole hours behind the top cause across the reporting window. */
+  hours: number;
+  /** Whole hours of all that employee's module overtime across the window. */
+  total: number;
+}
+
 /** Overtime-module hours per employee number, split into the two sourced buckets and deduped by record id. */
 export function adhocTotals(
   // overtime_type is a plain string, not OTRecord's union: stored records can
   // hold legacy values the form no longer offers, and they still count as Adhoc.
-  records: (Pick<OTRecord, 'id' | 'employee_id' | 'date' | 'start_time' | 'end_time' | 'hours' | 'status'> & { overtime_type: string })[],
+  records: (Pick<OTRecord, 'id' | 'employee_id' | 'employee_name' | 'date' | 'start_time' | 'end_time' | 'hours' | 'status' | 'reason'> & { overtime_type: string })[],
   employees: BudgetEmployee[],
-): { byKey: Map<string, AdhocBuckets>; orphanCount: number; orphanHours: number } {
+): { byKey: Map<string, AdhocBuckets>; causeByKey: Map<string, AdhocCause | null>; orphanCount: number; orphanHours: number } {
   const register = new Set(employees.map(e => normalizeTimesheetEmployeeCode(e.employeeId)));
   const byKey = new Map<string, AdhocBuckets>();
+  const recsByKey = new Map<string, OTRecord[]>();
   const blank = (): AdhocBuckets => ({ shift20: { total: 0, count: 0 }, adhoc15: { total: 0, count: 0 } });
   const seenIds = new Set<string>();
   let orphanCount = 0;
@@ -168,13 +239,36 @@ export function adhocTotals(
     bucket.total += hours;
     bucket.count += 1;
     byKey.set(key, acc);
+    const recs = recsByKey.get(key) ?? [];
+    recs.push(r as OTRecord);
+    recsByKey.set(key, recs);
   }
   // Reliable zeros: everyone on the register gets an entry even with no records.
   employees.forEach(e => {
     const key = normalizeTimesheetEmployeeCode(e.employeeId);
     if (!byKey.has(key)) byKey.set(key, blank());
   });
-  return { byKey, orphanCount, orphanHours: Math.round(orphanHours) };
+  // Top cause per employee from free-text reasons (fuzzy-grouped).
+  const causeByKey = new Map<string, AdhocCause | null>();
+  for (const [key, recs] of recsByKey) {
+    const acc = byKey.get(key)!;
+    const total = Math.round(acc.shift20.total + acc.adhoc15.total);
+    const top = groupSimilarReasons(recs)[0];
+    causeByKey.set(key, top && total > 0 ? { label: top.label, hours: Math.round(top.hours), total } : null);
+  }
+  return { byKey, causeByKey, orphanCount, orphanHours: Math.round(orphanHours) };
+}
+
+/**
+ * Comment-cell text: what is driving one person's overtime. Whole hours,
+ * cause first, rostered shift second — blank when there is nothing to say.
+ */
+export function budgetComment(shift: number | null, cause: AdhocCause | null | undefined): string {
+  const trimLabel = (label: string) => (label.length > 60 ? `${label.slice(0, 57)}…` : label);
+  const parts: string[] = [];
+  if (cause) parts.push(`“${trimLabel(cause.label)}” — ${cause.hours}h of ${cause.total}h Jul–Sep`);
+  if (shift != null && shift > 0) parts.push(`shift overtime above 208 (${shift} h/mo avg)`);
+  return parts.join('; ');
 }
 
 function bookStatus(emp: BudgetEmployee, avg: number | null): BudgetStatus {
@@ -193,12 +287,14 @@ export function buildSplitBudgetRows(
   employees: BudgetEmployee[],
   bookAvg: Map<string, number>,
   adhoc: Map<string, AdhocBuckets>,
+  causes: Map<string, AdhocCause | null> = new Map(),
 ): BudgetRow[] {
   const sheetOrder = (s: BudgetSheet) => {
     const i = BUDGET_SHEET_NAMES.indexOf(s as (typeof BUDGET_SHEET_NAMES)[number]);
     return i < 0 ? BUDGET_SHEET_NAMES.length : i;
   };
   return employees
+    .filter(emp => !isExcludedFromBudget(emp))
     .map(emp => {
       const key = normalizeTimesheetEmployeeCode(emp.employeeId);
       // NEC-only: a book average for a non-NEC employee is not shift overtime.
@@ -216,7 +312,7 @@ export function buildSplitBudgetRows(
         ot15Adhoc: Math.round(ad.adhoc15.total / ADHOC_MONTHS),
         ot20Shift: Math.round(ad.shift20.total / ADHOC_MONTHS),
         status: bookStatus(emp, shift),
-        comment: '',
+        comment: budgetComment(shift, causes.get(key)),
       } satisfies BudgetRow;
     })
     .sort((a, b) =>

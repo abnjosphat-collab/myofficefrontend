@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ADHOC_FROM, ADHOC_TO,
-  adhocTotals, budgetTotals, buildSplitBudgetRows, sheetForDepartment, toBudgetEmployees,
+  adhocTotals, budgetComment, budgetExclusionReason, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, isExcludedFromBudget, sheetForDepartment, toBudgetEmployees,
   type BudgetEmployee,
 } from './budgetReport';
 import type { OTRecord } from './types';
@@ -34,12 +34,93 @@ describe('budget windows', () => {
   });
 });
 
+describe('budget exclusions (trainees, engineers, managers, foremen, Chibi)', () => {
+  it('removes the listed roles and the named person, nothing else', () => {
+    expect(budgetExclusionReason({ occupation: 'GRADUATE TRAINEE', firstName: 'X', surname: 'Y' })).toBe('Graduate trainee');
+    expect(budgetExclusionReason({ occupation: 'INTERN ELECTRICAL', firstName: 'P', surname: 'M' })).toBe('Graduate trainee');
+    expect(budgetExclusionReason({ occupation: 'ELECTRICAL ENGINEER', firstName: 'X', surname: 'Y' })).toBe('Engineer');
+    expect(budgetExclusionReason({ occupation: 'SECTION MANAGER', firstName: 'X', surname: 'Y' })).toBe('Manager');
+    expect(budgetExclusionReason({ occupation: 'FOREMAN', firstName: 'X', surname: 'Y' })).toBe('Foreman');
+    expect(budgetExclusionReason({ occupation: 'FITTER', firstName: 'TAKUDZWA', surname: 'CHIBI' })).toBe('Named exclusion');
+    expect(isExcludedFromBudget({ occupation: 'FITTER', firstName: 'A', surname: 'Moyo' })).toBe(false);
+  });
+
+  it('never confuses electricians with engineers or Chiwara with Chibi', () => {
+    expect(isExcludedFromBudget({ occupation: 'ELECTRICIAN CLASS 2', firstName: 'J', surname: 'Mapamba' })).toBe(false);
+    expect(isExcludedFromBudget({ occupation: 'CLASS 2 ELECTRICIAN', firstName: 'J', surname: 'Sezi' })).toBe(false);
+    expect(isExcludedFromBudget({ occupation: 'FITTER CLASS 2', firstName: 'S', surname: 'Dodzo' })).toBe(false);
+    expect(isExcludedFromBudget({ occupation: 'INTERN ELECTRICAL', firstName: 'TANAKA', surname: 'CHIWARA' })).toBe(true);
+    expect(budgetExclusionReason({ occupation: 'FITTER', firstName: 'TANAKA', surname: 'CHIWARA' })).toBeNull();
+  });
+
+  it('drops excluded employees from the rows entirely', () => {
+    const employees = [
+      emp(),
+      emp({ dbId: '8', employeeId: 'C1002', firstName: 'T', surname: 'Chibi', occupation: 'FITTER' }),
+      emp({ dbId: '9', employeeId: 'C1003', firstName: 'F', surname: 'Bar', occupation: 'FOREMAN' }),
+    ];
+    const rows = buildSplitBudgetRows(employees, new Map([['C1001', 20], ['C1002', 8], ['C1003', 8]]), new Map());
+    expect(rows.map(r => r.employeeId)).toEqual(['C1001']);
+    expect(budgetTotals(rows).total15Shift).toBe(20);
+  });
+});
+
+describe('engineering sheet roster', () => {
+  const template = [
+    { code: 'C1001', firstName: 'A', surname: 'Moyo', occupation: 'FITTER', costCentre: 'MECHANICAL' },
+    { code: 'C9999', firstName: 'T', surname: 'Ghost', occupation: 'FITTER', costCentre: 'ELECTRICAL' },
+  ];
+
+  it('covers exactly the template people, enriched from the register', () => {
+    const register = [
+      emp(),
+      emp({ dbId: '8', employeeId: 'C1002', firstName: 'B', surname: 'Dube', occupation: 'LASHER', costCentre: '', department: 'Mining' }),
+    ];
+    const roster = buildEngineeringRoster(register, template);
+    expect(roster.map(r => r.employeeId)).toEqual(['C1001', 'C9999']);
+    // Register details win where matched; template fills the gaps.
+    expect(roster[0]).toMatchObject({ firstName: 'A', occupation: 'Fitter', department: 'ENGINEERING', sheet: 'ENGINEERING', employmentType: 'NEC' });
+    expect(roster[1]).toMatchObject({ firstName: 'T', surname: 'Ghost', employmentType: '', costCentre: 'ELECTRICAL' });
+  });
+});
+
+describe('cause comments', () => {
+  it('names the top fuzzy-grouped cause with whole hours', () => {
+    const employees = [emp()];
+    const records = [
+      otRec({ id: 1, date: '2026-07-05', reason: 'Winder daily checks', hours: 6 }),
+      otRec({ id: 2, date: '2026-08-10', reason: 'winder daily check', hours: 6 }),
+      otRec({ id: 3, date: '2026-09-02', reason: 'Rope change', hours: 7 }),
+    ];
+    const { byKey, causeByKey } = adhocTotals(records, employees);
+    const cause = causeByKey.get('C1001');
+    expect(cause?.label.toLowerCase()).toContain('winder daily check');
+    expect(cause).toMatchObject({ hours: 12, total: 19 });
+    const rows = buildSplitBudgetRows(employees, new Map(), byKey, causeByKey);
+    expect(rows[0].comment).toContain('12h of 19h Jul–Sep');
+  });
+
+  it('combines the cause with rostered shift overtime, and stays blank with nothing to say', () => {
+    expect(budgetComment(27, { label: 'Daily checks', hours: 12, total: 19 })).toBe(
+      '“Daily checks” — 12h of 19h Jul–Sep; shift overtime above 208 (27 h/mo avg)',
+    );
+    expect(budgetComment(27, null)).toBe('shift overtime above 208 (27 h/mo avg)');
+    expect(budgetComment(null, null)).toBe('');
+    expect(budgetComment(0, null)).toBe('');
+  });
+
+  it('truncates very long reasons', () => {
+    const long = 'x'.repeat(100);
+    expect(budgetComment(null, { label: long, hours: 1, total: 1 }).length).toBeLessThan(90);
+  });
+});
+
 describe('book-sourced OT @ 1.5 Shift', () => {
   it('takes the whole-number book average straight onto the row', () => {
     const rows = buildSplitBudgetRows([emp()], new Map([['C1001', 20]]), new Map());
     expect(rows[0].ot15Shift).toBe(20);
     expect(rows[0].status).toBe('OK');
-    expect(rows[0].comment).toBe('');
+    expect(rows[0].comment).toBe('shift overtime above 208 (20 h/mo avg)');
   });
 
   it('leaves the shift cell blank when the employee has no book data', () => {

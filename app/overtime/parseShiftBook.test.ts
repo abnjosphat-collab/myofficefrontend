@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BUDGET_BOOK_MONTHS, bookShiftAverages, parseShiftBook } from './parseShiftBook';
+import { bookShiftAverages, parseShiftBook } from './parseShiftBook';
 
 /** Builds an in-memory monthly book in the layout of the "Copy of August" file. */
 async function makeBook(sheets: Record<string, (string | number | null)[][]>): Promise<ArrayBuffer> {
@@ -28,16 +28,16 @@ describe('parseShiftBook', () => {
     expect(bookShiftAverages(parsed).get('C1001')).toBe(18);
   });
 
-  it('averages over the months present — one month is enough', async () => {
+  it('uses every monthly NEC sheet in the book, averaged over the months present', async () => {
     const buf = await makeBook({
       'Cover': [['whatever']],
       'NEC April 2026': [header, ['C1001', 'A', 'Moyo', 12, 12, 300, 208, 92, 0]],
       'NEC August 2026': [header, ['C1001', 'A', 'Moyo', 12, 12, 227, 208, 19, 0]],
     });
     const parsed = await parseShiftBook(buf);
-    // April is outside the budget window; only August counts.
-    expect(parsed.monthsUsed).toEqual(['2026-08']);
-    expect(bookShiftAverages(parsed).get('C1001')).toBe(19);
+    expect(parsed.monthsUsed).toEqual(['2026-04', '2026-08']);
+    // (92 + 19) / 2 = 55.5 → 56.
+    expect(bookShiftAverages(parsed).get('C1001')).toBe(56);
   });
 
   it('rounds the average to a whole number and never goes below zero', async () => {

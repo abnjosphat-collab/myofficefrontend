@@ -3,11 +3,8 @@
 // <Year>" sheet holds one row per employee with day hours and tail columns
 // TOTAL HRS (=SUM of the days) and T/M Hours (the 208 cap). Monthly shift
 // overtime is TOTAL HRS minus T/M Hours, baked as a value; the report averages
-// the months each employee is actually present in.
+// every monthly sheet the employee is actually present in.
 import { normalizeTimesheetEmployeeCode } from '../timesheets/employeeCode';
-
-/** Budget window for the FY2027 split budget: June to August 2026. */
-export const BUDGET_BOOK_MONTHS = ['2026-06', '2026-07', '2026-08'];
 
 const MONTH_NUMBERS: Record<string, string> = {
   january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
@@ -52,7 +49,7 @@ export interface ParsedShiftBook {
   monthlyOt: Map<string, Map<string, number>>;
 }
 
-/** Reads the monthly NEC sheets out of an uploaded .xlsx book. */
+/** Reads every monthly NEC sheet out of an uploaded .xlsx book. */
 export async function parseShiftBook(data: ArrayBuffer): Promise<ParsedShiftBook> {
   const { default: ExcelJS } = await import('exceljs');
   const wb = new ExcelJS.Workbook();
@@ -62,7 +59,7 @@ export async function parseShiftBook(data: ArrayBuffer): Promise<ParsedShiftBook
 
   for (const ws of wb.worksheets) {
     const key = bookMonthKey(ws.name);
-    if (!key || !BUDGET_BOOK_MONTHS.includes(key)) continue;
+    if (!key) continue;
     found.add(key);
     // Header row: the one carrying Code … TOTAL HRS (day columns sit between).
     let headerRow = 0;
@@ -98,14 +95,14 @@ export async function parseShiftBook(data: ArrayBuffer): Promise<ParsedShiftBook
     }
   }
 
-  return { monthsUsed: BUDGET_BOOK_MONTHS.filter(m => found.has(m)), monthlyOt };
+  return { monthsUsed: [...found].sort(), monthlyOt };
 }
 
 /** Whole-number monthly average over the months each employee is present in. Null when nowhere. */
 export function bookShiftAverages(parsed: ParsedShiftBook): Map<string, number> {
   const out = new Map<string, number>();
   for (const [code, byMonth] of parsed.monthlyOt) {
-    const months = BUDGET_BOOK_MONTHS.filter(m => byMonth.has(m));
+    const months = [...byMonth.keys()];
     if (months.length === 0) continue;
     const sum = months.reduce((s, m) => s + byMonth.get(m)!, 0);
     out.set(code, Math.round(sum / months.length));
