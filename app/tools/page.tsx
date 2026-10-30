@@ -1,4 +1,4 @@
-// app/tools/page.tsx — the Tools & Equipment workspace: the shared frame (sidebar, top bar, floor backdrop), the open section,
+// app/tools/page.tsx — the Tools workspace: the shared frame (sidebar, top bar, floor backdrop), the open section,
 // the tool side panel and the one dialog that carries every form. The rules (data, session, every action) live in
 // useToolsWorkspace; each section is its own component.
 'use client';

@@ -1,5 +1,5 @@
 // app/tools/ToolsForms.tsx — the Tools forms, built from the shared Field / Input / Select / Combobox / Checkbox: record a movement
-// (issue, return, transfer, extend), add or edit equipment, mark a held tool ready, add an employee. The rules and the messages
+// (issue, return, transfer, extend), add or edit a tool, mark a held tool ready, add an employee. The rules and the messages
 // are unchanged; only how the fields are drawn.
 'use client';
 
@@ -194,8 +194,8 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
       )}
       {needsOverride && (
         <>
-          <Notice tone="warning" title={overdueCheckLabel(dueChecks)}>You can still {kind === 'transfer' ? 'transfer' : 'issue'} this equipment. Say why, and the reason is kept in its history.</Notice>
-          <Checkbox label="Go ahead anyway" description="The overdue check has not been done or the equipment is not yet maintained." checked={overrideDue} onChange={event => setOverrideDue(event.target.checked)} />
+          <Notice tone="warning" title={overdueCheckLabel(dueChecks)}>You can still {kind === 'transfer' ? 'transfer' : 'issue'} this tool. Say why, and the reason is kept in its history.</Notice>
+          <Checkbox label="Go ahead anyway" description="The overdue check has not been done or the tool is not yet maintained." checked={overrideDue} onChange={event => setOverrideDue(event.target.checked)} />
           {overrideDue && (
             <Field label="Reason for going ahead" required error={fieldErrors.overrideReason}>
               <Textarea aria-label="Reason for going ahead" rows={2} value={overrideReason} onChange={event => { setOverrideReason(event.target.value); clearError('overrideReason'); }} placeholder="For example: breakdown repair, the inspection is booked for tomorrow." />
@@ -204,7 +204,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         </>
       )}
       {['issue', 'transfer'].includes(kind) && tool && !employeeOptions.length && (
-        <Notice tone="warning" title="No eligible employee for this equipment">
+        <Notice tone="warning" title="No eligible employee for this tool">
           {departmentEmployees.length} active {issuerDepartment || departmentOf(tool)} {departmentEmployees.length === 1 ? 'employee exists' : 'employees exist'}, but none has current training, qualification and authorization for {tool.name}. Update the Compliance register first.
         </Notice>
       )}
@@ -228,7 +228,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
         )}
       </Row>
 
-      {['issue', 'transfer'].includes(kind) && <MultiSuggestField label="Equipment being worked on" options={equipmentSuggestions} value={assignedEquipment} onChange={setAssignedEquipment} hint="Add one or more machines or fixed assets this portable tool will be used on. Type a new name or choose a previous entry." />}
+      {['issue', 'transfer'].includes(kind) && <MultiSuggestField label="Machines being worked on" options={equipmentSuggestions} value={assignedEquipment} onChange={setAssignedEquipment} hint="Add one or more machines or fixed assets this portable tool will be used on. Type a new name or choose a previous entry." />}
       {kind === 'transfer' && (
         <Section title="Movement references" note="Record an existing approval; this form does not grant approval.">
           <Row>
@@ -277,7 +277,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
       </details>
       {formError && <p role="alert" className="flex items-start gap-1.5 font-sans text-body-sm font-medium text-danger"><Icon name="warning" size="sm" />{formError}</p>}
       <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Saving…' : TITLES[kind]}</Button></Footer>
-      <p className="font-sans text-caption text-ink-muted">This action is saved in the equipment history.</p>
+      <p className="font-sans text-caption text-ink-muted">This action is saved in the tool history.</p>
     </form>
   );
 }
@@ -386,8 +386,8 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
         <Field label="Make & model" required error={fieldErrors.make}><Input aria-label="Make and model" value={make} onChange={e => { setMake(e.target.value); clearError('make'); }} placeholder="Bosch GDX 18V" /></Field>
         <SuggestField label="Department" options={DEPARTMENTS} value={department} onChange={value => { setDepartment(value); clearError('department'); }} historyKey="tools.department" hint="The department that owns this record. Start with Engineering; add other departments as they join." error={fieldErrors.department} />
         <Field label="Category"><Select aria-label="Category" value={category} onValueChange={changeCategory} options={CATEGORIES.map(value => ({ value, label: value }))} /></Field>
-        <Field label="Equipment type" description={hintFor('Choose the closest physical form. Test instruments ask for a calibration check when they are returned.')}>
-          <Select aria-label="Equipment type" value={equipmentKind} onValueChange={value => setEquipmentKind(value as EquipmentKind)} options={equipmentTypes} />
+        <Field label="Tool type" description={hintFor('Choose the closest physical form. Test instruments ask for a calibration check when they are returned.')}>
+          <Select aria-label="Tool type" value={equipmentKind} onValueChange={value => setEquipmentKind(value as EquipmentKind)} options={equipmentTypes} />
         </Field>
         <Field label="Tool ID" optional description={hintFor('Use the existing physical label. Leave blank to generate a prototype ID. Existing IDs cannot be changed here.')}>
           <Input aria-label="Tool ID" value={id} disabled={!!initialTool} onChange={e => setId(e.target.value)} placeholder="Existing tool number" />
@@ -418,7 +418,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
 
       <Section title="Ownership, storage and safeguarding" note="SOP controls">
         <Row>
-          <Field label="Ownership"><Select aria-label="Equipment ownership" value={ownershipType} onValueChange={value => setOwnershipType(value as typeof ownershipType)} options={[{ value: 'company', label: 'Company owned' }, { value: 'contractor', label: 'Contractor owned' }]} /></Field>
+          <Field label="Ownership"><Select aria-label="Tool ownership" value={ownershipType} onValueChange={value => setOwnershipType(value as typeof ownershipType)} options={[{ value: 'company', label: 'Company owned' }, { value: 'contractor', label: 'Contractor owned' }]} /></Field>
           {ownershipType === 'contractor' && <Field label="Contractor" error={fieldErrors.contractorName}><Input value={contractorName} onChange={event => { setContractorName(event.target.value); clearError('contractorName'); }} placeholder="Contractor company name" /></Field>}
           <Field label="OEM manual / checklist reference" optional><Input value={oemManualRef} onChange={event => setOemManualRef(event.target.value)} placeholder="Document number or controlled link" /></Field>
           <Field label="Designated storage place" required error={fieldErrors.homeStorageLocation}><Input value={homeStorageLocation} onChange={event => { setHomeStorageLocation(event.target.value); clearError('homeStorageLocation'); }} placeholder="Locked tool room / rack / crib" /></Field>
@@ -441,7 +441,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
           <Field label="Working status"><Select aria-label="Working status" value={workingStatus} onValueChange={value => setWorkingStatus(value as typeof workingStatus)} options={[{ value: 'unknown', label: 'Not recorded' }, { value: 'working', label: 'Working' }, { value: 'not_working', label: 'Not working' }]} /></Field>
           <Field label="General condition"><Select aria-label="General condition" value={condition} onValueChange={setCondition} options={[...new Set(['Good', ...(initialTool?.condition ? [initialTool.condition] : []), 'Damaged', 'Defective', 'Missing'])].map(value => ({ value, label: value }))} /></Field>
         </Row>
-        <p className="font-sans text-caption text-ink-muted">Equipment recorded as not working, defective, missing or damaged is held as “Needs attention” and cannot be issued until it is marked ready.</p>
+        <p className="font-sans text-caption text-ink-muted">Tools recorded as not working, defective, missing or damaged are held as “Needs attention” and cannot be issued until it is marked ready.</p>
       </Section>
 
       <Section title="Inspection and maintenance plan" note="Issue is blocked when required checks expire">
@@ -461,7 +461,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
       </Section>
 
       <EvidencePicker value={evidence} onChange={setEvidence} addFiles={addFiles} toolPhoto />
-      <Field label="Technical specifications" description={hintFor('Use one “Label: value” entry per line; different equipment types need different specifications.')}>
+      <Field label="Technical specifications" description={hintFor('Use one “Label: value” entry per line; different tool types need different specifications.')}>
         <Textarea aria-label="Technical specifications" rows={5} value={specificationText} onChange={event => setSpecificationText(event.target.value)} placeholder={'Voltage: 18 V\nChuck capacity: 13 mm\nNo-load speed: 0–1,800 rpm\nWeight: 1.8 kg'} />
       </Field>
       <details className="rounded-card border border-line-subtle px-4 py-3">
@@ -587,7 +587,7 @@ export function EmployeeForm({ onSave, onCancel }: { onSave: (employee: Employee
         <Field label="Supervisor name" optional><Input aria-label="Supervisor name" value={supervisorName} onChange={event => setSupervisorName(event.target.value)} placeholder="Immediate supervisor" /></Field>
       </Row>
       <Checkbox label="No mine number yet" description="Tick this instead of inventing a number — it can be added later from the employee record." checked={numberUnknown} onChange={event => { setNumberUnknown(event.target.checked); setFieldErrors(f => ({ ...f, employeeNumber: undefined })); }} />
-      <p className="font-sans text-caption text-ink-muted">This employee register belongs to the Tools &amp; Equipment workspace.</p>
+      <p className="font-sans text-caption text-ink-muted">This employee register belongs to the Tools workspace.</p>
       <Footer><Button type="button" onClick={onCancel}>Cancel</Button><Button type="submit" variant="primary" pending={saving}>{saving ? 'Adding…' : 'Add employee'}</Button></Footer>
     </form>
   );

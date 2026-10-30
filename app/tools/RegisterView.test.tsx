@@ -74,6 +74,6 @@ describe('RegisterView', () => {
     await user.click(screen.getByRole('button', { name: 'Select all 2' }));
     expect(screen.getByText('2 selected')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Clear selection' }));
-    expect(screen.getByText('Tick the equipment to archive')).toBeVisible();
+    expect(screen.getByText('Tick the tools to archive')).toBeVisible();
   });
 });

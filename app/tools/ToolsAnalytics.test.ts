@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildUsageTrend, summarizeUsageTrend, type UsageEvent } from './ToolsAnalytics';
 
-const event=(id:string,date:Date):UsageEvent=>({id,name:'opened equipment',at:date.toISOString(),by:'Test user'});
+const event=(id:string,date:Date):UsageEvent=>({id,name:'opened tool',at:date.toISOString(),by:'Test user'});
 
 describe('Tools analytics trend ranges',()=>{
   afterEach(()=>vi.useRealTimers());

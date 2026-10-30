@@ -1,5 +1,5 @@
-// app/tools/ToolsEligibility.tsx — who may take which equipment, shown two ways from the same register: each person with the
-// equipment they are eligible for, and each piece of equipment with the people eligible for it. Both open and close like a list
+// app/tools/ToolsEligibility.tsx — who may take which tools, shown two ways from the same register: each person with the
+// equipment they are eligible for, and each tool with the people eligible for it. Both open and close like a list
 // of headings, show what is currently eligible, and let an administrator or issuer add one more from a searchable list or remove one.
 // Adding records the person as trained, qualified and authorised, under the authorising officer named at the top of the page.
 'use client';
@@ -64,7 +64,7 @@ export function EligibilityByPerson({ employees, tools, eligibility, competencie
         const eligible = (employee.backendId && eligibility.forEmployee.get(employee.backendId)) || [];
         const reason = selection?.blocked(employee);
         const pick = selection && <span className="pl-4"><Checkbox aria-label={`Select ${employee.name}`} title={reason} disabled={!!reason} checked={selection.picked.includes(employee.id)} onChange={event => selection.onToggle(employee, event.target.checked)} /></span>;
-        return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber ?? 'Not recorded'}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun="equipment">
+        return <Accordion key={employee.id} pick={pick} open={openId === employee.id} onToggle={() => setOpenId(id => (id === employee.id ? null : employee.id))} icon="user" title={employee.name} subtitle={`${employee.jobTitle || 'Job title not recorded'} · ${employee.employeeNumber ?? 'Not recorded'}${employee.active ? '' : ' · inactive'}`} count={ready ? eligible.length : null} noun={eligible.length === 1 ? 'tool' : 'tools'}>
           <PersonBody ready={ready} allowDeactivate={allowDeactivate} onSetActive={onSetActive} employee={employee} tools={tools} eligible={eligible} eligibility={eligibility} competencies={competencies} canManage={canManage} authoriser={authoriser} onGrant={onGrant} onOpenApprovals={onOpenApprovals} onIssue={onIssue} />
         </Accordion>;
       })}
@@ -91,18 +91,18 @@ function PersonBody({ ready, allowDeactivate, onSetActive, employee, tools, elig
   };
   if (!ready) return <p className="font-sans text-body-sm text-ink-muted">The approvals are not loaded, so the eligibility of this person cannot be shown yet.</p>;
   return <>
-    {eligible.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Not eligible for any equipment yet.</p> : <>
-      {eligible.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter this person's equipment" />}
-      <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`Equipment ${employee.name} is eligible for`}>
+    {eligible.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Not eligible for any tools yet.</p> : <>
+      {eligible.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter this person's tools" />}
+      <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`Tools ${employee.name} can use`}>
         {shown.map(tool => <li key={tool.id} className="flex items-center gap-3 py-2"><Icon name="equipment" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{tool.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{tool.id} · {tool.category} · {basisMark(basisFor(tool))}{basisFor(tool)?.kind === 'individual' && authorisedBy(tool) ? ` · authorised by ${authorisedBy(tool)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${tool.name} from ${employee.name}`} disabled={busy} onConfirm={() => void change(tool, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
       </ul>
     </>}
-    {canManage && <SuggestField label="Add equipment" required={false} options={addable.map(toolLabel)} value={adding} onChange={setAdding} onSelect={label => { const tool = addable.find(item => toolLabel(item) === label); setAdding(''); if (tool) void change(tool, true); }} emptyMessage="No more equipment to add." hint={authoriser ? `Recorded as trained, qualified and authorised by ${authoriser}.` : 'Recorded as trained, qualified and authorised.'} />}
+    {canManage && <SuggestField label="Add a tool" required={false} options={addable.map(toolLabel)} value={adding} onChange={setAdding} onSelect={label => { const tool = addable.find(item => toolLabel(item) === label); setAdding(''); if (tool) void change(tool, true); }} emptyMessage="No more tools to add." hint={authoriser ? `Recorded as trained, qualified and authorised by ${authoriser}.` : 'Recorded as trained, qualified and authorised.'} />}
     <div className="flex flex-wrap justify-end gap-2">
       {canManage&&(employee.active?(allowDeactivate&&<RemoveButton label={`Deactivate ${employee.name}`} labelText="Deactivate" confirmText="Yes, deactivate" onConfirm={()=>void onSetActive(employee,false)}/>):<Button type="button" onClick={()=>void onSetActive(employee,true)}>Reactivate</Button>)}
       <Button type="button" onClick={() => onOpenApprovals(employee)}>Detailed approvals</Button>
-      <Button type="button" variant="primary" disabled={!employee.active || eligible.length === 0} title={!employee.active ? 'This employee is inactive.' : eligible.length === 0 ? 'Add equipment first.' : undefined} onClick={() => onIssue(employee)}>Issue tool</Button>
+      <Button type="button" variant="primary" disabled={!employee.active || eligible.length === 0} title={!employee.active ? 'This employee is inactive.' : eligible.length === 0 ? 'Add a tool first.' : undefined} onClick={() => onIssue(employee)}>Issue tool</Button>
     </div>
   </>;
 }
@@ -121,7 +121,7 @@ export function EligibilityByEquipment({ employees, tools, eligibility, competen
     }
     return [...byCategory.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([category, list]) => ({ category, tools: list.sort((a, b) => a.name.localeCompare(b.name)) }));
   }, [tools, query]);
-  if (!groups.length) return <EmptyState icon="search" title="No matching equipment" description="Try a name, register number or category." />;
+  if (!groups.length) return <EmptyState icon="search" title="No matching tools" description="Try a name, register number or category." />;
   return <div className="flex flex-col gap-5">
     {groups.map(group => <section key={group.category} className="flex flex-col gap-2" aria-label={group.category}>
       <header className="flex items-baseline justify-between gap-2"><h2 className="font-sans text-body-sm font-semibold text-ink">{group.category}</h2><span className="font-sans text-caption text-ink-muted">{group.tools.length} {group.tools.length === 1 ? 'item' : 'items'}</span></header>
@@ -151,11 +151,11 @@ function EquipmentBody({ ready, tool, employees, people, eligibility, competenci
     setBusy(true);
     try { await onGrant({ employee_id: person.backendId, tool_id: tool.backendId, trained: on, qualified: on, authorized: on, ...(on && authoriser ? { authorized_by: authoriser } : {}) }); } finally { setBusy(false); }
   };
-  if (!ready) return <p className="font-sans text-body-sm text-ink-muted">The approvals are not loaded, so who is eligible for this equipment cannot be shown yet.</p>;
+  if (!ready) return <p className="font-sans text-body-sm text-ink-muted">The approvals are not loaded, so who can use this tool cannot be shown yet.</p>;
   return <>
-    {tool.competencyRequired === false && people.length > 0 && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this equipment — no approval needed.</p>}
-    {people.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible for this equipment yet, so it cannot be issued.</p> : <>
-      {people.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter the people for this equipment" />}
+    {tool.competencyRequired === false && people.length > 0 && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this tool — no approval needed.</p>}
+    {people.length === 0 ? <p className="font-sans text-body-sm text-ink-muted">Nobody can use this tool yet, so it cannot be issued.</p> : <>
+      {people.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter the people for this tool" />}
       <ul className="flex flex-col divide-y divide-line-subtle" aria-label={`People eligible for ${tool.name}`}>
         {shown.map(person => <li key={person.id} className="flex items-center gap-3 py-2"><Icon name="user" size="sm" /><span className="min-w-0 flex-1"><strong className="block truncate font-sans text-body-sm font-medium text-ink">{person.name}</strong><small className="block truncate font-sans text-caption text-ink-muted">{person.jobTitle || 'Job title not recorded'} · {person.employeeNumber ?? 'Not recorded'}{tool.competencyRequired === false ? '' : ` · ${basisMark(basisFor(person))}`}{basisFor(person)?.kind === 'individual' && authorisedBy(person) ? ` · authorised by ${authorisedBy(person)}` : ''}</small></span>{canManage && <RemoveButton label={`Remove ${person.name} from ${tool.name}`} disabled={busy} onConfirm={() => void change(person, false)} />}</li>)}
         {shown.length === 0 && <li className="font-sans text-body-sm text-ink-muted">Nothing matches.</li>}
@@ -181,11 +181,11 @@ export function EligibleEmployeesList({ people, onIssue, onOpenEmployees, open }
         <span className="font-sans text-caption text-ink-muted">{sorted.length} {sorted.length === 1 ? 'person' : 'people'}</span>
       </div>
       {sorted.length === 0
-        ? <p className="font-sans text-body-sm text-ink-muted">Nobody is eligible yet, so this equipment cannot be issued.{onOpenEmployees ? <> <Button size="sm" variant="secondary" onClick={onOpenEmployees}>Set who can use it</Button></> : ' Add people under Employees.'}</p>
+        ? <p className="font-sans text-body-sm text-ink-muted">Nobody can use this tool yet, so it cannot be issued.{onOpenEmployees ? <> <Button size="sm" variant="secondary" onClick={onOpenEmployees}>Set who can use it</Button></> : ' Add people under Employees.'}</p>
         : (
           <>
             {sorted.length > 8 && <ListFilter value={filter} onChange={setFilter} label="Filter eligible employees" />}
-            {open && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this equipment — no approval needed.</p>}
+            {open && <p className="font-sans text-body-sm text-ink-muted">Anyone may use this tool — no approval needed.</p>}
             <ul className="flex flex-col divide-y divide-line-subtle" aria-label="Eligible employees list">
               {shown.map(person => (
                 <li key={person.id} className="flex items-center gap-3 py-2">

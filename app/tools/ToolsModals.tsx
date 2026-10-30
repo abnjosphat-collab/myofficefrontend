@@ -38,8 +38,8 @@ function titleOf(w: ToolsWorkspace): string {
   const kind = w.modal?.kind;
   if (!kind) return '';
   const names: Record<string, string> = {
-    customize: 'Settings', new: 'Add equipment', employee: 'Add an employee', feedback: 'Feedback & suggestions', import: 'Import a register',
-    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit equipment details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number', 'edit-employee-section': 'Trade section',
+    customize: 'Settings', new: 'Add a tool', employee: 'Add an employee', feedback: 'Feedback & suggestions', import: 'Import a register',
+    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit tool details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number', 'edit-employee-section': 'Trade section',
   };
   if (kind === 'auth') return w.currentAccount ? 'Your profile' : 'Sign in or sign up';
   return names[kind] ?? TITLES[kind as keyof typeof TITLES] ?? '';
@@ -115,7 +115,7 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     return (
       <DeepSpaceStage>
         <main className="flex w-full flex-col items-center gap-4">
-          <AuthCard title="Tools & Equipment" description={descriptionOf(w)} headingId="tools-auth-title" logo={<DallaglioLogo />}>{body}</AuthCard>
+          <AuthCard title="Tools" description={descriptionOf(w)} headingId="tools-auth-title" logo={<DallaglioLogo />}>{body}</AuthCard>
           <Link href="/" className="focus-ring touch-target inline-flex items-center gap-1.5 rounded-control px-3 font-sans text-body-sm text-ink-muted hover:text-ink">
             <Icon name="chevron-left" size="sm" />Back to MyOffice (separate sign-in)
           </Link>

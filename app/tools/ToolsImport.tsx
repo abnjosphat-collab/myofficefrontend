@@ -22,7 +22,7 @@ export function ToolsImport({onApply,onCancel}:{onApply:(target:Target,tools:Too
   return (
     <div className="flex flex-col gap-4">
       <FieldGroup label="Import into">
-        <Segmented label="Import into" value={target} onValueChange={next => { setTarget(next); setRows([]); }} options={[{ value: 'equipment', label: 'Equipment' }, { value: 'employees', label: 'Employees' }]} />
+        <Segmented label="Import into" value={target} onValueChange={next => { setTarget(next); setRows([]); }} options={[{ value: 'equipment', label: 'Tools' }, { value: 'employees', label: 'Employees' }]} />
       </FieldGroup>
       <label className="focus-within:ring-2 focus-within:ring-focus flex cursor-pointer flex-col items-center gap-1 rounded-card border border-dashed border-line px-4 py-8 text-center transition-colors hover:border-action hover:bg-surface-subtle">
         <Icon name="upload" size="lg" />

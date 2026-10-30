@@ -186,7 +186,7 @@ export function ToolsToolbox({ tools, checks, canManage, onOpenCheck, onSubmitCh
               <li key={item.id} className="rounded-md border border-line-subtle bg-surface p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <strong className="font-sans text-body-sm font-medium text-ink">{item.toolName}{item.size ? ` · ${item.size}` : ''}{item.expected > 1 ? ` · ${item.expected} expected` : ''}</strong>
-                  {item.kind === 'member' && <small className="font-sans text-caption text-ink-muted">In the equipment register</small>}
+                  {item.kind === 'member' && <small className="font-sans text-caption text-ink-muted">In the tools register</small>}
                 </div>
                 {locked ? (
                   <div className="mt-2 flex flex-col gap-1">
@@ -268,7 +268,7 @@ export function ToolsToolbox({ tools, checks, canManage, onOpenCheck, onSubmitCh
           <TabsTrigger value="checked">Checked</TabsTrigger>
         </TabsList>
       </Tabs>
-      {rows.length === 0 && <Notice title="No sets yet">Add checklist lines to a set head from the equipment register, and it will appear here for its monthly check.</Notice>}
+      {rows.length === 0 && <Notice title="No sets yet">Add checklist lines to a set head from the tools register, and it will appear here for its monthly check.</Notice>}
       <ul className="flex flex-col gap-2">
         {visible.map(({ set, status, latest, evidence }) => {
           const badge = STATUS_BADGE[status];

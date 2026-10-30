@@ -15,7 +15,7 @@ export type HomepageSection = { value: ToolsTab; label: string };
 const SECTION_DESCRIPTIONS: Partial<Record<ToolsTab, string>> = {
   register: 'Browse every tool and its live status',
   loans: 'Track custody and overdue returns',
-  employees: 'People who can receive equipment',
+  employees: 'People who can receive tools',
   compliance: 'Competence, inspections and incidents',
   activity: 'Issue and return audit trail',
   sources: 'Original registers and scans',

@@ -10,7 +10,7 @@ import { SearchField } from '../primitives/SearchField';
 
 export type DestinationResult = {
   id: string;
-  /** Destination type shown as a label, e.g. "Equipment", "Employee", "Page", "Action". */
+  /** Destination type shown as a label, e.g. "Tool", "Employee", "Page", "Action". */
   kind: string;
   title: string;
   /** Context line: where it lives, why it matched. */

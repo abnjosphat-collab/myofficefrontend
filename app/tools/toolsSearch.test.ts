@@ -14,14 +14,14 @@ describe('Tools workspace search', () => {
     expect(searchWorkspace(index, 'personnel').some(result => result.title === 'Employee register')).toBe(true);
   });
 
-  it('ranks an equipment record for a close spelling', () => {
+  it('ranks a tool record for a close spelling', () => {
     const expected = TEST_TOOLS[0].name;
     const typo = expected.toLowerCase().replace(/[aeiou]/, '');
     expect(searchWorkspace(index, typo).some(result => result.title === expected)).toBe(true);
   });
 
   it('does not treat unrelated text as a result', () => {
-    expect(fuzzyScore('zqxv', 'equipment register')).toBe(0);
+    expect(fuzzyScore('zqxv', 'tools register')).toBe(0);
   });
 
   it('searches preserved source-register documents', () => {

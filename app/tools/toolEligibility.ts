@@ -36,7 +36,7 @@ export function isCurrentCompetency(record?: CompetencyRecord, now = Date.now())
 export type EligibilityBasis = { kind: 'individual' } | { kind: 'section'; section: string } | { kind: 'open' };
 
 export type Eligibility = {
-  /** Equipment each employee may receive, keyed by the employee's backend id. */
+  /** Tools each employee may receive, keyed by the employee's backend id. */
   forEmployee: Map<string, Tool[]>;
   /** Active employees who may receive each tool, keyed by the tool's backend id (someone who has been deactivated is not offered). */
   forTool: Map<string, Employee[]>;
@@ -46,7 +46,7 @@ export type Eligibility = {
 
 export const eligibilityKey = (toolBackendId: string, employeeBackendId: string) => `${toolBackendId}::${employeeBackendId}`;
 
-/** Both directions of the eligibility register at once, so the page can show it by person and by equipment from one pass.
+/** Both directions of the eligibility register at once, so the page can show it by person and by tool from one pass.
 Follows the server's eligible list per tool (the one rule in _is_eligible) rather than a second client-side copy of it. */
 export function buildEligibility(employees: Employee[], tools: Tool[]): Eligibility {
   const byId = new Map(employees.filter(employee => employee.backendId).map(employee => [employee.backendId as string, employee]));

@@ -71,7 +71,7 @@ export function toolConditions(tool: Tool, employee?: Employee | null): ToolCond
   } else {
     rows.push(isEligibleForTool(tool, employee)
       ? { key: 'competency', label: 'Trained, qualified and authorized', state: 'met', blocker: false }
-      : { key: 'competency', label: 'Not qualified for this equipment', detail: 'Update the Compliance register first.', state: 'unmet', blocker: true });
+      : { key: 'competency', label: 'Not qualified for this tool', detail: 'Update the Compliance register first.', state: 'unmet', blocker: true });
   }
 
   const due = tool.inspectionDue || [];

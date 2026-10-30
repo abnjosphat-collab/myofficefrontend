@@ -18,7 +18,7 @@ import { saveAs } from 'file-saver';
 import { EXCEL_HEADER_ROW, exportTable } from './toolsExports';
 
 const table = {
-  title: 'Tools and equipment register', subtitle: 'Engineering · 3 items',
+  title: 'Tools register', subtitle: 'Engineering · 3 items',
   headers: ['Register number', 'Name', 'Status'],
   rows: [['PP-01', 'Torque wrench', 'Ready to use'], ['PP-02', 'Angle grinder', 'Return overdue'], ['PP-03', 'Megger', 'Needs attention']],
 };
@@ -33,9 +33,9 @@ describe('exportTable', () => {
     await exportTable('xlsx', table);
     const book = new ExcelJS.Workbook();
     await book.xlsx.load(await (await savedBlob()).arrayBuffer());
-    expect(book.creator).toBe('Dallaglio Portable Tools and Equipment');
+    expect(book.creator).toBe('Dallaglio Portable Tools');
     const sheet = book.worksheets[0];
-    expect(sheet.getCell(1, 1).value).toBe('Tools and equipment register');
+    expect(sheet.getCell(1, 1).value).toBe('Tools register');
     expect(sheet.getCell(1, 1).font?.name).toBe('Cambria');
     expect(String(sheet.getCell(2, 1).value)).toContain('Engineering · 3 items');
     const header = sheet.getRow(EXCEL_HEADER_ROW);
@@ -59,7 +59,7 @@ describe('exportTable', () => {
     expect(options.body).toHaveLength(3);
     expect(pdfCalls).toContainEqual(['font', 'times', 'bold']);
     expect(pdfCalls).toContainEqual(['text', 'Page 2 of 2']);
-    expect(pdfCalls).toContainEqual(['save', 'tools-and-equipment-register.pdf']);
+    expect(pdfCalls).toContainEqual(['save', 'tools-register.pdf']);
   });
 
   it('writes a Word document with the title, the header row repeated on each page and a page number', async () => {
@@ -68,7 +68,7 @@ describe('exportTable', () => {
     const blob = await savedBlob();
     const zip = await JSZip.loadAsync(await blob.arrayBuffer());
     const body = await zip.file('word/document.xml')!.async('string');
-    expect(body).toContain('Tools and equipment register');
+    expect(body).toContain('Tools register');
     expect(body).toContain('Cambria');
     expect(body).toContain('w:tblHeader');
     expect(body).toContain('Torque wrench');

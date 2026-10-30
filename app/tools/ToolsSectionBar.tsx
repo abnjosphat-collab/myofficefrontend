@@ -28,7 +28,7 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
     <div className="flex flex-col gap-4">
       {tools_ && (
         <MetricGrid compact>
-          <MetricTile compact label="Equipment" value={loaded ? counts.total : undefined} loading={!loaded && sourceState.tools.loading} selected={status === 'all'} onClick={() => setStatus('all')} />
+          <MetricTile compact label="Tools" value={loaded ? counts.total : undefined} loading={!loaded && sourceState.tools.loading} selected={status === 'all'} onClick={() => setStatus('all')} />
           {FILTERS.map(f => (
             <MetricTile key={f.key} compact label={f.label} tone={f.key === 'issued' || (f.key === 'overdue' && !counts.overdue) || (f.key === 'attention' && !counts.attention) ? 'default' : f.tone}
               value={loaded ? (f.key === 'available' ? counts.available : f.key === 'issued' ? counts.issued - counts.overdue : f.key === 'overdue' ? counts.overdue : counts.attention) : undefined}
@@ -65,11 +65,11 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
             <MoreMenu items={items} label="Actions" />
             {tab === 'employees' && <ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button></ZoomLink>}
             {tab === 'register' && <ZoomLink zoomId="tools:new-bulk-issue" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'bulk-issue' })} disabled={!counts.available}>Issue tools</Button></ZoomLink>}
-            {tools_ && <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add equipment</Button></ZoomLink>}
+            {tools_ && <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add a tool</Button></ZoomLink>}
           </>
         )}
       >
-        <SearchField value={search} onValueChange={w.setSearch} placeholder={tab === 'employees' ? 'Search employees' : tab === 'activity' ? 'Search history' : 'Search equipment'} wrapperClassName="min-w-48 max-w-sm flex-1" />
+        <SearchField value={search} onValueChange={w.setSearch} placeholder={tab === 'employees' ? 'Search employees' : tab === 'activity' ? 'Search history' : 'Search tools'} wrapperClassName="min-w-48 max-w-sm flex-1" />
         <span role="status" aria-live="polite" className="font-sans text-body-sm text-ink-muted">{total} {noun}</span>
       </Toolbar>
     </div>

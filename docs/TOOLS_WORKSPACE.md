@@ -1,6 +1,6 @@
-# Tools & Equipment workspace
+# Tools workspace
 
-The standalone `/tools` workspace is the current interface for the mine-wide portable Tools & Equipment register. It shares the MyOffice deployment and Supabase database while keeping a focused interface. Initial departments are Engineering, Mining, Mine Technical Services and IT.
+The standalone `/tools` workspace is the current interface for the mine-wide portable Tools register. It shares the MyOffice deployment and Supabase database while keeping a focused interface. Initial departments are Engineering, Mining, Mine Technical Services and IT.
 
 ## Durable interaction decisions
 
@@ -8,32 +8,32 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - The top identity and account controls remain visible while the register scrolls.
 - Filters and sorting stay folded until requested. The button uses a chevron and contextual guidance so the hidden controls remain discoverable.
 - Primary operational actions use plain language: issue, receive, transfer, extend, edit, archive and restore.
-- Viewer accounts read registers and history. Administrators manage accounts, register records, feedback and cross-account analytics but cannot record custody movements. Only an **Issuer** can issue, receive, transfer or extend equipment, and every Issuer is restricted to one assigned department.
+- Viewer accounts read registers and history. Administrators manage accounts, register records, feedback and cross-account analytics but cannot record custody movements. Only an **Issuer** can issue, receive, transfer or extend tools, and every Issuer is restricted to one assigned department.
 - Employee cards open a person detail view, show current custody and provide a direct issue action for an authorized Issuer.
-- Issue forms autocomplete tools, employees, previously used locations and target equipment names while continuing to accept new location and equipment text.
-- Tool records retain flexible technical specifications as labelled values because relevant specifications differ by equipment type.
-- The first equipment detail view shows the complete saved specification record; editing remains a separate, explicit action.
-- Equipment held for attention has a named “Mark ready for use” workflow that requires the repair or inspection outcome.
+- Issue forms autocomplete tools, employees, previously used locations and target machine names while continuing to accept new location and machine text.
+- Tool records retain flexible technical specifications as labelled values because relevant specifications differ by tool type.
+- The first tool detail view shows the complete saved specification record; editing remains a separate, explicit action.
+- Tools held for attention have a named “Mark ready for use” workflow that requires the repair or inspection outcome.
 - Original PDF, spreadsheet, Word, OpenDocument and image registers are preserved in private permanent storage before staff update the live register.
 - Employee records retain a unique employee ID or number and an optional supervisor name. Cards use the shared person outline instead of generated initials.
 - Notification acknowledgement is per account. Viewing an alert must not clear it for another account.
-- A notification failure must be visible but must not prevent the equipment and employee registers from loading.
+- A notification failure must be visible but must not prevent the tools and employee registers from loading.
 - Motion provides orientation and feedback, respects reduced-motion preferences, and must never delay the underlying action.
-- Photographs take priority over equipment symbols when available.
+- Photographs take priority over tool symbols when available.
 - Display preferences, including text size, belong in Settings so the operational header stays focused on identity, department scope and primary account controls.
-- The product heading is “Tools & Equipment E-System”. The optional getting-started carousel is retained in the codebase but hidden until its design is revisited.
+- The product heading is “Tools E-System”. The optional getting-started carousel is retained in the codebase but hidden until its design is revisited.
 - The top-right account control is a familiar personal profile and sign-out surface. Role changes stay in the administrator-only Account access section so identity and system administration are not mixed.
 - Administrator analytics use compact semantic metrics, a daily/weekly/monthly activity trend, and a day-by-four-hour usage pattern. Trend points remain keyboard-focusable and disclose exact values.
 - The global Undo/Redo control is intentionally absent from the interface. Use explicit edit, return, mark-ready, archive and restore actions so each operational change is clear; retain every change in history.
 
 ## Iconography standard
 
-Equipment symbols must communicate the physical item before they decorate the card. Use this order:
+Tool symbols must communicate the physical item before they decorate the card. Use this order:
 
 1. A real, well-cropped photograph when one exists.
 2. A close domain-specific outline from the selected established family.
 3. A custom precision-line SVG when an established family has no credible equivalent.
-4. The generic equipment case only when the item type is genuinely unknown.
+4. The generic tool case only when the item type is genuinely unknown.
 
 Every custom symbol uses the same 24×24 coordinate system, round line caps and joins, optical size, and approximately 1.35 stroke width. Compare each drawing at 16, 24 and 48 pixels in light and dark modes. The silhouette must remain recognizable without a label. Do not substitute a screwdriver, lightning bolt or other loosely related metaphor for a named machine.
 

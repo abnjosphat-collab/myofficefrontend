@@ -109,8 +109,8 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
         <>{failed}<ToolsSectionBar w={w} />
           {visibleTools.length === 0
             ? (
-              <EmptyState icon={activeTools.length ? 'search' : 'equipment'} title={activeTools.length ? 'No matching equipment' : 'Start your equipment register'}
-                description={activeTools.length ? 'Try fewer filters or a different search.' : `Add the first tool or equipment item for ${department === 'all' ? 'your operation' : department}.`}
+              <EmptyState icon={activeTools.length ? 'search' : 'equipment'} title={activeTools.length ? 'No matching tools' : 'Start your tools register'}
+                description={activeTools.length ? 'Try fewer filters or a different search.' : `Add the first tool for ${department === 'all' ? 'your operation' : department}.`}
                 action={activeTools.length ? <Button variant="primary" onClick={w.clearFilters}>Clear search & filters</Button> : <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'new' })}>Add the first item</Button></ZoomLink>} />
             )
             : <RegisterView calmKey={JSON.stringify([w.search, w.status, w.category, w.location, w.sort, w.department])} tools={visibleTools} view={w.view} onSelect={w.setSelectedId} onAction={(kind, tool) => w.openAction(kind, tool)} onArchiveMany={w.options.showRemoval && tab === 'register' && manage ? w.archiveTools : undefined} />}

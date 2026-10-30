@@ -20,7 +20,7 @@ const signedOut = {
 describe('ToolsModals signed-out screen (C8)', () => {
   it('names the Tools workspace and links back to MyOffice', () => {
     render(<ToolsModals w={signedOut} />);
-    expect(screen.getByRole('heading', { name: 'Tools & Equipment' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tools' })).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'Back to MyOffice (separate sign-in)' });
     expect(link).toHaveAttribute('href', '/');
   });
