@@ -433,7 +433,7 @@ First batch of the tools-sets-mining-ppe-budget run (plan audit/tools-sets-minin
 - Buttons: the register toolbar ships with the one button Add a tool (todays form; submit already said Add tool). Add a set and Issue a set arrive with Batch 2.
 - 37 files changed (25 app/tools sources, 9 app/tools tests, DestinationSearch comment, docs/TOOLS_WORKSPACE.md, scripts/route-specs/tools.mjs); changed strings listed in the branch diff.
 - Gate: tsc clean, eslint 0 errors (1 pre-existing max-lines warning on ToolsForms.tsx), full vitest 343 files / 2456 tests green, production build green, verify-routes --only /tools ALL CHECKS PASSED (49/49), 1440 + 390 renders inspected (0px overflow). docs:check: typedoc 0 errors, ledger/links/css/export/refresh clean; motion-consistency reports 2 problems (nameMatch.ts, NameTypeahead.tsx missing from the external MOTION_INVENTORY.md) that pre-date this batch, both files untouched by it.
-- Live check: production chunks contain Add a tool and no Add equipment (verified after push, results below).
+- Live check: 30 Oct, fetched live /tools HTML plus its 25 chunk files: Add a tool present in 1 chunk, Add equipment in 0 chunks. New build serving.
 - Rollback: revert the frontend merge commit.
 - Release note: Tools now says Tools everywhere, with one Add a tool button; sets follow next.
 
