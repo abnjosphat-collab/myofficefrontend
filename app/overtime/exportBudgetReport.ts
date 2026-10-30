@@ -77,10 +77,20 @@ export async function buildSplitBudgetWorkbook(rows: BudgetRow[], sheets: Budget
 /** Builds the workbook and saves it as a .xlsx download (Engineering sheet only). */
 export async function downloadSplitBudgetReport(rows: BudgetRow[]): Promise<void> {
   const wb = await buildSplitBudgetWorkbook(rows, ['ENGINEERING']);
+  await saveWorkbook(wb, `${exportFilename('overtime-split-budget')}.xlsx`);
+}
+
+/** Builds the workbook and saves it as a .xlsx download across all department sheets. */
+export async function downloadSummaryWorkbook(rows: BudgetRow[], fileBase: string): Promise<void> {
+  const wb = await buildSplitBudgetWorkbook(rows);
+  await saveWorkbook(wb, `${fileBase}.xlsx`);
+}
+
+async function saveWorkbook(wb: import('exceljs').Workbook, filename: string): Promise<void> {
   const { saveAs } = await import('file-saver');
   const buf = await wb.xlsx.writeBuffer();
   saveAs(
     new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `${exportFilename('overtime-split-budget')}.xlsx`,
+    filename,
   );
 }

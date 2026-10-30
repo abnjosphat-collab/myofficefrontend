@@ -181,6 +181,8 @@ export function adhocTotals(
   // hold legacy values the form no longer offers, and they still count as Adhoc.
   records: (Pick<OTRecord, 'id' | 'employee_id' | 'employee_name' | 'date' | 'start_time' | 'end_time' | 'hours' | 'status' | 'reason'> & { overtime_type: string })[],
   employees: BudgetEmployee[],
+  from: string = ADHOC_FROM,
+  to: string = ADHOC_TO,
 ): { byKey: Map<string, AdhocBuckets>; causeByKey: Map<string, AdhocCause | null>; orphanCount: number; orphanHours: number } {
   const register = new Set(employees.map(e => normalizeTimesheetEmployeeCode(e.employeeId)));
   const byKey = new Map<string, AdhocBuckets>();
@@ -193,7 +195,8 @@ export function adhocTotals(
     const idKey = String(r.id);
     if (seenIds.has(idKey)) continue; // same record fetched twice counts once
     seenIds.add(idKey);
-    if (!r.date || r.date < ADHOC_FROM || r.date > ADHOC_TO) continue;
+    const [lo, hi] = from <= to ? [from, to] : [to, from];
+    if (!r.date || r.date < lo || r.date > hi) continue;
     if (EXCLUDED_OT_STATUSES.has(String(r.status ?? '').trim().toLowerCase())) continue;
     const hours = Math.max(0, r.hours ?? calcHours(r.start_time, r.end_time));
     const key = normalizeTimesheetEmployeeCode(String(r.employee_id || ''));
@@ -233,10 +236,10 @@ export function adhocTotals(
  * Comment-cell text: what is driving one person's overtime. Whole hours,
  * cause first, rostered shift second — blank when there is nothing to say.
  */
-export function budgetComment(shift: number | null, cause: AdhocCause | null | undefined): string {
+export function budgetComment(shift: number | null, cause: AdhocCause | null | undefined, rangeLabel = 'Jul–Sep'): string {
   const trimLabel = (label: string) => (label.length > 60 ? `${label.slice(0, 57)}…` : label);
   const parts: string[] = [];
-  if (cause) parts.push(`“${trimLabel(cause.label)}” — ${cause.hours}h of ${cause.total}h Jul–Sep`);
+  if (cause) parts.push(`“${trimLabel(cause.label)}” — ${cause.hours}h of ${cause.total}h ${rangeLabel}`);
   if (shift != null && shift > 0) parts.push(`shift overtime above 208 (${shift} h/mo avg)`);
   return parts.join('; ');
 }
@@ -258,6 +261,8 @@ export function buildSplitBudgetRows(
   bookAvg: Map<string, number>,
   adhoc: Map<string, AdhocBuckets>,
   causes: Map<string, AdhocCause | null> = new Map(),
+  months = ADHOC_MONTHS,
+  rangeLabel = 'Jul–Sep',
 ): BudgetRow[] {
   const sheetOrder = (s: BudgetSheet) => {
     const i = BUDGET_SHEET_NAMES.indexOf(s as (typeof BUDGET_SHEET_NAMES)[number]);
@@ -278,10 +283,10 @@ export function buildSplitBudgetRows(
         department: emp.department,
         sheet: emp.sheet,
         ot15Shift: shift,
-        ot15Adhoc: Math.round(ad.adhoc15.total / ADHOC_MONTHS),
-        ot20Shift: Math.round(ad.shift20.total / ADHOC_MONTHS),
+        ot15Adhoc: Math.round(ad.adhoc15.total / months),
+        ot20Shift: Math.round(ad.shift20.total / months),
         status: bookStatus(emp, shift),
-        comment: budgetComment(shift, causes.get(key)),
+        comment: budgetComment(shift, causes.get(key), rangeLabel),
       } satisfies BudgetRow;
     })
     .sort((a, b) => sheetOrder(a.sheet) - sheetOrder(b.sheet));
