@@ -17,6 +17,7 @@ import { EmployeePicks, type PickedPerson } from './EmployeePicks';
 import { InsightsView } from './insights/InsightsView';
 import { OTBulkEditDialog } from './OTBulkEditDialog';
 import { OvertimeDetail } from './OvertimeDetail';
+import { BudgetView } from './BudgetView';
 import { OvertimeForm } from './OvertimeForm';
 import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, similarRecords, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
 import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
@@ -282,6 +283,7 @@ function OvertimeContent() {
           <TabsTrigger value="records" icon="documents">Records</TabsTrigger>
           <TabsTrigger value="insights" icon="analytics">Insights</TabsTrigger>
           <TabsTrigger value="weekly" icon="week">Weekly summary</TabsTrigger>
+          <TabsTrigger value="budget" icon="table-view">Overtime Budget</TabsTrigger>
         </TabsList>
 
         <TabsContent value="records" className="mt-4 flex flex-col gap-4">
@@ -379,6 +381,11 @@ function OvertimeContent() {
         <TabsContent value="weekly" className="mt-4">
           {list.loaded
             ? <WeeklySummary records={records} employees={employees} />
+            : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
+        </TabsContent>
+        <TabsContent value="budget" className="mt-4">
+          {list.loaded
+            ? <BudgetView records={records} register={employees} otLoaded={list.loaded} />
             : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
         </TabsContent>
       </Tabs>
