@@ -26,7 +26,12 @@ import { SEED_TOOLS, SEED_ACTIVITY, DEPARTMENTS, STATUS, departmentOf, employeeL
 import { toolFromServer } from './toolFromServer';
 import { loadToolsWorkspace, mapAnalytics, type ServerTool, type ToolNotification, type WorkspaceSource, type WorkspaceSourceResult } from './workspaceLoad';
 
-export type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register'|'bulk-issue' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | { kind: 'edit-employee-number'; employee: Employee } | { kind: 'edit-employee-section'; employee: Employee } | null;
+export type Modal = { kind: ActionKind; tool?: Tool; employee?: Employee } | { kind: 'new'|'employee'|'auth'|'feedback'|'customize'|'import'|'export'|'source-register'|'bulk-issue' } | { kind: 'edit'|'attachments'|'ready'; tool: Tool } | { kind: 'edit-employee-number'; employee: Employee } | { kind: 'edit-employee-section'; employee: Employee } | { kind: 'new-set' } | { kind: 'issue-set'; setTypeId?: string; employee?: Employee } | null;
+export type ServerSetType = { id:string; title:string; make_model?:string|null; category?:string|null; competency_required:boolean; notes?:string|null; active:boolean; line_count:number; physical_total:number; in_store:number; out:number; attention:number };
+export type ServerSetTypeLine = { id:string; set_type_id:string; line_no:number; name:string; size?:string|null; qty:number; notes?:string|null };
+export type SetTypeDetail = { set_type:ServerSetType; lines:ServerSetTypeLine[] };
+export type IssuePersonResult = { employee_id:string; employee_name?:string|null; ok:boolean; set_id?:string; register_number?:string; piece_count?:number; reason?:string };
+export type IssueSetsResponse = { set_type_id:string; results:IssuePersonResult[]; issued:number; failed:number; idempotency_key:string; replayed:boolean };
 export const tabs = [{ value: 'homepage', label: 'Overview', icon: 'home' }, { value: 'register', label: 'Tools', icon: 'box' }, { value: 'loans', label: 'In use', icon: 'out' }, { value: 'employees', label: 'Employees', icon: 'user' }, { value: 'compliance', label: 'Compliance', icon: 'check', signedInOnly:true }, { value: 'toolbox', label: 'Sets & checks', icon: 'toolbox', signedInOnly:true }, { value: 'activity', label: 'History', icon: 'history' }, { value: 'sources', label: 'Source registers', icon: 'upload', signedInOnly: true }, { value: 'accounts', label: 'Account access', icon: 'accounts', adminOnly: true }, { value: 'analytics', label: 'Analytics', icon: 'analytics', adminOnly: true }, { value: 'feedback', label: 'Feedback', icon: 'edit', adminOnly: true }] as const;
 export type SourceState={loaded:boolean;loading:boolean;error?:string};
 export const emptySourceState=():Record<WorkspaceSource,SourceState>=>({employees:{loaded:false,loading:false},tools:{loaded:false,loading:false},history:{loaded:false,loading:false},sources:{loaded:false,loading:false},notifications:{loaded:false,loading:false},compliance:{loaded:false,loading:false},analytics:{loaded:false,loading:false},accounts:{loaded:false,loading:false}});
@@ -36,6 +41,8 @@ export function useToolsWorkspace() {
   const [history, dispatch] = useReducer(historyReducer, { past: [], present: { tools: SEED_TOOLS, activity: SEED_ACTIVITY }, future: [] });
   const { tools, activity } = history.present;
   const [employees,setEmployees]=useState<Employee[]>([]);
+  const [setTypes,setSetTypes]=useState<ServerSetType[]>([]);
+  const [setTypesError,setSetTypesError]=useState<string|null>(null);
   const [accounts,setAccounts]=useState<WorkspaceAccount[]>([]);
   const [sourceRegisters,setSourceRegisters]=useState<SourceRegisterRecord[]>([]);
   const [currentAccount,setCurrentAccount]=useState<WorkspaceAccount|null>(null);
@@ -140,6 +147,8 @@ export function useToolsWorkspace() {
     };
     try { await loadToolsWorkspace(account.token,account.role,toolsApi.get,controller.signal,applySource); }
     catch(error) { if(controller.signal.aborted) return;throw error; }
+    try { const types=await toolsApi.get<ServerSetType[]>('/set-types',account.token); if(!controller.signal.aborted){setSetTypes(types);setSetTypesError(null);} }
+    catch { if(!controller.signal.aborted) setSetTypesError('Set types could not be loaded.'); }
     if(account.role!=='admin') { setUsage([]);setClientErrors([]);setFeedbackRecords([]);setAccounts([]); }
   }
   reloadRef.current=reloadWorkspace;
@@ -204,6 +213,7 @@ export function useToolsWorkspace() {
     const current=tools.find(item=>item.id===input.toolId);
     try {
       if (!current?.backendId) throw new Error('This tool record has not been saved yet.');
+      if (input.kind==='return'&&current.setTypeId) { await returnSet(current,{location:input.location,condition:input.condition,notes:input.notes,piece_conditions:input.pieceConditions,piece_status:input.pieceStatus}); return; }
       const employee=employees.find(item=>item.id===input.person||item.name===input.person||employeeLabel(item)===input.person);
       const memberConditions=input.memberConditions?Object.fromEntries(Object.entries(input.memberConditions).map(([registerId,condition])=>{const member=tools.find(item=>item.id===registerId);return [member?.backendId||registerId,condition];}).filter(([backendId])=>!!backendId)):undefined;
       await toolsApi.post(`/tools/${current.backendId}/commands`,requireToken(),{kind:input.kind,employee_id:employee?.backendId||employee?.employeeNumber,employee_name:employee?.name,department:input.department,location:input.location,expected_return_at:input.dueISO||input.due,job_reference:input.job,assigned_equipment:input.assignedEquipment||[],condition:input.condition,notes:input.notes,approval_ref:input.approvalRef,calibration:input.calibration,override_due_checks:input.overrideDueChecks||undefined,override_reason:input.overrideReason||undefined,member_conditions:memberConditions||undefined,idempotency_key:crypto.randomUUID()});
@@ -228,6 +238,62 @@ export function useToolsWorkspace() {
     if (failed.length) { setModal(null); notify.error(`${done} issued. ${failed.length} could not be issued: ${failed.slice(0,4).join(', ')}${failed.length>4?'…':''}. Try those again.`); }
     else { setModal(null); setFeedback(`Issued ${done} ${done===1?'tool':'tools'}.`); notify.success(`Issued ${done} ${done===1?'tool':'tools'}`); }
   }
+  async function getSetTypeLines(typeId:string) {
+    const detail=await toolsApi.get<SetTypeDetail>(`/set-types/${typeId}`,requireToken());
+    return detail.lines;
+  }
+  async function refreshSetTypes() {
+    if (!currentAccount?.token) return;
+    try { const types=await toolsApi.get<ServerSetType[]>('/set-types',currentAccount.token); setSetTypes(types); setSetTypesError(null); }
+    catch { setSetTypesError('Set types could not be loaded.'); }
+  }
+  async function saveSetType(input:{title:string;make_model?:string;category?:string;competency_required:boolean;notes?:string;lines:Array<{name:string;size?:string;qty:number;notes?:string}>}) {
+    try {
+      const created=await toolsApi.post<SetTypeDetail>('/set-types',requireToken(),input);
+      await refreshSetTypes(); setModal(null); setTab('toolbox'); setFeedback(`Set type ${created.set_type.title} saved with ${created.lines.length} lines.`); notify.success('Set type saved');
+      return created;
+    } catch(error) { notify.error(error instanceof Error?error.message:'The set type could not be saved.'); return null; }
+  }
+  async function updateSetType(typeId:string,patch:Record<string,unknown>) {
+    try { const updated=await toolsApi.patch<SetTypeDetail>(`/set-types/${typeId}`,requireToken(),patch); await refreshSetTypes(); return updated; }
+    catch(error) { notify.error(error instanceof Error?error.message:'The set type could not be saved.'); return null; }
+  }
+  async function addSetTypeLine(typeId:string,line:{name:string;size?:string;qty:number;notes?:string}) {
+    try { const updated=await toolsApi.post<{lines:ServerSetTypeLine[]}>(`/set-types/${typeId}/lines`,requireToken(),line); await refreshSetTypes(); return updated.lines; }
+    catch(error) { notify.error(error instanceof Error?error.message:'The line could not be added.'); return null; }
+  }
+  async function editSetTypeLine(lineId:string,patch:Record<string,unknown>) {
+    try { const updated=await toolsApi.patch<{lines:ServerSetTypeLine[]}>(`/set-type-lines/${lineId}`,requireToken(),patch); await refreshSetTypes(); return updated.lines; }
+    catch(error) { notify.error(error instanceof Error?error.message:'The line could not be saved.'); return null; }
+  }
+  async function removeSetTypeLine(lineId:string) {
+    try { const updated=await toolsApi.remove<{lines:ServerSetTypeLine[]}>(`/set-type-lines/${lineId}`,requireToken()); await refreshSetTypes(); return updated.lines; }
+    catch(error) { notify.error(error instanceof Error?error.message:'The line could not be removed.'); return null; }
+  }
+  async function makeSetsInStore(typeId:string,count:number,department?:string) {
+    try {
+      await toolsApi.post(`/set-types/${typeId}/make-in-store`,requireToken(),{count,department});
+      await reloadWorkspace(); setFeedback(count===1?'One set ready in store.':`${count} sets ready in store.`); notify.success('Sets made');
+    } catch(error) { notify.error(error instanceof Error?error.message:'The sets could not be made.'); }
+  }
+  async function issueSets(typeId:string,input:{employee_ids:string[];location:string;job_reference?:string;expected_return_at?:string;assigned_equipment?:string[];notes?:string;conditions?:Record<string,Record<string,string>>;override_due_checks?:boolean;override_reason?:string}) {
+    try {
+      const response=await toolsApi.post<IssueSetsResponse>(`/set-types/${typeId}/issue`,requireToken(),{...input,idempotency_key:crypto.randomUUID()});
+      await reloadWorkspace();
+      if (response.failed) notify.error(`${response.issued} issued, ${response.failed} not issued.`);
+      else notify.success(response.issued===1?'Set issued':`${response.issued} sets issued`);
+      return response;
+    } catch(error) { notify.error(error instanceof Error?error.message:'The sets could not be issued.'); return null; }
+  }
+  async function returnSet(tool:Tool,input:{location:string;condition?:string;notes?:string;piece_conditions?:Record<string,string>;piece_status?:Record<string,'present'|'missing'|'damaged'>}) {
+    if (!tool.backendId) throw new Error('This tool record has not been saved yet.');
+    await toolsApi.post(`/sets/${tool.backendId}/return`,requireToken(),{location:input.location,condition:input.condition??'Good',notes:input.notes,piece_conditions:input.piece_conditions,piece_status:input.piece_status});
+    await reloadWorkspace(); setModal(null); setFeedback('Set received.'); notify.success('Set received');
+  }
+  async function editPiece(pieceId:string,patch:{condition?:string;status?:'present'|'missing'|'damaged';notes?:string}) {
+    try { await toolsApi.patch(`/sets/pieces/${pieceId}`,requireToken(),patch); await reloadWorkspace(); notify.success('Piece saved'); }
+    catch(error) { notify.error(error instanceof Error?error.message:'The piece could not be saved.'); }
+  }
   async function uploadNewEvidence(tool:Tool,files:Evidence[]) {
     const fresh=files.filter(file=>file.url.startsWith('blob:'));
     if (!fresh.length || !tool.backendId) return;
@@ -239,15 +305,6 @@ export function useToolsWorkspace() {
     try { await uploadNewEvidence(tool,files); await reloadWorkspace(); setModal(null); notify.success('Attachments saved'); }
     catch(error) { notify.error(error instanceof Error?error.message:'Attachments could not be saved.'); }
   }
-  async function syncSetMembers(headBackendId:string,wantRegisterIds:string[]) {
-    const token=requireToken();
-    const head=tools.find(item=>item.backendId===headBackendId);
-    const have=new Set(head?.memberIds??[]);
-    const want=new Set(wantRegisterIds);
-    const byId=new Map(tools.map(item=>[item.id,item]));
-    for (const registerId of want) { if(have.has(registerId)) continue; const member=byId.get(registerId); if(!member?.backendId) continue; await toolsApi.post(`/tools/${headBackendId}/members`,token,{member_ids:[member.backendId]}); }
-    for (const registerId of have) { if(want.has(registerId)) continue; const member=byId.get(registerId); if(!member?.backendId) continue; await toolsApi.remove(`/tools/${headBackendId}/members/${member.backendId}`,token); }
-  }
   async function saveTool(tool: Tool) {
     try {
       const editing=modal?.kind==='edit';
@@ -255,7 +312,7 @@ export function useToolsWorkspace() {
       let saved:ServerTool;
       if (editing) { if (!tool.backendId) throw new Error('This tool record has not been saved yet.'); saved=await toolsApi.patch(`/tools/${tool.backendId}`,requireToken(),payload); }
       else saved=await toolsApi.post('/tools',requireToken(),payload);
-      const mapped=toolFromServer(saved); if (tool.memberIds!==undefined&&mapped.backendId) { await syncSetMembers(mapped.backendId,tool.memberIds); } await uploadNewEvidence(mapped,tool.evidence||[]);
+      const mapped=toolFromServer(saved); await uploadNewEvidence(mapped,tool.evidence||[]);
       await reloadWorkspace(); setModal(null); clearFilters(); setTab('register'); setDepartment(departmentOf(tool)); notify.success(editing?'Tool updated':'Tool added');
     } catch(error) { notify.error(error instanceof Error?error.message:'The tool could not be saved.'); }
   }
@@ -371,7 +428,7 @@ export function useToolsWorkspace() {
   async function getSetContents(headBackendId:string) {
     try {
       const data=await toolsApi.get<ServerSetContents>(`/sets/${headBackendId}/contents`,requireToken());
-      return { members:data.members.map(member=>({id:member.id,registerNumber:member.register_number,name:member.name})), lines:data.lines.map(line=>({id:line.id,name:line.name,size:line.size??undefined,qty:line.qty,notes:line.notes??undefined})) };
+      return { members:data.members.map(member=>({id:member.id,registerNumber:member.register_number,name:member.name})), lines:data.lines.map(line=>({id:line.id,name:line.name,size:line.size??undefined,qty:line.qty,notes:line.notes??undefined,lineNo:line.line_no??undefined,pieceNumber:line.piece_number??undefined,condition:line.condition??undefined,status:line.status??undefined})) };
     } catch(error){notify.error(error instanceof Error?error.message:'The set contents could not be loaded.');return undefined;}
   }
   function blankToolboxItems(open:ServerOpenCheck):ToolboxCheckItem[] {
@@ -436,7 +493,7 @@ export function useToolsWorkspace() {
   // The overview opens as soon as the tools (the figures) have answered; the movements and needs-attention panels show their own loading until theirs do.
   const homePending=!sourceState.tools.loaded&&!sourceState.tools.error;
   const panelLoading=(key:'history'|'compliance')=>!sourceState[key].loaded&&!sourceState[key].error;
-  return { reloadWorkspace, saveMovement, saveBulkIssue, uploadNewEvidence, saveAttachments, saveTool, archiveTool, archiveTools, markToolReady, saveSourceRegister, saveEmployee, saveEmployeeNumber, saveEmployeeSection, createAccount, login, signOut, track, suggestTradeSections, updateAccountRole, setAccountPassword, requestPasswordReset, changePassword, deactivateEmployees, setEmployeeActive, saveCompetency, recordInspection, reportIncident, closeIncident, saveSetLine, removeSetLine, getSetContents, openToolboxCheck, getToolboxCheck, submitToolboxCheck, chooseSearchResult, submitFeedback, applyImport, markNotificationsViewed, options, setOptions, history, dispatch, employees, setEmployees, accounts, setAccounts, sourceRegisters, setSourceRegisters, currentAccount, setCurrentAccount, usage, setUsage, clientErrors, setClientErrors, feedbackRecords, setFeedbackRecords, notificationAlerts, setNotificationAlerts, complianceData, setComplianceData, sourceState, setSourceState, sessionChecking, setSessionChecking, tab, setTab, view, setViewState, viewChosen, setViewChosen, department, setDepartment, search, setSearch, status, setStatus, category, setCategory, location, setLocation, sort, setSort, sidebarCollapsed, setSidebarCollapsed, preferencesReady, setPreferencesReady, selectedId, setSelectedId, modal, setModal, feedback, setFeedback, sidebarNav, setSidebarNav, setView, searchRef, reloadRef, loadRequestId, loadAbortRef, objectUrls, departments, accountDepartments, canSeeAllDepartments, departmentOptions, visibleTabs, scope, activeTools, scopedNotifications, counts, unreadNotifications, visibleTools, visibleActivity, activeSource, activeSourceState, activeSourceTitle, authenticationRequired, retryWorkspace, selected, selectedFacts, workspaceSearchIndex, workspaceSearchResults, locationSuggestions, equipmentSuggestions, activeFilters, activeRefinements, clearFilters, resetRefinements, openManageModal, openSourceRegister, openAction, filterTo, addFiles, requireToken, exportData, homeIncidents, overdueCheckTools, homeAttention, homeStats, homePending, panelLoading, tools, activity };
+  return { reloadWorkspace, saveMovement, saveBulkIssue, uploadNewEvidence, saveAttachments, saveTool, archiveTool, archiveTools, markToolReady, saveSourceRegister, saveEmployee, saveEmployeeNumber, saveEmployeeSection, createAccount, login, signOut, track, suggestTradeSections, updateAccountRole, setAccountPassword, requestPasswordReset, changePassword, deactivateEmployees, setEmployeeActive, saveCompetency, recordInspection, reportIncident, closeIncident, saveSetLine, removeSetLine, getSetContents, getSetTypeLines, refreshSetTypes, saveSetType, updateSetType, addSetTypeLine, editSetTypeLine, removeSetTypeLine, makeSetsInStore, issueSets, returnSet, editPiece, setTypes, setSetTypes, setTypesError, openToolboxCheck, getToolboxCheck, submitToolboxCheck, chooseSearchResult, submitFeedback, applyImport, markNotificationsViewed, options, setOptions, history, dispatch, employees, setEmployees, accounts, setAccounts, sourceRegisters, setSourceRegisters, currentAccount, setCurrentAccount, usage, setUsage, clientErrors, setClientErrors, feedbackRecords, setFeedbackRecords, notificationAlerts, setNotificationAlerts, complianceData, setComplianceData, sourceState, setSourceState, sessionChecking, setSessionChecking, tab, setTab, view, setViewState, viewChosen, setViewChosen, department, setDepartment, search, setSearch, status, setStatus, category, setCategory, location, setLocation, sort, setSort, sidebarCollapsed, setSidebarCollapsed, preferencesReady, setPreferencesReady, selectedId, setSelectedId, modal, setModal, feedback, setFeedback, sidebarNav, setSidebarNav, setView, searchRef, reloadRef, loadRequestId, loadAbortRef, objectUrls, departments, accountDepartments, canSeeAllDepartments, departmentOptions, visibleTabs, scope, activeTools, scopedNotifications, counts, unreadNotifications, visibleTools, visibleActivity, activeSource, activeSourceState, activeSourceTitle, authenticationRequired, retryWorkspace, selected, selectedFacts, workspaceSearchIndex, workspaceSearchResults, locationSuggestions, equipmentSuggestions, activeFilters, activeRefinements, clearFilters, resetRefinements, openManageModal, openSourceRegister, openAction, filterTo, addFiles, requireToken, exportData, homeIncidents, overdueCheckTools, homeAttention, homeStats, homePending, panelLoading, tools, activity };
 }
 
 export type ToolsWorkspace = ReturnType<typeof useToolsWorkspace>;

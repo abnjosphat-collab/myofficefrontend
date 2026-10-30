@@ -7,7 +7,7 @@ import type { SourceRegisterRecord } from './ToolsSourceRegisters';
 export type SearchTarget =
   | { type: 'tab'; tab: ToolsTab; query?: string }
   | { type: 'tool'; toolId: string }
-  | { type: 'modal'; modal: 'new' | 'employee' | 'customize' | 'import' | 'export' | 'feedback' | 'source-register' };
+  | { type: 'modal'; modal: 'new' | 'new-set' | 'issue-set' | 'employee' | 'customize' | 'import' | 'export' | 'feedback' | 'source-register' };
 
 export type WorkspaceSearchResult = {
   id: string;
@@ -30,6 +30,8 @@ const fixedResults: WorkspaceSearchResult[] = [
   { id: 'page-analytics', kind: 'Page', title: 'Analytics', subtitle: 'Usage, errors and feedback', keywords: 'charts metrics insights errors usage reports', icon: 'analytics', target: { type: 'tab', tab: 'analytics' } },
   { id: 'page-feedback', kind: 'Page', title: 'Feedback inbox', subtitle: 'Read saved text and audio feedback', keywords: 'suggestions recordings voice comments', icon: 'edit', target: { type: 'tab', tab: 'feedback' } },
   { id: 'action-add-tool', kind: 'Action', title: 'Add a tool', subtitle: 'Create a new register record', keywords: 'new tool asset create register', icon: 'plus', target: { type: 'modal', modal: 'new' } },
+  { id: 'action-add-set', kind: 'Action', title: 'Add a set', subtitle: 'Enter a set type once with its pieces', keywords: 'new set type pieces contents lines register', icon: 'plus', target: { type: 'modal', modal: 'new-set' } },
+  { id: 'action-issue-set', kind: 'Action', title: 'Issue a set', subtitle: 'Issue sets of one type to several people', keywords: 'issue set several people loan handover', icon: 'plus', target: { type: 'modal', modal: 'issue-set' } },
   { id: 'action-add-employee', kind: 'Action', title: 'Add employee', subtitle: 'Add a person to the employee register', keywords: 'new worker person personnel staff create', icon: 'user', target: { type: 'modal', modal: 'employee' } },
   { id: 'action-import', kind: 'Action', title: 'Import a register', subtitle: 'Upload Excel, CSV or Word data', keywords: 'upload spreadsheet xlsx excel csv docx word', icon: 'upload', target: { type: 'modal', modal: 'import' } },
   { id: 'action-source-register', kind: 'Action', title: 'Upload a source register', subtitle: 'Keep an original PDF, spreadsheet, document or scan', keywords: 'source permanent original pdf excel word scan document upload', icon: 'upload', target: { type: 'modal', modal: 'source-register' } },
@@ -45,7 +47,13 @@ export function buildWorkspaceSearchIndex(tools: Tool[], employees: Employee[], 
     dynamic.push({
       id: `tool-${tool.id}`, kind: 'Tool', title: tool.name,
       subtitle: `${tool.id} · ${departmentOf(tool)} · ${tool.location}`,
-      keywords: `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.job ?? ''} ${tool.notes ?? ''} ${departmentOf(tool)} ${tool.section ?? ''}`,
+      keywords: `${tool.id} ${tool.name} ${tool.make} ${tool.serial} ${tool.category} ${tool.condition} ${tool.holder ?? ''} ${tool.job ?? ''} ${tool.notes ?? ''} ${departmentOf(tool)} ${tool.section ?? ''} ${tool.setTypeTitle ?? ''}`,
+      icon: 'equipment', target: { type: 'tool', toolId: tool.id },
+    });
+    for (const piece of tool.pieces ?? []) dynamic.push({
+      id: `piece-${tool.id}-${piece.id}`, kind: 'Tool', title: `${piece.pieceNumber ?? piece.name} · ${piece.name}`,
+      subtitle: `Piece of ${tool.id} ${tool.name}`,
+      keywords: `${piece.pieceNumber ?? ''} ${piece.name} ${piece.size ?? ''} piece ${tool.id} ${tool.name} ${tool.setTypeTitle ?? ''}`,
       icon: 'equipment', target: { type: 'tool', toolId: tool.id },
     });
     for (const file of tool.evidence ?? []) dynamic.push({

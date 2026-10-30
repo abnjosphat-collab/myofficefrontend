@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { Button, Icon } from '@/components/ui-system';
 import { EmployeeForm, EmployeeNumberForm, EmployeeSectionForm, MarkReadyForm, MovementForm, ToolForm, TITLES, type RecordCheckInput } from './ToolsForms';
 import { BulkIssueForm } from './BulkIssueForm';
+import { SetTypeForm } from './SetTypeForm';
+import { IssueSetForm } from './IssueSetForm';
 import { RecordCheckDialog, RecordRepairDialog } from './ToolsResolve';
 import type { ConditionAction } from './toolConditions';
 import { ToolsDialog, EvidencePicker, type AddEvidence } from './ToolsUI';
@@ -39,7 +41,7 @@ function titleOf(w: ToolsWorkspace): string {
   if (!kind) return '';
   const names: Record<string, string> = {
     customize: 'Settings', new: 'Add a tool', employee: 'Add an employee', feedback: 'Feedback & suggestions', import: 'Import a register',
-    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit tool details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'edit-employee-number': 'Mine number', 'edit-employee-section': 'Trade section',
+    'source-register': 'Upload a source register', export: 'Download this view', edit: 'Edit tool details', attachments: 'Condition evidence', ready: 'Return to ready for use', 'bulk-issue': 'Issue tools', 'new-set': 'Add a set', 'issue-set': 'Issue a set', 'edit-employee-number': 'Mine number', 'edit-employee-section': 'Trade section',
   };
   if (kind === 'auth') return w.currentAccount ? 'Your profile' : 'Sign in or sign up';
   return names[kind] ?? TITLES[kind as keyof typeof TITLES] ?? '';
@@ -50,7 +52,7 @@ function descriptionOf(w: ToolsWorkspace): string {
     customize: 'Display and workspace preferences.', attachments: 'Keep photos and supporting documents with the item.',
     employee: 'Add a person to this workspace’s independent register.', feedback: 'Tell us what would make the product clearer, faster or more useful.',
     import: 'Preview and validate Excel, CSV or Word records before adding them.', 'source-register': 'Permanently preserve the original file before updating the live database.',
-    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.', 'edit-employee-number': 'Add the mine number that was unknown when this person was recorded.', 'edit-employee-section': 'Set the trade section that grants this person eligibility by section.',
+    ready: 'Record what was repaired or checked before releasing the tool.', export: 'A clean copy of the current section and filters.', 'bulk-issue': 'Pick the tools, check the conditions, one borrower for all.', 'new-set': 'Enter the set contents once, then make and issue numbered physical sets.', 'issue-set': 'Pick a set type and the people: one numbered set per person.', 'edit-employee-number': 'Add the mine number that was unknown when this person was recorded.', 'edit-employee-section': 'Set the trade section that grants this person eligibility by section.',
   };
   const kind = w.modal?.kind;
   if (kind === 'auth') return w.currentAccount ? 'Your identity and access for this workspace.' : 'Use your workspace account or create one to continue.';
@@ -94,11 +96,13 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
     if (modal.kind === 'edit-employee-number') return <EmployeeNumberForm employee={modal.employee} onSave={number => w.saveEmployeeNumber(modal.employee, number)} onCancel={close} />;
     if (modal.kind === 'edit-employee-section') return <EmployeeSectionForm employee={modal.employee} onSave={section => w.saveEmployeeSection(modal.employee, section)} onCancel={close} />;
     if (modal.kind === 'new' || modal.kind === 'edit') {
-      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} suggestTradeSections={w.suggestTradeSections} tools={w.scope} />;
+      return <ToolForm key={modal.kind === 'edit' ? modal.tool.id : 'new'} initialTool={modal.kind === 'edit' ? modal.tool : undefined} defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} addFiles={w.addFiles} onSave={w.saveTool} onCancel={close} suggestTradeSections={w.suggestTradeSections} />;
     }
     if (modal.kind === 'attachments') return <AttachmentForm key={modal.tool.id} tool={modal.tool} addFiles={w.addFiles} onSave={files => w.saveAttachments(modal.tool, files)} />;
     if (modal.kind === 'ready') return <MarkReadyForm tool={modal.tool} onSave={note => w.markToolReady(modal.tool, note)} onCancel={close} />;
     if (modal.kind === 'bulk-issue') return <BulkIssueForm tools={w.scope} employees={w.employees} issuerDepartment={w.currentAccount?.department ?? ''} locationSuggestions={w.locationSuggestions} onSave={input => w.saveBulkIssue(input)} onResolveAction={resolveAction} />;
+    if (modal.kind === 'new-set') return <SetTypeForm defaultDepartment={w.department === 'all' ? 'Engineering' : w.department} onSave={input => w.saveSetType(input)} onMakeInStore={(typeId, count, department) => w.makeSetsInStore(typeId, count, department)} onCancel={close} />;
+    if (modal.kind === 'issue-set') return <IssueSetForm setTypes={w.setTypes} employees={w.employees} tools={w.tools} setTypeLines={typeId => w.getSetTypeLines(typeId)} initialSetTypeId={'setTypeId' in modal ? modal.setTypeId : undefined} initialEmployee={'employee' in modal ? modal.employee : undefined} locationSuggestions={w.locationSuggestions} onIssue={(typeId, input) => w.issueSets(typeId, input)} onViewSet={backendId => { const tool = w.tools.find(item => item.backendId === backendId); if (tool) { w.setSelectedId(tool.id); w.setTab('register'); } close(); }} onCancel={close} />;
     if ('tool' in modal) {
       return (
         <MovementForm key={`${modal.kind}-${modal.tool?.id || 'select'}-${('employee' in modal ? modal.employee?.id : '') || ''}`} kind={modal.kind}
@@ -125,8 +129,8 @@ export function ToolsModals({ w }: { w: ToolsWorkspace }) {
   }
   return (
     <>
-      <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }} zoomId={modal?.kind === 'employee' ? 'tools:new-employee' : modal?.kind === 'bulk-issue' ? 'tools:new-bulk-issue' : modal?.kind === 'new' ? 'tools:new-equipment' : modal?.kind === 'feedback' ? 'tools:new-feedback' : undefined}
-        wide={['customize', 'feedback', 'import', 'export', 'bulk-issue'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>
+      <ToolsDialog open={!!modal} dismissible={!w.authenticationRequired || modal?.kind !== 'auth'} onClose={() => { if (!w.authenticationRequired) close(); }} zoomId={modal?.kind === 'employee' ? 'tools:new-employee' : modal?.kind === 'bulk-issue' ? 'tools:new-bulk-issue' : modal?.kind === 'new' ? 'tools:new-equipment' : modal?.kind === 'new-set' ? 'tools:new-set' : modal?.kind === 'issue-set' ? 'tools:issue-set' : modal?.kind === 'feedback' ? 'tools:new-feedback' : undefined}
+        wide={['customize', 'feedback', 'import', 'export', 'bulk-issue', 'new-set', 'issue-set'].includes(modal?.kind || '')} title={titleOf(w)} description={descriptionOf(w)}>
         {body}
       </ToolsDialog>
       <RecordCheckDialog tool={checkTool} onClose={() => setCheckToolId(null)} onSave={saveCheck} />

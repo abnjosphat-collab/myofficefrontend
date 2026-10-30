@@ -204,7 +204,7 @@ describe('Tools interaction controls', () => {
   });
   it('keeps the tool type compatible with its category', async () => {
     const user=userEvent.setup();
-    render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={()=>[]} onSave={()=>{}} onCancel={()=>{}}/>);
     const category=screen.getByRole('combobox',{name:'Category'});
     const equipmentType=screen.getByRole('combobox',{name:'Tool type'});
     expect(equipmentType).toHaveTextContent('Cordless drill / driver');
@@ -217,7 +217,7 @@ describe('Tools interaction controls', () => {
   it('lets simple items opt out of training and the pre-use check', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
     expect(screen.getByRole('checkbox', { name: /Training, qualification and authorization required/ })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Pre-use check/ })).toBeChecked();
     await user.click(screen.getByRole('checkbox', { name: /Training, qualification and authorization required/ }));
@@ -273,7 +273,7 @@ describe('Tools interaction controls', () => {
     let release!: () => void;
     const gate = new Promise<void>(resolve => { release = resolve; });
     const onSave = vi.fn(() => gate);
-    render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Torque wrench' } });
     fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Norbar' } });
     fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
@@ -288,7 +288,7 @@ describe('Tools interaction controls', () => {
     const user = userEvent.setup();
     const suggestTradeSections = vi.fn(async () => ['Electrical']);
     const onSave = vi.fn();
-    render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} suggestTradeSections={suggestTradeSections} />);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} suggestTradeSections={suggestTradeSections} />);
     fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Digital multimeter' } });
     await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Electrical' })).toBeChecked());
     expect(screen.getByRole('checkbox', { name: 'Mechanical' })).not.toBeChecked();
@@ -305,7 +305,7 @@ describe('Tools interaction controls', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ tradeSections: [] });
   });
   it('shows required cues on the enforced ToolForm fields', () => {
-    render(<ToolForm tools={[]} defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
     for (const name of [/Tool name/, /Make and model/, /Storage location/, /Designated storage place/, /Required storage conditions/, /Maintenance requirements/]) {
       expect(screen.getByLabelText(name)).toHaveAttribute('aria-required', 'true');
     }
@@ -408,7 +408,7 @@ describe('Tools form validation messages', () => {
     const onSave = vi.fn();
     const scrollSpy = vi.fn();
     Element.prototype.scrollIntoView = scrollSpy;
-    render(<ToolForm tools={[]} defaultDepartment="" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    render(<ToolForm defaultDepartment="" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Add tool' }));
     expect(onSave).not.toHaveBeenCalled();
     expect(scrollSpy).toHaveBeenCalled();
@@ -520,7 +520,7 @@ describe('Tools form validation messages', () => {
   });
   it('ToolForm refusal focuses the tool name', async () => {
     const user = userEvent.setup();
-    render(<ToolForm tools={[]} defaultDepartment="" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    render(<ToolForm defaultDepartment="" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
     await user.click(screen.getByRole('button', { name: 'Add tool' }));
     await waitFor(() => expect(screen.getByLabelText('Tool name')).toHaveFocus());
   });
