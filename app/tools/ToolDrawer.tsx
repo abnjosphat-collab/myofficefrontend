@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Button, Dialog, Fact, FactList, Field, FieldGroup, IconButton, Input, Notice, Segmented, StatusBadge, Textarea } from '@/components/ui-system';
 import { EligibleEmployeesList } from './ToolsEligibility';
 import { RecordCheckDialog } from './ToolsResolve';
+import { SetPiecesSection } from './SetPiecesSection';
 import { EvidenceGallery } from './ToolsUI';
 import { departmentOf } from './prototype';
 import { nobodyCanUse } from './toolConditions';
@@ -93,7 +94,7 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
       placement="right"
       zoomId={tool ? `tools:rec:${tool.id}` : undefined}
       title={tool?.name.trim() ?? 'Tool'}
-      description={tool ? `${tool.id} · ${tool.make || 'No make recorded'} · ${whereIs(tool)}` : undefined}
+      description={tool ? (tool.setTypeId ? `${tool.id} · Set · ${tool.setTypeTitle ?? 'set type'} · ${tool.holder ? `with ${tool.holder.split(' · ')[0]}` : 'in store'}` : `${tool.id} · ${tool.make || 'No make recorded'} · ${whereIs(tool)}`) : undefined}
       footer={tool && (
         <>
           <Button onClick={close}>Close</Button>
@@ -163,6 +164,8 @@ export function ToolDrawer({ w }: { w: ToolsWorkspace }) {
               <PreUseForm key={tool.id} w={w} toolId={tool.backendId} />
             </section>
           )}
+
+          {tool.setTypeId && <SetPiecesSection tool={tool} manage={manage} onEditPiece={(pieceId, patch) => w.editPiece(pieceId, patch)} />}
 
           <EligibleEmployeesList people={tool.eligibleEmployees} open={tool.competencyRequired === false} onOpenEmployees={manage ? () => { close(); w.setTab('employees'); } : undefined}
             onIssue={canIssueTo ? person => w.openAction('issue', tool, employees.find(item => item.backendId === person.id || (item.employeeNumber != null && item.employeeNumber === person.employeeNumber))) : undefined} />

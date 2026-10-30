@@ -115,7 +115,11 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const tool = candidates.find(t => `${t.id} · ${t.name}` === toolLabel);
   const setMembers = tool?.memberIds?.length ? tools.filter(t => tool.memberIds!.includes(t.id)) : [];
   const [memberConditions, setMemberConditions] = useState<Record<string, string>>({});
+  const [pieceConditions, setPieceConditions] = useState<Record<string, string>>({});
+  const [pieceStatus, setPieceStatus] = useState<Record<string, 'present' | 'missing' | 'damaged'>>({});
   const anyMemberDamaged = setMembers.some(m => (memberConditions[m.id] || 'Good') !== 'Good');
+  const setPieces = tool?.setTypeId ? tool.pieces ?? [] : [];
+  const anyPieceUnfit = setPieces.some(piece => (pieceConditions[piece.id] ?? piece.condition ?? 'Good') !== 'Good' || (pieceStatus[piece.id] ?? piece.status ?? 'present') !== 'present');
   const toolBlocked = tool !== undefined && !availableForAction(tool);
   // A greyed-out tool cannot be picked, but naming it in the search (exactly, or closely enough to match just one)
   // previews what blocks it and the resolving actions. The picker's committed value and its live search text both feed this.
@@ -138,7 +142,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   const dueChecks = ['issue', 'transfer'].includes(kind) ? (tool?.inspectionDue || []) : [];
   const needsOverride = dueChecks.length > 0;
   const needsCalibration = !!tool && ['digital-multimeter', 'clamp-meter', 'torque-wrench', 'test-instrument'].includes(tool.kind);
-  const notesRequired = kind === 'extend' || (kind === 'return' && (condition !== 'Good' || anyMemberDamaged));
+  const notesRequired = kind === 'extend' || (kind === 'return' && (condition !== 'Good' || anyMemberDamaged || anyPieceUnfit));
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const due = String(new FormData(event.currentTarget).get('due') || '');
@@ -169,7 +173,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
     if (job.trim()) storeValue('myoffice.tools.last-job', job.trim());
     setSaving(true);
     try {
-      await onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), memberConditions: kind === 'return' && setMembers.length ? Object.fromEntries(setMembers.map(m => [m.id, memberConditions[m.id] || 'Good'])) : undefined, evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, overrideDueChecks: needsOverride && overrideDue, overrideReason: needsOverride && overrideDue ? overrideReason.trim() : undefined });
+      await onSave({ kind, toolId: tool.id, person, location: location.trim(), due: displayDue, dueISO: due ? new Date(due).toISOString() : undefined, job: job.trim(), assignedEquipment, condition, notes: notes.trim(), memberConditions: kind === 'return' && setMembers.length ? Object.fromEntries(setMembers.map(m => [m.id, memberConditions[m.id] || 'Good'])) : undefined, pieceConditions: kind === 'return' && setPieces.length ? Object.fromEntries(setPieces.map(piece => [piece.id, pieceConditions[piece.id] || 'Good'])) : undefined, pieceStatus: kind === 'return' && setPieces.length ? Object.fromEntries(setPieces.map(piece => [piece.id, pieceStatus[piece.id] || 'present'])) : undefined, evidence, calibration: kind === 'return' && needsCalibration ? calibration : undefined, gatePass, approvalRef, movementScope, department, overrideDueChecks: needsOverride && overrideDue, overrideReason: needsOverride && overrideDue ? overrideReason.trim() : undefined });
     } finally {
       setSaving(false);
     }
@@ -267,7 +271,17 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
           <Textarea aria-label="Required notes" rows={2} placeholder="A brief, useful explanation…" value={notes} onChange={e => { setNotes(e.target.value); clearError('notes'); }} />
         </Field>
       )}
-      {kind === 'return' && (condition !== 'Good' || anyMemberDamaged || (needsCalibration && calibration !== 'Verified current')) && <Notice tone="warning" title="This tool will be held for attention." />}
+      {kind === 'return' && setPieces.length > 0 && (
+        <FieldGroup label="Condition of each piece">
+          {setPieces.map(piece => (
+            <Field key={piece.id} label={`${piece.pieceNumber ?? piece.id} · ${piece.name}`}>
+              <Segmented label={`Condition of ${piece.pieceNumber ?? piece.name}`} value={pieceConditions[piece.id] || 'Good'} onValueChange={value => setPieceConditions(current => ({ ...current, [piece.id]: value }))} options={['Good', 'Damaged', 'Missing parts'].map(c => ({ value: c, label: c }))} />
+              <Segmented label={`Status of ${piece.pieceNumber ?? piece.name}`} value={pieceStatus[piece.id] || 'present'} onValueChange={value => setPieceStatus(current => ({ ...current, [piece.id]: value as 'present' | 'missing' | 'damaged' }))} options={[{ value: 'present', label: 'Present' }, { value: 'missing', label: 'Missing' }, { value: 'damaged', label: 'Damaged' }]} />
+            </Field>
+          ))}
+        </FieldGroup>
+      )}
+      {kind === 'return' && (condition !== 'Good' || anyMemberDamaged || anyPieceUnfit || (needsCalibration && calibration !== 'Verified current')) && <Notice tone="warning" title="This tool will be held for attention." />}
       <details className="rounded-card border border-line-subtle px-4 py-3">
         <summary className="flex cursor-pointer items-center gap-2 font-sans text-body-sm font-medium text-ink"><Icon name="attachment" size="sm" />Notes &amp; attachments <span className="font-normal text-ink-muted">Optional</span></summary>
         <div className="mt-3 flex flex-col gap-4">
@@ -282,7 +296,7 @@ export function MovementForm({ kind, initialTool, initialEmployee, tools, employ
   );
 }
 
-export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel, suggestTradeSections, tools }: { initialTool?: Tool; defaultDepartment: string; tools: Tool[]; addFiles: AddEvidence; onSave: (tool: Tool) => void | Promise<void>; onCancel: () => void; suggestTradeSections?: (input: { name: string; equipmentKind: EquipmentKind; category: string }) => Promise<string[]> }) {
+export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onCancel, suggestTradeSections }: { initialTool?: Tool; defaultDepartment: string; addFiles: AddEvidence; onSave: (tool: Tool) => void | Promise<void>; onCancel: () => void; suggestTradeSections?: (input: { name: string; equipmentKind: EquipmentKind; category: string }) => Promise<string[]> }) {
   const hintFor = useHint();
   const [name, setName] = useState(initialTool?.name || '');
   const [make, setMake] = useState(initialTool?.make || '');
@@ -323,8 +337,6 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
   const [approvalRef, setApprovalRef] = useState(initialTool?.approvalRef || '');
   const [specificationText, setSpecificationText] = useState(Object.entries(initialTool?.specifications || {}).map(([key, value]) => `${key}: ${value}`).join('\n'));
   const [evidence, setEvidence] = useState<Evidence[]>(initialTool?.evidence || []);
-  const [memberIds, setMemberIds] = useState<string[]>(initialTool?.memberIds || []);
-  const [memberQuery, setMemberQuery] = useState('');
   const [fieldErrors, setFieldErrors] = useState<ToolProblems>({});
   const clearError = (key: keyof ToolProblems) => setFieldErrors(f => (f[key] === undefined ? f : { ...f, [key]: undefined }));
   const { formRef, refused } = useRefusedSubmit();
@@ -373,7 +385,7 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
         requiredPpe: requiredPpe.split(',').map(item => item.trim()).filter(Boolean), ownershipType, contractorName: ownershipType === 'contractor' ? contractorName.trim() : undefined,
         oemManualRef: oemManualRef.trim() || undefined, purchaseDate: purchaseDate || undefined, procurementCost: procurementCost ? Number(procurementCost) : undefined,
         insured: insured === 'unknown' ? undefined : insured === 'yes', lastVerified: lastVerified.trim() || undefined, workingStatus: workingStatus === 'unknown' ? undefined : workingStatus as Tool['workingStatus'],
-        status: initialTool?.status || 'available', condition, notes: notes.trim(), approvalRef: approvalRef.trim(), evidence, specifications, memberIds,
+        status: initialTool?.status || 'available', condition, notes: notes.trim(), approvalRef: approvalRef.trim(), evidence, specifications,
       });
     } finally {
       setSaving(false);
@@ -400,21 +412,6 @@ export function ToolForm({ initialTool, defaultDepartment, addFiles, onSave, onC
         <Field label="Trade sections" description={hintFor('Which trades gain eligibility by section. Suggested from the name; change it freely.')}><div className="flex flex-wrap gap-x-6 gap-y-2">{TRADE_SECTIONS.map(trade => <Checkbox key={trade} label={trade} checked={tradeSections.includes(trade)} onChange={event => { setTradeTouched(true); setTradeSections(current => event.target.checked ? [...current, trade] : current.filter(item => item !== trade)); } } />)}</div></Field>
       </Row>
 
-      <Section title="Tool set" note="A set issues, transfers and returns as one loan; every piece follows the set">
-        {initialTool?.holder ? (
-          <p className="font-sans text-body-sm text-ink-muted">On loan — receive this set back before changing its members.</p>
-        ) : (
-          <Field label="Set members" optional description={hintFor('Tick the tools that belong in this set. Only available tools in this department that are not already in a set can join.')}>
-            <Input aria-label="Filter tools" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} placeholder="Filter by tool name or ID…" />
-            <div className="mt-2 flex max-h-56 flex-col gap-1 overflow-y-auto">
-              {tools.filter(t => !t.archived && !t.holder && t.id !== initialTool?.id && departmentOf(t) === (department.trim() || defaultDepartment) && t.status === 'available' && !needsAttention(t) && !t.memberIds?.length && !t.setHeadId && (!memberQuery.trim() || `${t.id} ${t.name}`.toLowerCase().includes(memberQuery.trim().toLowerCase()))).map(t => (
-                <Checkbox key={t.backendId || t.id} label={`${t.id} · ${t.name}`} checked={memberIds.includes(t.id)} onChange={event => setMemberIds(current => event.target.checked ? [...current, t.id] : current.filter(item => item !== t.id))} />
-              ))}
-            </div>
-            {memberIds.length > 0 && <p className="mt-2 font-sans text-caption text-ink-muted">{memberIds.length} {memberIds.length === 1 ? 'piece' : 'pieces'} in this set — members move only with the set.</p>}
-          </Field>
-        )}
-      </Section>
 
       <Section title="Ownership, storage and safeguarding" note="SOP controls">
         <Row>

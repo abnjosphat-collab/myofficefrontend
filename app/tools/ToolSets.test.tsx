@@ -45,23 +45,32 @@ describe('Tool sets', () => {
     expect(onSave).toHaveBeenCalledOnce();
     expect(onSave.mock.calls[0][0]).toMatchObject({ memberConditions: { 'ENG-RH-03': 'Damaged' } });
   });
-  it('locks membership while the set is on loan', () => {
-    const out = { ...SEED_TOOLS[0], holder: PEOPLE[0], memberIds: ['ENG-RH-03'] };
-    render(<ToolForm initialTool={out} tools={SEED_TOOLS} defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.getByText('On loan — receive this set back before changing its members.')).toBeVisible();
+  it('no longer links register tools into a set from the tool form', () => {
+    render(<ToolForm defaultDepartment="Engineering" addFiles={() => []} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText('Tool set')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Filter tools')).not.toBeInTheDocument();
   });
-  it('saves picked set members with the tool', async () => {
+  it('asks the condition and status of each piece when a type-set returns', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<ToolForm tools={SEED_TOOLS} defaultDepartment="Engineering" addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
-    fireEvent.change(screen.getByLabelText('Tool name'), { target: { value: 'Gedore set' } });
-    fireEvent.change(screen.getByLabelText('Tool ID'), { target: { value: 'SET-1' } });
-    fireEvent.change(screen.getByLabelText('Make and model'), { target: { value: 'Gedore' } });
-    fireEvent.change(screen.getByLabelText('Storage location'), { target: { value: 'Main workshop' } });
-    fireEvent.change(screen.getByPlaceholderText('Locked tool room / rack / crib'), { target: { value: 'Tool crib rack A' } });
-    await user.click(screen.getByRole('checkbox', { name: /Rotary hammer/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add tool' }));
+    const set = {
+      ...SEED_TOOLS[0], id: 'SET-03', status: 'issued' as const, holder: PEOPLE[0],
+      setTypeId: 'type-1', setTypeTitle: 'Gedore socket set',
+      pieces: [
+        { id: 'p1', lineNo: 1, pieceNumber: 'SET-03/001', name: 'Spanner 13mm', condition: 'Good', status: 'present' as const },
+        { id: 'p2', lineNo: 2, pieceNumber: 'SET-03/002', name: 'Spanner 14mm', condition: 'Good', status: 'present' as const },
+      ],
+    };
+    render(<MovementForm kind="return" initialTool={set} tools={[set]} employees={placeholderPeople} addFiles={() => []} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByText('Condition of each piece')).toBeInTheDocument();
+    await user.click(within(screen.getByRole('group', { name: 'Status of SET-03/002' })).getByRole('button', { name: 'Missing' }));
+    await fillSuggestField(user, 'Return location', LOCATIONS[0]);
+    fireEvent.change(screen.getByLabelText('Required notes'), { target: { value: 'Left at the shaft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Record a return' }));
     expect(onSave).toHaveBeenCalledOnce();
-    expect(onSave.mock.calls[0][0]).toMatchObject({ memberIds: ['ENG-RH-03'] });
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      pieceConditions: { p1: 'Good', p2: 'Good' },
+      pieceStatus: { p1: 'present', p2: 'missing' },
+    });
   });
 });

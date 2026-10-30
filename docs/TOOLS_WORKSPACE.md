@@ -14,6 +14,7 @@ The standalone `/tools` workspace is the current interface for the mine-wide por
 - Tool records retain flexible technical specifications as labelled values because relevant specifications differ by tool type.
 - The first tool detail view shows the complete saved specification record; editing remains a separate, explicit action.
 - Tools held for attention have a named “Mark ready for use” workflow that requires the repair or inspection outcome.
+- Sets are entered once as a set type (title plus content lines), then physical sets are made and issued with numbered pieces (SET-03/017), each with its own condition and status. Issue a set gives one numbered set per person and reports partial success per person. A missing or damaged piece puts its set in Needs attention until an issuer clears it. The old register-tool linking is retired.
 - Original PDF, spreadsheet, Word, OpenDocument and image registers are preserved in private permanent storage before staff update the live register.
 - Employee records retain a unique employee ID or number and an optional supervisor name. Cards use the shared person outline instead of generated initials.
 - Notification acknowledgement is per account. Viewing an alert must not clear it for another account.

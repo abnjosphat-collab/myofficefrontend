@@ -54,7 +54,7 @@ export function RegisterView({ tools, view, onSelect, onAction, onArchiveMany, c
         rowSelectLabel={tool => `Select ${tool.name}`}
         rowSelectBlocked={tool => tool.holder ? 'Receive this tool before archiving it.' : tool.archived ? 'Already archived.' : undefined}
         columns={[
-          { id: 'tool', header: 'Tool', sticky: true, cell: tool => <button type="button" aria-label={`View ${tool.name}`} onClick={() => onSelect(tool.id)} className="focus-ring text-left"><strong className="block font-medium text-ink">{tool.name}</strong><small className="text-ink-muted">{tool.id} · {departmentOf(tool)}</small></button> },
+          { id: 'tool', header: 'Tool', sticky: true, cell: tool => <button type="button" aria-label={`View ${tool.name}`} onClick={() => onSelect(tool.id)} className="focus-ring text-left"><strong className="block font-medium text-ink">{tool.name}</strong><small className="text-ink-muted">{tool.id} · {departmentOf(tool)}</small>{tool.setTypeId && <small className="block text-ink-muted">Set · {tool.setTypeTitle ?? 'set'} · {tool.pieces?.length ?? 0} pieces</small>}</button> },
           { id: 'status', header: 'Status', width: '10rem', cell: tool => <StatusBadge tone={tool.archived ? 'neutral' : statusTone(tool.status)}>{tool.archived ? 'Archived' : statusLabel(tool.status)}</StatusBadge> },
           { id: 'where', header: 'Custody / location', hideBelow: 'md', cell: tool => <>{tool.holder?.split(' · ')[0] || 'Tool room'}<small className="block text-ink-muted">{tool.location}</small></> },
           { id: 'due', header: 'Expected return', hideBelow: 'md', cell: tool => <span className={tool.status === 'overdue' ? 'font-medium text-danger' : undefined}>{tool.due || '—'}</span> },

@@ -66,6 +66,8 @@ export function ToolsSectionBar({ w }: { w: ToolsWorkspace }) {
             {tab === 'employees' && <ZoomLink zoomId="tools:new-employee" className="inline-block"><Button variant="primary" icon="plus" onClick={() => w.openManageModal({ kind: 'employee' })}>Add employee</Button></ZoomLink>}
             {tab === 'register' && <ZoomLink zoomId="tools:new-bulk-issue" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'bulk-issue' })} disabled={!counts.available}>Issue tools</Button></ZoomLink>}
             {tools_ && <ZoomLink zoomId="tools:new-equipment" className="inline-block"><Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new' })}>Add a tool</Button></ZoomLink>}
+            {tools_ && <ZoomLink zoomId="tools:new-set" className="inline-block"><Button variant="secondary" icon="plus" onClick={() => w.openManageModal({ kind: 'new-set' })}>Add a set</Button></ZoomLink>}
+            {tools_ && <ZoomLink zoomId="tools:issue-set" className="inline-block"><Button variant="primary" onClick={() => w.openManageModal({ kind: 'issue-set' })} disabled={!counts.available}>Issue a set</Button></ZoomLink>}
           </>
         )}
       >

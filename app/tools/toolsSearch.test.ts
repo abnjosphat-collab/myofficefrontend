@@ -14,6 +14,12 @@ describe('Tools workspace search', () => {
     expect(searchWorkspace(index, 'personnel').some(result => result.title === 'Employee register')).toBe(true);
   });
 
+  it('hits a set on a piece number', () => {
+    const set = { ...TEST_TOOLS[0], id: 'SET-03', name: 'Gedore socket set', setTypeId: 'type-1', setTypeTitle: 'Gedore socket set', pieces: [{ id: 'p1', lineNo: 17, pieceNumber: 'SET-03/017', name: 'Spanner 14mm', condition: 'Good', status: 'present' as const }] };
+    const index = buildWorkspaceSearchIndex([set], [], []);
+    expect(searchWorkspace(index, 'SET-03/017').some(result => result.title.includes('SET-03/017'))).toBe(true);
+  });
+
   it('ranks a tool record for a close spelling', () => {
     const expected = TEST_TOOLS[0].name;
     const typo = expected.toLowerCase().replace(/[aeiou]/, '');
