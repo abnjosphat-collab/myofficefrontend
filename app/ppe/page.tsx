@@ -29,6 +29,7 @@ import { addableInWindow, addableSoon, buildBasket, coveredRecordIds, excludedRe
 import { NO_TYPE_FILTER, loadTypeFilter, matchesTypeFilter, saveTypeFilter, typeOptions, type TypeFilter } from './ppeTypes';
 import { typeName } from './ppeMeta';
 import { SummaryView } from './SummaryView';
+import { BudgetView } from './budget/BudgetView';
 import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
@@ -48,7 +49,7 @@ function PPEContent() {
   const order = useOrderList();
   const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
-  const { scope } = useAuth();
+  const { scope, isAtLeast } = useAuth();
   const [form, setForm] = useState<{ record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; fulfils: string | null } | null>(null);
   const [holderId, setHolderId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
@@ -280,6 +281,7 @@ function PPEContent() {
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
+          <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>
         </TabsList>
 
         <TabsContent value="employees" className="mt-4 flex flex-col gap-4">
@@ -330,6 +332,13 @@ function PPEContent() {
           </DataRegion>
         </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
+        <TabsContent value="budget" className="mt-4">
+          {recs.loaded && roster.loaded ? (
+            <BudgetView people={roster.items} records={recs.items} matrix={matrix.matrix} canManage={isAtLeast('manager')} />
+          ) : (recs.error || roster.error
+            ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p>
+            : <LoadingPulse compact label="Loading budget inputs" />)}
+        </TabsContent>
       </Tabs>
 
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
