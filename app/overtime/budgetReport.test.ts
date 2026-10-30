@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ADHOC_FROM, ADHOC_TO, BUDGET_OCT_PERIOD, BUDGET_SEP_PERIOD, NEC_SHIFT_CAP,
-  adhocTotals, budgetTotals, buildSplitBudgetRows, periodActuals, sheetForDepartment, toBudgetEmployees,
+  ADHOC_FROM, ADHOC_TO,
+  adhocTotals, budgetTotals, buildSplitBudgetRows, sheetForDepartment, toBudgetEmployees,
   type BudgetEmployee,
 } from './budgetReport';
-import { getDays, fmtDate } from '../timesheets/timesheetMeta';
-import type { TimesheetEntry } from '../timesheets/types';
 import type { OTRecord } from './types';
 
 const emp = (over: Partial<BudgetEmployee> = {}): BudgetEmployee => {
@@ -17,7 +15,9 @@ const emp = (over: Partial<BudgetEmployee> = {}): BudgetEmployee => {
   return { ...base, sheet: sheetForDepartment(base.department) };
 };
 
-const full = (actual: number, shift: number, workingDays = 22) => ({ actual, filled: workingDays, workingDays, shift });
+const buckets = (shift20Total: number, adhoc15Total: number) => ({
+  shift20: { total: shift20Total, count: 1 }, adhoc15: { total: adhoc15Total, count: 1 },
+});
 
 function otRec(over: Partial<Omit<OTRecord, 'overtime_type'>> & { overtime_type?: string } = {}): OTRecord {
   return {
@@ -27,70 +27,38 @@ function otRec(over: Partial<Omit<OTRecord, 'overtime_type'>> & { overtime_type?
   } as OTRecord;
 }
 
-/** One 'work' entry per weekday of the period, totalling `target` normal hours. */
-function weekdayEntries(dbId: number, period: { start: Date; end: Date }, target: number): TimesheetEntry[] {
-  const days = getDays(period).filter(d => d.getDay() !== 0 && d.getDay() !== 6);
-  const per = target / days.length;
-  return days.map(d => ({ employee_id: dbId, date: fmtDate(d), status: 'work', regular_hours: per }));
-}
-
-describe('budget pay periods', () => {
-  it('uses the two NEC pay periods ending 12 Sep and 12 Oct 2026', () => {
-    expect(fmtDate(BUDGET_SEP_PERIOD.start)).toBe('2026-08-13');
-    expect(fmtDate(BUDGET_SEP_PERIOD.end)).toBe('2026-09-12');
-    expect(fmtDate(BUDGET_OCT_PERIOD.start)).toBe('2026-09-13');
-    expect(fmtDate(BUDGET_OCT_PERIOD.end)).toBe('2026-10-12');
-    expect(NEC_SHIFT_CAP).toBe(208);
-  });
-
+describe('budget windows', () => {
   it('covers July to September 2026 for overtime-module hours', () => {
     expect(ADHOC_FROM).toBe('2026-07-01');
     expect(ADHOC_TO).toBe('2026-09-30');
   });
 });
 
-describe('periodActuals (OT @ 1.5 Shift, from NEC timesheets only)', () => {
-  const employees = [emp()];
-
-  it('applies the 208 cap separately per period: 230h and 240h average to 27h', () => {
-    const sep = periodActuals(employees, weekdayEntries(7, BUDGET_SEP_PERIOD, 230), [], [], [], BUDGET_SEP_PERIOD);
-    const oct = periodActuals(employees, weekdayEntries(7, BUDGET_OCT_PERIOD, 240), [], [], [], BUDGET_OCT_PERIOD);
-    const rows = buildSplitBudgetRows(employees, sep, oct, new Map());
-    expect(rows[0].ot15Shift).toBeCloseTo(27, 1);
+describe('book-sourced OT @ 1.5 Shift', () => {
+  it('takes the whole-number book average straight onto the row', () => {
+    const rows = buildSplitBudgetRows([emp()], new Map([['C1001', 20]]), new Map());
+    expect(rows[0].ot15Shift).toBe(20);
+    expect(rows[0].status).toBe('OK');
+    expect(rows[0].comment).toBe('');
   });
 
-  it('yields zero shift overtime at or below the cap', () => {
-    const sep = periodActuals(employees, weekdayEntries(7, BUDGET_SEP_PERIOD, 208), [], [], [], BUDGET_SEP_PERIOD);
-    const oct = periodActuals(employees, weekdayEntries(7, BUDGET_OCT_PERIOD, 150), [], [], [], BUDGET_OCT_PERIOD);
-    const rows = buildSplitBudgetRows(employees, sep, oct, new Map());
-    expect(rows[0].ot15Shift).toBe(0);
+  it('leaves the shift cell blank when the employee has no book data', () => {
+    const rows = buildSplitBudgetRows([emp()], new Map(), new Map());
+    expect(rows[0].ot15Shift).toBeNull();
+    expect(rows[0].status).toBe('Missing');
+    expect(rows[0].comment).toBe('');
   });
 
-  it('never counts overtime-module hours as shift overtime', () => {
-    const moduleOt = [{ id: 9, employee_id: 'C1001', overtime_type: 'night', date: '2026-08-20', start_time: '18:00', end_time: '22:00', status: 'approved' }];
-    const sep = periodActuals(employees, weekdayEntries(7, BUDGET_SEP_PERIOD, 230), [], moduleOt, [], BUDGET_SEP_PERIOD);
-    expect(sep.get('7')?.actual).toBeCloseTo(230, 1);
-  });
-
-  it('withholds the average when a pay period is missing or incomplete', () => {
-    const missing = buildSplitBudgetRows(employees, periodActuals(employees, [], [], [], [], BUDGET_SEP_PERIOD), periodActuals(employees, weekdayEntries(7, BUDGET_OCT_PERIOD, 240), [], [], [], BUDGET_OCT_PERIOD), new Map());
-    expect(missing[0].ot15Shift).toBeNull();
-    expect(missing[0].status).toBe('Missing');
-    const few = weekdayEntries(7, BUDGET_SEP_PERIOD, 230).slice(0, 5);
-    const partial = buildSplitBudgetRows(employees, periodActuals(employees, few, [], [], [], BUDGET_SEP_PERIOD), periodActuals(employees, weekdayEntries(7, BUDGET_OCT_PERIOD, 240), [], [], [], BUDGET_OCT_PERIOD), new Map());
-    expect(partial[0].ot15Shift).toBeNull();
-    expect(partial[0].status).toBe('Incomplete');
-  });
-
-  it('computes shift overtime only for NEC employees', () => {
-    const employees = [emp(), emp({ dbId: '8', employeeId: 'C1002', firstName: 'B', surname: 'Dube', employmentType: 'SALARIED' })];
-    const sep = new Map([['7', full(230, 22)], ['8', full(230, 22)]]);
-    const oct = new Map([['7', full(240, 32)], ['8', full(240, 32)]]);
-    const rows = buildSplitBudgetRows(employees, sep, oct, new Map());
-    expect(rows.find(r => r.employeeId === 'C1001')?.ot15Shift).toBeCloseTo(27, 5);
-    const salaried = rows.find(r => r.employeeId === 'C1002');
-    expect(salaried?.ot15Shift).toBeNull();
-    expect(salaried?.status).toBe('Non-NEC');
+  it('keeps OT @ 1.5 Shift NEC-only even when the books hold other rows', () => {
+    const employees = [
+      emp(),
+      emp({ dbId: '8', employeeId: 'C1002', firstName: 'B', surname: 'Dube', employmentType: 'SALARIED' }),
+      emp({ dbId: '9', employeeId: 'C1003', firstName: 'C', surname: 'Foo', employmentType: '' }),
+    ];
+    const rows = buildSplitBudgetRows(employees, new Map([['C1001', 20], ['C1002', 8], ['C1003', 8]]), new Map());
+    expect(rows.find(r => r.employeeId === 'C1001')).toMatchObject({ ot15Shift: 20, status: 'OK' });
+    expect(rows.find(r => r.employeeId === 'C1002')).toMatchObject({ ot15Shift: null, status: 'Non-NEC' });
+    expect(rows.find(r => r.employeeId === 'C1003')).toMatchObject({ ot15Shift: null, status: 'Unclassified' });
   });
 });
 
@@ -103,12 +71,12 @@ describe('adhoc split (overtime module: 2.0 Shift vs 1.5 Adhoc)', () => {
       otRec({ id: 2, overtime_type: 'holiday', date: '2026-08-11', reason: 'Worked public holiday' }),
     ];
     const { byKey } = adhocTotals(records, employees);
-    const rows = buildSplitBudgetRows(employees, new Map(), new Map(), byKey);
-    expect(rows[0].ot20Shift).toBeCloseTo(2, 5);
+    const rows = buildSplitBudgetRows(employees, new Map(), byKey);
+    expect(rows[0].ot20Shift).toBe(2);
     expect(rows[0].ot15Adhoc).toBe(0);
   });
 
-  it('puts all other module hours in OT @ 1.5 Adhoc', () => {
+  it('puts all other module hours in OT @ 1.5 Adhoc, rounded whole', () => {
     const records = [
       otRec({ id: 1, overtime_type: 'regular', date: '2026-07-05', reason: 'Maintenance overtime' }),
       otRec({ id: 2, overtime_type: 'emergency', date: '2026-08-10' }),
@@ -116,17 +84,17 @@ describe('adhoc split (overtime module: 2.0 Shift vs 1.5 Adhoc)', () => {
       otRec({ id: 4, overtime_type: 'night', date: '2026-09-20', reason: 'Daily checks' }),
       otRec({ id: 5, overtime_type: 'mystery', date: '2026-09-25', hours: 4 }),
     ];
+    // 3+3+3+3+4 = 16h over 3 months = 5.33 → 5.
     const { byKey } = adhocTotals(records, employees);
-    const rows = buildSplitBudgetRows(employees, new Map(), new Map(), byKey);
-    // 3+3+3+3+4 = 16h of 1.5 Adhoc over 3 months.
-    expect(rows[0].ot15Adhoc).toBe(5.33);
+    const rows = buildSplitBudgetRows(employees, new Map(), byKey);
+    expect(rows[0].ot15Adhoc).toBe(5);
     expect(rows[0].ot20Shift).toBe(0);
   });
 
-  it('averages each bucket over the 3-month window', () => {
-    const records = [otRec({ id: 1, overtime_type: 'holiday', date: '2026-08-11', hours: 9 })];
+  it('rounds halves up: 19.67 becomes 20', () => {
+    const records = [otRec({ id: 1, date: '2026-08-10', hours: 59 })];
     const { byKey } = adhocTotals(records, employees);
-    expect(buildSplitBudgetRows(employees, new Map(), new Map(), byKey)[0].ot20Shift).toBe(3);
+    expect(buildSplitBudgetRows(employees, new Map(), byKey)[0].ot15Adhoc).toBe(20);
   });
 
   it('excludes rejected and cancelled records, ignores out-of-window dates, dedupes by id', () => {
@@ -152,7 +120,7 @@ describe('adhoc split (overtime module: 2.0 Shift vs 1.5 Adhoc)', () => {
   });
 
   it('reports reliable zeros for employees with no overtime', () => {
-    const rows = buildSplitBudgetRows(employees, new Map(), new Map(), adhocTotals([], employees).byKey);
+    const rows = buildSplitBudgetRows(employees, new Map(), adhocTotals([], employees).byKey);
     expect(rows[0].ot15Adhoc).toBe(0);
     expect(rows[0].ot20Shift).toBe(0);
   });
@@ -171,26 +139,37 @@ describe('department sheets', () => {
     expect(sheetForDepartment('')).toBe('OTHER');
   });
 
-  it('places one row per employee on their department sheet, sorted by name', () => {
+  it('places one row per employee on their department sheet', () => {
     const employees = [
       emp(),
       emp({ dbId: '8', employeeId: 'C1002', firstName: 'B', surname: 'Dube', occupation: 'Lasher', costCentre: 'MINE PRODUCTION', department: 'Mining' }),
       emp({ dbId: '9', employeeId: 'C1003', firstName: 'C', surname: 'Foo', department: 'Mining' }),
     ];
-    const rows = buildSplitBudgetRows(employees, new Map(), new Map(), new Map());
+    const rows = buildSplitBudgetRows(employees, new Map(), new Map());
     expect(rows.map(r => r.sheet)).toEqual(['ENGINEERING', 'MINING', 'MINING']);
-    expect(rows.filter(r => r.sheet === 'MINING').map(r => r.employeeId)).toEqual(['C1002', 'C1003']);
   });
 
-  it('totals are the sums of the rows’ averages', () => {
+  it('orders rows like the template: CostCentre group, then employee number', () => {
+    // Mirrors the ENGINEERING sheet: ELECTRICAL C0226…C2216, then MECHANICAL
+    // C0106…, PP codes last — so pasted columns line up with the online sheet.
+    const employees = [
+      emp({ dbId: '8', employeeId: 'C2216', firstName: 'T', surname: 'Chiwara', costCentre: 'ELECTRICAL' }),
+      emp({ dbId: '9', employeeId: 'C0226', firstName: 'V', surname: 'Zhou', costCentre: 'ELECTRICAL' }),
+      emp({ dbId: '10', employeeId: 'PP058', firstName: 'A', surname: 'Chidakwa', costCentre: 'MECHANICAL' }),
+      emp({ dbId: '11', employeeId: 'C0106', firstName: 'W', surname: 'Chipangura', costCentre: 'MECHANICAL' }),
+    ];
+    const rows = buildSplitBudgetRows(employees, new Map(), new Map());
+    expect(rows.map(r => r.employeeId)).toEqual(['C0226', 'C2216', 'C0106', 'PP058']);
+  });
+
+  it('totals are the sums of the rows’ rounded averages', () => {
     const employees = [emp(), emp({ dbId: '8', employeeId: 'C1002', firstName: 'B', surname: 'Dube', employmentType: 'SALARIED' })];
-    const sep = new Map([['7', full(230, 22)], ['8', full(300, 92)]]);
-    const oct = new Map([['7', full(240, 32)], ['8', full(300, 92)]]);
-    const rows = buildSplitBudgetRows(employees, sep, oct, new Map([
-      ['C1001', { shift20: { total: 9, count: 3 }, adhoc15: { total: 30, count: 10 } }],
-      ['C1002', { shift20: { total: 0, count: 0 }, adhoc15: { total: 12, count: 4 } }],
-    ]));
-    expect(budgetTotals(rows)).toEqual({ employees: 2, total15Shift: 27, total15Adhoc: 14, total20Shift: 3 });
+    const rows = buildSplitBudgetRows(
+      employees,
+      new Map([['C1001', 27]]),
+      new Map([['C1001', buckets(9, 30)], ['C1002', buckets(6, 12)]]),
+    );
+    expect(budgetTotals(rows)).toEqual({ employees: 2, total15Shift: 27, total15Adhoc: 14, total20Shift: 5 });
   });
 });
 

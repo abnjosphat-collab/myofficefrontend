@@ -13,8 +13,6 @@ const emp = (over: Partial<BudgetEmployee> = {}): BudgetEmployee => {
   return { ...base, sheet: sheetForDepartment(base.department) };
 };
 
-const full = (shift: number) => ({ actual: 208 + shift, filled: 22, workingDays: 22, shift });
-
 function sampleRows() {
   const employees = [
     emp(),
@@ -22,8 +20,7 @@ function sampleRows() {
   ];
   return buildSplitBudgetRows(
     employees,
-    new Map([['7', full(22)], ['8', full(40)]]),
-    new Map([['7', full(32)], ['8', full(40)]]),
+    new Map([['C1001', 27]]),
     new Map([
       ['C1001', { shift20: { total: 9, count: 3 }, adhoc15: { total: 30, count: 10 } }],
       ['C1002', { shift20: { total: 6, count: 2 }, adhoc15: { total: 12, count: 4 } }],
@@ -42,7 +39,7 @@ describe('split-budget workbook format', () => {
     expect(budgetTotals(rows)).toEqual({ employees: 2, total15Shift: 27, total15Adhoc: 14, total20Shift: 5 });
   });
 
-  it('puts each employee on their department sheet with the sourced averages', async () => {
+  it('puts each employee on their department sheet with whole-number averages and no comments', async () => {
     const wb = await buildSplitBudgetWorkbook(sampleRows());
     expect(wb.worksheets.map(w => w.name)).toEqual(['ENGINEERING', 'MINING', 'MTS', 'PROJECTS', 'SHARED SERVICES']);
     const eng = wb.getWorksheet('ENGINEERING')!;
@@ -54,17 +51,18 @@ describe('split-budget workbook format', () => {
     const engRow = eng.getRow(2);
     expect([1, 2, 3, 4, 5, 6].map(c => engRow.getCell(c).value)).toEqual(['C1001', 'A', 'Moyo', 'Fitter', 'MECHANICAL', 'ENGINEERING']);
     expect([7, 8, 9].map(c => engRow.getCell(c).value)).toEqual([27, 10, 3]);
+    expect(engRow.getCell(7).numFmt).toBe('0');
     expect(engRow.getCell(10).value).toBeNull();
     expect(engRow.getCell(11).value).toBe('');
     const min = wb.getWorksheet('MINING')!;
-    // Salaried: blank 1.5 Shift with an explanatory comment, 4 Adhoc and 2 at 2.0.
+    // Salaried, no book data: blank 1.5 Shift, also no comment, 4 Adhoc and 2 at 2.0.
     const minRow = min.getRow(2);
     expect([1, 2, 3, 4, 5, 6].map(c => minRow.getCell(c).value)).toEqual(['C1002', 'B', 'Dube', 'Lasher', 'MINE PRODUCTION', 'MINING']);
     expect(minRow.getCell(7).value).toBeNull();
     expect([8, 9].map(c => minRow.getCell(c).value)).toEqual([4, 2]);
+    expect(minRow.getCell(9).numFmt).toBe('0');
     expect(minRow.getCell(10).value).toBeNull();
-    expect(minRow.getCell(11).value).toBe('Salaried — no NEC shift forecast.');
-    expect(min.getRow(2).getCell(9).numFmt).toBe('0.00');
+    expect(minRow.getCell(11).value).toBe('');
   });
 
   it('leaves the OT @ 2.0 Adhoc column blank with no totals row, like the template', async () => {

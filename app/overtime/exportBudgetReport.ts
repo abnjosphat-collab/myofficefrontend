@@ -61,9 +61,9 @@ export async function buildSplitBudgetWorkbook(rows: BudgetRow[], sheets: Budget
       });
       row.getCell(1).numFmt = '@';
       if (r.ot15Shift == null) row.getCell(7).value = null;
-      else row.getCell(7).numFmt = '0.00';
-      row.getCell(8).numFmt = '0.00';
-      row.getCell(9).numFmt = '0.00';
+      else row.getCell(7).numFmt = '0';
+      row.getCell(8).numFmt = '0';
+      row.getCell(9).numFmt = '0';
     });
 
     ws.views = [{ state: 'frozen', ySplit: 1 }];

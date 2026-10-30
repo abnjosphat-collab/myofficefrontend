@@ -1,41 +1,28 @@
 // app/overtime/budgetReport.ts — Overtime Split Budget report: forecast average
 // monthly overtime hours per employee, in the shape of the FY2027 split-budget
-// workbook (one sheet per department, four OT columns).
+// workbook (one sheet per department, four OT columns). All figures are whole
+// numbers (halves round up) and the Comment column is always left blank.
 //
-// - OT @ 1.5 Shift: from the NEC Timesheets module only. For each NEC pay period
-//   (ending 12 Sep 2026 and 12 Oct 2026): Shift OT = max(Actual − 208, 0),
-//   averaged. "Actual" is calcEmployeeTotals().actual — the single source of
-//   truth for NEC totals (frontend/app/timesheets/calcTotals.ts).
+// - OT @ 1.5 Shift: from the uploaded monthly NEC timesheet book ("NEC June /
+//   July / August 2026" sheets): monthly shift overtime is TOTAL HRS minus T/M
+//   Hours, baked as a value; the report averages the months each employee is
+//   actually present in (one month of data means that month stands).
 // - OT @ 2.0 Shift: from the Overtime module only — weekend and public-holiday
-//   overtime (working a holiday or a day that should have been off), Jul–Sep
-//   2026 total ÷ 3.
+//   overtime (holiday/off-day working), Jul–Sep 2026 total ÷ 3.
 // - OT @ 1.5 Adhoc: every other Overtime-module hour (regular, emergency,
 //   project, night and any other type), Jul–Sep 2026 total ÷ 3.
 // - OT @ 2.0 Adhoc: no source maps to it (holiday/off-day hours all sit in
 //   2.0 Shift), so the column stays blank — kept for template fidelity.
-// The three sourced columns never mix: timesheet hours never feed an Adhoc or
-// 2.0 column, and module hours never feed the 1.5 Shift column.
+// The three sourced columns never mix: book hours never feed an Adhoc or 2.0
+// column, and module hours never feed the 1.5 Shift column.
 //
 // Matching is by employee number (employee_id), normalised with
 // normalizeTimesheetEmployeeCode — never by name alone.
-import { calcEmployeeTotals, NEC_REG_CAP } from '../timesheets/calcTotals';
-import { countPeriodCompletion } from '../timesheets/completion';
 import { normalizeTimesheetEmployeeCode } from '../timesheets/employeeCode';
-import { LEAVE_TYPE_TO_STATUS, fmtDate as fmtTsDate, fmtPeriod, getDays, getNECPeriod, statusMeta } from '../timesheets/timesheetMeta';
-import { OT_TYPE_TO_BUCKET, mergeEffectiveTimesheets } from '../timesheets/mergeEffectiveTimesheets';
+import { OT_TYPE_TO_BUCKET } from '../timesheets/mergeEffectiveTimesheets';
 import { calcHours } from './calcOvertime';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { OTRecord } from './types';
-import type { ApprovedLeaveRecord, ApprovedOvertimeRecord, Period, TimesheetEntry } from '../timesheets/types';
-import type { ShiftAssignment } from '../shifts/types';
-
-/** The NEC normal-hours cap each pay period is measured against. */
-export const NEC_SHIFT_CAP = NEC_REG_CAP;
-
-/** NEC pay period ending 12 September 2026 → 13 Aug 2026 – 12 Sep 2026. */
-export const BUDGET_SEP_PERIOD: Period = getNECPeriod(new Date(2026, 8, 1));
-/** NEC pay period ending 12 October 2026 → 13 Sep 2026 – 12 Oct 2026. */
-export const BUDGET_OCT_PERIOD: Period = getNECPeriod(new Date(2026, 9, 1));
 
 /** Overtime-module reporting window (inclusive ISO dates). */
 export const ADHOC_FROM = '2026-07-01';
@@ -125,16 +112,13 @@ export interface BudgetRow {
   costCentre: string;
   department: string;
   sheet: BudgetSheet;
-  /** Null when not applicable (non-NEC) or not computable (missing/incomplete NEC data) — never a silent zero. */
+  /** Null when the employee has no monthly-book data — never a silent zero. */
   ot15Shift: number | null;
   ot15Adhoc: number;
   ot20Shift: number;
   status: BudgetStatus;
-  /** Goes in the Comment column; blank for clean rows. */
+  /** Always blank: the template's Comment column is left unwritten. */
   comment: string;
-  /** Diagnostic detail (per-period actuals); the workbook shows only the averages. */
-  sepActual: number | null;
-  octActual: number | null;
 }
 
 export interface BudgetTotals {
@@ -142,54 +126,6 @@ export interface BudgetTotals {
   total15Shift: number;
   total15Adhoc: number;
   total20Shift: number;
-}
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-export const periodLabel = (p: Period): string => fmtPeriod(p);
-export const SEP_LABEL = periodLabel(BUDGET_SEP_PERIOD);
-export const OCT_LABEL = periodLabel(BUDGET_OCT_PERIOD);
-
-/** One NEC pay period's Actual Hours per employee, via the standard NEC merge + totals. */
-export function periodActuals(
-  employees: BudgetEmployee[],
-  timesheets: TimesheetEntry[],
-  leaves: ApprovedLeaveRecord[],
-  overtime: ApprovedOvertimeRecord[],
-  shifts: ShiftAssignment[],
-  period: Period,
-): Map<string, { actual: number; filled: number; workingDays: number; shift: number }> {
-  const days = getDays(period);
-  const dayStrs = days.map(fmtTsDate);
-  const rosterIds = employees.map(e => e.dbId);
-  const employeeIdByHuman = new Map<string, string>();
-  employees.forEach(e => {
-    if (e.employeeId) employeeIdByHuman.set(normalizeTimesheetEmployeeCode(e.employeeId), e.dbId);
-  });
-  const effective = mergeEffectiveTimesheets({
-    timesheets,
-    approvedLeaves: leaves,
-    approvedOvertime: overtime,
-    shiftAssignments: shifts,
-    dayStrs,
-    rosterIds,
-    employeeIdByHuman,
-    leaveTypeToStatus: LEAVE_TYPE_TO_STATUS,
-    statusLabel: status => statusMeta(status).label,
-  });
-  const out = new Map<string, { actual: number; filled: number; workingDays: number; shift: number }>();
-  employees.forEach(emp => {
-    const totals = calcEmployeeTotals(emp.dbId, effective, { periodDates: dayStrs });
-    const { filled, possible } = countPeriodCompletion([emp.dbId], days, effective);
-    // Denominator: this employee's share of the Mon–Fri grid (matches the timesheets page).
-    out.set(emp.dbId, {
-      actual: round2(totals.actual),
-      filled,
-      workingDays: possible,
-      shift: round2(Math.max(0, totals.actual - NEC_SHIFT_CAP)),
-    });
-  });
-  return out;
 }
 
 export interface AdhocBuckets {
@@ -238,43 +174,24 @@ export function adhocTotals(
     const key = normalizeTimesheetEmployeeCode(e.employeeId);
     if (!byKey.has(key)) byKey.set(key, blank());
   });
-  return { byKey, orphanCount, orphanHours: round2(orphanHours) };
+  return { byKey, orphanCount, orphanHours: Math.round(orphanHours) };
 }
 
-function necStatus(
-  emp: BudgetEmployee,
-  sep: { actual: number; filled: number; workingDays: number; shift: number } | undefined,
-  oct: { actual: number; filled: number; workingDays: number; shift: number } | undefined,
-): { avg: number | null; status: BudgetStatus; comment: string; sepActual: number | null; octActual: number | null } {
-  if (emp.employmentType === '') {
-    return { avg: null, status: 'Unclassified', sepActual: null, octActual: null, comment: 'No employment type in Personnel — confirm NEC or Salaried.' };
-  }
-  if (emp.employmentType !== 'NEC') {
-    return { avg: null, status: 'Non-NEC', sepActual: null, octActual: null, comment: 'Salaried — no NEC shift forecast.' };
-  }
-  const sepDays = sep ? `${sep.filled}/${sep.workingDays} working days` : 'no data';
-  const octDays = oct ? `${oct.filled}/${oct.workingDays} working days` : 'no data';
-  if (!sep || sep.filled === 0 || !oct || oct.filled === 0) {
-    const missing = [!sep || sep.filled === 0 ? `Sep (${sepDays})` : '', !oct || oct.filled === 0 ? `Oct (${octDays})` : ''].filter(Boolean).join(' · ');
-    return { avg: null, status: 'Missing', sepActual: sep?.actual ?? null, octActual: oct?.actual ?? null, comment: `NEC pay period missing: ${missing}.` };
-  }
-  if (sep.filled < sep.workingDays || oct.filled < oct.workingDays) {
-    return {
-      avg: null, status: 'Incomplete', sepActual: sep.actual, octActual: oct.actual,
-      comment: `NEC data incomplete — Sep ${sepDays}, Oct ${octDays}; average withheld.`,
-    };
-  }
-  return {
-    avg: round2((sep.shift + oct.shift) / 2), status: 'OK',
-    sepActual: sep.actual, octActual: oct.actual, comment: '',
-  };
+function bookStatus(emp: BudgetEmployee, avg: number | null): BudgetStatus {
+  // OT @ 1.5 Shift is NEC-only: the books are NEC timesheets and the 208 cap
+  // is an NEC rule, so only employees classified as NEC get a value — even if
+  // someone else somehow appears on a book sheet.
+  if (emp.employmentType === '') return 'Unclassified';
+  if (emp.employmentType !== 'NEC') return 'Non-NEC';
+  return avg != null ? 'OK' : 'Missing';
 }
 
-/** One row per register employee, ordered by sheet, then name. */
+/** One row per register employee, ordered like the template workbook: sheet,
+ * then CostCentre group, then employee number ascending — so the downloaded
+ * rows line up with the online sheet for a straight copy-paste. */
 export function buildSplitBudgetRows(
   employees: BudgetEmployee[],
-  sep: Map<string, { actual: number; filled: number; workingDays: number; shift: number }>,
-  oct: Map<string, { actual: number; filled: number; workingDays: number; shift: number }>,
+  bookAvg: Map<string, number>,
   adhoc: Map<string, AdhocBuckets>,
 ): BudgetRow[] {
   const sheetOrder = (s: BudgetSheet) => {
@@ -283,8 +200,10 @@ export function buildSplitBudgetRows(
   };
   return employees
     .map(emp => {
-      const nec = necStatus(emp, sep.get(emp.dbId), oct.get(emp.dbId));
-      const ad = adhoc.get(normalizeTimesheetEmployeeCode(emp.employeeId)) ?? { shift20: { total: 0, count: 0 }, adhoc15: { total: 0, count: 0 } };
+      const key = normalizeTimesheetEmployeeCode(emp.employeeId);
+      // NEC-only: a book average for a non-NEC employee is not shift overtime.
+      const shift = emp.employmentType === 'NEC' ? bookAvg.get(key) ?? null : null;
+      const ad = adhoc.get(key) ?? { shift20: { total: 0, count: 0 }, adhoc15: { total: 0, count: 0 } };
       return {
         employeeId: emp.employeeId,
         firstName: emp.firstName,
@@ -293,27 +212,25 @@ export function buildSplitBudgetRows(
         costCentre: emp.costCentre,
         department: emp.department,
         sheet: emp.sheet,
-        ot15Shift: nec.avg,
-        ot15Adhoc: round2(round2(ad.adhoc15.total) / ADHOC_MONTHS),
-        ot20Shift: round2(round2(ad.shift20.total) / ADHOC_MONTHS),
-        status: nec.status,
-        comment: nec.comment,
-        sepActual: nec.sepActual,
-        octActual: nec.octActual,
+        ot15Shift: shift,
+        ot15Adhoc: Math.round(ad.adhoc15.total / ADHOC_MONTHS),
+        ot20Shift: Math.round(ad.shift20.total / ADHOC_MONTHS),
+        status: bookStatus(emp, shift),
+        comment: '',
       } satisfies BudgetRow;
     })
     .sort((a, b) =>
       sheetOrder(a.sheet) - sheetOrder(b.sheet)
-      || a.surname.localeCompare(b.surname)
-      || a.firstName.localeCompare(b.firstName));
+      || a.costCentre.localeCompare(b.costCentre)
+      || a.employeeId.localeCompare(b.employeeId, undefined, { numeric: true }));
 }
 
-/** Column totals are the sums of the rows' averages — never a workforce-wide average. */
+/** Column totals are the sums of the rows' rounded averages — never a workforce-wide average. */
 export function budgetTotals(rows: BudgetRow[]): BudgetTotals {
   return {
     employees: rows.length,
-    total15Shift: round2(rows.reduce((s, r) => s + (r.ot15Shift ?? 0), 0)),
-    total15Adhoc: round2(rows.reduce((s, r) => s + r.ot15Adhoc, 0)),
-    total20Shift: round2(rows.reduce((s, r) => s + r.ot20Shift, 0)),
+    total15Shift: rows.reduce((s, r) => s + (r.ot15Shift ?? 0), 0),
+    total15Adhoc: rows.reduce((s, r) => s + r.ot15Adhoc, 0),
+    total20Shift: rows.reduce((s, r) => s + r.ot20Shift, 0),
   };
 }
