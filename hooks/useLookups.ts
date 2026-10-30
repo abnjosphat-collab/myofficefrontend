@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/apiClient';
+import { withDepartment } from '@/lib/api';
 import { retryTransient } from '@/lib/transientRetry';
 
 /** A lookup read waits out a slow or waking service instead of leaving the picker empty. */
@@ -62,6 +63,10 @@ let _sp: SpareLookup[] | null = null;
 let _empAt = 0;
 let _eqAt = 0;
 let _spAt = 0;
+// Department registers (Mining) get their own cache entries: a Mining picker
+// must never see Engineering rows a previous visit left behind, or vice versa.
+const _empDept = new Map<string, EmployeeLookup[]>();
+const _empDeptAt = new Map<string, number>();
 // Bumped whenever the signed-in account changes: an in-flight fetch from the
 // previous account must not land in the new account's cache (or pickers).
 let _accountGen = 0;
@@ -116,15 +121,19 @@ function useLookup<T>(cacheGet: () => T[] | null, cacheSet: (v: T[]) => void, lo
   return list;
 }
 
-export function useEmployees(): EmployeeLookup[] {
+/** Pass a department to read that register (Mining) instead of Engineering. */
+export function useEmployees(department?: string | null): EmployeeLookup[] {
+  const label = department ? `employees:dept:${department}` : 'employees';
   const all = useLookup<EmployeeLookup>(
-    () => _emp, (v) => { _emp = v; },
+    () => (department ? (_empDept.get(department) ?? null) : _emp),
+    (v) => { if (department) _empDept.set(department, v); else _emp = v; },
     async () => {
-      const d = await read<unknown>('/api/employees');
+      const d = await read<unknown>(withDepartment('/api/employees', department));
       return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
     },
-    'employees',
-    () => _empAt, (v) => { _empAt = v; },
+    label,
+    () => (department ? (_empDeptAt.get(department) ?? 0) : _empAt),
+    (v) => { if (department) _empDeptAt.set(department, v); else _empAt = v; },
   );
   return all.filter(e => e.archived !== true);
 }
@@ -132,19 +141,24 @@ export function useEmployees(): EmployeeLookup[] {
 /**
  * The whole employee register, archived people included, and whether it has loaded. For checking that a
  * record belongs to someone on the register: an archived person is still on it, and nothing may be judged
- * "not on the register" while the register itself is unknown.
+ * "not on the register" while the register itself is unknown. Pass a department to check against that
+ * register (Mining) instead of Engineering.
  */
-export function useEmployeeRegister(): { employees: EmployeeLookup[]; loaded: boolean } {
+export function useEmployeeRegister(department?: string | null): { employees: EmployeeLookup[]; loaded: boolean } {
+  const label = department ? `employees:dept:${department}` : 'employees';
   const all = useLookup<EmployeeLookup>(
-    () => _emp, (v) => { _emp = v; },
+    () => (department ? (_empDept.get(department) ?? null) : _emp),
+    (v) => { if (department) _empDept.set(department, v); else _emp = v; },
     async () => {
-      const d = await read<unknown>('/api/employees');
+      const d = await read<unknown>(withDepartment('/api/employees', department));
       return Array.isArray(d) ? (d as EmployeeLookup[]) : [];
     },
-    'employees',
-    () => _empAt, (v) => { _empAt = v; },
+    label,
+    () => (department ? (_empDeptAt.get(department) ?? 0) : _empAt),
+    (v) => { if (department) _empDeptAt.set(department, v); else _empAt = v; },
   );
-  return { employees: all, loaded: _emp !== null };
+  const cache = department ? _empDept.get(department) ?? null : _emp;
+  return { employees: all, loaded: cache !== null };
 }
 
 // An edit on the Employees page (new hire, changed phone/section/etc.) clears the
@@ -153,6 +167,10 @@ export function useEmployeeRegister(): { employees: EmployeeLookup[]; loaded: bo
 // write. (A null cache refetches on next read regardless of its stamp.)
 export function invalidateEmployeesCache(): void {
   _emp = null;
+  const depts = [..._empDept.keys()];
+  _empDept.clear();
+  _empDeptAt.clear();
+  for (const d of depts) { _inflight.delete(`employees:dept:${d}`); refreshLookup(`employees:dept:${d}`); }
 }
 
 // The signed-in account changed: cached rows belong to the previous account
@@ -165,6 +183,7 @@ export function invalidateAllLookupCaches(): void {
   _inflight.clear();
   _emp = null; _eq = null; _sp = null;
   _empAt = 0; _eqAt = 0; _spAt = 0;
+  _empDept.clear(); _empDeptAt.clear();
   refreshLookup('employees'); refreshLookup('equipment'); refreshLookup('spares');
 }
 

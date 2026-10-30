@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AppShell } from '@/components/app-shell';
-import { Button, Card, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse, ZoomLink } from '@/components/ui-system';
+import { AppShell, CATEGORIES } from '@/components/app-shell';
+import { Button, Card, Checkbox, DataRegion, DataTable, Dialog, EmptyState, Field, FormDialog, Input, MetricGrid, MetricTile, Notice, PageHeader, SearchField, Segmented, Select, StatusBadge, Tag, Toolbar, UpdatedCaption, deriveDataStatus, isTransientStatus, sortRows, useConfirm, type Column, type IconMeaning, type SortState, type Tone, LoadingPulse, ZoomLink } from '@/components/ui-system';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
@@ -14,7 +14,7 @@ import type { UserProfile, UserRole } from '@/lib/supabase';
 // Role labels, order and descriptions come from the single source (lib/roles.ts).
 import { ROLE_LABELS, ROLE_ORDER, ROLE_META } from '@/lib/roles';
 import { useResetOnOpen } from '@/lib/useResetOnOpen';
-import { profileScope } from '@/lib/scope';
+import { profileLimit, profileModules } from '@/lib/scope';
 import { SECTION_ORDER } from '@/lib/sections';
 
 const ALL = '__all__';
@@ -23,6 +23,11 @@ const ROLE_UI: Record<UserRole, { tone: Tone; icon: IconMeaning }> = {
   user: { tone: 'neutral', icon: 'user' }, viewer: { tone: 'neutral', icon: 'eye' },
 };
 const ROLES = ROLE_ORDER as UserRole[];
+// Departments an account can be limited to. The server validates against its
+// own list (SEPARATE_DEPARTMENTS in scope.py) and refuses anything else.
+const DEPARTMENT_SCOPES = ['Mining'];
+// The Mining account's modules: the register and PPE, nothing else.
+const MINING_MODULES = ['/employees', '/ppe'];
 
 const initials = (name: string | null, email: string) => (name ? name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2) : email.slice(0, 2).toUpperCase());
 const RoleBadge = ({ role }: { role: UserRole }) => { const u = ROLE_UI[role] ?? ROLE_UI.user; return <StatusBadge tone={u.tone} icon={u.icon}>{ROLE_LABELS[role] ?? role}</StatusBadge>; };
@@ -31,15 +36,32 @@ const nameOf = (p: UserProfile) => p.full_name || p.email.split('@')[0];
 /** What the signed-in person may change: a super admin anyone; an admin anyone except super admins and themselves. */
 const canManage = (caller: UserProfile, target: UserProfile) => caller.role === 'super_admin' || (caller.role === 'admin' && target.role !== 'super_admin' && target.id !== caller.id);
 
+type LimitKind = 'none' | 'section' | 'department';
+
 function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile | null; caller: UserProfile; onClose: () => void; onChanged: () => Promise<void> }) {
   const confirm = useConfirm();
   const [role, setRole] = useState<UserRole>('user');
-  const [scope, setScope] = useState('');
-  const [busy, setBusy] = useState<'save' | 'scope' | 'active' | 'reset' | 'mfa' | null>(null);
+  const [limitKind, setLimitKind] = useState<LimitKind>('none');
+  const [section, setSection] = useState('');
+  const [dept, setDept] = useState(DEPARTMENT_SCOPES[0]);
+  const [modulesMode, setModulesMode] = useState<'full' | 'limited'>('full');
+  const [ticked, setTicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState<'save' | 'scope' | 'modules' | 'active' | 'reset' | 'mfa' | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useResetOnOpen(user?.id ?? null, () => { if (user) { setRole(user.role); setScope(profileScope(user) ?? ''); setError(null); } });
+  useResetOnOpen(user?.id ?? null, () => {
+    if (!user) return;
+    setRole(user.role);
+    const limit = profileLimit(user);
+    setLimitKind(!limit ? 'none' : limit.kind);
+    setSection(limit?.kind === 'section' ? limit.value : '');
+    setDept(limit?.kind === 'department' ? limit.value : DEPARTMENT_SCOPES[0]);
+    const mods = profileModules(user);
+    setModulesMode(mods ? 'limited' : 'full');
+    setTicked(mods ? [...new Set(mods)] : []);
+    setError(null);
+  });
 
-  const run = async (kind: 'save' | 'scope' | 'active' | 'reset' | 'mfa', action: () => Promise<void>, done: string) => {
+  const run = async (kind: 'save' | 'scope' | 'modules' | 'active' | 'reset' | 'mfa', action: () => Promise<void>, done: string) => {
     setBusy(kind); setError(null);
     try { await action(); toast.success(done); await onChanged(); }
     catch (e) { setError((e as Error).message); }
@@ -61,13 +83,33 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
     if (!await confirm({ title: 'Turn off two-factor sign-in?', message: `${nameOf(user)} will be able to sign in with just their password until they enable 2FA again. Use this when they have lost their authenticator.`, confirmLabel: 'Turn off 2FA', destructive: true })) return;
     await run('mfa', () => api.delete(`/api/admin/users/${user.id}/factors`).then(() => undefined), 'Two-factor sign-in turned off.');
   };
-  const saveScope = async (next: string | null) => {
-    if (!user) return;
-    await run('scope', () => api.patch(`/api/admin/users/${user.id}/scope`, { scope: next }).then(() => undefined), next ? `Account limited to ${next}.` : 'Section limit lifted.');
-    setScope(next ?? '');
-  };
 
-  const currentScope = user ? profileScope(user) : null;
+  const currentLimit = user ? profileLimit(user) : null;
+  const currentModules = user ? profileModules(user) : null;
+  const currentKind: LimitKind = !currentLimit ? 'none' : currentLimit.kind;
+  const limitDirty = limitKind !== currentKind
+    || (limitKind === 'section' && section.trim() !== (currentLimit?.kind === 'section' ? currentLimit.value : ''))
+    || (limitKind === 'department' && dept !== (currentLimit?.kind === 'department' ? currentLimit.value : DEPARTMENT_SCOPES[0]));
+  const tickedSet = useMemo(() => new Set(ticked), [ticked]);
+  const currentSet = useMemo(() => new Set(currentModules ?? []), [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  const modulesDirty = (modulesMode === 'limited') !== (currentModules !== null)
+    || (modulesMode === 'limited' && (tickedSet.size !== currentSet.size || [...tickedSet].some(m => !currentSet.has(m))));
+
+  const saveLimit = async () => {
+    if (!user) return;
+    const body = limitKind === 'section' ? { scope: section.trim() || null } : limitKind === 'department' ? { department: dept } : { scope: null, department: null };
+    const label = limitKind === 'section' ? (section.trim() || 'no limit') : limitKind === 'department' ? `${dept} register` : 'no limit';
+    await run('scope', () => api.patch(`/api/admin/users/${user.id}/scope`, body).then(() => undefined), `Account limited to ${label}.`);
+  };
+  const saveModules = async () => {
+    if (!user) return;
+    const body = modulesMode === 'full' ? { modules: null } : { modules: [...tickedSet] };
+    await run('modules', () => api.patch(`/api/admin/users/${user.id}/scope`, body).then(() => undefined), modulesMode === 'full' ? 'Full module access restored.' : `Account limited to ${tickedSet.size} ${tickedSet.size === 1 ? 'module' : 'modules'}.`);
+  };
+  const applyMiningPreset = () => {
+    setLimitKind('department'); setDept('Mining'); setModulesMode('limited'); setTicked(MINING_MODULES);
+  };
+  const toggleTick = (href: string, on: boolean) => setTicked(prev => (on ? [...new Set([...prev, href])] : prev.filter(h => h !== href)));
 
   return (
     <Dialog
@@ -92,14 +134,49 @@ function ManageDialog({ user, caller, onClose, onChanged }: { user: UserProfile 
             <p className="mt-2 font-sans text-caption text-ink-muted">{ROLE_META[role].desc}</p>
           </div>
           <div>
-            <p className="mb-1.5 font-sans text-label font-medium text-ink">Section limit</p>
-            <div className="flex gap-2">
-              <Input aria-label="Section limit" list="manage-scope-sections" value={scope} onChange={e => setScope(e.target.value)} placeholder="No limit" autoComplete="off" />
-              <datalist id="manage-scope-sections" aria-label="Sections in use">{SECTION_ORDER.map(s => <option key={s} value={s}>{s}</option>)}</datalist>
-              <Button pending={busy === 'scope'} disabled={!!busy || scope.trim() === (currentScope ?? '')} onClick={() => saveScope(scope.trim() || null)}>Save limit</Button>
-              {currentScope && <Button disabled={!!busy} onClick={() => saveScope(null)}>Lift limit</Button>}
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <p className="font-sans text-label font-medium text-ink">Register limit</p>
+              <Button size="sm" variant="ghost" icon="plus" disabled={!!busy} onClick={applyMiningPreset}>Mining account preset</Button>
             </div>
-            <p className="mt-2 font-sans text-caption text-ink-muted">Limit this account to one section&apos;s records — Projects, for example. It keeps full module access with filtered data. Empty means no limit.</p>
+            <Segmented label="Register limit" value={limitKind} onValueChange={setLimitKind} options={[{ value: 'none', label: 'No limit' }, { value: 'section', label: 'Section' }, { value: 'department', label: 'Department' }]} />
+            {limitKind === 'section' && (
+              <div className="mt-2 flex gap-2">
+                <Input aria-label="Section limit" list="manage-scope-sections" value={section} onChange={e => setSection(e.target.value)} placeholder="No limit" autoComplete="off" />
+                <datalist id="manage-scope-sections" aria-label="Sections in use">{SECTION_ORDER.map(s => <option key={s} value={s}>{s}</option>)}</datalist>
+              </div>
+            )}
+            {limitKind === 'department' && (
+              <div className="mt-2">
+                <Select aria-label="Department limit" value={dept} onValueChange={setDept} options={DEPARTMENT_SCOPES.map(d => ({ value: d, label: `${d} register` }))} />
+              </div>
+            )}
+            <div className="mt-2 flex gap-2">
+              <Button pending={busy === 'scope'} disabled={!!busy || !limitDirty} onClick={saveLimit}>Save limit</Button>
+              {currentLimit && limitKind !== 'none' && <Button disabled={!!busy} onClick={() => { setLimitKind('none'); }}>Lift limit</Button>}
+            </div>
+            <p className="mt-2 font-sans text-caption text-ink-muted">A section limit keeps full module access with filtered data; a department limit (Mining) puts the account on that register. The Mining preset also limits modules below.</p>
+          </div>
+          <div>
+            <p className="mb-1.5 font-sans text-label font-medium text-ink">Modules</p>
+            <Segmented label="Module access" value={modulesMode} onValueChange={setModulesMode} options={[{ value: 'full', label: 'Full access' }, { value: 'limited', label: 'Limited' }]} />
+            {modulesMode === 'limited' && (
+              <div className="mt-2 flex flex-col gap-3">
+                {CATEGORIES.map(cat => (
+                  <div key={cat.id}>
+                    <p className="mb-1 font-sans text-caption font-medium text-ink-muted">{cat.title}</p>
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                      {cat.modules.map(m => (
+                        <Checkbox key={m.href} label={m.title} checked={tickedSet.has(m.href)} onChange={e => toggleTick(m.href, e.target.checked)} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-2 flex gap-2">
+              <Button pending={busy === 'modules'} disabled={!!busy || !modulesDirty} onClick={saveModules}>Save modules</Button>
+            </div>
+            <p className="mt-2 font-sans text-caption text-ink-muted">Limited accounts only see the ticked modules — everywhere: sidebar, search, home and quick actions. The server refuses the rest. Empty means no modules at all; Full access removes the limit.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button icon="inactive" pending={busy === 'active'} disabled={!!busy} onClick={toggleActive}>{user.is_active ? 'Deactivate' : 'Reactivate'}</Button>
@@ -151,7 +228,7 @@ function Directory({ caller }: { caller: UserProfile }) {
     const q = search.trim().toLowerCase();
     return users.filter(u => (!q || (u.full_name ?? '').toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) && (roleF === ALL || u.role === roleF));
   }, [users, search, roleF]);
-  const rows = useMemo(() => sortRows(filtered, sort, (u, id) => (id === 'role' ? String(ROLES.indexOf(u.role)) : id === 'section' ? (profileScope(u) ?? '') : id === 'name' ? nameOf(u).toLowerCase() : String(u[id as keyof UserProfile] ?? '').toLowerCase())), [filtered, sort]);
+  const rows = useMemo(() => sortRows(filtered, sort, (u, id) => (id === 'role' ? String(ROLES.indexOf(u.role)) : id === 'limit' ? (profileLimit(u)?.value ?? '') : id === 'modules' ? String(profileModules(u)?.length ?? -1) : id === 'name' ? nameOf(u).toLowerCase() : String(u[id as keyof UserProfile] ?? '').toLowerCase())), [filtered, sort]);
   const listCalm = JSON.stringify([search, roleF, sort]);
   const counts = (r: UserRole) => users.filter(u => u.role === r).length;
 
@@ -171,7 +248,18 @@ function Directory({ caller }: { caller: UserProfile }) {
       ),
     },
     { id: 'role', header: 'Role', sortable: true, cell: u => <RoleBadge role={u.role} /> },
-    { id: 'section', header: 'Section', sortable: true, hideBelow: 'lg', cell: u => { const s = profileScope(u); return s ? <Tag>{s}</Tag> : <span className="font-sans text-caption text-ink-muted">All</span>; } },
+    {
+      id: 'limit', header: 'Limit', sortable: true, hideBelow: 'lg',
+      cell: u => {
+        const l = profileLimit(u);
+        if (!l) return <span className="font-sans text-caption text-ink-muted">All</span>;
+        return l.kind === 'department' ? <span title="Department register"><Tag>{l.value} (dept)</Tag></span> : <Tag>{l.value}</Tag>;
+      },
+    },
+    {
+      id: 'modules', header: 'Modules', sortable: true, hideBelow: 'lg',
+      cell: u => { const m = profileModules(u); return m ? <span title={m.join(', ')}><Tag>{m.length} {m.length === 1 ? 'module' : 'modules'}</Tag></span> : <span className="font-sans text-caption text-ink-muted">All</span>; },
+    },
     { id: 'is_active', header: 'Status', sortable: true, hideBelow: 'md', cell: u => (u.is_active ? <StatusBadge tone="success" icon="active">Active</StatusBadge> : <StatusBadge tone="danger" icon="inactive">Deactivated</StatusBadge>) },
   ];
 
@@ -180,7 +268,7 @@ function Directory({ caller }: { caller: UserProfile }) {
       <PageHeader
         breadcrumbs={[{ label: 'Core management' }, { label: 'Admin panel' }]}
         title="Admin panel"
-        description="User roles and section limits."
+        description="User roles, register limits and module access."
         actions={(
           <>
             <Button asChild variant="ghost"><Link href="/admin/lists">Manage shared lists</Link></Button>

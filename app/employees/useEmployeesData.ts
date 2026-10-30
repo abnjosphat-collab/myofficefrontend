@@ -2,10 +2,12 @@
 // with a retryable error); the writes throw, so a dialog can show the reason and keep what was typed.
 'use client';
 
+import { useCallback } from 'react';
 import { api } from '@/lib/apiClient';
 import { API_BASE } from '@/lib/config';
 import { useApiList } from '@/lib/useApiList';
 import { timeoutError } from '@/lib/transientRetry';
+import { withDepartment } from '@/lib/api';
 import { invalidateEmployeesCache } from '@/hooks/useLookups';
 import { normalizeEmployeeRoleFields, resolveDriverLicense } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
@@ -22,12 +24,12 @@ export interface BulkNormalizeResult {
   errors?: string[];
 }
 
-export async function loadEmployees(timeoutMs = 20_000) {
+export async function loadEmployees(timeoutMs = 20_000, department?: string | null) {
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const rows = await Promise.race([
-      api.get<unknown>(EMPLOYEES_API, { signal: controller.signal }),
+      api.get<unknown>(withDepartment(EMPLOYEES_API, department), { signal: controller.signal }),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(() => {
           controller.abort();
@@ -41,7 +43,7 @@ export async function loadEmployees(timeoutMs = 20_000) {
     if (timeout) clearTimeout(timeout);
   }
 }
-export async function saveEmployee(data: EmployeeFormData, id?: number, expectedUpdatedAt?: string, scope?: string | null) {
+export async function saveEmployee(data: EmployeeFormData, id?: number, expectedUpdatedAt?: string, scope?: string | null, department?: string | null) {
   // A scoped account creates people into their own section only (the server
   // stamps it too — this keeps the payload honest). Edits keep the row's
   // section: the server refuses a move the account may not make.
@@ -52,6 +54,7 @@ export async function saveEmployee(data: EmployeeFormData, id?: number, expected
     ...(expectedUpdatedAt ? { expected_updated_at: expectedUpdatedAt } : {}),
     designation: role.designation,
     section: id ? role.section : (scope ?? role.section),
+    department: id ? data.department : (department ?? data.department),
     phone: normalizePhoneField(data.phone),
     drivers_license_class: resolveDriverLicense(data.drivers_license_class),
     date_of_engagement: data.date_of_engagement?.trim() ? data.date_of_engagement : null,
@@ -91,6 +94,6 @@ export async function removeEmployee(id: number) {
   invalidateEmployeesCache();
 }
 
-const fetchRoster = () => loadEmployees();
-/** The roster, with honest load state: a failed load is an error with the people already shown kept, never an empty roster. */
-export const useRoster = () => useApiList<Employee>('/api/employees', undefined, { fetcher: fetchRoster });
+const useRosterFetcher = (department?: string | null) => useCallback(() => loadEmployees(20_000, department), [department]);
+/** The roster, with honest load state: a failed load is an error with the people already shown kept, never an empty roster. Pass a department to read that register (Mining) instead of Engineering. */
+export const useRoster = (department?: string | null) => useApiList<Employee>(withDepartment('/api/employees', department), undefined, { fetcher: useRosterFetcher(department) });

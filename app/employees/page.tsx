@@ -7,10 +7,12 @@ import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
-import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, EXPORT_CHECK_MS, useActionFeedback, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { Button, DataRegion, DataTable, EmptyState, ExportButton, FilterField, IconButton, MetricGrid, MetricTile, MoreMenu, PageHeader, Pagination, RecordCard, SearchField, Select, StatusBadge, Toolbar, ViewToggle, VIEW_CARDS_TABLE, MotionList, MotionListItem, ZoomLink, deriveDataStatus, isTransientStatus, pageSlice, useViewPreference, type Column, EXPORT_CHECK_MS, useActionFeedback, BulkBar, useBulkSelection, rowId, Segmented } from '@/components/ui-system';
 import { useBulkDelete } from '@/lib/useBulkDelete';
 import { exportFilename } from '@/lib/exportUtils';
 import { useAuth } from '@/lib/auth-context';
+import { invalidateEmployeesCache } from '@/hooks/useLookups';
+import { useDepartmentSwitch, type DepartmentView } from '@/lib/useDepartmentSwitch';
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay } from '@/lib/phone';
 import { formatMineNumber } from '@/lib/registerMatch';
@@ -20,6 +22,7 @@ import { EmployeeForm } from './EmployeeForm';
 import { exportPersonnelRegistryExcel } from './exportPersonnelRegistry';
 import { NormalizeRosterDialog } from './NormalizeRosterDialog';
 import { RosterExportDialog } from './RosterExportDialog';
+import { ImporterDialog } from './import/ImporterDialog';
 import { RosterGroups } from './RosterGroups';
 import {
   CLASS_OPTIONS, CLASS_TONE, ETYPE_LABEL, ETYPE_TONE, NO_FILTERS, artisansOnly, filterEmployees, fullName, groupBySectionAndProfession, isFiltered, necEmployees, sortEmployees, summarise, tenure, type RosterFilters,
@@ -43,7 +46,11 @@ function EmployeesContent() {
   const confirmDelete = useConfirmDelete();
   const { isAtLeast, scope } = useAuth();
   const canNormalise = isAtLeast('manager');
-  const list = useRoster();
+  const canImport = isAtLeast('admin');
+  const [importOpen, setImportOpen] = useState(false);
+  const dept = useDepartmentSwitch();
+  const miningView = dept.param === 'Mining';
+  const list = useRoster(dept.param);
   const employees = list.items;
   const params = useSearchParams();
   const urlSearch = (params.get('highlight') || params.get('q') || '').trim();
@@ -82,18 +89,18 @@ function EmployeesContent() {
   const allOpen = groups.every(g => !closed.has(g.section));
   const toggleGroup = (key: string) => setClosed(prev => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
-  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at, scope); await list.refetch(); };
+  const save = async (data: Parameters<typeof saveEmployee>[0], id?: number) => { await saveEmployee(data, id, formFor?.employee?.updated_at, scope, dept.param); await list.refetch(); };
   const remove = async (e: Employee) => {
     await confirmDelete({ title: `Delete ${fullName(e)}?`, message: `${formatMineNumber(e.employee_id)}. This cannot be undone. To keep the record but hide the person, archive them instead.`, what: `${fullName(e)}`, run: async () => { await removeEmployee(e.id); setViewingId(null); }, done: `${fullName(e)} deleted.`, after: () => list.refetch() });
   };
   const downloadRegistry = () => fb.run(async () => {
-    try { await exportPersonnelRegistryExcel(active, exportFilename('Personnel_Registry')); toast.success(`Registry downloaded, ${active.length} people.`); }
+    try { await exportPersonnelRegistryExcel(active, exportFilename(miningView ? 'Personnel_Registry_Mining' : 'Personnel_Registry')); toast.success(`Registry downloaded, ${active.length} people.`); }
     catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
 
   const necList = useMemo(() => necEmployees(active), [active]);
   const downloadNecRegistry = () => fb.run(async () => {
-    try { await exportPersonnelRegistryExcel(necList, exportFilename('NEC_Personnel_Registry'), 'NEC Personnel Registry'); }
+    try { await exportPersonnelRegistryExcel(necList, exportFilename(miningView ? 'NEC_Personnel_Registry_Mining' : 'NEC_Personnel_Registry'), 'NEC Personnel Registry'); }
     catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
 
@@ -143,16 +150,28 @@ function EmployeesContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'Personnel' }]}
         title="Personnel"
-        description={scope ? `Employee profiles, roles and the organisation's structure — showing ${scope} only.` : "Employee profiles, roles and the organisation's structure."}
+        description={miningView ? 'The Mining register — everyone here belongs to Mining.' : scope ? `Employee profiles, roles and the organisation's structure — showing ${scope} only.` : "Employee profiles, roles and the organisation's structure."}
         actions={(
           <>
             <MoreMenu items={[
               ...(canNormalise ? [{ label: 'Normalise', icon: 'normalize' as const, disabled: active.length === 0, onSelect: () => setNormalising(true) }] : []),
             ]} />
+            {miningView && canImport && <Button variant="secondary" icon="upload" disabled={!list.loaded} onClick={() => setImportOpen(true)}>Import</Button>}
             <ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!list.loaded} onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>
           </>
         )}
       />
+
+      {(dept.canSwitch || dept.pinnedDepartment) && (
+        <div className="flex flex-wrap items-center gap-3" role="region" aria-label="Register">
+          {dept.canSwitch ? (
+            <Segmented<DepartmentView> label="Register" value={dept.active} onValueChange={dept.setActive} options={[{ value: 'Engineering', label: 'Engineering' }, { value: 'Mining', label: 'Mining' }]} />
+          ) : (
+            <StatusBadge tone="info">Mining register</StatusBadge>
+          )}
+          {miningView && <p className="font-sans text-caption text-ink-muted">Showing the Mining register. Add, edit and export act on Mining people only.</p>}
+        </div>
+      )}
 
       <MetricGrid compact>
         <MetricTile label="Total staff" compact value={stats.total} selected={!filtered} onClick={clear} detail={stats.archived ? `${stats.archived} archived` : undefined} {...tile} />
@@ -199,6 +218,8 @@ function EmployeesContent() {
           ? <EmptyState icon="search" title="No one matches" description="Try fewer filters or a different search." action={<Button onClick={clear}>Clear filters</Button>} />
           : scope
             ? <EmptyState icon="employees" title={`No ${scope} people yet`} description={`Add the first one — they will join ${scope}.`} action={<ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>} />
+            : miningView
+            ? <EmptyState icon="employees" title="No Mining people yet" description="Add the first one — they will join Mining." action={<ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>} />
             : <EmptyState icon="employees" title="No employees yet" description="Add the first one." action={<ZoomLink zoomId="employees:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => setFormFor({ employee: null })}>Add employee</Button></ZoomLink>} />}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -219,8 +240,9 @@ function EmployeesContent() {
       </DataRegion>
 
       <EmployeeDetail employee={viewing} onClose={() => setViewingId(null)} onEdit={e => { setViewingId(null); setFormFor({ employee: e }); }} onDelete={remove} />
-      <EmployeeForm open={!!formFor} employee={formFor?.employee ?? null} all={employees} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
+      <EmployeeForm open={!!formFor} employee={formFor?.employee ?? null} all={employees} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} department={dept.param} />
       <RosterExportDialog open={rosterOpen} employees={active} onOpenChange={setRosterOpen} />
+      <ImporterDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => { invalidateEmployeesCache(); void list.refetch(); }} />
       <NormalizeRosterDialog open={normalising} employees={employees} onOpenChange={setNormalising} onComplete={() => list.refetch()} />
     </div>
   );

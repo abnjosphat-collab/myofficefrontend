@@ -16,14 +16,14 @@ import {
 } from './modules';
 
 export function useAppShellState() {
-  const { isAtLeast } = useAuth();
-  // The one role-gated category (Finance & Accounting, manager+) filtered out here
+  const { isAtLeast, modules } = useAuth();
+  // Role-gated categories (Finance & Accounting, manager+) and module-limited accounts (Mining: Employees + PPE only) filtered out here
   // so every derived list below (favorites, quick actions, the grid itself) can't
   // surface it to someone who shouldn't see it — computed once instead of patching
   // each of the 4 consumers independently.
   const visibleCategories: Category[] = useMemo(
-    () => CATEGORIES.filter(c => !c.minRole || isAtLeast(c.minRole)),
-    [isAtLeast]
+    () => CATEGORIES.filter(c => !c.minRole || isAtLeast(c.minRole)).map(c => (modules ? { ...c, modules: c.modules.filter(m => modules.includes(m.href)) } : c)).filter(c => c.modules.length > 0),
+    [isAtLeast, modules]
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);

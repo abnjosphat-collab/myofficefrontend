@@ -2,12 +2,14 @@
 // It lives on the server (`/api/ppe-order-list`, table `ppe_order_list`), so a colleague on another computer sees the same list and a
 // cleared browser does not lose it. Reads keep loading through a slow service; a failed read is an error, never an empty list. Changes
 // show at once and are undone (with the reason) if the server refuses them. A list kept in this browser before the move is added to the
-// shared list once, then removed from the browser.
+// shared list once, then removed from the browser. Pass a department to read and change that register's slice (Mining) instead of
+// Engineering; lines for a Mining person's records follow the person, so record lines need no other change.
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/apiClient';
+import { withDepartment } from '@/lib/api';
 import { useApiList } from '@/lib/useApiList';
 import { orderEntryFulfilled, type OrderListEntry } from './calcPPE';
 import { exclusionId, freeLineId } from './orderBasket';
@@ -38,14 +40,16 @@ export interface FreeLineDraft {
   section?: string;
 }
 
-export function useOrderList() {
-  const list = useApiList<OrderListEntry>(PATH);
+export function useOrderList(department?: string | null) {
+  const path = withDepartment(PATH, department);
+  const list = useApiList<OrderListEntry>(path);
   const entries = list.items;
   const latest = useRef(entries);
   useEffect(() => { latest.current = entries; });
   const { setItems, refetch } = list;
 
   // Move what this browser held before the list was shared (adding is idempotent, so a second run adds nothing).
+  // Legacy lines predate the Mining register: they move unscoped, never into a department slice.
   const movedRef = useRef(false);
   useEffect(() => {
     if (!list.loaded || movedRef.current) return;
@@ -77,8 +81,8 @@ export function useOrderList() {
   const removeMany = useCallback((recordIds: string[]) => {
     const ids = new Set(recordIds);
     if (!latest.current.some(e => ids.has(e.record_id))) return;
-    change(prev => prev.filter(e => !ids.has(e.record_id)), () => api.post(`${PATH}/remove`, { record_ids: [...ids] }));
-  }, [change]);
+    change(prev => prev.filter(e => !ids.has(e.record_id)), () => api.post(`${path}/remove`, { record_ids: [...ids] }));
+  }, [change, path]);
 
   const remove = useCallback((recordId: string) => removeMany([recordId]), [removeMany]);
 
@@ -88,8 +92,8 @@ export function useOrderList() {
   /** Edit a stored line in place (quantity, size, note); kind/source only graduate a legacy line. A refused edit comes back with the reason. */
   const update = useCallback((recordId: string, patch: OrderLinePatch) => {
     if (!latest.current.some(e => e.record_id === recordId)) return;
-    change(prev => prev.map(e => (e.record_id === recordId ? { ...e, ...patch } : e)), () => api.patch(`${PATH}/${recordId}`, patch));
-  }, [change]);
+    change(prev => prev.map(e => (e.record_id === recordId ? { ...e, ...patch } : e)), () => api.patch(`${path}/${recordId}`, patch));
+  }, [change, path]);
 
   /** Shut an automatic line out: stored under "x:<id>:<expiry>" so a renewal (new expiry) brings it back. */
   const exclude = useCallback((entry: OrderListEntry) => {
@@ -110,8 +114,8 @@ export function useOrderList() {
   const clearManual = useCallback(() => {
     const ids = latest.current.filter(e => e.kind !== 'excluded').map(e => e.record_id);
     if (ids.length === 0) return;
-    change(prev => prev.filter(e => e.kind === 'excluded'), () => api.post(`${PATH}/remove`, { record_ids: ids }));
-  }, [change]);
+    change(prev => prev.filter(e => e.kind === 'excluded'), () => api.post(`${path}/remove`, { record_ids: ids }));
+  }, [change, path]);
 
   const has = useCallback((recordId: string) => entries.some(e => e.record_id === recordId), [entries]);
 

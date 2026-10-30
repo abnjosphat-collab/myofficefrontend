@@ -49,7 +49,7 @@ export interface BasketAddables {
   soon: PPERecord[];
 }
 
-export function OrderListView({ basket, addables, typeFilter, typeOptions, onTypeFilterChange, registerSections = [], onIssue, onRemove, onRemoveMany, onExclude, onRestore, onUpdate, onKeepManual, onAddMany, onAddFree, onClearManual }: {
+export function OrderListView({ basket, addables, typeFilter, typeOptions, onTypeFilterChange, registerSections = [], onIssue, onRemove, onRemoveMany, onExclude, onRestore, onUpdate, onKeepManual, onAddMany, onAddFree, onClearManual, allowFreeLines = true }: {
   basket: Basket; addables: BasketAddables; typeFilter: TypeFilter; typeOptions: FilterOption[]; onTypeFilterChange: (patch: Partial<TypeFilter>) => void;
   /** Every section on the personnel register (offered when adding a free line). */
   registerSections?: string[];
@@ -58,6 +58,8 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
   onExclude: (line: BasketLine) => void; onRestore: (id: string) => void;
   onUpdate: (id: string, patch: OrderLinePatch) => void; onKeepManual: (ids: string[]) => void;
   onAddMany: (entries: OrderListEntry[]) => void; onAddFree: (draft: FreeLineDraft) => void; onClearManual: () => void;
+  /** Free lines carry no person, so they always land outside a department register: hidden there. */
+  allowFreeLines?: boolean;
 }) {
   const confirm = useConfirm();
   const [search, setSearch] = useState('');
@@ -159,7 +161,7 @@ export function OrderListView({ basket, addables, typeFilter, typeOptions, onTyp
               { label: `Due this week (Mon–Sun) (${addables.thisWeek.records.length})`, icon: 'cart', disabled: addables.thisWeek.records.length === 0, onSelect: () => { void addWeek('thisWeek'); } },
               { label: `Due next week (Mon–Sun) (${addables.nextWeek.records.length})`, icon: 'calendar', disabled: addables.nextWeek.records.length === 0, onSelect: () => { void addWeek('nextWeek'); } },
               { label: 'Choose from due soon…', icon: 'search', onSelect: () => setChooseOpen(true) },
-              { label: 'Add a free line…', icon: 'plus', onSelect: () => setFreeOpen(true) },
+              ...(allowFreeLines ? [{ label: 'Add a free line…', icon: 'plus' as const, onSelect: () => setFreeOpen(true) }] : []),
             ]} />
             {manualCount > 0 && <Button variant="danger-quiet" icon="delete" className="ml-auto" onClick={clear}>Clear added lines</Button>}
           </div>

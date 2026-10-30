@@ -1,6 +1,6 @@
 // lib/api.ts — authenticated fetch helper.
 //
-// The backend now requires a signed-in user's Bearer token on every write
+// The backend now requires a signed-in user's Bearer [REDACTED] on every write
 // endpoint (POST/PUT/PATCH/DELETE) — previously only app/leaves/page.tsx
 // attached one, and only for the approve/reject action. Every other write
 // call across the app sent no token at all, which now fails with a 401.
@@ -20,6 +20,13 @@ let mutationsInFlight = 0;
 /** True while any POST/PUT/PATCH/DELETE through `authFetch` has not settled. */
 export function isMutationInFlight(): boolean {
   return mutationsInFlight > 0;
+}
+
+/** Append ?department= to an API path when a department register (Mining) is
+ * showing, so the server scopes the call to that register. */
+export function withDepartment(path: string, department?: string | null): string {
+  if (!department) return path;
+  return `${path}${path.includes('?') ? '&' : '?'}department=${encodeURIComponent(department)}`;
 }
 
 export async function authFetch(input: string, init: RequestInit = {}): Promise<Response> {

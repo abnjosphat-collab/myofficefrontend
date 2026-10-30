@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useRef, useState, ReactNode } fro
 import type { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
-import { profileScope } from './scope';
+import { profileScope, profileDepartment, profileModules } from './scope';
 import { needsChallenge, MFA_REQUIRED_EVENT } from './mfa';
 import { clearInputHistoryForUser, setInputHistoryUser } from './inputHistory';
 import { invalidateAllLookupCaches } from '@/hooks/useLookups';
@@ -30,6 +30,8 @@ interface AuthContextType {
   isAtLeast:         (role: UserRole) => boolean;
   // The account's section limit (lib/scope.ts), or null when not limited.
   scope:             string | null;
+  department:        string | null;
+  modules:           string[] | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -211,7 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, profile, session, loading, mfaPending, completeMfaChallenge,
       signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
-      refreshProfile, isAtLeast, scope: profileScope(profile),
+      refreshProfile, isAtLeast, scope: profileScope(profile), department: profileDepartment(profile), modules: profileModules(profile),
     }}>
       {children}
     </AuthContext.Provider>

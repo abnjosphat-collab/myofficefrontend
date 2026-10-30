@@ -11,6 +11,9 @@
 //   value; the label, hint and chips render here.
 // - PersonNameInput: a name as text, suggested from the register, so someone not on
 //   it (a contractor, a visitor) can still be written in. `multiple` takes a comma list.
+//
+// Each picker takes an optional `department` to suggest from that register (Mining)
+// instead of Engineering.
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -59,9 +62,10 @@ export interface EmployeeOption {
 /**
  * The employee register as picker options, with the lookups every picker needs.
  * `exclude` hides row ids already chosen elsewhere (the second picker in a pair).
+ * `department` reads that register (Mining) instead of Engineering.
  */
-export function useEmployeeOptions(exclude?: string[]): { options: EmployeeOption[]; find: (id: string) => EmployeeLookup | null } {
-  const employees = useEmployees();
+export function useEmployeeOptions(exclude?: string[], department?: string | null): { options: EmployeeOption[]; find: (id: string) => EmployeeLookup | null } {
+  const employees = useEmployees(department);
   const options = useMemo(() => {
     const hidden = new Set(exclude ?? []);
     return employees
@@ -96,8 +100,9 @@ export function resolvePersonId(options: EmployeeOption[], name: string, employe
  * Pick one person. `name` is what the caller's form already holds (the box shows it);
  * the caller fills its own fields from `onPick`. Emptying the box and leaving it
  * picks nobody (onPick(null)); text that names nobody is put back on leaving.
+ * `department` reads that register (Mining) instead of Engineering.
  */
-export function PersonPicker({ name, onPick, label, placeholder, disabled, excludeIds, className, autoFocusSearch }: {
+export function PersonPicker({ name, onPick, label, placeholder, disabled, excludeIds, className, autoFocusSearch, department }: {
   name?: string;
   /** Kept for callers that pin a duplicate name; the box shows the name, so it no longer changes what is drawn. */
   employeeId?: string;
@@ -111,8 +116,10 @@ export function PersonPicker({ name, onPick, label, placeholder, disabled, exclu
   clearLabel?: string;
   /** Start with the caret in the box. The dialog leaves focus alone while this is set. */
   autoFocusSearch?: boolean;
+  /** Read that register (Mining) instead of Engineering. */
+  department?: string | null;
 }) {
-  const { options, find } = useEmployeeOptions(excludeIds);
+  const { options, find } = useEmployeeOptions(excludeIds, department);
   const suggestions = useMemo(() => options.map(o => suggestionOf(o.employee)), [options]);
   const [recent, refreshRecent] = useRecentPeople();
   const [draft, setDraft] = useState<string | null>(null);
@@ -143,16 +150,19 @@ export interface PickedPerson { employee_id: string; name: string }
 /**
  * Pick several people; the chosen ones show as removable chips. `single` hides the
  * box once one person is chosen (a filter scoped to one person).
+ * `department` reads that register (Mining) instead of Engineering.
  */
-export function PeoplePicker({ label, value, onChange, hint, single = false, placeholder }: {
+export function PeoplePicker({ label, value, onChange, hint, single = false, placeholder, department }: {
   label: string;
   value: PickedPerson[];
   onChange: (people: PickedPerson[]) => void;
   hint?: string;
   single?: boolean;
   placeholder?: string;
+  /** Read that register (Mining) instead of Engineering. */
+  department?: string | null;
 }) {
-  const employees = useEmployees();
+  const employees = useEmployees(department);
   const [text, setText] = useState('');
   const [recent, refreshRecent] = useRecentPeople();
   const options = useMemo(() => {
@@ -191,8 +201,9 @@ export function PeoplePicker({ label, value, onChange, hint, single = false, pla
  * A name as text, suggested from the register as it is typed. `onPick` also hands
  * over the register record when a suggestion is taken (to fill an ID beside it).
  * `multiple` takes a comma-separated list and completes the last name.
+ * `department` reads that register (Mining) instead of Engineering.
  */
-export function PersonNameInput({ value, onChange, onPick, placeholder, disabled, multiple, className, 'aria-label': ariaLabel }: {
+export function PersonNameInput({ value, onChange, onPick, placeholder, disabled, multiple, className, department, 'aria-label': ariaLabel }: {
   value: string;
   onChange: (name: string) => void;
   onPick?: (employee: EmployeeLookup) => void;
@@ -200,9 +211,11 @@ export function PersonNameInput({ value, onChange, onPick, placeholder, disabled
   disabled?: boolean;
   multiple?: boolean;
   className?: string;
+  /** Read that register (Mining) instead of Engineering. */
+  department?: string | null;
   'aria-label'?: string;
 }) {
-  const employees = useEmployees();
+  const employees = useEmployees(department);
   const options = useMemo(() => employees.map(e => suggestionOf(e)), [employees]);
   const [recent, refreshRecent] = useRecentPeople();
   return (

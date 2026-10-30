@@ -19,10 +19,10 @@ import type { FormState, PPERecord } from './types';
 type Shared = Omit<FormState, 'employee_name' | 'employee_id' | 'position' | 'mine_section' | 'expected_updated_at'>;
 const sharedOf = (): Shared => ({ ppe_type: 'helmet', item_name: '', size: '', issue_date: todayLocal(), expiry_date: '', condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop' });
 
-export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreated }: {
-  open: boolean; records: PPERecord[]; matrix: Record<string, number>; onOpenChange: (open: boolean) => void; onCreated: () => void;
+export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreated, department }: {
+  open: boolean; records: PPERecord[]; matrix: Record<string, number>; onOpenChange: (open: boolean) => void; onCreated: () => void; department?: string | null;
 }) {
-  const employees = useEmployees();
+  const employees = useEmployees(department);
   const [people, setPeople] = useState<PickedPerson[]>([]);
   const [form, setForm] = useState<Shared>(sharedOf);
   const [touchedExpiry, setTouchedExpiry] = useState(false);
@@ -64,7 +64,7 @@ export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreate
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Issue to several people" description="One record per person, all with these details." zoomId="ppe:new-bulk" submitLabel={people.length > 0 ? `Issue to ${people.length} ${people.length === 1 ? 'person' : 'people'}` : 'Issue PPE'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
-        <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone getting this item.'} />
+        <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone getting this item.'} department={department} />
         {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}
         {dupes > 0 && <Notice tone="warning" title="Some of these people already hold this item">{dupes} of {people.length} already {dupes === 1 ? 'has' : 'have'} this kind of PPE recorded as issued on {form.issue_date}. {dupes === 1 ? 'That record is' : 'Those records are'} not saved again; the others are, and the ones left out stay in the list with the reason.</Notice>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
