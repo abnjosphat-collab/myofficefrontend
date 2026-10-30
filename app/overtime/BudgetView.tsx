@@ -9,7 +9,7 @@
 // the same access permissions as the rest of the page.
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   Button, DataTable, EXPORT_CHECK_MS, EmptyState, ExportButton, LoadingPulse, MetricGrid,
@@ -25,6 +25,21 @@ import type { OTRecord } from './types';
 const hrs = (n: number | null) => (n == null ? '—' : `${n.toFixed(0)}`);
 
 const STATUS_TONE = { OK: 'success', Incomplete: 'warning', Missing: 'danger', 'Non-NEC': 'neutral', Unclassified: 'warning' } as const;
+
+/** An inline warning that filters the table to the affected rows. */
+function FilterLink({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={active ? 'Show all rows' : 'Show only these rows'}
+      className={`underline decoration-dotted underline-offset-2 ${active ? 'font-semibold text-ink' : 'text-ink'}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 const COLUMNS: Column<BudgetRow>[] = [
   {
@@ -128,16 +143,34 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
   });
 
   const ready = otLoaded && !!computed;
-  const shown = computed?.rows ?? [];
-  const incomplete = shown.filter(r => r.status === 'Incomplete').length;
-  const missing = shown.filter(r => r.status === 'Missing').length;
-  const unclassified = shown.filter(r => r.status === 'Unclassified').length;
+  const [showAbout, setShowAbout] = useState(true);
+  const [noticeHidden, setNoticeHidden] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<BudgetRow['status'] | null>(null);
+  useEffect(() => { setNoticeHidden(false); setStatusFilter(null); }, [computed]);
+  const allRows = computed?.rows ?? [];
+  const shown = statusFilter ? allRows.filter(r => r.status === statusFilter) : allRows;
+  const shownTotals = useMemo(() => budgetTotals(shown), [shown]);
+  const incomplete = allRows.filter(r => r.status === 'Incomplete').length;
+  const missing = allRows.filter(r => r.status === 'Missing').length;
+  const unclassified = allRows.filter(r => r.status === 'Unclassified').length;
+  const issueCount = (incomplete > 0 ? 1 : 0) + (missing > 0 ? 1 : 0) + (unclassified > 0 ? 1 : 0) + (computed && computed.orphanCount > 0 ? 1 : 0);
+  const qualityItems: { key: string; status: BudgetRow['status'] | null; label: string }[] = [];
+  if (incomplete > 0) qualityItems.push({ key: 'Incomplete', status: 'Incomplete', label: `${incomplete} incomplete book ${incomplete === 1 ? 'record' : 'records'}` });
+  if (missing > 0) qualityItems.push({ key: 'Missing', status: 'Missing', label: `${missing} without monthly-book data (shift blank)` });
+  if (unclassified > 0) qualityItems.push({ key: 'Unclassified', status: 'Unclassified', label: `${unclassified} without an employment type in Personnel` });
+  if (computed && computed.orphanCount > 0) qualityItems.push({ key: 'orphans', status: null, label: `${computed.orphanCount} overtime ${computed.orphanCount === 1 ? 'record' : 'records'} for people outside the register (${computed.orphanHours}h, excluded from rows)` });
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-3xl">
-          <h2 className="font-sans text-heading-sm font-semibold text-ink">Overtime Budget — Engineering</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-sans text-heading-sm font-semibold text-ink">Overtime Budget — Engineering</h2>
+            <Button size="sm" variant="secondary" onClick={() => setShowAbout(v => !v)}>
+              {showAbout ? 'Hide details' : 'About this report'}
+            </Button>
+          </div>
+          {showAbout && (
           <p className="mt-1 font-sans text-body-sm text-ink-muted">
             Forecast monthly overtime for the ENGINEERING sheet of the FY2027 split-budget workbook,
             in whole hours with no comments. OT @ 1.5 Shift is read automatically from the monthly
@@ -147,6 +180,7 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
             records for July to September 2026 (total ÷ 3).
             {computed && ` Covering the ${engEmployees.length} people on the sheet; the rows follow the sheet order for direct copy-paste.`}
           </p>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
               ref={fileRef} type="file" accept=".xlsx" className="hidden"
@@ -189,25 +223,50 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
           )}
           <MetricGrid compact>
             <MetricTile compact label="Engineering employees" value={shown.length} />
-            <MetricTile compact label="OT @ 1.5 Shift" value={`${hrs(computed.totals.total15Shift)}`} detail="Sum of shift averages" />
-            <MetricTile compact label="OT @ 1.5 Adhoc" value={`${hrs(computed.totals.total15Adhoc)}`} detail="Sum of Adhoc averages" />
-            <MetricTile compact label="OT @ 2.0 Shift" value={`${hrs(computed.totals.total20Shift)}`} detail="Sum of 2.0 averages" />
+            <MetricTile compact label="OT @ 1.5 Shift" value={`${hrs(shownTotals.total15Shift)}`} detail="Sum of shift averages" />
+            <MetricTile compact label="OT @ 1.5 Adhoc" value={`${hrs(shownTotals.total15Adhoc)}`} detail="Sum of Adhoc averages" />
+            <MetricTile compact label="OT @ 2.0 Shift" value={`${hrs(shownTotals.total20Shift)}`} detail="Sum of 2.0 averages" />
           </MetricGrid>
 
-          {(incomplete > 0 || missing > 0 || unclassified > 0 || computed.orphanCount > 0) && (
-            <Notice tone={missing > 0 ? 'warning' : 'info'} title="Data quality">
+          {!noticeHidden && qualityItems.length > 0 && (
+            <Notice
+              tone={missing > 0 ? 'warning' : 'info'} title="Data quality"
+              action={<Button size="sm" variant="secondary" onClick={() => setNoticeHidden(true)}>Hide</Button>}
+            >
               <p className="font-sans text-body-sm">
-                {[
-                  incomplete > 0 ? `${incomplete} incomplete book ${incomplete === 1 ? 'record' : 'records'}` : '',
-                  missing > 0 ? `${missing} without monthly-book data (shift blank)` : '',
-                  unclassified > 0 ? `${unclassified} without an employment type in Personnel` : '',
-                  computed.orphanCount > 0 ? `${computed.orphanCount} overtime ${computed.orphanCount === 1 ? 'record' : 'records'} for people outside the register (${computed.orphanHours}h, excluded from rows)` : '',
-                ].filter(Boolean).join(' · ')}.
+                {qualityItems.map((item, i) => (
+                  <span key={item.key}>
+                    {i > 0 && ' · '}
+                    {item.status ? (
+                      <FilterLink active={statusFilter === item.status} onClick={() => setStatusFilter(s => s === item.status ? null : item.status)}>
+                        {item.label}
+                      </FilterLink>
+                    ) : (
+                      <span>{item.label}</span>
+                    )}
+                  </span>
+                ))}
+                .
               </p>
             </Notice>
           )}
+          {noticeHidden && issueCount > 0 && (
+            <div>
+              <Button size="sm" variant="secondary" onClick={() => setNoticeHidden(false)}>
+                Show data quality ({issueCount} issue{issueCount === 1 ? '' : 's'})
+              </Button>
+            </div>
+          )}
+          {statusFilter && (
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-body-sm text-ink-muted">
+                Showing only “{statusFilter}” ({shown.length} of {allRows.length}).
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setStatusFilter(null)}>Show all</Button>
+            </div>
+          )}
 
-          <DataTable caption="Overtime Budget forecast — Engineering" rows={shown} columns={COLUMNS} getRowId={r => r.employeeId} stillKey={shown.length} />
+          <DataTable caption={statusFilter ? `Overtime Budget forecast — Engineering (${statusFilter}, ${shown.length} rows; download still contains all rows)` : 'Overtime Budget forecast — Engineering'} rows={shown} columns={COLUMNS} getRowId={r => r.employeeId} stillKey={`${shown.length}:${statusFilter ?? 'all'}`} />
         </>
       )}
     </div>
