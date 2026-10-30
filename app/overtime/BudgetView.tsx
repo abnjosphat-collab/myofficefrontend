@@ -145,7 +145,7 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
             the months each employee appears in). OT @ 2.0 Shift covers holiday and off-day working,
             and OT @ 1.5 Adhoc every other overtime hour — both averaged from Overtime-module
             records for July to September 2026 (total ÷ 3).
-            {computed && ` Covering the ${engEmployees.length} people on the sheet (${shown.length} shown after exclusions); the download matches the sheet order for direct copy-paste.`}
+            {computed && ` Covering the ${engEmployees.length} people on the sheet; the rows follow the sheet order for direct copy-paste.`}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input
