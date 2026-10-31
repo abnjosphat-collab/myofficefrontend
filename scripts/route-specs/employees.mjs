@@ -128,6 +128,7 @@ const spec = {
     await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.getByText(/Update refused \(fixture\)/).waitFor({ timeout: 8000 }).catch(() => {});
     check(await nr.getByText(/Update refused \(fixture\)/).isVisible(), 'a refused batch says so inside the dialog');
+    await page.getByRole('alertdialog').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     failNormalise = false;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
