@@ -1,4 +1,4 @@
-// /employees: the personnel register (cards grouped by section and trade, table, filters, archived), detail, add/edit, delete,
+﻿// /employees: the personnel register (cards grouped by section and trade, table, filters, archived), detail, add/edit, delete,
 // the organised roster export, the registry download and the roster clean-up. Mock shapes mirror the real router.
 const emp = (id, over = {}) => ({ id, employee_id: `C${id}`, first_name: 'Ann', last_name: 'Alpha', id_number: `ID-${id}`, email: '', phone: '', address: '', date_of_engagement: '2020-03-01', designation: 'Fitter', employee_class: 'Permanent', employment_type: 'NEC', supervisor: '', section: 'Mechanical', department: '', grade: '', qualifications: [], offences: ['Late 2025'], awards_recognition: [], other_positions: [], previous_employer: '', archived: false, ...over });
 const EMPLOYEES = [
@@ -123,17 +123,15 @@ const spec = {
     await shot(page, 'normalise@1440');
     failNormalise = true;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    const nc = page.getByRole('alertdialog');
-    await nc.waitFor({ timeout: 5000 });
-    check(await nc.getByText(/across the roster/).isVisible(), 'the batch asks first and names what it rewrites');
-    await nc.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
+    check(await page.getByRole('alertdialog').getByText(/across the roster/).isVisible(), 'the batch asks first and names what it rewrites');
+    await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.getByText(/Update refused \(fixture\)/).waitFor({ timeout: 8000 }).catch(() => {});
     check(await nr.getByText(/Update refused \(fixture\)/).isVisible(), 'a refused batch says so inside the dialog');
     failNormalise = false;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    const nc2 = page.getByRole('alertdialog');
-    await nc2.waitFor({ timeout: 5000 });
-    await nc2.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
     check(calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize').length === 2, 'a second attempt sends the batch again');
   },
