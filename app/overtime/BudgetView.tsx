@@ -165,7 +165,7 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-sans text-heading-sm font-semibold text-ink">Overtime Budget — Engineering</h2>
+            <h2 className="font-sans text-section font-semibold text-ink">Overtime Budget — Engineering</h2>
             <Button size="sm" variant="secondary" onClick={() => setShowAbout(v => !v)}>
               {showAbout ? 'Hide details' : 'About this report'}
             </Button>

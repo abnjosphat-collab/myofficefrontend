@@ -117,7 +117,7 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-3xl">
-          <h2 className="font-sans text-heading-sm font-semibold text-ink">Overtime summaries</h2>
+          <h2 className="font-sans text-section font-semibold text-ink">Overtime summaries</h2>
           <p className="mt-1 font-sans text-body-sm text-ink-muted">
             Download overtime averages for everybody in Personnel over any period. OT @ 1.5 Shift
             uses live NEC timesheets (actual hours above the 208h monthly cap, pro-rated to the

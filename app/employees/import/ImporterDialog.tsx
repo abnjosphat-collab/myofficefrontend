@@ -434,7 +434,7 @@ export function ImporterDialog({ open, onOpenChange, onImported }: {
               <MetricTile compact label="Skipped" value={result.skipped} />
             </MetricGrid>
             <div className="flex flex-wrap gap-2">
-              <Button icon="refresh" onClick={resetFile}>Import another file</Button>
+              <Button icon="upload" onClick={resetFile}>Import another file</Button>
               <Button variant="primary" onClick={() => onOpenChange(false)}>Done</Button>
             </div>
           </div>
