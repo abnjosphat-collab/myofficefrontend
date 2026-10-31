@@ -14,6 +14,9 @@ export function firstDialogField(root: HTMLElement | null): HTMLElement | null {
     if (!(field instanceof HTMLElement)) continue;
     if ((field as HTMLInputElement).disabled) continue;
     if (field.getClientRects().length === 0) continue;
+    // A screen-reader-only file input still has a (1px) box: never hand it the caret, or
+    // keyboard shortcuts scoped to "not in a field" (the document viewer's arrows) go dead.
+    if (field.getAttribute('aria-hidden') === 'true' || field.tabIndex < 0) continue;
     return field;
   }
   return null;
