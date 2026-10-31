@@ -108,7 +108,9 @@ const spec = {
     open: 'New leave request', dialog: 'New leave request', path: '/api/leaves', submit: 'Submit request',
     requiredText: 'Choose the employee.',
     async fill(dialog, page) {
-      await dialog.getByRole('combobox', { name: 'Employee' }).click();
+      const empBox = dialog.getByRole('combobox', { name: 'Employee' });
+      await empBox.click();
+      await empBox.fill('Eve');
       await page.getByRole('option', { name: /Eve Epsilon/ }).click();
       await dialog.getByLabel(/^Start date/).fill(local(40));
       await dialog.getByLabel(/^End date/).fill(local(42));

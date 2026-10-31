@@ -86,7 +86,7 @@ const spec = {
     await page.getByRole('button', { name: 'Name cover' }).first().click();
     const cd = page.getByRole('dialog', { name: 'Name cover' });
     await cd.waitFor({ timeout: 5000 });
-    check(await cd.getByRole('combobox', { name: 'Away' }).textContent().then(t => t.includes('Ann Alpha')), 'the cover dialog arrives with the away holder prefilled');
+    check((await cd.getByRole('combobox', { name: 'Away' }).inputValue()).includes('Ann Alpha'), 'the cover dialog arrives with the away holder prefilled');
     await cd.getByRole('button', { name: 'Cancel' }).click();
     await cd.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
 
@@ -153,7 +153,9 @@ const spec = {
     async before(page) { await page.getByRole('tab', { name: 'Rotations' }).click(); },
     async fill(dialog, page) {
       await dialog.getByLabel('Name').fill('Nightly');
-      await dialog.getByRole('combobox', { name: 'Add member' }).click();
+      const addBox = dialog.getByRole('combobox', { name: 'Add member' });
+      await addBox.click();
+      await addBox.fill('Eve');
       await page.getByRole('option', { name: /Eve Epsilon/ }).click();
     },
     async kept(dialog) { return (await dialog.getByLabel('Name').inputValue()) === 'Nightly'; },

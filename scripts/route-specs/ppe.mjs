@@ -122,9 +122,11 @@ const spec = {
     await page.getByRole('button', { name: 'Issue PPE' }).first().click();
     const iss = dialog('Issue PPE');
     await iss.waitFor({ timeout: 5000 });
+    await iss.getByRole('combobox', { name: 'Pick an employee' }).fill('Ann');
     await page.getByRole('option', { name: /Ann Alpha/ }).waitFor({ timeout: 5000 });
     check(!(await page.getByRole('option', { name: /Eve Epsilon/ }).isVisible().catch(() => false)), 'the issue picker offers no archived people');
     check(!(await iss.getByLabel(/^Employee ID/).isVisible().catch(() => false)), 'the person cannot be typed: there is no ID input');
+    await iss.getByRole('combobox', { name: 'Pick an employee' }).fill('Dee');
     await page.getByRole('option', { name: /Dee Delta/ }).click();
     await page.getByRole('option', { name: /Dee Delta/ }).waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     await iss.getByText('Welder').waitFor({ timeout: 5000 });
@@ -234,9 +236,9 @@ const spec = {
     await page.getByRole('tab', { name: /^Order list/ }).click();
     const poToggle = page.getByRole('button', { name: /Purchase order lines/ });
     check(await poToggle.isVisible() && await poToggle.getAttribute('aria-expanded') === 'false', 'the purchase order lines start collapsed');
-    check(!(await page.getByRole('list', { name: 'Purchase order lines' }).isVisible()), 'collapsed lines are hidden so they do not get in the way');
+    check(!(await page.getByRole('list', { name: 'Purchase order lines', exact: true }).isVisible()), 'collapsed lines are hidden so they do not get in the way');
     await poToggle.click();
-    check(await page.getByRole('list', { name: 'Purchase order lines' }).isVisible(), 'opening the section shows the purchase order lines');
+    check(await page.getByRole('list', { name: 'Purchase order lines', exact: true }).isVisible(), 'opening the section shows the purchase order lines');
     await shot(page, 'order@1440');
     check(await page.getByText('Shared order list').isVisible(), 'the order list says it is shared');
     // issuing from the order list renews the item in place (new issue date, expiry from the matrix, still active = In date); nothing is marked returned
@@ -295,7 +297,7 @@ const spec = {
   create: {
     open: 'Issue PPE', dialog: 'Issue PPE', path: '/api/ppe', submit: 'Issue PPE',
     requiredText: 'Pick the person from the register.',
-    async fill(dialog, page) { const box = dialog.getByRole('combobox', { name: 'Pick an employee' }); const opt = page.getByRole('option', { name: /Dee Delta/ }); if ((await box.getAttribute('aria-expanded').catch(() => null)) !== 'true') await box.click(); await opt.waitFor({ timeout: 8000 }); await opt.click(); await dialog.getByLabel(/^Item or brand/).fill('Fixture visor'); },
+    async fill(dialog, page) { const box = dialog.getByRole('combobox', { name: 'Pick an employee' }); const opt = page.getByRole('option', { name: /Dee Delta/ }); if ((await box.getAttribute('aria-expanded').catch(() => null)) !== 'true') await box.click(); await box.fill('Dee'); await opt.waitFor({ timeout: 8000 }); await opt.click(); await dialog.getByLabel(/^Item or brand/).fill('Fixture visor'); },
     async kept(dialog) { return (await dialog.getByLabel(/^Item or brand/).inputValue()) === 'Fixture visor' && await dialog.locator('dl[aria-label="Person"]').getByText('Dee Delta').isVisible(); },
     body: b => b.employee_id === 'C400' && b.item_name === 'Fixture visor' && !('department' in b),
   },
@@ -400,7 +402,7 @@ const basketSpec = {
     // the purchase order lines count quantities, not lines
     const poToggle = page.getByRole('button', { name: /Purchase order lines/ });
     await poToggle.click();
-    const po = page.getByRole('list', { name: 'Purchase order lines' });
+    const po = page.getByRole('list', { name: 'Purchase order lines', exact: true });
     check(await po.getByText('5 ×').isVisible(), 'the free line counts its 5 in the purchase order lines');
 
     // editing a line patches its quantity on the server and the purchase order adds it up
