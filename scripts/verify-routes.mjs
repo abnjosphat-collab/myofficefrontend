@@ -96,8 +96,12 @@ for (const spec of specs) {
         check(await dialog.getByText(c.requiredText).first().isVisible(), `required field error: "${c.requiredText}"`);
       }
       await c.fill(dialog, page);
+      // The fill must land in form state before submit: a click that wins the race against
+      // React's commit submits the pre-fill state and no request goes out (load flake).
+      // The required-field error clearing is the state-derived signal that the fill committed.
+      if (c.requiredText) await dialog.getByText(c.requiredText).first().waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
       await dialog.getByRole('button', { name: c.submit }).click();
-      await dialog.getByRole('alert').first().waitFor({ timeout: 5000 }).catch(() => {});
+      await dialog.getByRole('alert').first().waitFor({ timeout: 15000 }).catch(() => {});
       check(await dialog.isVisible() && await dialog.getByText('Save rejected (fixture)').isVisible(), 'failed save keeps the dialog open and shows the server message');
       check(await c.kept(dialog), 'failed save keeps what the user typed');
       await shot(page, 'create-error@1440');

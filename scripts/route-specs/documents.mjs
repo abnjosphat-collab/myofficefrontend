@@ -149,6 +149,7 @@ const spec = {
     // preview, in the page: Word, then next/previous, PDF, image, spreadsheet, text, audio, older Office
     await page.getByRole('combobox', { name: 'Order' }).click();
     await page.getByRole('option', { name: 'Order: newest' }).click();
+    await sent(/sort=date/);
     await page.getByRole('button', { name: 'Preview Pump SOP.docx' }).click();
     const word = dialog('Pump SOP.docx');
     await word.getByText('Lock out tag out procedure').waitFor({ timeout: 8000 });
