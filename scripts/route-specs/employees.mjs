@@ -128,13 +128,22 @@ const spec = {
     await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.getByText(/Update refused \(fixture\)/).waitFor({ timeout: 8000 }).catch(() => {});
     check(await nr.getByText(/Update refused \(fixture\)/).isVisible(), 'a refused batch says so inside the dialog');
-    await page.getByRole('alertdialog').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     failNormalise = false;
-    await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    // The batch itself says to close and open it again to retry: a fresh dialog for the
+    // second attempt, not a second confirm racing the first dialog's close animation.
+    await nr.getByRole('button', { name: 'Cancel' }).click();
+    await nr.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Normalise' }).click();
+    const nr2 = dialog('Normalise the roster');
+    await nr2.waitFor({ timeout: 5000 });
+    await nr2.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
     await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    await nr.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
-    check(calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize').length === 2, 'a second attempt sends the batch again');
+    await nr2.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+    let sent = [];
+    for (let i = 0; i < 50 && sent.length < 2; i += 1) { await page.waitForTimeout(100); sent = calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize'); }
+    check(sent.length === 2, 'a second attempt sends the batch again');
   },
   create: {
     open: 'Add employee', dialog: 'Add an employee', path: '/api/employees', submit: 'Add employee',
