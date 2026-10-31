@@ -34,4 +34,20 @@ describe('exportPersonnelRegistryExcel', () => {
     await exportPersonnelRegistryExcel([person(3, 'SALARIED')], 'Personnel_Registry');
     expect((await sheetOf()).name).toBe('Personnel Registry');
   });
+
+  it('leaves Start Date out of the download', async () => {
+    vi.mocked(saveAs).mockClear();
+    await exportPersonnelRegistryExcel([person(1, 'NEC')], 'Personnel_Registry');
+    const sheet = await sheetOf();
+    expect(JSON.stringify(sheet.getSheetValues())).not.toContain('Start Date');
+    const header = sheet.getRow(4);
+    expect(header.cellCount).toBe(7);
+    expect(String(header.getCell(7).value)).toBe('Employment Type');
+  });
+
+  it('carries no confidentiality footer label', async () => {
+    vi.mocked(saveAs).mockClear();
+    await exportPersonnelRegistryExcel([person(1, 'NEC')], 'Personnel_Registry');
+    expect(JSON.stringify((await sheetOf()).getSheetValues())).not.toContain('Confidential personnel record');
+  });
 });

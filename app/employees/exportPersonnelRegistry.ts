@@ -3,14 +3,14 @@ import type { Borders } from 'exceljs';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { normalizeSection } from '@/lib/sections';
 import { formatPhoneDisplay } from '@/lib/phone';
-import { formatDate, formatLongDate, formatTime } from '@/lib/format';
+import { formatLongDate, formatTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 
-const COL_COUNT = 8;
+const COL_COUNT = 7;
 const PHONE_COL = 6;
 
-/** Text columns — editorial left align; dates/types stay centred. */
+/** Text columns — editorial left align; the type column stays centred. */
 const LEFT_ALIGN_COLS = new Set([1, 2, 3, 4, 5, PHONE_COL]);
 
 const RULE = 'FFD0DCE6';
@@ -24,7 +24,6 @@ const COLUMNS = [
   { key: 'section', label: 'Section', width: 20 },
   { key: 'phone', label: 'Phone', width: 20 },
   { key: 'employment_type', label: 'Employment Type', width: 16 },
-  { key: 'date_of_engagement', label: 'Start Date', width: 14 },
 ] as const;
 
 function hairBottom(): Partial<Borders> {
@@ -61,7 +60,6 @@ function rowPayload(e: Employee): Record<string, string> {
     section: normalizeSection(e.section) === 'Unassigned' ? '' : normalizeSection(e.section),
     phone: formatPhoneDisplay(e.phone) || '',
     employment_type: e.employment_type || '',
-    date_of_engagement: e.date_of_engagement ? formatDate(e.date_of_engagement) : '',
   };
 }
 
@@ -203,11 +201,6 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
         addGroupSpacer(ws);
       }
     });
-
-    ws.addRow([]);
-    const footer = ws.addRow(['Ozech MyOffice · Confidential personnel record']);
-    footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
-    ws.mergeCells(footer.number, 1, footer.number, COL_COUNT);
 
     const buf = await wb.xlsx.writeBuffer();
     saveAs(
