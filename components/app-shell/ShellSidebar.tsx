@@ -68,7 +68,13 @@ export function ShellSidebar({
   const list = !listOpen ? null : rail ? (
     <>
       <NavItem label="Home" icon="home" href="/" active={home} collapsed onNavigate={close} />
-      {favoriteModules.map(({ module }) => <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} />)}
+      {favoriteModules.length > 0 && (
+        <>
+          <div aria-hidden="true" className="mx-2.5 my-1 border-t border-line-subtle" />
+          {favoriteModules.map(({ module }) => <NavItem key={module.href} label={module.title} icon={module.icon} href={module.href} active={isActive(pathname, module.href)} collapsed onNavigate={go(module.href)} />)}
+        </>
+      )}
+      <div aria-hidden="true" className="mx-2.5 my-1 border-t border-line-subtle" />
       <NavItem label="All modules" icon="app" collapsed onClick={onToggleCollapsed} />
     </>
   ) : (
@@ -139,7 +145,8 @@ export function ShellSidebar({
       spotlight={<ShellBrand compact={rail} />}
       search={search}
       onSearchExpand={onSearchExpand}
-      footer={footer}
+      // The rail is already minimal: offering Hide here only strands an empty rail.
+      footer={rail ? undefined : footer}
       drawerBrand={<ShellBrand />}
       strip={(
         <>
