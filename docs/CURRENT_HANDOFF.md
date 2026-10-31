@@ -470,6 +470,17 @@ Third batch of the tools-sets-mining-ppe-budget run. PPE gets a Budget tab plann
 - Rollback: revert the frontend merge `1ba7e1b`, then backend `f1e070b`; `ppe_budgets` holds no live rows yet (only budgets saved after release would be lost — read the row first).
 - Release note: PPE has a Budget tab that plans 2027 from your real PPE data; managers type prices and save, everyone can download the Excel and PDF.
 
+## 9b. Batch 4: Mining register slices, account limits UI and Excel importer (Muse, 31 Oct 2026; merged to main, pushed, tagged release-2026-10-30-4)
+
+Fourth batch of the tools-sets-mining-ppe-budget run. Mining gets a department slice of the registers (employees, PPE, order list) plus module limits in Admin and an Excel importer for employees with preview, commit and undo.
+
+- Backend (`af45f7f`, tag release-2026-10-30-4): `supabase_migration_mining_account_2026-10-30.sql` ran live with backup and guard — new `employee_imports` table (snapshot jsonb, row counts, committed_by/at, undo support), `get_user_limits_by_id(user)` + `get_user_limits_me()` RPCs stamped by author. Read-only live check: `employee_imports` exists with 0 rows, backup table 0 rows, the limits function returns null for the nobody fixture. New routers `employee_import.py` (preview/commit/undo/history, server re-validates every row) and module limits on `admin.py`; `scope.py` + `main.py` mount loop enforce department-limited default-deny.
+- Frontend (`34b2bff`, tag release-2026-10-30-4): `useDepartmentSwitch` + scope plumbing, Admin limits UI, ImporterDialog (browser parses the workbook, server re-validates), `parseWorkbook`/`importerApi` with unit tests.
+- Gates: tsc clean, eslint 0 errors, production build green, full vitest 355 files / 2554 tests passed, docs:check clean (the 2 pre-existing motion-inventory gaps for the Oct-29 type-ahead change were inventoried), Playwright smoke 65/65, route specs all 60 routes green in four quarter runs (fresh fixture token per run; the full single run outgrew the 1h fixture session and was split).
+- Route-spec maintenance found while gating (specs lagging product, no product regressions except one): employee pickers now type-then-pick (Oct-29 type-ahead shows recents only until you type); overtime/import Download wording; ppe exact list name; analytics clear + documents re-sort + normalise-retry waits against load flakes; maintenance download asserted as a real event. One real product bug fixed: the document viewer's arrow keys were dead because dialog auto-focus landed in the PrintCopyPanel's hidden file input — `firstDialogField` now skips aria-hidden and programmatically-only fields, with a unit test.
+- Live check 31 Oct: backend `/api/version` reports the merge commit `af45f7f`; Vercel reports both production deployments successful for `34b2bff`. The live frontend HTML could not be content-checked from here: both production aliases sit behind Vercel Deployment Protection (SSO login wall), so chunk bodies come back as the login shell. No evidence of a product problem — the deploy built clean and every gate ran against the identical tree — but open the site signed in and confirm the employees Import button plus the Mining slice before announcing.
+- Rollback: revert the frontend merge `34b2bff`, then backend `af45f7f`; `employee_imports` holds no live rows yet (only imports committed after release would be lost — read the table first).
+
 
 ## 9. Pending product decisions
 
