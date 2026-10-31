@@ -65,7 +65,9 @@ export function ShellSidebar({
     </button>
   );
 
-  const list = !listOpen ? null : rail ? (
+  // The rail always shows its icons: hiding the list is an expanded-panel concept,
+  // and a collapsed rail with no list would strand only the header.
+  const list = rail ? (
     <>
       <NavItem label="Home" icon="home" href="/" active={home} collapsed onNavigate={close} />
       {favoriteModules.length > 0 && (
@@ -77,7 +79,7 @@ export function ShellSidebar({
       <div aria-hidden="true" className="mx-2.5 my-1 border-t border-line-subtle" />
       <NavItem label="All modules" icon="app" collapsed onClick={onToggleCollapsed} />
     </>
-  ) : (
+  ) : !listOpen ? null : (
     <>
       <NavItem label="Home" icon="home" href="/" active={home} onNavigate={close} />
       <NavHeading
