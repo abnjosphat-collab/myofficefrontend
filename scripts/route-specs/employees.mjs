@@ -57,11 +57,11 @@ const spec = {
     await shot(page, 'table@1440');
     await page.getByRole('button', { name: 'Card view' }).click();
 
-    // detail: shows contact and tenure, never offence records
+    // detail: shows contact, tenure and the record — every field on the register, offences included
     await page.getByRole('button', { name: 'Open Ann Alpha' }).click();
     const det = dialog('Ann Alpha');
     await det.waitFor({ timeout: 5000 });
-    check(await det.getByRole('link', { name: '+263 77 111 1111' }).isVisible() && await det.getByText('Class 1 Fitter').isVisible() && !(await det.getByText('Late 2025').isVisible().catch(() => false)), 'the detail shows contact details and qualifications but not offence records');
+    check(await det.getByRole('link', { name: '+263 77 111 1111' }).isVisible() && await det.getByText('Class 1 Fitter').isVisible() && await det.getByText('Late 2025').isVisible(), 'the detail shows contact details, qualifications and offence records');
     check(await det.getByRole('link', { name: 'PPE', exact: true }).getAttribute('href') === '/ppe?person=C1', 'the detail links to the person on the PPE page');
     await shot(page, 'detail@1440');
     await det.getByRole('button', { name: 'Edit', exact: true }).click();

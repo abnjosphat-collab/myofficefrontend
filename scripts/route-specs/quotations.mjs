@@ -19,7 +19,7 @@ const spec = {
     // an empty quotation cannot be exported, and says why
     await page.getByRole('button', { name: 'Download' }).click();
     await page.getByRole('menuitem', { name: 'PDF', exact: true }).click();
-    check(await page.getByText('Fix these before exporting').isVisible() && await page.getByText('Add at least one line item.').isVisible(), 'exporting an empty quotation lists what is missing');
+    check(await page.getByText('Fix these before downloading').isVisible() && await page.getByText('Add at least one line item.').isVisible(), 'exporting an empty quotation lists what is missing');
     await shot(page, 'blocked@1440');
 
     await page.getByLabel('Company name').fill('Fixture Engineering');
