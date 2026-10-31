@@ -35,13 +35,13 @@ const ETYPES = [{ value: '', label: 'Not set' }, { value: 'NEC', label: 'NEC' },
 const CLASSES = [{ value: '', label: 'None' }, ...CLASS_OPTIONS.map(c => ({ value: c as string, label: c }))];
 const distinct = (values: (string | undefined)[]) => [...new Set(values.map(v => (v || '').trim()).filter(Boolean))].sort();
 
-export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
-  open: boolean; employee: Employee | null; all: Employee[]; onOpenChange: (open: boolean) => void; onSave: (data: EmployeeFormData, id?: number) => Promise<void>;
+export function EmployeeForm({ open, employee, all, onOpenChange, onSave, department }: {
+  open: boolean; employee: Employee | null; all: Employee[]; onOpenChange: (open: boolean) => void; onSave: (data: EmployeeFormData, id?: number) => Promise<void>; department?: string | null;
 }) {
   const { scope } = useAuth();
   const [form, setForm] = useState<EmployeeFormData>(EMPTY);
   const [touched, setTouched] = useState(false);
-  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}) }); });
+  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}), ...(department ? { department } : {}) }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
   const problems = formProblems(form, { requireEmploymentType: !employee });
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
@@ -85,6 +85,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave }: {
             {scope
               ? <Field label="Section" description={editing ? 'The section stays as it is.' : `Your account adds people to ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
               : <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>}
+            {!editing && department ? <Field label="Department" description={`This person joins the ${department} register.`}><Input aria-label="Department" value={form.department || department} disabled /></Field> : null}
             <Field label="Date of engagement" optional><Input type="date" value={form.date_of_engagement} onChange={e => set({ date_of_engagement: e.target.value })} /></Field>
             <Field label="Foreman or supervisor" optional><Select aria-label="Foreman or supervisor" value={form.supervisor} onValueChange={v => set({ supervisor: v })} options={supervisors} /></Field>
             <Field label="Employee class" optional><Select aria-label="Employee class" value={form.employee_class} onValueChange={v => set({ employee_class: v })} options={CLASSES} /></Field>

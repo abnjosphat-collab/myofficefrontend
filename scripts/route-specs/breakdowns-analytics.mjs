@@ -26,6 +26,7 @@ const spec = {
     await page.getByLabel('To', { exact: true }).fill('2026-08-01');
     check(await page.getByText('The end is before the start.').isVisible() && await page.getByRole('button', { name: 'Apply' }).isDisabled(), 'an end before the start is explained and cannot be applied');
     await page.getByRole('button', { name: 'Clear filters' }).click();
+    await page.getByText('The end is before the start.').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
     check(!(await page.getByText('The end is before the start.').isVisible().catch(() => false)), 'clearing removes the filters');
   },
   empty: { data: { '/api/breakdowns/analytics/heatmap': EMPTY }, text: 'No breakdowns in this selection' },

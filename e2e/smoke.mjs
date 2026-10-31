@@ -101,17 +101,18 @@ async function targeted(context) {
     catch (e) { results.push([name, e.message.split('\n')[0]]); }
     await page.close();
   };
-  // Tools lands on the Overview tab; register controls live on Equipment.
+  // Tools lands on the Overview tab; register controls live on the Tools tab.
   const gotoEquipment = async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.getByRole('button', { name: 'Equipment', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
-    await page.getByRole('button', { name: 'Equipment', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Tools', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByRole('button', { name: 'Tools', exact: true }).first().click();
     await page.getByRole('button', { name: 'Grid view' }).waitFor({ state: 'visible', timeout: 15000 });
   };
 
   await run('Tools workspace renders its primary controls', async page => {
     await page.goto(BASE + '/tools', { waitUntil: 'load', timeout: 45000 });
-    await page.getByRole('heading', { name: 'Overview' }).first().waitFor({ state: 'visible', timeout: 30000 });
+    // The workspace opens on the Overview tab (a tab button, not a heading).
+    await page.getByRole('button', { name: 'Overview', exact: true }).first().waitFor({ state: 'visible', timeout: 30000 });
     await gotoEquipment(page);
   });
 
@@ -124,10 +125,12 @@ async function targeted(context) {
 
   await run('Tools filter dropdown opens inside the viewport', async page => {
     await gotoEquipment(page);
+    // The Status filter sits in the register toolbar's Filters popover.
+    await page.getByRole('button', { name: 'Filters', exact: true }).waitFor({ state: 'visible', timeout: 30000 });
     await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('combobox', { name: 'Status' }).click();
     const option = page.getByRole('option', { name: 'All active tools' });
-    if (await option.count() === 0 || !await option.isVisible()) throw new Error('status choices did not open');
+    await option.waitFor({ state: 'visible', timeout: 15000 });
     const bounds = await option.boundingBox();
     if (!bounds || bounds.x < 0 || bounds.y < 0 || bounds.x + bounds.width > 1366 || bounds.y + bounds.height > 900) throw new Error('status dropdown is clipped');
   });

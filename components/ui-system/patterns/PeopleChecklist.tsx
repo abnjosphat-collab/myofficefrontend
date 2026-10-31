@@ -16,14 +16,15 @@ import { lookupName, type PickedPerson } from './PeoplePicker';
 const toPicked = (e: EmployeeLookup): PickedPerson => ({ employee_id: String(e.employee_id), name: lookupName(e) });
 const toOption = (e: EmployeeLookup): ChecklistOption => ({ value: String(e.employee_id), label: lookupName(e), description: [e.employee_id, e.designation].filter(Boolean).join(' · ') });
 
-export function PeopleChecklist({ label, value, onChange, hint, placeholder }: {
+export function PeopleChecklist({ label, value, onChange, hint, placeholder, department }: {
   label: string;
   value: PickedPerson[];
   onChange: (people: PickedPerson[]) => void;
   hint?: string;
   placeholder?: string;
+  department?: string | null;
 }) {
-  const employees = useEmployees();
+  const employees = useEmployees(department);
   const [section, setSection] = useState('');
   const sections = useMemo(() => [...new Set(employees.map(e => e.section).filter((s): s is string => !!s))].sort(), [employees]);
   const filtered = useMemo(() => employees.filter(e => e.employee_id && (section === '' || e.section === section)), [employees, section]);

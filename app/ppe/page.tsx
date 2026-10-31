@@ -34,6 +34,7 @@ import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setM
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
+import { useDepartmentSwitch, type DepartmentView } from '@/lib/useDepartmentSwitch';
 import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
 import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
 
@@ -43,19 +44,21 @@ function PPEContent() {
   const confirm = useConfirm();
   const confirmDelete = useConfirmDelete();
   const { confirmBulkDelete, deleting } = useBulkDelete();
-  const recs = usePPERecords();
-  const roster = useRosterRows();
+  const dept = useDepartmentSwitch();
+  const miningView = dept.param === 'Mining';
+  const recs = usePPERecords(dept.param);
+  const roster = useRosterRows(dept.param);
   const matrix = usePPEMatrix();
-  const order = useOrderList();
+  const order = useOrderList(dept.param);
   const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
-  const { scope, isAtLeast } = useAuth();
+  const { scope, isAtLeast, department: accountDepartment } = useAuth();
   const [form, setForm] = useState<{ record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; fulfils: string | null } | null>(null);
   const [holderId, setHolderId] = useState<string | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const register = useRegisterCheck();
+  const register = useRegisterCheck(dept.param);
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const [typeFilter, setTypeFilterState] = useState<TypeFilter>(() => (typeof window === 'undefined' ? NO_TYPE_FILTER : loadTypeFilter(k => window.localStorage.getItem(k))));
   // Patches merge functionally: the lens Reset fires two changes at once (clear the types, back to include), and two
@@ -257,16 +260,27 @@ function PPEContent() {
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
         title="PPE"
-        description={scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
+        description={miningView ? 'Who holds what, what is due, and what to order — the Mining register.' : scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
         actions={(
           <>
-            <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />
+            {!accountDepartment && <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />}
             <ZoomLink zoomId="ppe:new-bulk" className="inline-block"><Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button></ZoomLink>
             <ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>
           </>
         )}
       />
       {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from saved records until the register loads.</Notice>}
+
+      {(dept.canSwitch || dept.pinnedDepartment) && (
+        <div className="flex flex-wrap items-center gap-3" role="region" aria-label="Register">
+          {dept.canSwitch ? (
+            <Segmented<DepartmentView> label="Register" value={dept.active} onValueChange={dept.setActive} options={[{ value: 'Engineering', label: 'Engineering' }, { value: 'Mining', label: 'Mining' }]} />
+          ) : (
+            <StatusBadge tone="info">Mining register</StatusBadge>
+          )}
+          {miningView && <p className="font-sans text-caption text-ink-muted">Showing the Mining register. Issues, the order list and the summary cover Mining people only; the budget stays with Engineering.</p>}
+        </div>
+      )}
 
       <MetricGrid compact>
         <MetricTile compact label="People" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
@@ -281,7 +295,7 @@ function PPEContent() {
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
-          <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>
+          {!miningView && <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="employees" className="mt-4 flex flex-col gap-4">
@@ -309,7 +323,7 @@ function PPEContent() {
                   <RecordCard
                     eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
                     facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : []), ...(h.records.some(r => r.premature_failure === true) ? [{ label: 'Premature failures', value: h.records.filter(r => r.premature_failure === true).map(r => typeName(r.ppe_type)).join(', ') }] : [])]}
-                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
+                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}${miningView ? '&department=Mining' : ''}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
                   />
                   </ZoomLink>
                 </MotionListItem>
@@ -328,23 +342,23 @@ function PPEContent() {
             status={deriveDataStatus({ loaded: order.loaded, loading: order.loading, error: order.error, errorStatus: order.errorStatus, count: 1, transient: isTransientStatus(order.errorStatus) })}
             subject="the order list" error={order.error} onRetry={() => { void order.refetch(); }}
           >
-            <OrderListView basket={basketView} addables={addables} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} registerSections={registerSections}onIssue={issueFromOrder} onRemove={order.remove} onRemoveMany={order.removeMany} onExclude={line => { order.exclude(line); toast.success('Excluded from the automatic list. Restore it below to bring it back.'); }} onRestore={order.restore} onUpdate={order.update} onKeepManual={keepManual} onAddMany={addToOrder} onAddFree={draft => { order.addFree(draft); toast.success('Free line added to the order list.'); }} onClearManual={order.clearManual} />
+            <OrderListView basket={basketView} addables={addables} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} registerSections={registerSections}onIssue={issueFromOrder} onRemove={order.remove} onRemoveMany={order.removeMany} onExclude={line => { order.exclude(line); toast.success('Excluded from the automatic list. Restore it below to bring it back.'); }} onRestore={order.restore} onUpdate={order.update} onKeepManual={keepManual} onAddMany={addToOrder} onAddFree={draft => { order.addFree(draft); toast.success('Free line added to the order list.'); }} onClearManual={order.clearManual} allowFreeLines={!miningView} />
           </DataRegion>
         </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
         <TabsContent value="budget" className="mt-4">
-          {recs.loaded && roster.loaded ? (
+          {!miningView && (recs.loaded && roster.loaded ? (
             <BudgetView people={roster.items} records={recs.items} matrix={matrix.matrix} canManage={isAtLeast('manager')} />
           ) : (recs.error || roster.error
             ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p>
-            : <LoadingPulse compact label="Loading budget inputs" />)}
+            : <LoadingPulse compact label="Loading budget inputs" />))}
         </TabsContent>
       </Tabs>
 
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
       <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
-      <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} />
-      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} />
+      <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} department={dept.param} />
+      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} department={dept.param} />
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>
   );

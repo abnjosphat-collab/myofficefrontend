@@ -1,4 +1,4 @@
-// /employees: the personnel register (cards grouped by section and trade, table, filters, archived), detail, add/edit, delete,
+﻿// /employees: the personnel register (cards grouped by section and trade, table, filters, archived), detail, add/edit, delete,
 // the organised roster export, the registry download and the roster clean-up. Mock shapes mirror the real router.
 const emp = (id, over = {}) => ({ id, employee_id: `C${id}`, first_name: 'Ann', last_name: 'Alpha', id_number: `ID-${id}`, email: '', phone: '', address: '', date_of_engagement: '2020-03-01', designation: 'Fitter', employee_class: 'Permanent', employment_type: 'NEC', supervisor: '', section: 'Mechanical', department: '', grade: '', qualifications: [], offences: ['Late 2025'], awards_recognition: [], other_positions: [], previous_employer: '', archived: false, ...over });
 const EMPLOYEES = [
@@ -57,11 +57,11 @@ const spec = {
     await shot(page, 'table@1440');
     await page.getByRole('button', { name: 'Card view' }).click();
 
-    // detail: shows contact and tenure, never offence records
+    // detail: shows contact, tenure and the record — every field on the register, offences included
     await page.getByRole('button', { name: 'Open Ann Alpha' }).click();
     const det = dialog('Ann Alpha');
     await det.waitFor({ timeout: 5000 });
-    check(await det.getByRole('link', { name: '+263 77 111 1111' }).isVisible() && await det.getByText('Class 1 Fitter').isVisible() && !(await det.getByText('Late 2025').isVisible().catch(() => false)), 'the detail shows contact details and qualifications but not offence records');
+    check(await det.getByRole('link', { name: '+263 77 111 1111' }).isVisible() && await det.getByText('Class 1 Fitter').isVisible() && await det.getByText('Late 2025').isVisible(), 'the detail shows contact details, qualifications and offence records');
     check(await det.getByRole('link', { name: 'PPE', exact: true }).getAttribute('href') === '/ppe?person=C1', 'the detail links to the person on the PPE page');
     await shot(page, 'detail@1440');
     await det.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -100,7 +100,7 @@ const spec = {
     check(await page.getByText(/was not deleted: Manager role required/).isVisible(), 'a refused delete shows the server\'s reason');
 
     // organised roster export
-    await page.getByRole('button', { name: 'Export' }).click();
+    await page.getByRole('button', { name: 'Download' }).click();
     await page.getByRole('menuitem', { name: 'Organised roster' }).click();
     const ro = dialog('Download the organised roster');
     await ro.waitFor({ timeout: 5000 });
@@ -111,7 +111,7 @@ const spec = {
     await ro.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
 
     // registry download
-    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)', exact: true }).click(); })()]);
+    const [dl2] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Download' }).click(); await page.getByRole('menuitem', { name: 'Registry (Excel)', exact: true }).click(); })()]);
     check(!!dl2 && /Personnel_Registry/.test(dl2.suggestedFilename()), 'the registry download produces a workbook', dl2?.suggestedFilename());
 
     // normalise: shows what it will change; a refused batch says so
@@ -123,19 +123,27 @@ const spec = {
     await shot(page, 'normalise@1440');
     failNormalise = true;
     await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    const nc = page.getByRole('alertdialog');
-    await nc.waitFor({ timeout: 5000 });
-    check(await nc.getByText(/across the roster/).isVisible(), 'the batch asks first and names what it rewrites');
-    await nc.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
+    check(await page.getByRole('alertdialog').getByText(/across the roster/).isVisible(), 'the batch asks first and names what it rewrites');
+    await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
     await nr.getByText(/Update refused \(fixture\)/).waitFor({ timeout: 8000 }).catch(() => {});
     check(await nr.getByText(/Update refused \(fixture\)/).isVisible(), 'a refused batch says so inside the dialog');
     failNormalise = false;
-    await nr.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    const nc2 = page.getByRole('alertdialog');
-    await nc2.waitFor({ timeout: 5000 });
-    await nc2.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
-    await nr.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
-    check(calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize').length === 2, 'a second attempt sends the batch again');
+    // The batch itself says to close and open it again to retry: a fresh dialog for the
+    // second attempt, not a second confirm racing the first dialog's close animation.
+    await nr.getByRole('button', { name: 'Cancel' }).click();
+    await nr.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    await page.getByRole('button', { name: 'More' }).click();
+    await page.getByRole('menuitem', { name: 'Normalise' }).click();
+    const nr2 = dialog('Normalise the roster');
+    await nr2.waitFor({ timeout: 5000 });
+    await nr2.getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    await page.getByRole('alertdialog').waitFor({ state: 'visible', timeout: 5000 });
+    await page.getByRole('alertdialog').getByRole('button', { name: /^Normalise \d+ records?/ }).click();
+    await nr2.waitFor({ state: 'hidden', timeout: 8000 }).catch(() => {});
+    let sent = [];
+    for (let i = 0; i < 50 && sent.length < 2; i += 1) { await page.waitForTimeout(100); sent = calls.filter(c => c.method === 'POST' && c.pathname === '/api/employees/bulk-normalize'); }
+    check(sent.length === 2, 'a second attempt sends the batch again');
   },
   create: {
     open: 'Add employee', dialog: 'Add an employee', path: '/api/employees', submit: 'Add employee',

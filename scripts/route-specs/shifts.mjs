@@ -105,7 +105,9 @@ const spec = {
     open: 'Assign shift', dialog: 'Assign shift', path: '/api/standby', submit: 'Assign shift',
     requiredText: 'Choose the employee or enter their ID and name.',
     async fill(dialog, page) {
-      await dialog.getByRole('combobox', { name: 'Employee' }).click();
+      const empBox = dialog.getByRole('combobox', { name: 'Employee' });
+      await empBox.click();
+      await empBox.fill('Eve');
       await page.getByRole('option', { name: /Eve Epsilon/ }).click();
     },
     async kept(dialog) { return (await dialog.getByLabel(/^Employee ID/).inputValue()) === '31'; },

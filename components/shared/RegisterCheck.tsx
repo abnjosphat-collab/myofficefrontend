@@ -10,8 +10,8 @@ import { indexRegister, matchToRegister, type RegisterMatch } from '@/lib/regist
 type RecordRef = { employee_id?: string | null; employee_name?: string | null };
 
 /** `matchOf` is 'linked' for everything until the register has loaded, so nothing is flagged on a guess. */
-export function useRegisterCheck() {
-  const { employees, loaded } = useEmployeeRegister();
+export function useRegisterCheck(department?: string | null) {
+  const { employees, loaded } = useEmployeeRegister(department);
   const index = useMemo(() => indexRegister(employees), [employees]);
   const ready = loaded && employees.length > 0;
   return useMemo(() => ({ ready, matchOf: (r: RecordRef): RegisterMatch => (ready ? matchToRegister(r, index) : 'linked') }), [ready, index]);

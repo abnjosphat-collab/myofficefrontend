@@ -27,9 +27,9 @@ const seedOf = (r: PPERecord, employee: EmployeeWithPPE | null): FormState => ({
   premature_failure: r.premature_failure === true, failure_reason: r.failure_reason || '',
 });
 
-export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenChange, onSave }: {
+export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenChange, onSave, department }: {
   open: boolean; record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; matrix: Record<string, number>;
-  onOpenChange: (open: boolean) => void; onSave: (form: FormState, id?: string) => Promise<void>;
+  onOpenChange: (open: boolean) => void; onSave: (form: FormState, id?: string) => Promise<void>; department?: string | null;
 }) {
   const [form, setForm] = useState<FormState>(blank);
   const [touchedExpiry, setTouchedExpiry] = useState(false);
@@ -67,7 +67,7 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={personLabel} required error={err('employee_id')} description={personHint} className="sm:col-span-2">
-            <PersonPicker label={personLabel} name={form.employee_name} employeeId={form.employee_id} onPick={onPick} autoFocusSearch={!editing} />
+            <PersonPicker label={personLabel} name={form.employee_name} employeeId={form.employee_id} onPick={onPick} autoFocusSearch={!editing} department={department} />
           </Field>
           {form.employee_id !== '' && (
             <FactList aria-label="Person" className="sm:col-span-2">

@@ -26,6 +26,11 @@ describe('firstDialogField', () => {
     expect(firstDialogField(root('<input type="hidden" />'))).toBeNull();
   });
 
+  it('skips screen-reader-only and aria-hidden file inputs (a keyboard user can never reach them)', () => {
+    expect(firstDialogField(root('<input type="file" class="sr-only" tabindex="-1" aria-hidden="true" />'))).toBeNull();
+    expect(firstDialogField(root('<input type="file" class="sr-only" tabindex="-1" aria-hidden="true" /><input type="text" aria-label="Name" />'))?.getAttribute('aria-label')).toBe('Name');
+  });
+
   it('finds picker and select triggers (button[role=combobox])', () => {
     const el = firstDialogField(root('<button role="combobox">Pick an employee</button>'));
     expect(el?.tagName).toBe('BUTTON');

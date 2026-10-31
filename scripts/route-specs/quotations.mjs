@@ -17,9 +17,9 @@ const spec = {
     check(!(await page.getByText(/Elite Solutions|Tech Innovations|Premium/).first().isVisible().catch(() => false)), 'no demo company, client or template appears');
 
     // an empty quotation cannot be exported, and says why
-    await page.getByRole('button', { name: 'Export' }).click();
+    await page.getByRole('button', { name: 'Download' }).click();
     await page.getByRole('menuitem', { name: 'PDF', exact: true }).click();
-    check(await page.getByText('Fix these before exporting').isVisible() && await page.getByText('Add at least one line item.').isVisible(), 'exporting an empty quotation lists what is missing');
+    check(await page.getByText('Fix these before downloading').isVisible() && await page.getByText('Add at least one line item.').isVisible(), 'exporting an empty quotation lists what is missing');
     await shot(page, 'blocked@1440');
 
     await page.getByLabel('Company name').fill('Fixture Engineering');
@@ -49,10 +49,10 @@ const spec = {
     await page.getByRole('tab', { name: 'Edit' }).click();
 
     // exports
-    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'PDF', exact: true }).click(); })()]);
+    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Download' }).click(); await page.getByRole('menuitem', { name: 'PDF', exact: true }).click(); })()]);
     check(!!pdf && /^quotation-QT-.*\.pdf$/.test(pdf.suggestedFilename()), 'the PDF downloads', pdf?.suggestedFilename());
     await pdf?.saveAs('node_modules/.cache/mo-audit/quotation-export.pdf').catch(() => {});
-    const [word] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Export' }).click(); await page.getByRole('menuitem', { name: 'Word', exact: true }).click(); })()]);
+    const [word] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), (async () => { await page.getByRole('button', { name: 'Download' }).click(); await page.getByRole('menuitem', { name: 'Word', exact: true }).click(); })()]);
     check(!!word && /^quotation-QT-.*\.docx$/.test(word.suggestedFilename()), 'the Word file downloads', word?.suggestedFilename());
     await word?.saveAs('node_modules/.cache/mo-audit/quotation-export.docx').catch(() => {});
 

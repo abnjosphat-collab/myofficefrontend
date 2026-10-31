@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
 import { useApiList } from '@/lib/useApiList';
+import { withDepartment } from '@/lib/api';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { sanitizeDisplayName } from './calcPPE';
 import { PPE_MATRIX_DEFAULTS } from './ppeMeta';
@@ -14,13 +15,13 @@ import type { EmployeeRow, FormState, PPERecord } from './types';
 
 export { PPE_MATRIX_DEFAULTS };
 
-export const fetchPPERecords = async () => {
-  const data = await api.get<unknown>('/api/ppe');
+export const fetchPPERecords = async (department?: string | null) => {
+  const data = await api.get<unknown>(withDepartment('/api/ppe', department));
   if (!Array.isArray(data)) throw new Error('PPE records returned an invalid response.');
   return data as PPERecord[];
 };
-export const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
-  const data = await api.get<unknown>('/api/employees/');
+export const fetchAllEmployees = async (department?: string | null): Promise<EmployeeRow[]> => {
+  const data = await api.get<unknown>(withDepartment('/api/employees/', department));
   if (!Array.isArray(data)) throw new Error('Personnel returned an invalid response.');
   return data.map((value: unknown) => {
     const e = value && typeof value === 'object' ? value as Record<string, unknown> : {};
@@ -36,8 +37,14 @@ export const fetchAllEmployees = async (): Promise<EmployeeRow[]> => {
   });
 };
 
-export const usePPERecords = () => useApiList<PPERecord>('/api/ppe', undefined, { fetcher: fetchPPERecords });
-export const useRosterRows = () => useApiList<EmployeeRow>('/api/employees/', undefined, { fetcher: fetchAllEmployees });
+export function usePPERecords(department?: string | null) {
+  const fetcher = useCallback(() => fetchPPERecords(department), [department]);
+  return useApiList<PPERecord>(withDepartment('/api/ppe', department), undefined, { fetcher });
+}
+export function useRosterRows(department?: string | null) {
+  const fetcher = useCallback(() => fetchAllEmployees(department), [department]);
+  return useApiList<EmployeeRow>(withDepartment('/api/employees/', department), undefined, { fetcher });
+}
 
 export const createPPERecord = async (data: Partial<FormState>) => {
   if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
