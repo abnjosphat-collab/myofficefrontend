@@ -79,7 +79,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
           collapsed ? 'w-[calc(var(--mo-sidebar-collapsed)+var(--mo-safe-left))] pl-[calc(0.5rem+var(--mo-safe-left))] pr-2' : 'w-[calc(var(--mo-sidebar-width)+var(--mo-safe-left))] pl-[calc(0.75rem+var(--mo-safe-left))] pr-3',
         )}
       >
-        <div className={cn('relative mb-[15px] flex min-h-[38px] items-center gap-[9px] border-b border-line pb-[15px]', collapsed ? 'justify-center px-0' : 'px-1.5')}>
+        <div className={cn('relative mb-[15px] flex min-h-[38px] items-center gap-[9px] border-b border-line pb-[15px]', collapsed ? 'flex-col justify-center gap-2 px-0' : 'px-1.5')}>
           {spotlight}
           {collapsed && search && onSearchExpand && (
             <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-7 rounded-control" />
@@ -89,7 +89,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
             onClick={onToggleCollapsed}
-            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-spring-snappy-duration)] [&_svg]:ease-spring-snappy motion-reduce:[&_svg]:transition-none', collapsed ? 'absolute -right-[19px] top-1 border-line bg-surface [&_svg]:rotate-180' : 'ml-auto')}
+            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-spring-snappy-duration)] [&_svg]:ease-spring-snappy motion-reduce:[&_svg]:transition-none', collapsed ? '[&_svg]:rotate-180' : 'ml-auto')}
           />
         </div>
         {panel}
