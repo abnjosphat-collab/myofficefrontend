@@ -482,6 +482,16 @@ Fourth batch of the tools-sets-mining-ppe-budget run. Mining gets a department s
 - Rollback: revert the frontend merge `34b2bff`, then backend `af45f7f`; `employee_imports` holds no live rows yet (only imports committed after release would be lost — read the table first).
 
 
+## 9c. Collapsed sidebar rail repair (Muse, 1 Nov 2026; UNCOMMITTED, no push)
+
+Collapsed 68 px rail was ragged: hidden labels stayed flex items in zero-width boxes, so long names wrapped into invisible columns and pushed rows to 58–184 px (measured: Home 57.9, Personnel 115.2, Tools & Equipment 184, Maintenance 138.1, SHEQ 57.9, All modules 126.6); the retained 10 px gap offset every icon 5 px left of centre; double chrome (aside border-r + inner bordered panel + p-2) left ~34 px rows; brand/search/chevron ran 32/28/28 px on different axes.
+
+- Shared-source fix (`components/ui-system/shell/Nav.tsx`): collapsed `NavItem`/`NavSpotlight` set `gap-0` + `justify-center` and render the label wrapper `hidden` (was `max-w-0 opacity-0` with `flex-1` kept), so hidden labels contribute neither height nor spacing. Accessible name moves to `aria-label` on the control; tooltip unchanged; expanded rows, hints, badges, trailing actions untouched.
+- Rail framing (`components/ui-system/shell/Frame.tsx`, desktop collapsed only): inner nav drops to `border-0 bg-transparent` (outer aside divider retained), scroll padding to `px-1 py-1` (4 px focus-ring room, 4 px item gap); search/expand controls to 40 px squares; `ShellBrand` compact mark to a centred 40 px box (was `-ml-1`, 2.5 px off-axis). Drawer, strip, expanded sidebar, Documents temp-collapse semantics, favourites/search/permissions/persistence untouched.
+- Verified: all rail rows 40 px, icon offset 0 px, labels 0×0, header boxes 40 px on one axis (33.5 vs rail centre 34, within 1 px), no page overflow — MyOffice `/documents` and Tools `/tools` alike; focus ring visible and unclipped; tooltip on hover/focus; collapse/expand; expanded sidebar byte-identical classes. Unit: `Nav.test.tsx` +4 collapsed tests (failed 3 before the fix, 10/10 after); `ShellSidebar` 9/9; new `e2e/visual.spec.ts` `sidebar-rail` geometry test passes and saves its still (pixel baseline needs the sanctioned ubuntu workflow — not triggered). Route specs `/documents` and `/tools` ALL PASS; `verify-shell-parity` rail section passes (68/68, tooltip, keyboard).
+- Pre-existing, not this batch: parity still fails `brandLabel` element-existence, four tooltip-style comparisons (Tools skins differ), two safe-area checks, plus `verify-shell`'s `single light appearance` (= now Sage, script says light) and `Feedback visible in top bar` (feedback lives bottom-right) — all reproduce on routes/code this batch does not touch; expanded DOM is class-identical to base by construction (`false` branches). `verify-shell`'s search-fill step cannot run on `/documents` (field correctly hidden on the rail).
+- Docs: `components/ui-system/README.md` gains the collapsed-rail contract and the Sage-light/Mono-dark-trial correction (was "one appearance"); the sidebar motion note now matches the implementation (labels leave layout at once). `e2e/visual.spec.ts` header comment corrected the same way.
+
 ## 9. Pending product decisions
 
 **Design-system consolidation (owner's instruction on 4 Oct 2026: one design system for the whole software), done:**

@@ -1,7 +1,8 @@
 # MyOffice UI system (`@/components/ui-system`)
 
 The one design system for MyOffice. It is derived from the real Tools & Equipment workspace (`/tools`) and is the
-standard every route is migrated to. There is **one appearance**: no light/dark switch, no Classic/Dallaglio switch,
+standard every route is migrated to. The default appearance is Sage light; Mono dark is a flag-gated trial for
+Projects-scoped accounts (see `appearance/appearance.ts`), not a user switch. There is no Classic/Dallaglio switch and
 no icon-style switch. Status of the migration is in [`docs/CURRENT_HANDOFF.md`](../../docs/CURRENT_HANDOFF.md) and
 [`docs/MIGRATION_LEDGER.md`](../../docs/MIGRATION_LEDGER.md). This file describes the system itself.
 
@@ -105,6 +106,8 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 **Bell badges.** Both bells (MyOffice shell, Tools) render `BellBadge`: dark green normally, red only when something is overdue or critical. Each bell decides its own `urgent` from its own data; the rule "urgent means red" lives in `BellBadge` alone. Never tone a bell badge directly with `CountBadge`.
 
+**Collapsed rail.** The desktop sidebar collapses to a 68 px icon rail (`--mo-sidebar-collapsed`); the rail keeps the outer divider and restrained separators, never the inner bordered panel. Every rail row is a 40 px target (44 px on coarse pointers) with a 4 px gap between ordinary items; the hidden label leaves layout entirely (`hidden`, never a zero-width flex item), so rows stay uniformly 40 px and the 18 px navigation icon centres within 1 px. The label survives as the control's accessible name and a right-side tooltip. Brand, search, expand and destination icons sit in 40 px boxes on one centred axis. Focus rings fit inside the rail's side padding and are never clipped. The drawer below 821 px is never collapsed. `/documents` pins the rail temporarily without persisting it; the user's expand choice always wins.
+
 **Tabs and Segmented.** Tabs switch views (panels of different content); Segmented picks a value (a filter, a form choice, a scope). Never nest one tab strip inside another — a filter inside a tab panel stays a Segmented. TabsList draws a sliding indicator under the active tab (instant under reduced motion) and can show a first-visit guide line (`guideId` + `guideText`) that retires after the first tab change and is remembered per strip.
 
 **Exports.** Every page-level export is one labelled `ExportButton` in the Toolbar's trailing slot, before the view toggle: "Export" with a caret and an "Excel (.xlsx)" / "PDF" menu, or "Export Excel" / "Export PDF" with no menu for a single format. `DownloadButton` renders through it. `iconOnly` is for dense table row actions only (a docs check fails it elsewhere). Nothing export-related sits in More. At 390 px and below a single-format label shortens to "Export", never to a bare icon.
@@ -170,8 +173,8 @@ Selection, Progress fill, Disclosures, Toasts and Sidebar collapse sections.
 Toast and sidebar notes: the toast stack is sonner configured through its own
 options (`patterns/ToastSetup`, no fork): edge enter, re-flow, swipe keeps
 release velocity, success appears once, error wiggles once. The sidebar rail
-eases width on one CSS gentle spring while labels crossfade out first on the
-quick token; the main content never moves.
+eases width on one CSS gentle spring while the labels leave layout at once
+(no crossfade) and return when it expands; the main content never moves.
 
 ## Recipe: migrating a page
 

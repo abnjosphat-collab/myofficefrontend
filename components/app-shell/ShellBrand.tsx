@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui-system';
 
 export function ShellBrand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" aria-label="MyOffice home" className="focus-ring touch-target -ml-1 flex items-center gap-2 rounded-control px-1 py-1">
+    <Link href="/" aria-label="MyOffice home" className={compact ? 'focus-ring touch-target grid size-10 shrink-0 place-items-center rounded-control' : 'focus-ring touch-target -ml-1 flex items-center gap-2 rounded-control px-1 py-1'}>
       <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-control bg-action text-action-ink">
         <Icon name="brand" size="md" weight="emphasis" />
       </span>
