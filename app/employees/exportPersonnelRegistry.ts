@@ -165,7 +165,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
 
     let dataRowIndex = 0;
 
-    groups.forEach((group, groupIndex) => {
+    groups.forEach((group) => {
       const banner = ws.addRow(['']);
       banner.getCell(1).value = group.designation;
       banner.getCell(7).value = `${group.employees.length} staff`;
@@ -197,9 +197,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
         dataRowIndex += 1;
       });
 
-      if (groupIndex < groups.length - 1) {
-        addGroupSpacer(ws);
-      }
+      addGroupSpacer(ws);
     });
 
     const buf = await wb.xlsx.writeBuffer();

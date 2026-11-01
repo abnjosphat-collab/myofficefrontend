@@ -73,4 +73,19 @@ describe('exportRosterExcel', () => {
     expect(data.height).toBe(21);
     expect(data.getCell(2).font).toMatchObject({ size: 10, name: 'Calibri' });
   });
+
+  it('leaves one blank line after the last name of each trade block', async () => {
+    vi.mocked(saveAs).mockClear();
+    await exportRosterExcel(crew(), 'section_profession');
+    const sheet = (await bookOf()).getWorksheet('Mechanical')!;
+    let secondRow = 0;
+    sheet.eachRow((row, n) => {
+      if (String(row.getCell(2).value) === 'First2' && secondRow === 0) secondRow = n;
+    });
+    expect(secondRow).toBeGreaterThan(0);
+    // First2 is the only name in the first trade block, so the next row is the spacer.
+    expect(sheet.getRow(secondRow + 1).getCell(1).value ?? '').toBe('');
+    // Header + 2 banners + 2 names + a spacer after each block, trailing one included.
+    expect(sheet.rowCount).toBe(7);
+  });
 });
