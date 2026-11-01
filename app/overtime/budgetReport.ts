@@ -37,6 +37,46 @@ export const ADHOC_MONTHS = 3;
  */
 export const EXCLUDED_OT_STATUSES = new Set(['rejected', 'cancelled']);
 
+/** Canonical person name for matching: uppercased, single spaces. Never stored, only compared. */
+export function normalizeName(raw: string): string {
+  return (raw || '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * The key one roster row is filed under: the normalized mine number when the
+ * person has one, otherwise a name-derived key so people without numbers still
+ * get a row instead of vanishing. Name keys never collide with number keys.
+ */
+export function budgetKey(emp: Pick<BudgetEmployee, 'employeeId' | 'firstName' | 'surname'>): string {
+  const id = normalizeTimesheetEmployeeCode(emp.employeeId);
+  if (id) return id;
+  return `name:${normalizeName(`${emp.firstName} ${emp.surname}`)}`;
+}
+
+/**
+ * The calendar months the records actually sit in, for averaging overtime-module
+ * hours over the months present in the data instead of a fixed window. Months
+ * come from eligible records only (valid date, not rejected/cancelled); with no
+ * eligible records the fixed July-September window stands in.
+ */
+export function dataMonths(
+  records: Pick<OTRecord, 'date' | 'status'>[],
+): { from: string; to: string; count: number } {
+  let lo = '', hi = '';
+  for (const r of records ?? []) {
+    if (!r.date || EXCLUDED_OT_STATUSES.has(String(r.status ?? '').trim().toLowerCase())) continue;
+    if (!lo || r.date < lo) lo = r.date;
+    if (!hi || r.date > hi) hi = r.date;
+  }
+  if (!lo) return { from: ADHOC_FROM, to: ADHOC_TO, count: ADHOC_MONTHS };
+  const from = lo.slice(0, 7) + '-01';
+  const [y, m] = hi.slice(0, 7).split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  const to = `${hi.slice(0, 7)}-${String(last).padStart(2, '0')}`;
+  const count = (y * 12 + m) - (Number(lo.slice(0, 4)) * 12 + Number(lo.slice(5, 7))) + 1;
+  return { from, to, count };
+}
+
 /** Workbook sheets, in template order; 'OTHER' exists only when the register holds a department outside the five. */
 export const BUDGET_SHEET_NAMES = ['ENGINEERING', 'MINING', 'MTS', 'PROJECTS', 'SHARED SERVICES'] as const;
 export type BudgetSheet = (typeof BUDGET_SHEET_NAMES)[number] | 'OTHER';
@@ -102,7 +142,7 @@ export function toBudgetEmployees(lookups: EmployeeLookup[]): BudgetEmployee[] {
         matched: true,
       };
     })
-    .filter(e => e.dbId !== '' && e.employeeId !== '');
+    .filter(e => e.dbId !== '');
 }
 
 export type BudgetStatus = 'OK' | 'Incomplete' | 'Missing' | 'Non-NEC' | 'Unclassified';
@@ -139,6 +179,8 @@ export function buildEngineeringRoster(
 }
 
 export interface BudgetRow {
+  /** Timesheets-table id, so rows stay unique even for people without mine numbers. */
+  dbId: string;
   employeeId: string;
   firstName: string;
   surname: string;
@@ -188,7 +230,27 @@ export function adhocTotals(
   from: string = ADHOC_FROM,
   to: string = ADHOC_TO,
 ): { byKey: Map<string, AdhocBuckets>; causeByKey: Map<string, AdhocCause | null>; orphanCount: number; orphanHours: number } {
-  const register = new Set(employees.map(e => normalizeTimesheetEmployeeCode(e.employeeId)));
+  const register = new Set(employees.map(budgetKey));
+  // Exact-name fallback for records whose number is blank (not yet numbered):
+  // each normalized name form maps to the people carrying it, and only a name
+  // held by exactly one person links. Records carrying an unknown number stay
+  // orphans — a mistyped number is a data error worth flagging, not guessing.
+  const byName = new Map<string, BudgetEmployee[]>();
+  for (const e of employees) {
+    for (const form of [normalizeName(`${e.firstName} ${e.surname}`), normalizeName(`${e.surname} ${e.firstName}`)]) {
+      if (!form || form === ' ') continue;
+      const list = byName.get(form) ?? [];
+      if (!list.includes(e)) list.push(e);
+      byName.set(form, list);
+    }
+  }
+  const keyForRecord = (employee_id: unknown, employee_name: unknown): string | null => {
+    const id = normalizeTimesheetEmployeeCode(String(employee_id || ''));
+    if (id) return register.has(id) ? id : null;
+    const holders = byName.get(normalizeName(String(employee_name || ''))) ?? [];
+    if (holders.length !== 1) return null;
+    return budgetKey(holders[0]);
+  };
   const byKey = new Map<string, AdhocBuckets>();
   const recsByKey = new Map<string, OTRecord[]>();
   const blank = (): AdhocBuckets => ({ shift20: { total: 0, count: 0 }, adhoc15: { total: 0, count: 0 } });
@@ -203,8 +265,8 @@ export function adhocTotals(
     if (!r.date || r.date < lo || r.date > hi) continue;
     if (EXCLUDED_OT_STATUSES.has(String(r.status ?? '').trim().toLowerCase())) continue;
     const hours = Math.max(0, r.hours ?? calcHours(r.start_time, r.end_time));
-    const key = normalizeTimesheetEmployeeCode(String(r.employee_id || ''));
-    if (!key || !register.has(key)) {
+    const key = keyForRecord(r.employee_id, r.employee_name);
+    if (!key) {
       // Eligible-period hours for someone outside the register: flagged, never
       // folded into another employee's row.
       orphanCount += 1;
@@ -222,7 +284,7 @@ export function adhocTotals(
   }
   // Reliable zeros: everyone on the register gets an entry even with no records.
   employees.forEach(e => {
-    const key = normalizeTimesheetEmployeeCode(e.employeeId);
+    const key = budgetKey(e);
     if (!byKey.has(key)) byKey.set(key, blank());
   });
   // Top cause per employee from free-text reasons (fuzzy-grouped).
@@ -283,11 +345,12 @@ export function buildSplitBudgetRows(
   };
   return employees
     .map(emp => {
-      const key = normalizeTimesheetEmployeeCode(emp.employeeId);
+      const key = budgetKey(emp);
       // NEC-only: a book average for a non-NEC employee is not shift overtime.
       const shift = emp.employmentType === 'NEC' ? bookAvg.get(key) ?? null : null;
       const ad = adhoc.get(key) ?? { shift20: { total: 0, count: 0 }, adhoc15: { total: 0, count: 0 } };
       return {
+        dbId: emp.dbId,
         employeeId: emp.employeeId,
         firstName: emp.firstName,
         surname: emp.surname,

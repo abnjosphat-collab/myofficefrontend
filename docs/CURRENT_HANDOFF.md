@@ -760,9 +760,45 @@ Owner reports: overtime takes too long to load ("Still trying to reach the serve
 - **Employment-type flags (frontend messaging bug, fixed).** The three names are all on the ENGINEERING template sheet (C2291 Wailer Manzinya, C2290 Matthew Simango, C0688 Andrew Maendaenda). Unmatched template rows defaulted to `employmentType: ''`, so the quality panel accused them of having "no employment type in Personnel" even when the real problem is the sheet number matching no Personnel record. `BudgetEmployee`/`BudgetRow` now carry `matched`; the panel splits the warning into "on the sheet not matched to Personnel — check the employee number" vs "without an employment type in Personnel". Whichever message the owner's three show now says exactly what to fix. Payroll, matching rules, caps and workbook columns untouched.
 - Verified: backend full suite 2929 passed, pyright holds the 196 baseline; frontend full suite 359 files / 2602 tests passed (341 files + 2385 tests in the main run, 18 worker-start flakes under box load re-ran clean alone with 217 — the known loaded-box flake, none of them touched files). Route spec `--only /overtime` ALL CHECKS PASSED on the rebuilt bundle; Summaries/Budget tabs inspected at 1440 and 390 (0px overflow; the fixture register matches no template numbers, so the Budget tab visibly shows the new "not matched to Personnel — check the employee number" message instead of the old wrong one). Full `eslint` 0 errors, `docs:check` green, `tsc` clean. No SQL run; backend release still needs the owner's explicit "release" (backend first, then frontend preview).
 
+## 16. Number-less people shown + averages over data months — owner decisions applied (uncommitted)
+
+Owner decisions (asked, answered): (a) average overtime-module hours over the calendar months actually present in the data, dividing by that month count; (b) link number-less records by exact name only when the name is unique, never folding into someone else.
+
+- **Dynamic window.** New `dataMonths(records)` (eligible records only: valid date, not rejected/cancelled) returns `{from, to, count}`; empty data falls back to Jul–Sep ÷3. BudgetView averages over that window, divides by its month count, and states the actual window in the About text. Summaries already uses its own picked range. Unknown-numbered records stay orphans (a mistyped number is flagged, not guessed).
+- **Everyone shown.** `toBudgetEmployees` keeps register rows without mine numbers; new `budgetKey` files them under a `name:` key that can never collide with a number; `adhocTotals` attributes blank-number records by exact unique name (both orders); `buildSplitBudgetRows` looks everything up by the same key and carries `dbId` on rows; Summaries uses Personnel ids for row keys and the shift map. Weekly and Insights already key by name when no number exists — untouched.
+- Verified: failing-first tests (6 new, failed before, pass after); full `app/overtime` dir 131/131; `tsc`/`eslint` clean. Route spec, renders, full suite, commit/push/release below when they land.
+
 ### Remaining failures, limitations and risks
 
 - Strict dialog performance gate is RED and reported as such — not weakened, not gamed. No full-product performance certification is claimed.
 - Linux sidebar pixel baseline still NOT DONE: the artifact workflow is prepared and locally validated but never executed; the outstanding step is exactly one manual Actions run plus human review of the downloaded still.
 - Overtime failure-vs-loading: while the register is unresolved the views show "Loading register" (the lookup contract waits out slow services); a hard register failure keeps that state rather than an error, matching existing lookup behaviour — recorded, not certified against a live failure.
 - Full unit suite result and any release decision are still open; main/production unchanged.
+
+## 14. Mining register/PPE workbook analysis — 1 Nov 2026 (planning only)
+
+Owner requested study of the Mining PPE workbook, a linked employee register/cards, Mining replacement rules,
+Issue Log/summaries and Excel downloads, and asked about analysis here followed by Muse implementation.
+Recommendation: verify and model first, then Muse builds the reviewed plan; independent acceptance follows.
+
+Evidence/requirements/model/implementation brief: workspace `audit/mining-ppe-2026-11-01/`
+(`FINDINGS.md`, `SOLUTION.md`, `MUSE_PROMPT.md`, read-only `inspect_workbook.py`, aggregate `workbook-evidence.json`).
+Actual source is Windows `Documents/Mining/PPE CARDS_054942.xlsx`, not an uploaded file in the app Documents library.
+All four sheets inspected; source unchanged. 768 unique employee mine numbers; Cost centre maps to Section.
+3,013 populated last-issued cells include one malformed date, five future dates and three pre-2020 dates needing review.
+Eight derived cells lack formulas. One complete Issue Log entry duplicates a Tracker observation; one row is incomplete.
+Cached summary date is 29 Oct and Safety Shoes totals undercount the roster. Do not import cached totals as current truth.
+
+Mining policy: Overalls 6 months, Gumboots 3, Safety Chain 24, Hard Hat 24, Sinking Suit 3, Safety Shoes 6;
+Harness and Jackets deliberately unconfigured in the source; warning 30 days. Owner subsequently confirmed **24 months
+for both Harness and Jackets**, and **overdue on the due date**, matching Engineering. Proposed policy now incorporates
+those explicit decisions; the original workbook remains unchanged. No live policy activation or import yet.
+
+Critical design boundaries: current matrix operations are global, so department isolation must precede import; existing
+Engineering renewal can overwrite issue dates, so Mining requires durable event history. Automatic blank employee PPE
+cards and live Personnel field overlays already exist and should be reused. Keep current card details live-linked while
+preserving historical Cost centre snapshots. Opening observations are not proof of quantity/condition/signature.
+
+No application source changes, migrations, imports, live employee/PPE writes, sign-in, commits, pushes or deployment
+for this analysis. No live register collision check yet. Only the read-only workbook evidence script was executed;
+no product tests/rendered verification is claimed. Proposed new screens/policy require owner review before construction.

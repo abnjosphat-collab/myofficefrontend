@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ADHOC_FROM, ADHOC_TO,
-  adhocTotals, budgetComment, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, sheetForDepartment, toBudgetEmployees,
+  ADHOC_FROM, ADHOC_MONTHS, ADHOC_TO,
+  adhocTotals, budgetComment, budgetKey, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, dataMonths, sheetForDepartment, toBudgetEmployees,
   type BudgetEmployee,
 } from './budgetReport';
 import type { OTRecord } from './types';
@@ -237,13 +237,13 @@ describe('department sheets', () => {
 });
 
 describe('toBudgetEmployees', () => {
-  it('keeps identity, occupation, section and department; drops archived and identifier-less rows', () => {
+  it('keeps identity, occupation, section and department; drops archived rows but keeps identifier-less ones', () => {
     const rows = toBudgetEmployees([
       { id: 1, employee_id: 'C1001', first_name: 'A', last_name: 'Moyo', designation: 'Fitter', section: 'Mechanical', department: 'Engineering', employment_type: 'NEC' },
       { id: 2, employee_id: 'C1002', first_name: 'B', last_name: 'Dube', archived: true },
       { id: 3, employee_id: '' },
     ]);
-    expect(rows.map(r => r.employeeId)).toEqual(['C1001']);
+    expect(rows.map(r => r.employeeId)).toEqual(['C1001', '']);
     expect(rows[0]).toMatchObject({
       dbId: '1', employeeId: 'C1001', firstName: 'A', surname: 'Moyo',
       occupation: 'Fitter', costCentre: 'MECHANICAL', department: 'ENGINEERING', sheet: 'ENGINEERING',
@@ -252,5 +252,51 @@ describe('toBudgetEmployees', () => {
 
   it('marks unknown employment types for classification instead of guessing', () => {
     expect(toBudgetEmployees([{ id: 5, employee_id: 'C1005', first_name: 'E', last_name: 'Foo' }])[0].employmentType).toBe('');
+  });
+});
+
+describe('data months', () => {
+  it('covers the calendar months the records actually sit in', () => {
+    expect(dataMonths([otRec({ id: 1, date: '2026-08-04' }), otRec({ id: 2, date: '2026-10-02' })])).toEqual({ from: '2026-08-01', to: '2026-10-31', count: 3 });
+  });
+
+  it('ignores rejected records and falls back to July-September when empty', () => {
+    expect(dataMonths([otRec({ id: 1, date: '2026-10-02', status: 'rejected' })])).toEqual({ from: ADHOC_FROM, to: ADHOC_TO, count: ADHOC_MONTHS });
+    expect(dataMonths([])).toEqual({ from: ADHOC_FROM, to: ADHOC_TO, count: ADHOC_MONTHS });
+  });
+});
+
+describe('people without mine numbers', () => {
+  const wailer = () => emp({ dbId: '9', employeeId: '', firstName: 'Wailer', surname: 'Manzinya' });
+
+  it('keeps register rows that have no employee number', () => {
+    expect(toBudgetEmployees([{ id: 9, employee_id: '', first_name: 'Wailer', last_name: 'Manzinya' }])).toHaveLength(1);
+  });
+
+  it('attributes a number-less record by exact unique name', () => {
+    const people = [emp(), wailer()];
+    const records = [otRec({ id: 9, employee_id: '', employee_name: 'Wailer Manzinya', date: '2026-08-04' })];
+    const { byKey, orphanCount } = adhocTotals(records, people, '2026-08-01', '2026-08-31');
+    expect(orphanCount).toBe(0);
+    expect(byKey.get('C1001')?.adhoc15.total).toBe(0);
+    expect(byKey.get(budgetKey(wailer()))?.adhoc15.total).toBe(3);
+  });
+
+  it('leaves colliding names as orphans and lets a real number win over a name', () => {
+    const twins = [wailer(), emp({ dbId: '10', employeeId: '', firstName: 'Wailer', surname: 'Manzinya' })];
+    const { orphanCount } = adhocTotals([otRec({ id: 9, employee_id: '', employee_name: 'Wailer Manzinya' })], twins, '2026-08-01', '2026-08-31');
+    expect(orphanCount).toBe(1);
+    const numbered = [emp(), wailer()];
+    const second = adhocTotals([otRec({ id: 9, employee_id: 'C1001', employee_name: 'Wailer Manzinya' })], numbered, '2026-08-01', '2026-08-31');
+    expect(second.orphanCount).toBe(0);
+    expect(second.byKey.get('C1001')?.adhoc15.total).toBe(3);
+  });
+
+  it('builds a row for a number-less person carrying their hours and Personnel id', () => {
+    const people = [wailer()];
+    const { byKey } = adhocTotals([otRec({ id: 9, employee_id: '', employee_name: 'Manzinya Wailer' })], people, '2026-08-01', '2026-08-31');
+    const rows = buildSplitBudgetRows(people, new Map(), byKey, new Map(), 1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ dbId: '9', employeeId: '', firstName: 'Wailer', ot15Adhoc: 3 });
   });
 });

@@ -17,7 +17,7 @@ import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { ApprovedOvertimeRecord } from '../timesheets/types';
 import type { ShiftAssignment } from '../shifts/types';
 import { api as tsApi } from '../timesheets/useTimesheetsData';
-import { adhocTotals, budgetTotals, buildSplitBudgetRows, toBudgetEmployees, type BudgetRow, type BudgetTotals } from './budgetReport';
+import { adhocTotals, budgetKey, budgetTotals, buildSplitBudgetRows, toBudgetEmployees, type BudgetRow, type BudgetTotals } from './budgetReport';
 import { downloadSummaryWorkbook } from './exportBudgetReport';
 import { daysInRange, defaultSummaryRange, monthsInRange, rangeActuals, shiftCapForRange } from './summaryReport';
 import type { OTRecord } from './types';
@@ -112,7 +112,7 @@ export function SummariesView({ records, register, otLoaded, registerLoaded = tr
         const a = actuals.get(emp.dbId);
         if (!a || a.filled === 0) continue;
         const ot = Math.max(0, Math.round(a.actual - cap));
-        shift.set(emp.employeeId, ot);
+        shift.set(budgetKey(emp), ot);
       }
       const adhoc = adhocTotals(records, employees, lo, hi);
       const rows = buildSplitBudgetRows(employees, shift, adhoc.byKey, adhoc.causeByKey, months);
@@ -198,7 +198,7 @@ export function SummariesView({ records, register, otLoaded, registerLoaded = tr
             </Notice>
           )}
 
-          <DataTable caption={`Overtime summary ${computed.from} to ${computed.to}`} rows={shown} columns={COLUMNS} getRowId={r => r.employeeId} stillKey={shown.length} />
+          <DataTable caption={`Overtime summary ${computed.from} to ${computed.to}`} rows={shown} columns={COLUMNS} getRowId={r => r.dbId || r.employeeId} stillKey={shown.length} />
         </>
       )}
     </div>

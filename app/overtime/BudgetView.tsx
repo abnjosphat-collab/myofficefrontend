@@ -16,7 +16,7 @@ import {
   MetricTile, Notice, StatusBadge, useActionFeedback, type Column,
 } from '@/components/ui-system';
 import type { EmployeeLookup } from '@/hooks/useLookups';
-import { adhocTotals, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, toBudgetEmployees, type BudgetRow } from './budgetReport';
+import { adhocTotals, budgetTotals, buildEngineeringRoster, buildSplitBudgetRows, dataMonths, toBudgetEmployees, type BudgetRow } from './budgetReport';
 import { ENGINEERING_TEMPLATE_ROSTER } from './engineeringRoster';
 import { downloadSplitBudgetReport } from './exportBudgetReport';
 import { bookShiftAverages, parseShiftBook } from './parseShiftBook';
@@ -131,9 +131,10 @@ export function BudgetView({ records, register, otLoaded, registerLoaded = true 
 
   const computed = useMemo(() => {
     if (!otLoaded || !registerLoaded) return null;
-    const adhoc = adhocTotals(records, employees);
-    const rows = buildSplitBudgetRows(engEmployees, book?.avg ?? new Map(), adhoc.byKey, adhoc.causeByKey);
-    return { rows, totals: budgetTotals(rows), orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours };
+    const win = dataMonths(records);
+    const adhoc = adhocTotals(records, employees, win.from, win.to);
+    const rows = buildSplitBudgetRows(engEmployees, book?.avg ?? new Map(), adhoc.byKey, adhoc.causeByKey, win.count);
+    return { rows, win, totals: budgetTotals(rows), orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours };
   }, [otLoaded, registerLoaded, employees, engEmployees, book, records]);
 
   const download = () => fb.run(async () => {
@@ -180,7 +181,7 @@ export function BudgetView({ records, register, otLoaded, registerLoaded = true 
             NEC timesheet book on this machine (TOTAL HRS minus T/M Hours per month, averaged over
             the months each employee appears in). OT @ 2.0 Shift covers holiday and off-day working,
             and OT @ 1.5 Adhoc every other overtime hour — both averaged from Overtime-module
-            records for July to September 2026 (total ÷ 3).
+            records for {computed ? `${monthLabel(computed.win.from.slice(0, 7))} to ${monthLabel(computed.win.to.slice(0, 7))} (total ÷ ${computed.win.count})` : 'the months present in the data'}.
             {computed && ` Covering the ${engEmployees.length} people on the sheet; the rows follow the sheet order for direct copy-paste.`}
           </p>
           )}
