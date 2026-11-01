@@ -58,13 +58,13 @@ export function Notice({ tone = 'info', icon, title, children, action }: {
     danger: 'border-danger-line bg-danger-soft text-danger',
   } as const;
   return (
-    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('flex flex-wrap items-center gap-3 rounded-card border px-3.5 py-2.5', tones[tone])}>
+    <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-card border px-3.5 py-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-3', tones[tone])}>
       <Icon name={icon ?? (tone === 'info' ? 'info' : 'warning')} size="lg" weight="emphasis" />
       <div className="min-w-0 flex-1">
         <p className="font-sans text-label font-semibold">{title}</p>
-        {children && <p className="mt-0.5 font-sans text-body-sm text-ink">{children}</p>}
+        {children && <div className="mt-0.5 font-sans text-body-sm text-ink">{children}</div>}
       </div>
-      {action}
+      {action && <div className="col-start-2 flex min-w-0 flex-wrap gap-2 sm:ml-auto [&>*]:max-w-full">{action}</div>}
     </div>
   );
 }

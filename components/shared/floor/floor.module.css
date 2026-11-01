@@ -72,6 +72,10 @@
     linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--mo-action) 8.5%, transparent) 100%),
     linear-gradient(180deg, color-mix(in srgb, var(--mo-canvas) 55%, white) 0%, var(--mo-canvas) 36%, var(--mo-canvas) 100%); }
 
+/* Mono has light ink on a dark canvas. The Sage white wash would brighten
+   transparent metric strips behind that ink and defeat their contrast. */
+:global(html[data-theme='mono'][data-darkness='dark']) .backdrop { background: var(--mo-canvas); }
+
 .ripple {
   position: absolute; left: 50%; top: 52%; width: 40px; height: 40px; margin-left: -20px;
   border-radius: 999px; border: 2px solid var(--pulse, var(--mo-action));

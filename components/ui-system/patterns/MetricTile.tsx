@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NumberTransition } from '../motion';
 import { cn } from '../foundations/cn';
 import type { IconMeaning } from '../foundations/icon-meanings';
@@ -64,6 +64,23 @@ export function MetricTile({ label, value, detail, tone = 'default', loading, un
 }
 
 /** The row of quick-stat tiles: one wrapping strip on wide screens; on phones one snapping row (CSS scroll-snap, no transforms). `columns` and `compact` are accepted for older call sites. */
-export function MetricGrid({ children, className }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; compact?: boolean; className?: string }) {
-  return <div className={cn('flex flex-wrap items-center gap-2 max-sm:min-w-0 max-sm:max-w-full max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-proximity [scrollbar-width:none] [&>*]:max-sm:shrink-0 [&>*]:max-sm:snap-start', className)}>{children}</div>;
+export function MetricGrid({ children, className, label = 'Summary metrics' }: { children: ReactNode; columns?: 2 | 3 | 4 | 5; compact?: boolean; className?: string; /** Accessible name of the strip when it scrolls. */ label?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const strip = ref.current;
+    if (!strip) return;
+    let current = true;
+    const measure = () => { if (current) setOverflowing(strip.scrollWidth > strip.clientWidth + 1); };
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(strip);
+    // Children can grow while the container stays fixed (text scale, font load,
+    // new figures). Observing only the container misses those changes.
+    for (const child of strip.children) observer?.observe(child);
+    window.addEventListener('resize', measure);
+    void document.fonts?.ready.then(measure);
+    measure();
+    return () => { current = false; observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [children]);
+  return <div ref={ref} role={overflowing ? 'region' : undefined} aria-label={overflowing ? label : undefined} tabIndex={overflowing ? 0 : undefined} className={cn('focus-ring flex flex-wrap items-center gap-2 max-sm:min-w-0 max-sm:max-w-full max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-proximity [scrollbar-width:none] [&>*]:max-sm:shrink-0 [&>*]:max-sm:snap-start', className)}>{children}</div>;
 }

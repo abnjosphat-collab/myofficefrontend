@@ -2,7 +2,7 @@
 
 The one design system for MyOffice. It is derived from the real Tools & Equipment workspace (`/tools`) and is the
 standard every route is migrated to. The default appearance is Sage light; Mono dark is a flag-gated trial for
-Projects-scoped accounts (see `appearance/appearance.ts`), not a user switch. There is no Classic/Dallaglio switch and
+feature-enabled accounts (see `appearance/appearance.ts`), not a user switch. There is no Classic/Dallaglio switch and
 no icon-style switch. Status of the migration is in [`docs/CURRENT_HANDOFF.md`](../../docs/CURRENT_HANDOFF.md) and
 [`docs/MIGRATION_LEDGER.md`](../../docs/MIGRATION_LEDGER.md). This file describes the system itself.
 
@@ -29,17 +29,24 @@ The application-specific shell (what is in the top bar, the module list, notific
 
 ## Foundations
 
-**Colour.** Canvas `#f4f6f5`, surface `#fbfcfb`, ink `#1b2923`, action (charcoal green) `#233b31`, focus `#4f806a`. Status
+**Colour layers.** `foundations/tokens.css` supplies base roles (canvas `#f4f6f5`, surface `#fbfcfb`, ink `#1b2923`, action
+`#233b31`, focus `#4f806a`). `components/shared/floor/floor-themes.css`, mounted by `FloorProvider`, overrides Sage canvas
+to `#dbe7df`, surface to `#f6faf7`, and related grounds/lines. `foundations/themes.css` has the more specific
+`html[data-theme='mono'][data-darkness='dark']` overrides. Inspect the composed values, not base tokens alone. Status
 colours (success, warning, danger, info, neutral) carry operational meaning only and are always paired with a label or an
-icon. Contrast was computed from `tokens.css` (WCAG formula, re-checked by `foundations/tokens.test.ts`): every text pair
-passes (lowest 4.60:1, muted ink on the darkest interactive fill); the control boundary holds 3:1 on canvas, surface, raised
+icon. Base-token contrast regressions in `foundations/tokens.test.ts` use the WCAG formula: the tested text pairs
+pass (lowest 4.60:1, muted ink on the darkest interactive fill); the control boundary holds 3:1 on canvas, surface, raised
 and muted (worst 3.26:1 on muted); the focus ring is 4.4:1 against the 3:1 required. Chart series use a fixed eight-colour
 categorical order (`--mo-chart-1..8`): every series holds 3:1 on surface, raised and subtle grounds, every pair is dE > 30
 apart (minimum 33.9, orange vs red), and every pair stays distinct under deuteranopia simulation. Never reuse status colours
-as chart series. Pages never contain hex literals: use tokens or Tailwind roles
+as chart series. Separate composed Sage/Mono checks cover text, action and status pairs after the floor overrides;
+rendered checks also inspect the effective backdrop and confirmation text. Pages never contain hex literals: use tokens or Tailwind roles
 (`bg-surface`, `text-ink-muted`, `border-line`, `bg-action`).
 
-**Type.** Inter for body, Plus Jakarta Sans for display (Manrope selectable). Pages use role utilities, not raw sizes:
+**Type.** Inter is the default body face; Manrope and Plus Jakarta Sans are body preferences. The mounted floor sets
+Space Grotesk for display, falling back to Plus Jakarta Sans, then the system sans stack. Floor meters use JetBrains Mono
+with system monospace fallbacks. These floor fonts are loaded by `components/shared/floor/fonts.ts`; root body fonts are
+loaded by `app/layout.tsx`. Pages use role utilities, not raw sizes:
 `text-display`, `text-page`, `text-section`, `text-title`, `text-body`, `text-body-sm`, `text-label`, `text-caption`,
 `text-metric`. Headings carry `font-display`. Every role is `calc(<rem> * var(--mo-text-scale))`.
 
@@ -53,13 +60,15 @@ call: control icons are light, navigation icons regular, emphasis (status, selec
 imported directly only inside `foundations/` (enforced by ESLint).
 
 **Geometry and motion.** Radii: control 7 px, card 12 px, panel 16 px. Data grids use their own sharper pair: cells 2 px (`--mo-radius-cell`), containers 4 px (`--mo-radius-grid`). Cards are stationary: no lift, tilt or glow.
-Durations 120/180/260 ms with `--mo-ease-standard`; a global `prefers-reduced-motion: reduce` rule in `tokens.css` zeroes the duration tokens and stops spinners and skeleton pulses (implemented; **not yet exercised in a browser**). Layers:
+Durations 120/180/260 ms with `--mo-ease-standard`; a global `prefers-reduced-motion: reduce` rule in `tokens.css` zeroes the duration tokens and stops spinners and skeleton pulses. Selected normal/reduced-motion routes and dialogs are exercised by `e2e/ui-consistency.spec.ts`; this is not a complete motion audit. Layers:
 sticky 20, header 30, sidebar 35, overlay 60, dialog 61, popover 70, toast 80, tooltip 90.
 
-**Appearance record.** `localStorage["myoffice_appearance_v1"] = { version: 1, font, fontSize, guidance }`. Precedence when
+**Appearance record.** `localStorage["myoffice_appearance_v1"] = { version: 1, font, fontSize, guidance, theme, darkness }`. Precedence when
 reading: the shared record, then the Tools preferences, then the legacy `oz_*` keys, then defaults
-(`migrateAppearance`, covered by `appearance.test.ts` in the legacy design-system folder). `APPEARANCE_BOOTSTRAP` is inlined
-in `<head>` and sets `data-font`, `data-guidance` and `--mo-text-scale` before first paint, so there is no flash or layout jump.
+(`migrateAppearance`, covered by `appearance/appearance.test.ts`). `APPEARANCE_BOOTSTRAP` is inlined
+in `<head>` and sets `data-font`, `data-guidance`, `data-theme`, `data-darkness` and `--mo-text-scale` before first paint.
+`AppearanceProvider` enforces eligibility: Mono dark requires the `appearance_themes` feature; Tools always uses Sage light.
+Native date/time pickers inherit the effective CSS colour scheme; print-first light surfaces deliberately override it.
 
 ## Contracts that callers rely on
 
@@ -82,6 +91,19 @@ wrapper that contains buttons.
 **Tables.** `DataTable` is a semantic `<table>` in a keyboard-focusable scroll region: sticky header, right-aligned tabular
 numbers, `aria-sort` on sortable headers, selection as a fill **and** a checked box. Sorting and selection logic lives in
 `tableLogic.ts` (unit-tested).
+
+**Metric strips.** `MetricGrid` keeps phone scroll snapping. Only actual horizontal overflow creates a focusable region
+with `tabIndex=0` and the optional `label` (default "Summary metrics"). Native arrow-key scrolling applies. Resize observers
+track the strip and tiles, including font/content resizing; no extra tab stop or region is added when everything fits.
+
+**Notices.** `Notice` accepts flow content (paragraphs, lists or simple text) without a paragraph wrapper. At phone widths
+the icon and text keep their width and actions sit beneath the text; actions wrap as needed. Tone and role still communicate
+operational meaning. Important notices are not automatically dismissed.
+
+**Checkboxes.** `Checkbox` forwards the native input ref and preserves controlled/uncontrolled, disabled and indeterminate
+behaviour. The native input itself occupies at least 44×44 px on coarse pointers; the visible mark stays 18 px and carries
+the focus ring. No wrapper click handler or wrapping label is added. Consumers may supply an external label when `label`
+is omitted. Browser geometry and edge-tap checks, not wrapper classes, establish target size.
 
 **Bulk selection.** `RecordCard` takes an optional shared selection checkbox (`selectable`, `selected`,
 `onSelectedChange`): a 44 px target at the top-left that never opens the card. One `BulkBar` per register

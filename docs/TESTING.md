@@ -20,6 +20,17 @@ Notable coverage:
 
 These are unit/contract tests, not end-to-end against a live DB.
 
+The installed Vitest default reporter can suppress passing-test progress. Use `--reporter=verbose` when inspecting a long
+run; a quiet console alone does not establish that workers have stalled. Wait for the exit result before reporting a gate.
+
+The November UI remediation adds `app/overtime/SummariesView.test.tsx` for deferred success/failure/finally races,
+date invalidation (including away-and-back), unmount cancellation, result/export period identity, idle/error/retry/empty
+states. Shared tests cover overflow observation, valid rich notices, native checkbox behaviour and composed appearance
+contrast. `e2e/ui-consistency.spec.ts` uses fixture authentication and mocked APIs to verify actual phone geometry,
+keyboard metric scrolling, checkbox edge taps, obsolete summary responses, native date appearance, destructive-dialog
+contrast and Tools set-line entry. Run it against the current dev server with
+`npx playwright test e2e/ui-consistency.spec.ts --workers=1`. Its captures are review artifacts, not baseline updates.
+
 ## Browser verification harness (Playwright, fixture session, no live data)
 
 These scripts render real pages in headless Chromium against a **running dev server** (default `http://localhost:3000`) with
@@ -67,8 +78,9 @@ migrated route has no verification record or spec. The verification record is ed
 
 ## Not covered yet
 
-Reduced motion, screen-reader behaviour, dark OS preference, real-account flows (sign-in, two-factor, sign-out), and visual
-regression baselines for the new shell. The Playwright accessibility and visual suites (`npm run test:a11y`,
+Full motion and screen-reader behaviour, dark OS preference, real-account flows (sign-in, two-factor, sign-out), and visual
+regression baselines for the new shell remain open. The scoped November suite exercises selected normal/reduced-motion paths
+and feature-enabled Mono dark; it does not certify these broader areas. The Playwright accessibility and visual suites (`npm run test:a11y`,
 `npm run test:visual`) predate the redesign and have not been re-run against it.
 
 ## Backend repo (pytest)

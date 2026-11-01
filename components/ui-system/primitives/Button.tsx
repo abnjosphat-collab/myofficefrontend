@@ -25,7 +25,7 @@ export const buttonVariants = cva(
         primary: 'border-action bg-action text-action-ink hover:border-action-hover hover:bg-action-hover active:bg-action-pressed',
         secondary: 'border-line bg-surface-raised text-ink hover:bg-surface-subtle hover:border-action/35 active:bg-surface-muted',
         ghost: 'border-transparent bg-transparent text-ink-muted hover:bg-surface-muted hover:text-ink active:bg-surface-interactive',
-        danger: 'border-danger bg-danger text-white hover:brightness-110 active:brightness-95',
+        danger: 'border-danger bg-danger text-ink-inverse hover:brightness-110 active:brightness-95',
         'danger-quiet': 'border-transparent bg-transparent text-danger hover:bg-danger-soft active:bg-danger-soft',
         shell: 'border-line bg-surface-raised text-ink-muted hover:border-action/55 hover:bg-action-soft hover:text-action aria-expanded:border-action/55 aria-expanded:bg-action-soft aria-expanded:text-action',
       },

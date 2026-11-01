@@ -40,6 +40,26 @@ const ratio = (a: string, b: string): number => {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 };
 
+describe('composed floor appearance contrast', () => {
+  const floorCss = readFileSync(join(process.cwd(), 'components/shared/floor/floor-themes.css'), 'utf8');
+  const hexes = (block: string): Record<string, string> => Object.fromEntries(
+    [...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})/g)].map(m => [m[1], m[2]]),
+  );
+  const base = /:root\s*\{([^}]+)\}/.exec(css)![1];
+  const floor = /html\[data-floor-theme='sage'\]\s*\{([^}]+)\}/.exec(floorCss)![1];
+  const dark = /html\[data-theme='mono'\]\[data-darkness='dark'\]\s*\{([^}]+)\}/.exec(themesCss)![1];
+  // Match the rendered cascade: the dark selector is more specific than the floor.
+  it.each([['Sage', ''], ['Mono', dark]])('%s keeps action, muted text and status pairs legible after floor overrides', (_name, override) => {
+    const at = { ...hexes(base), ...hexes(floor), ...hexes(override) };
+    for (const [ink, ground] of [['ink', 'surface'], ['ink-muted', 'canvas'], ['ink-subtle', 'canvas'], ['action-ink', 'action'], ['ink-inverse', 'danger']]) {
+      expect(ratio(at[`mo-${ink}`], at[`mo-${ground}`]), `${ink} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const name of ['success', 'warning', 'danger', 'info', 'neutral']) {
+      expect(ratio(at[`mo-${name}`], at[`mo-${name}-soft`]), name).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
 type Lab = [number, number, number];
 
 const linearChannel = (v: number): number => {

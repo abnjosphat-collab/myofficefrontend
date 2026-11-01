@@ -6,11 +6,13 @@ their prompt files, and is the summary of [`CLAUDE_REDESIGN_CHECKPOINT_2026-10-0
 (the checkpoint keeps the long per-route narrative and defects found).
 Update this file at every milestone and before stopping for any reason.
 
+Latest frontend branch work: [UI consistency remediation, 1 Nov 2026](#11-ui-consistency-remediation--1-nov-2026-feature-branch). Historical release statements below do not mean this new work has been released to production.
+
 ## 1. Goal and decisions
 
 Rebuild MyOffice around the real Tools & Equipment (`/tools`) interface as one shared design system.
 
-- One appearance. There is no light/dark switch and no old theme. Text size (85–130%) is the only appearance preference.
+- Sage light is the default. Mono dark is now a feature-gated trial (`appearance_themes`), not a return to Classic/Dallaglio. Tools remains Sage light. Typeface, text size (85–130%) and hints use the shared appearance record.
 - Preserve business behaviour. Keep Feedback visible in the top bar. The old bottom bar and its hard-coded status are gone.
 - Never fake data and never show a failed load as an empty list (`DataRegion` / `deriveDataStatus`).
 - A passing build or spec is not visual verification. Rendering is inspected and recorded by hand
@@ -568,3 +570,92 @@ Owner report: "Clerk" did not appear on the Designation dropdown. Root cause: `D
 
 The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; (the old never-auto-refresh rule was superseded by owner-approved batch B2, 27 Oct 2026 — see §8o);
 the failure-state patterns; the owner's constraints in section 1.
+
+## 11. UI consistency remediation — 1 Nov 2026 (feature branch)
+
+Started from frontend `580b22c` on `fix/ui-consistency-remediation`. The earlier audit cache records `c55e204`;
+its findings were rechecked against the newer source. The owner authorised committing and pushing this feature branch
+on 1 Nov 2026. This is a branch delivery, with no merge to `main`, manual deployment, backend change, migration or live-data
+mutation. The pre-existing `debug.log` and backend SQL file were preserved. No package was added.
+
+### Requirement → change → evidence
+
+| Requirement | Implementation | Verification |
+|---|---|---|
+| R1: consistent generated period | Summaries captures a normalized period and source inputs, aborts superseded reads, guards success/failure/finally and unmount, stores the period with the result; caption and workbook use that result | Deferred-response tests cover away/back dates, obsolete success/failure/finally, unmount and caption/export identity; browser cancels an old period |
+| R2: honest states | Explicit idle/loading/ready/error; neutral initial instructions, Retry after a failed attempt, successful empty distinct from failure | Unit tests for idle/error/retry/empty; rendered initial and generated summary |
+| R3: responsive valid notices | Flow-content body, phone icon/text grid, wrapping action row below message | Paragraph/list unit coverage; Documents at 390px, 100%/130% text, no nested-paragraph warnings or body overflow |
+| R4: keyboard metric strips | Optional label, actual overflow measurement, root/child ResizeObservers and cleanup; named focusable region only when overflowing | Resize unit test; native ArrowRight scrolling; all 16 previously flagged metric routes rechecked at 390px/130%, focused axe rule |
+| R5: genuine checkbox target | Native input occupies coarse-pointer target; 18px visible mark and focus ring; no wrapping label or wrapper click handler | 44×44px measured input; opposite-corner taps in cards/table; rendered focus ring and Space; label/ref/controlled/uncontrolled/disabled/indeterminate unit coverage |
+| R6: dark appearance | Danger uses inverse ink; Mono backdrop omits white wash; native pickers inherit effective scheme; inline light scheme stamp removed and CSP hash updated | Composed token tests; rendered confirmation axe contrast and date schemes at 390/1440 in Sage/Mono; dark metrics at 130% |
+| R7: specialist consistency | Shared Summary Fields/Inputs/Checkboxes; phone set name spans the row with size/quantity below and shared IconButton removal; Tools passes meanings directly to NavItem | Set-name input 316px at 390px, Enter adds a line, removal retains the other name/quantity; Tools remains Sage for a flagged dark account at both widths |
+| R8: accurate contracts and checks | UI README/architecture/testing describe effective fonts, token layers, eligibility and accessibility; route harness uses semantic readiness, permits generic failure headings and reports navigation failures | Type/lint/docs/build checks; browser geometry and behaviour assertions; reviewed captures |
+
+Calculations, rounding, caps, employee matching, approval inclusion and workbook columns were retained. Department exclusions
+filter generated rows locally. The expanded sidebar and appearance eligibility logic were not redesigned.
+
+### Measured and rendered evidence
+
+- At 390px, notice text has 296px width at both 100% and 130%; actions sit beneath it and body overflow is 0px.
+- A coarse-pointer native checkbox measures 44×44px. The set-name input measures 316px (the audit showed about 64px).
+- Mono danger foreground `#161616` on `#e88a90` measures 7.30:1, replacing white at 2.48:1. The rendered confirmation
+  also passes axe colour contrast. Native date controls compute to `light` in Sage and `dark` in eligible Mono.
+- Rendered headings resolve to Space Grotesk, with Jakarta/system fallbacks; Inter is the default body font.
+- 27 focused browser scenarios passed, then four added desktop/Tools eligibility scenarios passed. Fixtures and mocked
+  APIs only. These checks include normal/reduced motion and the 820/821px navigation boundary, not a full motion or
+  screen-reader certification.
+
+Artifacts (local cache, not committed): `node_modules/.cache/ui-consistency-remediation-2026-11-01/` contains measured
+geometry (`measurements.json`), reviewed before/after captures (`review/`), route captures (`routes/`, `reruns/`), and a
+settled capture sweep (`settled/report.json`). Original evidence remains under `node_modules/.cache/ui-audit-2026-11-01/`.
+Command logs are `node_modules/.cache/ui-remediation-*.log`. Cache artifacts may be removed by ordinary dependency cleanup.
+
+### Verification status
+
+- Focused Vitest: 5 files, 44 tests passed. An additional 5-file run passed 61 tests, including normalized/reversed
+  Summary periods, existing overtime calculations and set parsing (the 7 Summary tests overlap; do not add these totals).
+- TypeScript: passed. Full ESLint: 0 errors, 23 warnings.
+- Documentation check: passed after regenerating the stale ledger (only Overtime's test-file count changed). TypeDoc
+  retains 26 documentation warnings.
+- Production build: passed, 68 static pages generated. The first sandboxed attempt could not download Google Fonts;
+  the network-enabled rerun passed. Existing filesystem-tracing warning described below remains.
+- The full route-spec run finished with **2,113 passed assertions and 7 failed checks**, not a clean gate: four existing inline-badge warnings
+  (`/overtime`, `/pachedu`, `/pto`, `/vfl`) plus three dev-router/heading failures. The latter three passed targeted reruns
+  after correcting the heading wait; no warning was suppressed. All other assertions in that run passed.
+- A separate settled sweep completed 120 fixture viewport cases across 57 distinct route URLs, including 24 pristine-form
+  captures (six families, two widths, Sage 100% and eligible Mono 130%). No measured page/dialog horizontal overflow;
+  the desktop/phone contact sheets and all 24 form captures were inspected. This is a layout check, not hidden-workflow certification.
+- Full Vitest: **357 files, 2,583 tests passed**, exit 0. Command: `npx vitest run --maxWorkers=4 --pool=forks --reporter=verbose`;
+  duration 1,480.48s. This includes the final shared Tools remove action and normalized Summary regression.
+  Early runs were interrupted while investigating apparent hangs. Read-only process inspection and the installed reporter
+  source established that the default reporter suppresses passing-test output; silence was not evidence of stalled workers.
+  Those interrupted attempts are not failed-test results. The final uninterrupted run completed successfully.
+- After the last set-line change, its browser regression passed again (Enter, quantity entry, remove, retained values),
+  and native checkbox edge taps/focus ring/Space passed in both cards and table. Final TypeScript and production build passed.
+
+### Diff review / shared effects
+
+Summary changes are orchestration and presentation only; the existing payroll helpers were not edited. Notice and
+Checkbox geometry affects their consumers app-wide; the route and form capture sweeps cover that shared effect, while
+the new behaviour/geometry tests protect it. MetricGrid adds one observer per mounted strip and disconnects on cleanup.
+The backdrop override applies only to Mono dark. The inline-script change is paired with its CSP hash (served hash checked).
+Tools changes stay inside its frame/set editor. No other repository or design-system replacement is involved.
+Remaining release risk is the four existing normal-motion badge markup warnings and the separately recorded lookup lead;
+this patch does not certify hidden workflows or production data.
+
+### Findings kept outside this patch / verification limits
+
+1. The full Overtime workflow reproduces existing invalid HTML in the Insights heatmap: `StatusBadge` uses a default
+   `Presence` motion div inside its inline span and a caller's paragraph. The same warning appears in Pachedu/PTO/VFL.
+   Confirmed against the unchanged HEAD source. This is separate from Notice's repaired rich-content wrapper; not suppressed.
+2. The production build warns that `app/api/budget-shift-book/route.ts` dynamically reads a filesystem path, causing broad
+   output tracing. That route was not modified.
+3. Initial broad-route checks encountered an internal dev-router initialization error in Breakdown analytics (clean on
+   rerun) and an overly strict record-specific heading wait in machine-history/print failure states (harness corrected;
+   clean reruns). Failures remain in the original logs.
+4. Source-only follow-up lead: the parent Overtime page passes `useEmployees()`'s array to Summaries without a readiness
+   or error signal. `hooks/useLookups.ts` starts with `[]` and logs failed reads. A slow/failed register lookup may therefore
+   be mistaken for a successfully empty register if generation starts early. The owned timesheet/leave/shift requests now
+   distinguish failure correctly; this pre-existing upstream lookup contract still needs a dedicated reproduction and fix.
+5. No live-account authentication, production records, real device, screen reader or payroll reconciliation was exercised.
+   This scoped remediation is not full product certification.

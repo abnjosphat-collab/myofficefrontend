@@ -3,7 +3,7 @@
 // bar holds the section title, the department scope, notifications, settings and the account. Feedback floats bottom-right.
 'use client';
 
-import { useMemo, useState, type ElementType, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   AppFrame, DestinationSearch, IconButton, NavItem, Select, SidebarFrame, TopBar,
   floatingActionClass,
@@ -17,17 +17,8 @@ import { Icon, type IconMeaning } from '@/components/ui-system';
 import { abbreviateDepartment } from './prototype';
 import { tabs, type ToolsWorkspace } from './useToolsWorkspace';
 
-// One glyph component per meaning, cached so a destination keeps one identity between renders (NavItem takes
-// a component). The glyphs are the app-wide set — Tools uses the same icons as every other module.
+// Pass meanings to NavItem so its shared navigation size and weight policy applies.
 const TAB_MEANINGS: Record<string, IconMeaning> = { home: 'home', box: 'equipment', out: 'recipients', user: 'employees', check: 'compliance', toolbox: 'task', history: 'history', upload: 'upload', accounts: 'accounts', analytics: 'analytics', edit: 'edit' };
-const navGlyphs = new Map<IconMeaning, ElementType>();
-function navGlyph(tabIcon: string): ElementType {
-  const meaning = TAB_MEANINGS[tabIcon] ?? 'app';
-  let glyph = navGlyphs.get(meaning);
-  if (!glyph) { glyph = function NavGlyphIcon() { return <Icon name={meaning} size={18} />; }; navGlyphs.set(meaning, glyph); }
-  return glyph;
-}
-function SearchGlyph() { return <Icon name="search" size={18} />; }
 export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: ReactNode }) {
   const [navOpen, setNavOpen] = useState(false);
   const { tab, visibleTabs, sidebarNav, sidebarCollapsed, department, departmentOptions, search, currentAccount } = w;
@@ -40,10 +31,10 @@ export function ToolsFrame({ w, children }: { w: ToolsWorkspace; children: React
     <>
       {/* G3: fixed order, like the sections nav — recency reordering moved items under the pointer. */}
       {sidebarCollapsed && (
-        <NavItem label="Search" icon={SearchGlyph} active={false} collapsed onClick={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }} onNavigate={() => undefined} />
+        <NavItem label="Search" icon="search" active={false} collapsed onClick={() => { w.setSidebarCollapsed(false); requestAnimationFrame(() => w.searchRef.current?.focus()); }} onNavigate={() => undefined} />
       )}
       {sidebarNav.iconsOpen && visibleTabs.map(item => (
-        <NavItem key={item.value} label={item.label} icon={navGlyph(item.icon)} active={item.value === tab}
+        <NavItem key={item.value} label={item.label} icon={TAB_MEANINGS[item.icon] ?? 'app'} active={item.value === tab}
           collapsed={sidebarCollapsed} onClick={() => go(item.value)} onNavigate={() => setNavOpen(false)} />
       ))}
     </>

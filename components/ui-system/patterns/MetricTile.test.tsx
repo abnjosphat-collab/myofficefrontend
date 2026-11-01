@@ -1,8 +1,35 @@
 // MetricTile motion (B4): numeric values roll digit by digit; anything else
 // renders as before. The selected ring is a colour fade, never a scale.
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MetricGrid, MetricTile } from './MetricTile';
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+it('makes only an actually overflowing strip a named keyboard scroll region and cleans up observers', () => {
+  let width = 200;
+  const callbacks: ResizeObserverCallback[] = [];
+  const disconnect = vi.fn();
+  const observe = vi.fn();
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: ResizeObserverCallback) { callbacks.push(callback); }
+    observe = observe;
+    disconnect = disconnect;
+  });
+  vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(200);
+  vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(() => width);
+  const view = render(<MetricGrid label="Fleet metrics"><MetricTile label="Open" value={3} /></MetricGrid>);
+  expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  expect(observe).toHaveBeenCalledTimes(2); // container plus its tile
+  width = 400;
+  act(() => callbacks[0]([], {} as ResizeObserver));
+  expect(screen.getByRole('region', { name: 'Fleet metrics' })).toHaveAttribute('tabindex', '0');
+  width = 200;
+  act(() => callbacks[0]([], {} as ResizeObserver));
+  expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  view.unmount();
+  expect(disconnect).toHaveBeenCalledOnce();
+});
 
 describe('MetricTile motion', () => {
   it('rolls a numeric value (in place under reduced motion)', () => {

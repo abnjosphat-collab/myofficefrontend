@@ -1,7 +1,7 @@
 # Frontend UI architecture
 
-**Status:** active architecture. Rewritten 3 Oct 2026 for the single-appearance redesign (the earlier text described the
-retired light/dark and Classic/Dallaglio model).
+**Status:** active architecture. Rewritten 3 Oct 2026; appearance layers and shared accessibility contracts refreshed
+1 Nov 2026. The retired Classic/Dallaglio model does not describe the current system.
 **Scope:** all MyOffice frontend routes.
 **Related:** component contracts in [`components/ui-system/README.md`](../components/ui-system/README.md); current work in
 [`CURRENT_HANDOFF.md`](./CURRENT_HANDOFF.md); per-route status in [`MIGRATION_LEDGER.md`](./MIGRATION_LEDGER.md).
@@ -18,13 +18,13 @@ MyOffice uses one layered, open-code UI system derived from the Tools & Equipmen
 4. There is no other design system. The legacy one (`components/shared/design-system/`, the `${t.*}` token layer, the `.oz-*`
    classes, `components/ui/`) was deleted on 4 Oct 2026; the shared bits that remain (`components/shared/`) are built from
    `ui-system`.
-5. `/tools` keeps its own CSS module and layout; it is the visual reference. It shares the token layer (its `--brand` reads
-   `--mo-action`, its surfaces read `--mo-*`) and the glyph layer, but its own components (`ToolsUI`, `AnimatedSelect`,
-   `ToolsDateInput` and the 125 KB `tools.module.css`) are still its own. Moving them onto `ui-system` is an open decision.
+5. `/tools` keeps its workspace-specific components and behaviour. `ToolsFrame` composes shared navigation primitives;
+   its forms already use shared fields, inputs, checkboxes and dialogs. Semantic icon meanings pass directly to `NavItem`
+   so the shared navigation weight applies. Preserve the Tools workspace boundary.
 
-**One appearance.** There is no theme switch. Reasons: Tools has none and is the standard; two appearances doubled every
-verification matrix; the dark theme washed structure in violet. Consequence: `.dark` is never applied and there is no theme provider. Reversing this means redoing the
-palette contrast work for a second surface set.
+**Appearance eligibility.** Sage light is the default. Mono dark is a feature-gated trial (`appearance_themes`), enforced
+by `AppearanceProvider`; Tools remains Sage light. The effective appearance uses `data-theme` and `data-darkness`, not the
+retired `.dark` overlay. Keep eligibility checks intact when changing shared styling.
 
 Do not add Material UI, Chakra, Ant Design or another component framework unless an accepted decision names a capability the
 stack cannot provide.
@@ -65,6 +65,12 @@ Checked by `scripts/verify-shell-parity.mjs`. Service worker and update behaviou
 `ui-system`. (Until 4 Oct 2026 it also held about 600 lines of legacy rules, including an unlayered `:focus-visible` outline and
 body size that overrode the system's own.)
 
+The floor provider also mounts `components/shared/floor/floor-themes.css`: Sage grounds and the Space Grotesk display
+font override base values on `<html data-floor-theme>`, including portal content. `foundations/themes.css` is imported
+from the root layout and its more specific Mono dark selector overrides the floor. Inter remains the default body face;
+Manrope/Jakarta are body preferences. Contrast checks must compose base, floor and appearance tokens and inspect rendered
+backgrounds. Native pickers inherit that effective colour scheme; print-light surfaces remain light.
+
 Text size is `--mo-text-scale` on `<html>` (85 to 130 per cent), read inside every `--text-*` theme value, so portals inherit it.
 `APPEARANCE_BOOTSTRAP` (inlined in `<head>`) sets it before first paint.
 
@@ -72,7 +78,7 @@ Text size is `--mo-text-scale` on `<html>` (85 to 130 per cent), read inside eve
 
 | State | Owner | Notes |
 |---|---|---|
-| Typeface, text size, helpful hints | `AppearanceProvider` (`myoffice_appearance_v1`) | Migrates from Tools prefs and legacy `oz_*` keys once |
+| Typeface, text size, helpful hints, eligible appearance | `AppearanceProvider` (`myoffice_appearance_v1`) | Migrates from Tools prefs and legacy `oz_*` keys once; Tools stays Sage |
 | Favourites, quick actions, sidebar collapsed | `useAppShellState` (`oz_*` keys) | Per device |
 | Default module view, "start sections expanded" | `lib/prefs.ts` | Edited in the settings dialog |
 | View mode per module | `useViewPreference` (`myoffice_view_*`) | Per device |
@@ -91,8 +97,10 @@ values and show the server message on failure. The notification bell reports a f
 Skip link as the first Tab stop; `main` is `tabIndex=-1`; the sidebar is a persistent landmark on desktop and a Radix drawer
 below `lg` (focus trap, Escape, focus return); `aria-current="page"` on the active destination; `aria-pressed` on toggles
 and filters; icon-only controls require a label; status is never colour alone; touch targets grow under `pointer: coarse`.
-Verified by the harness listed in [`TESTING.md`](./TESTING.md) at 1440, 820, 390 and 320 px; reduced motion and
-screen-reader passes are **not yet verified**.
+Metric strips become named keyboard-scrollable regions only when overflowing. Checkbox coarse-pointer targets enlarge
+the native input, not only its container. Notices accept valid flow content and place phone actions below the message.
+The harness listed in [`TESTING.md`](./TESTING.md) covers 1440, 820, 390 and 320 px; the November scoped regressions also
+exercise selected normal/reduced-motion paths and the 820/821px boundary. A full motion and screen-reader audit remains open.
 
 ## Verification contract
 

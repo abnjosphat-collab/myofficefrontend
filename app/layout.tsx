@@ -26,8 +26,8 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
-// The three interface typefaces of the UI system (Inter body, Plus Jakarta Sans display,
-// Manrope as the alternative). Each is exposed as a CSS variable on <html>; the
+// Root body choices (Inter, Manrope, Plus Jakarta Sans). The floor provider supplies
+// Space Grotesk for display, with Jakarta as its fallback. Each root face is exposed on <html>; the
 // appearance preference picks which one --mo-font-body resolves to (see ui-system tokens.css).
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"], display: "swap" });
 const plusJakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
@@ -107,7 +107,7 @@ export default function RootLayout({
             flash or layout jump. Tools routes always pre-paint the sage floor. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';h.style.colorScheme='light';}catch(e){}})();`,
+            __html: `(function(){try{var h=document.documentElement;h.classList.remove('dark');h.dataset.theme='light';}catch(e){}})();`,
           }}
         />
         <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOTSTRAP }} />

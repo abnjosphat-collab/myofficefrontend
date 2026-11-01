@@ -9,7 +9,7 @@ const SUPABASE_HOST = "https://geomlsxphwaxpaloweky.supabase.co";
 // Hashes of the two layout pre-paint scripts (app/layout.tsx), taken from served
 // bytes 2026-10-18. If either script changes, recompute with the mo-csphash
 // recipe (fetch / and sha256 the exact script bodies) and update these.
-const PRE_PAINT_HASH = "'sha256-DutM3M1/aDhmHwTil+YywPswE6gi+d5qjHeXk3A8W8o='";
+const PRE_PAINT_HASH = "'sha256-Ac9HLAjepEciOm2fkq8jgnaaks222bL0dkYu+znpXxA='";
 const APPEARANCE_HASH = "'sha256-gWu0xpSlRI/BXaUbauJd8qzGwsLS1rtoWpNn21bzxI0='";
 
 // Report-Only on purpose (2026-10-18): the App Router's inline flight-data

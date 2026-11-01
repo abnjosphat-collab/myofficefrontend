@@ -3,7 +3,14 @@
 // with a Try again button, while the retry loop underneath keeps going.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { DataRegion } from './DataRegion';
+import { DataRegion, Notice } from './DataRegion';
+
+it('a notice accepts rich flow content without nested paragraphs and keeps its action', () => {
+  const { container } = render(<Notice tone="danger" title="Could not save" action={<button type="button">Retry</button>}><p>Try again.</p><ul><li>Keep your entries.</li></ul></Notice>);
+  expect(screen.getByRole('alert')).toHaveTextContent('Keep your entries.');
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+  expect(container.querySelector('p p, p ul')).toBeNull();
+});
 
 describe('DataRegion loading crossfade', () => {
   it('swaps loading for content with no transform in the reduced path', () => {

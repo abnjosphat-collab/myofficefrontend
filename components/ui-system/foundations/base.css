@@ -46,9 +46,7 @@
   /* Elements that draw their own ring via the focus-ring utility opt out of the outline. */
   .focus-ring:focus-visible { outline: none; }
   input, select, textarea, button { font: inherit; color: inherit; }
-  input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'], input[type='week'] {
-    color-scheme: light;
-  }
+  /* Native pickers inherit the effective appearance; do not reset color-scheme here. */
   input::placeholder, textarea::placeholder { color: var(--mo-ink-subtle); opacity: 1; }
   button, [role='button'], a { touch-action: manipulation; }
   /* Clickable things show a hand; the Tailwind reset leaves buttons with the arrow cursor. Base layer, so utilities still win. */

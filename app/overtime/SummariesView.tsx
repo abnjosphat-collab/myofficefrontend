@@ -7,10 +7,10 @@
 // months the range touches. Whole hours; Comment names each person's top cause.
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Button, DataTable, EXPORT_CHECK_MS, EmptyState, ExportButton, LoadingPulse, MetricGrid,
+  Button, Checkbox, DataTable, EXPORT_CHECK_MS, EmptyState, ExportButton, Field, Input, LoadingPulse, MetricGrid,
   MetricTile, Notice, useActionFeedback, type Column,
 } from '@/components/ui-system';
 import type { EmployeeLookup } from '@/hooks/useLookups';
@@ -44,21 +44,41 @@ const COLUMNS: Column<BudgetRow>[] = [
   },
 ];
 
+interface SummaryResult {
+  from: string; to: string;
+  rows: BudgetRow[]; totals: BudgetTotals; months: number; cap: number;
+  orphanCount: number; orphanHours: number;
+}
+type Generation = { status: 'idle' | 'loading' } | { status: 'error'; message: string } | { status: 'ready'; result: SummaryResult };
+
 export function SummariesView({ records, register, otLoaded }: { records: OTRecord[]; register: EmployeeLookup[]; otLoaded: boolean }) {
   const initial = useMemo(() => defaultSummaryRange(), []);
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
   const [excludedDepts, setExcludedDepts] = useState<string[]>([]);
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [generation, setGeneration] = useState<Generation>({ status: 'idle' });
+  const requestId = useRef(0);
+  const pendingRead = useRef<AbortController | null>(null);
+  const generating = generation.status === 'loading';
+  const computed = generation.status === 'ready' ? generation.result : null;
   const fb = useActionFeedback(EXPORT_CHECK_MS);
 
   const employees = useMemo(() => toBudgetEmployees(register), [register]);
   const departments = useMemo(() => [...new Set(employees.map(e => e.department))].sort(), [employees]);
-  const [computed, setComputed] = useState<{
-    rows: BudgetRow[]; totals: BudgetTotals; months: number; cap: number;
-    orphanCount: number; orphanHours: number;
-  } | null>(null);
+  useEffect(() => () => {
+    requestId.current += 1;
+    pendingRead.current?.abort();
+  }, []);
+
+  const changeDate = (which: 'from' | 'to', value: string) => {
+    // Invalidate in the input event, not a later effect: even moving away and
+    // back to the same dates cannot revive the earlier generation.
+    requestId.current += 1;
+    pendingRead.current?.abort();
+    pendingRead.current = null;
+    setGeneration({ status: 'idle' });
+    if (which === 'from') setFrom(value); else setTo(value);
+  };
 
   const approvedOt = useMemo<ApprovedOvertimeRecord[]>(() => records.map(r => ({
     id: typeof r.id === 'number' ? r.id : undefined,
@@ -68,16 +88,21 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
   })), [records]);
 
   const generate = async () => {
-    if (!from || !to) { toast.error('Pick a from and to date first.'); return; }
-    setGenerating(true);
-    setError(null);
+    if (pendingRead.current) return;
+    if (!from || !to) { setGeneration({ status: 'error', message: 'Pick a from and to date first.' }); return; }
+    const controller = new AbortController();
+    pendingRead.current = controller;
+    const id = ++requestId.current;
+    const current = () => id === requestId.current && !controller.signal.aborted;
+    setGeneration({ status: 'loading' });
     try {
       const [lo, hi] = from <= to ? [from, to] : [to, from];
       const [ts, lv, shifts] = await Promise.all([
-        tsApi.timesheets(lo, hi),
-        tsApi.moduleLeaves({ start: new Date(`${lo}T00:00:00`), end: new Date(`${hi}T00:00:00`) }, true),
-        tsApi.shiftAssignments(),
+        tsApi.timesheets(lo, hi, controller.signal),
+        tsApi.moduleLeaves({ start: new Date(`${lo}T00:00:00`), end: new Date(`${hi}T00:00:00`) }, true, controller.signal),
+        tsApi.shiftAssignments(controller.signal),
       ]);
+      if (!current()) return;
       const actuals = rangeActuals(employees, ts, lv, approvedOt, shifts as ShiftAssignment[], lo, hi);
       const cap = shiftCapForRange(daysInRange(lo, hi));
       const months = monthsInRange(lo, hi);
@@ -91,15 +116,16 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
       }
       const adhoc = adhocTotals(records, employees, lo, hi);
       const rows = buildSplitBudgetRows(employees, shift, adhoc.byKey, adhoc.causeByKey, months);
-      setComputed({ rows, totals: budgetTotals(rows), months, cap, orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours });
+      setGeneration({ status: 'ready', result: { from: lo, to: hi, rows, totals: budgetTotals(rows), months, cap, orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'The summary could not be generated.');
+      if (current()) {
+        setGeneration({ status: 'error', message: e instanceof Error ? e.message : 'The summary could not be generated.' });
+        controller.abort();
+      }
     } finally {
-      setGenerating(false);
+      if (id === requestId.current) pendingRead.current = null;
     }
   };
-
-  useEffect(() => { setComputed(null); }, [from, to]);
 
   const toggleDept = (d: string) => setExcludedDepts(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
   const shown = useMemo(() => (computed?.rows ?? []).filter(r => !excludedDepts.includes(r.department)), [computed, excludedDepts]);
@@ -108,7 +134,7 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
   const download = () => fb.run(async () => {
     if (!computed) throw new Error('nothing to download yet');
     try {
-      await downloadSummaryWorkbook(shown, `overtime-summary_${from}_to_${to}`);
+      await downloadSummaryWorkbook(shown, `overtime-summary_${computed.from}_to_${computed.to}`);
       toast.success('Overtime summary downloaded.');
     } catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
@@ -124,26 +150,19 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
             range); OT @ 2.0 Shift and OT @ 1.5 Adhoc average Overtime-module records over the
             calendar months touched. Whole hours; one sheet per department.
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 font-sans text-body-sm text-ink">
-              From
-              <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} className="rounded border border-ink-muted px-2 py-1 font-sans text-body-sm" />
-            </label>
-            <label className="flex items-center gap-2 font-sans text-body-sm text-ink">
-              To
-              <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} className="rounded border border-ink-muted px-2 py-1 font-sans text-body-sm" />
-            </label>
-            <Button size="sm" variant="primary" disabled={generating || !otLoaded} onClick={() => void generate()}>
+          <div className="mt-2 grid grid-cols-1 gap-x-3 sm:grid-cols-2">
+            <Field label="From"><Input type="date" value={from} max={to} onChange={e => changeDate('from', e.target.value)} /></Field>
+            <Field label="To"><Input type="date" value={to} min={from} onChange={e => changeDate('to', e.target.value)} /></Field>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="primary" pending={generating} disabled={!otLoaded} onClick={() => void generate()}>
               {generating ? 'Generating…' : computed ? 'Regenerate' : 'Generate'}
             </Button>
             {computed && <ExportButton label="Download Excel" onPress={download} pending={fb.pending} success={fb.success} />}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             {departments.map(d => (
-              <label key={d} className="flex items-center gap-1 font-sans text-body-sm text-ink">
-                <input type="checkbox" checked={!excludedDepts.includes(d)} onChange={() => toggleDept(d)} />
-                {d}
-              </label>
+              <Checkbox key={d} label={d} checked={!excludedDepts.includes(d)} onChange={() => toggleDept(d)} />
             ))}
           </div>
         </div>
@@ -151,13 +170,15 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
 
       {!otLoaded || generating ? (
         <LoadingPulse compact label={generating ? 'Building summary' : 'Loading overtime data'} />
-      ) : error || !computed ? (
+      ) : generation.status === 'error' ? (
         <Notice
           tone="danger" title="The summary could not be generated"
           action={<Button size="sm" variant="secondary" onClick={() => void generate()}>Retry</Button>}
         >
-          <p className="font-sans text-body-sm">{error ?? 'Pick a period and press Generate.'}</p>
+          {generation.message}
         </Notice>
+      ) : !computed ? (
+        <Notice tone="info" title="Generate a summary">Pick a period and press Generate.</Notice>
       ) : shown.length === 0 ? (
         <EmptyState icon="employees" title="Nobody to show" description="Everyone is filtered out, or the register is empty." />
       ) : (
@@ -177,7 +198,7 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
             </Notice>
           )}
 
-          <DataTable caption={`Overtime summary ${from} to ${to}`} rows={shown} columns={COLUMNS} getRowId={r => r.employeeId} stillKey={shown.length} />
+          <DataTable caption={`Overtime summary ${computed.from} to ${computed.to}`} rows={shown} columns={COLUMNS} getRowId={r => r.employeeId} stillKey={shown.length} />
         </>
       )}
     </div>

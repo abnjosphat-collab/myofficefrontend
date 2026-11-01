@@ -36,9 +36,13 @@ async function scenario(name, spec, data, run, viewport, storage = spec.storage)
   page.on('pageerror', error => problems.push(`pageerror: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) problems.push(`console: ${message.text().slice(0, 160)}`); });
   try {
-    await page.goto(`${BASE}${spec.route}`, { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => {});
-    await page.waitForSelector('main h1', { timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(800);
+    await page.goto(`${BASE}${spec.route}`, { waitUntil: 'load', timeout: 90_000 });
+    // Tools carries its page heading in the top bar, outside main. Wait for
+    // semantic readiness instead of racing a fixed sleep on a loaded machine.
+    // A failed source can legitimately replace a record-specific title with a
+    // generic page title; the ready scenario separately asserts spec.h1.
+    await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 30_000 });
+    await page.locator('[role="status"][aria-label^="Loading"]').first().waitFor({ state: 'hidden', timeout: 30_000 });
     await run(page, calls);
   } catch (error) { check(false, `${name} ran to completion`, String(error).split('\n').slice(0, 6).join(' | ').slice(0, 800)); }
   check(problems.length === 0, `${name}: no browser errors`, problems[0] ?? '');
@@ -48,7 +52,7 @@ async function scenario(name, spec, data, run, viewport, storage = spec.storage)
 for (const spec of specs) {
   if (ONLY.length && !ONLY.includes(spec.route)) continue;
   console.log(`\n== ${spec.route} ==`);
-  const shot = (page, label) => page.screenshot({ path: path.join(OUT, `${slug(spec.route)}-${label}.png`) });
+  const shot = (page, label) => page.screenshot({ path: path.join(OUT, `${slug(spec.route)}-${label}.png`), animations: 'disabled' });
   const overflow = page => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   const ctx = { check, shot, json, expectNoOverflow: async (page, label) => { const px = await overflow(page); check(px <= 0, `${label}: no horizontal page scroll`, `${px}px`); } };
 
@@ -61,6 +65,7 @@ for (const spec of specs) {
 
   if (spec.empty) {
     await scenario(`${spec.route} empty`, spec, spec.empty.data ?? spec.data, async page => {
+      await page.getByText(spec.empty.text).first().waitFor({ timeout: 15_000 });
       check(await page.getByText(spec.empty.text).first().isVisible(), `empty state: "${spec.empty.text}"`);
       await shot(page, 'empty@1440');
     }, undefined, spec.empty.storage ?? (spec.empty.data ? spec.storage : {}));

@@ -24,7 +24,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   }, [indeterminate]);
   return (
     <div className={cn('flex touch-target items-start gap-2.5', className)}>
-      <span className="relative mt-0.5 inline-flex size-[18px] shrink-0">
+      <span className="relative mt-0.5 inline-grid size-[18px] shrink-0 place-items-center pointer-coarse:mt-0 pointer-coarse:size-11">
         <input
           ref={node => {
             inputRef.current = node;
@@ -39,13 +39,14 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
             if (checked === undefined) setInternal(event.target.checked);
             onChange?.(event);
           }}
-          className="peer focus-ring size-[18px] cursor-pointer appearance-none rounded-xs border border-line-control bg-surface-raised transition-colors checked:border-action checked:bg-action indeterminate:border-action indeterminate:bg-action disabled:cursor-not-allowed disabled:opacity-45"
+          className="peer absolute inset-0 z-10 m-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           {...rest}
         />
-        <CheckMark checked={isChecked && !indeterminate} indeterminate={indeterminate} size={12} className="pointer-events-none absolute inset-0 m-auto text-action-ink" />
+        <span aria-hidden="true" className="pointer-events-none col-start-1 row-start-1 size-[18px] rounded-xs border border-line-control bg-surface-raised transition-colors peer-checked:border-action peer-checked:bg-action peer-indeterminate:border-action peer-indeterminate:bg-action peer-disabled:opacity-45 peer-focus-visible:shadow-ring" />
+        <CheckMark checked={isChecked && !indeterminate} indeterminate={indeterminate} size={12} className="pointer-events-none col-start-1 row-start-1 text-action-ink peer-disabled:opacity-45" />
       </span>
       {(label || description) && (
-        <label htmlFor={inputId} className="cursor-pointer font-sans text-body text-ink">
+        <label htmlFor={inputId} className="cursor-pointer font-sans text-body text-ink pointer-coarse:py-3">
           {label}
           {description && <span className="mt-0.5 block text-caption text-ink-muted">{description}</span>}
         </label>

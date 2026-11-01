@@ -4,9 +4,9 @@
 // as xlsx/csv with the same libraries the register import uses.
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Button, Field, FieldGroup, Icon, Input, Notice, Segmented, Select, Textarea } from '@/components/ui-system';
+import { Button, Field, FieldGroup, Icon, IconButton, Input, Notice, Segmented, Select, Textarea } from '@/components/ui-system';
 import { CATEGORIES } from './prototype';
 import { parsePastedLines, type SetTypeLineDraft } from './setTypes';
 
@@ -24,6 +24,7 @@ export function SetTypeForm({ defaultDepartment, onSave, onMakeInStore, onCancel
   onMakeInStore: (typeId: string, count: number, department: string) => Promise<void>;
   onCancel: () => void;
 }) {
+  const lineIds = useId();
   const [title, setTitle] = useState('');
   const [makeModel, setMakeModel] = useState('');
   const [category, setCategory] = useState('Hand tools');
@@ -84,28 +85,37 @@ export function SetTypeForm({ defaultDepartment, onSave, onMakeInStore, onCancel
         <Field label="Category">
           <Select aria-label="Category" value={category} onValueChange={setCategory} options={[...new Set([...CATEGORIES])].map(value => ({ value, label: value }))} />
         </Field>
-        <Field label="Competency">
+        <FieldGroup label="Competency">
           <Segmented label="Competency" value={competencyRequired ? 'required' : 'anyone'} onValueChange={value => setCompetencyRequired(value === 'required')}
             options={[{ value: 'anyone', label: 'Anyone may receive' }, { value: 'required', label: 'Approval required' }]} />
-        </Field>
+        </FieldGroup>
         <Field label="Notes"><Textarea aria-label="Notes" value={notes} onChange={event => setNotes(event.target.value)} rows={2} /></Field>
       </FieldGroup>
       <section aria-label="Content lines" className="flex flex-col gap-2">
         <h3 className="font-sans text-label font-medium text-ink">Content lines ({lines.filter(line => line.name.trim()).length})</h3>
         <ol className="flex flex-col gap-2">
           {lines.map((line, index) => (
-            <li key={index} className="grid grid-cols-[2rem_1fr_5rem_4rem_auto] items-center gap-2">
-              <span aria-hidden="true" className="font-sans text-caption text-ink-muted">{index + 1}</span>
-              <Input aria-label={`Line ${index + 1} name`} value={line.name} placeholder="Spanner 13mm"
-                onChange={event => setLine(index, { name: event.target.value })}
-                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addRow(); } }} />
-              <Input aria-label={`Line ${index + 1} size`} value={line.size ?? ''} placeholder="13" onChange={event => setLine(index, { size: event.target.value })} />
-              <Input aria-label={`Line ${index + 1} quantity`} value={String(line.qty)} inputMode="numeric"
-                onChange={event => { const qty = Number(event.target.value); setLine(index, { qty: Number.isInteger(qty) && qty > 0 ? Math.min(qty, 500) : line.qty }); }} />
-              <button type="button" aria-label={`Remove line ${index + 1}`} onClick={() => removeRow(index)}
-                className="focus-ring touch-target rounded-control p-1 text-ink-muted hover:text-ink" disabled={lines.length <= 1}>
-                <Icon name="delete" size="sm" />
-              </button>
+            <li key={index} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[2rem_minmax(0,1fr)_5rem_4rem_auto]">
+              <span aria-hidden="true" className="font-sans text-caption text-ink-muted sm:col-start-1 sm:row-start-1"><span className="sm:hidden">Line </span>{index + 1}</span>
+              <div className="col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                <label className="font-sans text-caption text-ink-muted sm:sr-only" htmlFor={`${lineIds}-${index}-name`}>Name</label>
+                <Input aria-label={`Line ${index + 1} name`} value={line.name} placeholder="Spanner 13mm"
+                  id={`${lineIds}-${index}-name`}
+                  onChange={event => setLine(index, { name: event.target.value })}
+                  onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addRow(); } }} />
+              </div>
+              <div className="sm:col-start-3 sm:row-start-1">
+                <label className="font-sans text-caption text-ink-muted sm:sr-only" htmlFor={`${lineIds}-${index}-size`}>Size</label>
+                <Input id={`${lineIds}-${index}-size`} aria-label={`Line ${index + 1} size`} value={line.size ?? ''} placeholder="13" onChange={event => setLine(index, { size: event.target.value })} />
+              </div>
+              <div className="sm:col-start-4 sm:row-start-1">
+                <label className="font-sans text-caption text-ink-muted sm:sr-only" htmlFor={`${lineIds}-${index}-qty`}>Quantity</label>
+                <Input aria-label={`Line ${index + 1} quantity`} value={String(line.qty)} inputMode="numeric"
+                  id={`${lineIds}-${index}-qty`}
+                  onChange={event => { const qty = Number(event.target.value); setLine(index, { qty: Number.isInteger(qty) && qty > 0 ? Math.min(qty, 500) : line.qty }); }} />
+              </div>
+              <IconButton icon="delete" label={`Remove line ${index + 1}`} onClick={() => removeRow(index)}
+                className="col-start-2 row-start-1 justify-self-end sm:col-start-5" disabled={lines.length <= 1} />
             </li>
           ))}
         </ol>
