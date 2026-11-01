@@ -35,6 +35,7 @@ export const DESIGNATION_ORDER: string[] = [
   'Engineering Manager',
   'Maintenance Engineer',
   'Planning Superintendent',
+  'Clerk',
 ];
 
 const DESIGNATION_SET = new Set<string>(DESIGNATION_ORDER);
@@ -314,11 +315,21 @@ export function isStandardDesignation(value?: string | null): boolean {
   return !!n && DESIGNATION_SET.has(n);
 }
 
-/** Dropdown options — includes legacy value when editing an non-standard record. */
-export function designationSelectOptions(current?: string | null): { value: string; label: string }[] {
+/**
+ * Dropdown options — the catalogue first, then any other designations already
+ * held on the register (a typed custom value is saved on the record, so it
+ * rejoins the list on the next load), then a legacy current value otherwise.
+ */
+export function designationSelectOptions(current?: string | null, onRoster: readonly (string | null | undefined)[] = []): { value: string; label: string }[] {
   const normalized = normalizeDesignation(current);
   const opts: { value: string; label: string }[] = DESIGNATION_ORDER.map(d => ({ value: d, label: d }));
-  if (normalized && !DESIGNATION_SET.has(normalized)) {
+  const seen = new Set<string>(opts.map(o => o.value));
+  for (const raw of onRoster.map(r => normalizeDesignation(r)).sort((a, b) => a.localeCompare(b))) {
+    if (!raw || seen.has(raw)) continue;
+    seen.add(raw);
+    opts.push({ value: raw, label: raw });
+  }
+  if (normalized && !seen.has(normalized)) {
     opts.unshift({ value: normalized, label: `${normalized} (legacy — select standard role)` });
   }
   return [{ value: '', label: 'Select designation…' }, ...opts];

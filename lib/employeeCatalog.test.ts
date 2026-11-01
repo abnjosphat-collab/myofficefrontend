@@ -96,6 +96,26 @@ describe('designationSelectOptions', () => {
     expect(opts[1].value).toBe('Graduate Trainee');
     expect(opts[1].label).toContain('legacy');
   });
+
+  it('lists Clerk — an office role held on real registers', () => {
+    const opts = designationSelectOptions();
+    expect(opts.some(o => o.value === 'Clerk')).toBe(true);
+  });
+  it('leaves a clerk’s section to the person, never forced', () => {
+    expect(sectionForDesignation('Clerk')).toBeNull();
+  });
+  it('merges register-held roles into the options once', () => {
+    const opts = designationSelectOptions('', ['Welder', 'clerk ', 'Fitter Class 1', 'Welder']);
+    const values = opts.map(o => o.value);
+    expect(values.filter(v => v === 'Welder')).toHaveLength(1);
+    expect(values.filter(v => v === 'Clerk')).toHaveLength(1);
+    expect(values.filter(v => v === 'Fitter Class 1')).toHaveLength(1);
+  });
+  it('still prepends a legacy current value missing from register and catalogue', () => {
+    const opts = designationSelectOptions('Graduate Trainee', ['Welder']);
+    expect(opts[1].value).toBe('Graduate Trainee');
+    expect(opts[1].label).toContain('legacy');
+  });
 });
 
 describe('buildForemanOptions', () => {

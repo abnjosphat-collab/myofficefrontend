@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Checkbox, Combobox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { TagField } from '@/components/shared/TagField';
 import {
-  designationSelectOptions, driverLicenseSelectOptions, foremanSelectOptions, normalizeEmployeeRoleFields, resolveDriverLicense, sectionForDesignation,
+  designationSelectOptions, driverLicenseSelectOptions, foremanSelectOptions, isStandardDesignation, normalizeEmployeeRoleFields, resolveDriverLicense, sectionForDesignation,
 } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
 import { sectionSelectOptions } from '@/lib/sections';
@@ -41,19 +41,36 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
   const { scope } = useAuth();
   const [form, setForm] = useState<EmployeeFormData>(EMPTY);
   const [touched, setTouched] = useState(false);
+  // Designations typed on a scoped account this session — they join the list at once and
+  // rejoin it on the next load through the saved record (see the options memo below).
+  const [customDesignations, setCustomDesignations] = useState<string[]>([]);
   useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}), ...(department ? { department } : {}) }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
   const problems = formProblems(form, { requireEmploymentType: !employee });
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
   const editing = !!employee;
 
-  const designations = useMemo(() => designationSelectOptions(form.designation).filter(o => o.value), [form.designation]);
+  // The list also carries every other designation already held on the register, so a typed custom
+  // value saved on one record is offered again on the next. Scoped accounts may type a brand-new one.
+  const designations = useMemo(
+    () => designationSelectOptions(
+      form.designation,
+      [...all.map(e => e.designation), ...customDesignations],
+    ).filter(o => o.value),
+    [form.designation, all, customDesignations],
+  );
   const sections = useMemo(() => sectionSelectOptions(form.section), [form.section]);
   const supervisors = useMemo(() => foremanSelectOptions(all, form.supervisor), [all, form.supervisor]);
   const licences = useMemo(() => driverLicenseSelectOptions(form.drivers_license_class), [form.drivers_license_class]);
   const grades = useMemo(() => distinct(all.map(e => e.grade)), [all]);
   const employers = useMemo(() => distinct(all.map(e => e.previous_employer)), [all]);
-  const pickDesignation = (v: string) => { const implied = sectionForDesignation(v); set({ designation: v, ...(implied && !scope ? { section: implied } : {}) }); };
+  const pickDesignation = (v: string) => {
+    if (v && scope && !isStandardDesignation(v)) {
+      setCustomDesignations(prev => (prev.some(p => p.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
+    }
+    const implied = sectionForDesignation(v);
+    set({ designation: v, ...(implied && !scope ? { section: implied } : {}) });
+  };
 
   const submit = async () => {
     setTouched(true);
@@ -81,7 +98,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
         <section aria-labelledby="ef-emp" className="flex flex-col gap-3">
           <h3 id="ef-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employment</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Designation" required error={err('designation')} description={scope ? 'Choose the trade; the section stays fixed.' : 'Choosing one fills in the section.'}><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." /></Field>
+            <Field label="Designation" required error={err('designation')} description={scope ? 'Choose a designation, or type a new one to add it; the section stays fixed.' : 'Choosing one fills in the section.'}><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." allowCustomValue={!!scope} /></Field>
             {scope
               ? <Field label="Section" description={editing ? 'The section stays as it is.' : `Your account adds people to ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
               : <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>}
