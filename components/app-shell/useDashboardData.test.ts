@@ -25,6 +25,30 @@ beforeEach(() => {
   }) as never);
 });
 
+describe('useDashboardData team count', () => {
+  it('excludes archived staff so the homepage matches the Active staff register', async () => {
+    fetchMock.mockImplementation((async (url: string) => {
+      const u = String(url);
+      if (u.includes('/api/employees')) {
+        return [
+          { id: 1, first_name: 'Ann', archived: false },
+          { id: 2, first_name: 'Bob', archived: true },
+          { id: 3, first_name: 'Cat' },
+        ];
+      }
+      if (u.includes('/api/maintenance/work-orders?limit=6')) return [];
+      if (u.includes('/api/breakdowns/get-breakdowns')) return [];
+      if (u.includes('/summary')) return { pending: 0, in_progress: 0 };
+      if (u.includes('/api/equipment')) return [];
+      if (u.includes('/overview')) return { metrics: {} };
+      return [];
+    }) as never);
+    const { result } = renderHook(() => useDashboardData());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.stats.employeeCount).toBe(2);
+  });
+});
+
 describe('useDashboardData activity link map (U3.1)', () => {
   it('links work-order and breakdown activity to their records', async () => {
     const { result } = renderHook(() => useDashboardData());

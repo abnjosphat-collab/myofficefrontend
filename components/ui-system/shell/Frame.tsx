@@ -45,6 +45,8 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   label?: string;
 }) {
   const desktop = useMediaQuery(DESKTOP_QUERY, true);
+  // The collapsed desktop rail drops the inner panel chrome: one outer divider only.
+  const rail = collapsed && desktop;
   // The drawer is opened by a button elsewhere (not a Radix trigger), so remember the opener and give it focus back.
   const opener = useRef<HTMLElement | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -56,10 +58,10 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
   const stripBar = useSlidingIndicator(stripRef, { selector: '[aria-current="page"]' });
 
   const panel = (
-    <nav aria-label={label} className="flex min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-surface">
+    <nav aria-label={label} className={cn('flex min-h-0 flex-col overflow-hidden rounded-panel border border-line bg-surface', rail && 'border-0 bg-transparent')}>
       {/* The panel hugs its content (as in Tools) and only scrolls when the viewport is shorter than the list. */}
       {search && !(collapsed && desktop) && <div className="shrink-0 border-b border-line-subtle p-2">{search}</div>}
-      <div ref={panelRef} className="relative flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">
+      <div ref={panelRef} className={cn('relative flex min-h-0 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2', rail && 'px-1 py-1')}>
         <SlidingIndicator rect={navBar} variant="bar" orientation="vertical" className="bg-action" testId="nav-indicator" />
         {children}
       </div>
@@ -82,14 +84,14 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
         <div className={cn('relative mb-[15px] flex min-h-[38px] items-center gap-[9px] border-b border-line pb-[15px]', collapsed ? 'flex-col justify-center gap-2 px-0' : 'px-1.5')}>
           {spotlight}
           {collapsed && search && onSearchExpand && (
-            <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-7 rounded-control" />
+            <IconButton icon="search" label="Search" onClick={onSearchExpand} className="size-10 rounded-control" />
           )}
           <IconButton
             icon="chevron-left"
             label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
             onClick={onToggleCollapsed}
-            className={cn('size-7 rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-spring-snappy-duration)] [&_svg]:ease-spring-snappy motion-reduce:[&_svg]:transition-none', collapsed ? '[&_svg]:rotate-180' : 'ml-auto')}
+            className={cn('rounded-control [&_svg]:transition-transform [&_svg]:duration-[var(--mo-spring-snappy-duration)] [&_svg]:ease-spring-snappy motion-reduce:[&_svg]:transition-none', collapsed ? 'size-10 [&_svg]:rotate-180' : 'ml-auto size-7')}
           />
         </div>
         {panel}

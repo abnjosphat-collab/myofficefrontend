@@ -59,6 +59,14 @@ function styleTradeLabelRow(row: Row) {
   cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
 }
 
+/** Whitespace after a trade block — no grid lines. */
+function addTradeSpacerRow(ws: Worksheet) {
+  const gap = ws.addRow(['']);
+  gap.height = 14;
+  ws.mergeCells(gap.number, 1, gap.number, EXCEL_COLUMNS.length);
+  gap.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+}
+
 /** Data row in the Registry pairing: Calibri 10 on ink, subtle stripe, airy height. */
 function styleRosterDataRow(row: Row, striped: boolean) {
   row.height = 21;
@@ -101,6 +109,7 @@ export async function exportRosterExcel(employees: Employee[], by: ExportGroupBy
         ws.mergeCells(label.number, 1, label.number, EXCEL_COLUMNS.length);
         styleTradeLabelRow(label);
         sub.employees.forEach(e => addEmployeeRow(ws, e));
+        addTradeSpacerRow(ws);
       }
     }
   } else {

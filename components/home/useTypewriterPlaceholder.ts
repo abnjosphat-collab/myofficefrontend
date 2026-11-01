@@ -7,10 +7,12 @@
 import { useEffect, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 
-export const TYPE_MS = 75;
-export const HOLD_MS = 3000;
-export const DELETE_MS = 32;
-export const REST_MS = 5000;
+export const TYPE_MS = 120;
+export const HOLD_MS = 8000;
+export const DELETE_MS = 60;
+// Calm pacing: each finished example stays readable for a while before the
+// next one begins, so the loop draws the eye far less often.
+export const REST_MS = 4000;
 
 export const SEARCH_EXAMPLES = [
   'Try “leave” — requests & balances',

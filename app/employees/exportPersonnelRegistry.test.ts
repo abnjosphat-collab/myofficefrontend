@@ -8,7 +8,7 @@ import { saveAs } from 'file-saver';
 import { exportPersonnelRegistryExcel } from './exportPersonnelRegistry';
 import type { Employee } from './types';
 
-const person = (n: number, type: 'NEC' | 'SALARIED') => ({ id: n, employee_id: `E${n}`, first_name: `First${n}`, last_name: `Last${n}`, designation: 'Fitter Class 2', section: 'Mechanical', employment_type: type, archived: false }) as unknown as Employee;
+const person = (n: number, type: 'NEC' | 'SALARIED', designation = 'Fitter Class 2') => ({ id: n, employee_id: `E${n}`, first_name: `First${n}`, last_name: `Last${n}`, designation, section: 'Mechanical', employment_type: type, archived: false }) as unknown as Employee;
 
 async function sheetOf() {
   const blob = vi.mocked(saveAs).mock.calls[0][0] as Blob;
@@ -49,5 +49,12 @@ describe('exportPersonnelRegistryExcel', () => {
     vi.mocked(saveAs).mockClear();
     await exportPersonnelRegistryExcel([person(1, 'NEC')], 'Personnel_Registry');
     expect(JSON.stringify((await sheetOf()).getSheetValues())).not.toContain('Confidential personnel record');
+  });
+
+  it('leaves one blank line after the last name of every designation, last one included', async () => {
+    vi.mocked(saveAs).mockClear();
+    await exportPersonnelRegistryExcel([person(1, 'NEC', 'Driver'), person(2, 'NEC', 'Fitter Class 2')], 'Personnel_Registry');
+    const sheet = await sheetOf();
+    expect(sheet.getRow(sheet.rowCount).getCell(1).value ?? '').toBe('');
   });
 });

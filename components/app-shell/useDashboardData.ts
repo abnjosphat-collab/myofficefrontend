@@ -76,6 +76,7 @@ export function timeAgo(iso?: string | null): string {
 
 // The fields this hook reads from each endpoint (all optional: a partial row must not break the homepage).
 interface WorkOrderStats { pending?: number; in_progress?: number }
+interface EmployeeRow { archived?: boolean | null }
 interface EquipmentRow { status?: string | null }
 interface BreakdownOverview { metrics?: { open_breakdowns?: number } }
 interface WorkOrderRow { id: number | string; work_order_number?: string | null; job_request_details?: string | null; created_at?: string | null; date_raised?: string | null; status?: string | null; requested_by?: string }
@@ -147,14 +148,19 @@ export function dashActivitySources(raw: DashRaw): SourceResult[] {
 
 /** Pure — stats + activity from one answer per endpoint. Shared by the initial load and per-source retries. */
 function buildDash(raw: DashRaw): DashboardLoadResult {
-  const employees = raw.employees as unknown[] | null;
+  const employees = raw.employees as EmployeeRow[] | null;
   const woStats = raw.woStats as WorkOrderStats | null;
   const equipment = raw.equipment as EquipmentRow[] | null;
   const breakdownOverview = raw.breakdownOverview as BreakdownOverview | null;
   const workOrders = raw.workOrders as WorkOrderRow[] | null;
   const breakdowns = raw.breakdowns as BreakdownRow[] | { data?: BreakdownRow[] } | null;
 
-  const employeeCount = Array.isArray(employees) ? employees.length : null;
+  // The register keeps departures as archived rows — the homepage counts
+  // active team members only, matching the personnel register's Active staff
+  // view (summarise) and the shared useEmployees lookup.
+  const employeeCount = Array.isArray(employees)
+    ? employees.filter(e => e?.archived !== true).length
+    : null;
 
   const activeWorkOrders = woStats
     ? (woStats.pending ?? 0) + (woStats.in_progress ?? 0)
