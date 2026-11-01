@@ -2,7 +2,7 @@
 // breakdowns recorded that day; the availability shown is calculated, and the server derives the stored value.
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Field, FormDialog, Input, Progress, Select, StatusBadge, Textarea } from '@/components/ui-system';
 import { todayLocal } from '@/lib/dates';
@@ -26,6 +26,10 @@ export function RecordDialog({ open, record, equipment, onOpenChange, onSave, zo
   const [form, setForm] = useState<Form>(emptyForm);
   const [touched, setTouched] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const lookup = useRef(0);
+  // Invalidate before another opening/record can paint, and on unmount. Input
+  // handlers also invalidate synchronously, including date changes away/back.
+  useLayoutEffect(() => () => { lookup.current += 1; }, [open, record?.id]);
   useResetOnOpen(dialogKey(open, record?.id), () => {
     setTouched(false); setHint(null);
     setForm(record ? { equipment_id: String(record.equipment_id), date: record.date, operational_hours: String(record.operational_hours ?? ''), breakdown_hours: String(record.breakdown_hours ?? ''), notes: record.notes ?? '' } : emptyForm());
@@ -41,24 +45,28 @@ export function RecordDialog({ open, record, equipment, onOpenChange, onSave, zo
 
   // For a new record, the breakdowns already recorded that day fill the downtime. A failed lookup is said, not hidden.
   const prefill = async (equipmentId: string, date: string) => {
-    if (record || !equipmentId || !date) return;
+    const request = ++lookup.current;
+    setHint(null);
+    if (!open || record || !equipmentId || !date) return;
     try {
       const found = await fetchBreakdownRecords(`equipment_id=${equipmentId}&date_from=${date}&date_to=${date}`);
+      if (request !== lookup.current) return;
       if (found.length > 0) { setForm(f => ({ ...f, breakdown_hours: String(found[0].breakdown_hours) })); setHint(`Downtime filled from the breakdowns recorded on ${date}.`); }
       else setHint(null);
-    } catch { setHint('Breakdowns for that day could not be looked up. Enter the downtime yourself.'); }
+    } catch { if (request === lookup.current) setHint('Breakdowns for that day could not be looked up. Enter the downtime yourself.'); }
   };
 
   const submit = async () => {
     setTouched(true);
     if (Object.values(bad).some(Boolean)) return false;
+    lookup.current += 1; // the submitted snapshot must survive a late read or a refused save
     await onSave(record?.id ?? null, { equipment_id: parseInt(form.equipment_id, 10), date: form.date, operational_hours: op, breakdown_hours: bd, availability_percentage: availabilityPercent(op, bd), notes: form.notes });
     toast.success(record ? 'Availability record updated.' : 'Availability record logged.');
   };
   const err = (isBad: boolean, text: string) => (touched && isBad ? text : undefined);
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} title={record ? 'Edit availability record' : 'Log availability record'} description="Operating hours and downtime for one machine on one day." submitLabel={record ? 'Save changes' : 'Save record'} onSubmit={submit} size="md" zoomId={zoomId}>
+    <FormDialog open={open} onOpenChange={next => { if (!next) lookup.current += 1; onOpenChange(next); }} title={record ? 'Edit availability record' : 'Log availability record'} description="Operating hours and downtime for one machine on one day." submitLabel={record ? 'Save changes' : 'Save record'} onSubmit={submit} size="md" zoomId={zoomId}>
       <div className="flex flex-col gap-4">
         <Field label="Equipment" required error={err(bad.equipment, 'Choose the equipment.')} description={equipment.length === 0 ? 'The equipment list could not be loaded, so no machine can be chosen.' : undefined}>
           <Select aria-label="Equipment" placeholder="Select equipment" value={form.equipment_id} onValueChange={id => { set({ equipment_id: id }); prefill(id, form.date); }} options={equipment.map(e => ({ value: String(e.id), label: e.name }))} />
@@ -68,7 +76,7 @@ export function RecordDialog({ open, record, equipment, onOpenChange, onSave, zo
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Operational hours" required error={err(bad.op, 'Enter more than 0 hours.')}><Input type="number" inputMode="decimal" min="0" step="0.5" value={form.operational_hours} onChange={e => set({ operational_hours: e.target.value })} /></Field>
-          <Field label="Downtime hours" error={err(bad.bd, 'Downtime must be 0 or more and no more than the operational hours.')} description={hint ?? undefined}><Input type="number" inputMode="decimal" min="0" step="0.5" value={form.breakdown_hours} onChange={e => set({ breakdown_hours: e.target.value })} /></Field>
+          <Field label="Downtime hours" error={err(bad.bd, 'Downtime must be 0 or more and no more than the operational hours.')} description={hint ?? undefined}><Input type="number" inputMode="decimal" min="0" step="0.5" value={form.breakdown_hours} onChange={e => { lookup.current += 1; setHint(null); set({ breakdown_hours: e.target.value }); }} /></Field>
         </div>
         <div className="flex flex-col gap-2 rounded-control bg-surface-subtle p-3" aria-live="polite">
           <div className="flex items-center justify-between gap-3">

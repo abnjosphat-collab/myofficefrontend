@@ -659,3 +659,60 @@ this patch does not certify hidden workflows or production data.
    distinguish failure correctly; this pre-existing upstream lookup contract still needs a dedicated reproduction and fix.
 5. No live-account authentication, production records, real device, screen reader or payroll reconciliation was exercised.
    This scoped remediation is not full product certification.
+
+## 12. Recovery audit and motion follow-ups — 1 Nov 2026 (uncommitted)
+
+See [RESUME_AUDIT_2026-11-01.md](./RESUME_AUDIT_2026-11-01.md) for the pre-edit section-1 ledger, exact evidence,
+known-open dispositions, failing-first regressions and remaining gaps. This supersedes only the specific stale claims
+it identifies; historical sections above remain intact.
+
+Correct starting refs: frontend `fix/ui-consistency-remediation@26146c4`, main/origin main `580b22c`; backend main
+`af45f7f`. The feature commit is not merged into main. Tools/sets/budget/Mining and B/N release tags match origin and
+are ancestors of their respective main branches; SQL and real-user acceptance are not inferred from tags.
+
+Confirmed and corrected: engineering-report print layout (visible period, no shell, wrapping metrics, readable light
+palette on paper); PointerEventsGuard's false portal-wrapper assumption; StatusBadge's invalid normal-motion div inside
+inline content. Existing UnitPod zoom and employee harness fixes already work; they were not rebuilt. The strict
+performance gate remains red and was not weakened. The sidebar Ubuntu pixel baseline remains absent; its auto-pushing
+workflow was not invoked. No architecture rewrite, backend source change, SQL execution, real sign-in, live mutation,
+commit, push, tag or deployment. Preserve untracked debug.log/reset SQL and other sessions' worktrees/servers.
+
+Initial checks: 195 focused frontend tests, 98 focused backend tests and 318 fixture route assertions passed. Recovery
+regressions reproduce the defects before fixes; seven pointer tests, twenty additional shared tests and three Chromium
+tests pass after fixes. Final gate results and owner-only acceptance are recorded in the linked audit as they complete.
+
+Owner subsequently reported **Checks passed** for the requested real signed-in print preview, Employees picker/form
+cancel and PPE Reset-confirmation cancel checks. Actual fixture PDF review additionally caught and corrected dark
+page margins (root print colour-scheme) and a split card. Full current backend suite: **2928 passed**, no backend edits.
+
+Final frontend full suite: **358 files / 2589 tests passed**, two workers, exit 0. Earlier overlapped-run ToolForm focus
+timeout is retained in the audit; unchanged file passed 51/51 alone and then in the clean full suite. tsc clean; full lint
+0 errors/23 warnings; docs checks clean; production build green (68 static pages); production browser regressions 4/4.
+Full axe scan: 60 fixture entries, 0 serious/critical violations. Report PDF and the job card's print fallback inspected.
+
+Full route sweep is **NOT fully green**: **2122 PASS / 2 FAIL**, both Availabilities prefill overwriting manual downtime
+(3 hours becomes 9 after a late response). Proven on **both** current code and untouched `26146c4`, in a separate
+`frontend-resume-base/` checkout with its own locked dependency install. Identical deferred probe fails in each. Base
+checkout/probe and ignored cache evidence retained; base verification left original product source unchanged. At that checkpoint,
+the additional fix awaited the owner's scope choice; approval and subsequent correction are recorded below.
+Strict performance bar and Ubuntu sidebar pixel baseline also remain open.
+No commits, pushes, SQL or live mutations. The original dev server on :3000 was left untouched.
+
+### Availabilities inclusion approved — 1 Nov 2026
+
+Owner replied **Include the focused fix**. The prefill guard is now implemented in RecordDialog; manual downtime,
+new date/equipment, submission, close/reopen and unmount invalidate old results. Current lookup failures remain visible;
+existing-record editing, calculations, thresholds, API payloads and backend are unchanged. Eleven new deferred/lifecycle
+cases plus existing calculation tests pass **26/26** after a failing-first run. Controlled 390px browser test confirms
+late 9-hour prefill cannot replace entered 3 hours or the mocked save payload. Owner's signed-in cancellation/reopen
+check also reported **Checks passed**, without a live save. Generated ledger test-file count updated, no certification
+date change. The 2122/2 sweep above is the historical pre-fix result; post-inclusion final gates follow below.
+
+Post-inclusion production checks: **5/5 Chromium regressions passed**, including the new delayed-prefill saved-payload
+case and the previous print/modal/sidebar checks. Availabilities route **40 PASS / 0 FAIL**, desktop and 390/820/844/1180
+with zero overflow/browser errors; phone manual-entry and desktop failed-save captures inspected. Affected axe scan:
+0 serious/critical violations. tsc clean, lint 0 errors/23 warnings, docs clean (26 existing TypeDoc warnings), production
+build 68 static pages (existing budget-shift-book tracing warning). Full post-inclusion Vitest: **359 files / 2600 tests
+passed**, exit 0, two fork workers, 2009.76 seconds. The focused route rerun closes the earlier two prefill failures;
+a second full-product route sweep is not claimed. Strict performance and Linux sidebar pixel baseline remain open.
+No commits, pushes, tags, deployments, SQL or live-data changes; owner dev server retained, temporary production server stopped.

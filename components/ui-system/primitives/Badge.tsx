@@ -39,7 +39,7 @@ export function StatusBadge({ tone = 'neutral', icon, children, changeKey, class
   return (
     <span className={cn(badgeVariants({ tone }), className)}>
       {icon ? <Icon name={icon} size="xs" weight="emphasis" /> : <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />}
-      <Presence visible fadeOnly swapKey={changeKey ?? 'content'} className="contents"><span className="truncate">{children}</span></Presence>
+      <Presence as="span" visible fadeOnly swapKey={changeKey ?? 'content'} className="contents"><span className="truncate">{children}</span></Presence>
     </span>
   );
 }

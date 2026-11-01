@@ -140,6 +140,7 @@ export function SidebarFrame({ open, onOpenChange, collapsed, onToggleCollapsed,
 export function TopBar({ start, center, end, below }: { start?: ReactNode; center?: ReactNode; end?: ReactNode; below?: ReactNode }) {
   return (
     <header
+      data-shell-topbar=""
       className="sticky top-[calc(57px+var(--mo-safe-top))] z-header mt-3 border-y border-line bg-canvas/[0.88] shadow-[0_10px_30px_-28px_var(--mo-ink)] backdrop-blur-[18px] backdrop-saturate-[1.2] min-[821px]:top-0"
       style={{ marginLeft: 'max(var(--mo-page-gutter), var(--mo-safe-left))', marginRight: 'max(var(--mo-page-gutter), var(--mo-safe-right))' }}
     >
@@ -167,7 +168,7 @@ export function AppFrame({ topBar, sidebar, children, className, contained = tru
   contained?: boolean;
 }) {
   return (
-    <div className="min-h-dvh bg-canvas">
+    <div data-shell-frame="" className="min-h-dvh bg-canvas">
       <a href="#main-content" className="focus-ring sr-only fixed left-3 top-3 z-tooltip rounded-control bg-action px-3 py-2 font-sans text-label font-medium text-action-ink focus:not-sr-only">
         Skip to main content
       </a>

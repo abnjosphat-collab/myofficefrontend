@@ -36,7 +36,7 @@ function Section({ title, source, subject, children }: { title: string; source: 
 function StatusBars({ title, subject, source, counts, icon }: { title: string; subject: string; source: Source; counts: ReturnType<typeof statusCounts>; icon: 'compliance' | 'service' }) {
   const rows = [{ label: 'Current', n: counts.current }, { label: 'Due soon', n: counts.dueSoon }, { label: 'Overdue', n: counts.overdue }];
   return (
-    <Card padding="lg" className="flex flex-col gap-4">
+    <Card padding="lg" className="flex flex-col gap-4 print:break-inside-avoid">
       <h2 className="font-display text-title font-semibold text-ink">{title}</h2>
       <DataRegion status={regionStatus(source)} subject={subject} error={source.error} onRetry={() => source.refetch()} empty={undefined}>
         {counts.total === 0 ? <EmptyState icon={icon} title={`No ${subject} yet`} className="py-6" /> : (
@@ -73,28 +73,29 @@ function EngineeringReportContent() {
   const dailySummary = `Daily tonnes milled against the ${REPORT_TARGETS.tonnesPerDay} tonne target: ${prod.daily.map(d => `${d.date} ${d.tonnes}`).join(', ')}.`;
 
   return (
-    <div className="flex flex-col gap-5">
+    <article className="mo-print-report mo-print-light flex flex-col gap-5">
       <PageHeader
         breadcrumbs={[{ label: 'Engineering' }, { label: 'Monthly report' }]}
         title="Engineering report"
         description={`${label}. Calculated from the breakdown, job card, production, compliance and lubrication records in MyOffice.`}
         actions={(
-          <>
+          <div className="print:hidden flex flex-wrap items-center gap-2">
             <Select className="w-40" aria-label="Report period" value={period} onValueChange={setPeriod} options={options} />
             <Button variant="primary" icon="print" onClick={() => window.print()}>Print or save as PDF</Button>
-          </>
+          </div>
         )}
       />
+      <p className="hidden font-display text-title text-ink print:block">{label}</p>
 
       <Section title="Maintenance performance" source={breakdowns} subject="breakdown records">
         <div className="flex flex-col gap-3">
-          <MetricGrid compact>
+          <MetricGrid compact className="mo-report-metrics">
             <MetricTile compact label="Breakdowns" tone={vsTarget(maint.breakdowns, REPORT_TARGETS.breakdownsPerMonth, false)} value={maint.breakdowns} detail={`Target ${REPORT_TARGETS.breakdownsPerMonth} or fewer`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
             <MetricTile compact label="Mean time to repair" tone={vsTarget(maint.mttrHours, REPORT_TARGETS.mttrHours, false)} value={maint.mttrHours === null ? 'No data' : `${fixed(maint.mttrHours)} h`} detail={`Target ${REPORT_TARGETS.mttrHours} h or less`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
             <MetricTile compact label="Work orders completed" tone={vsTarget(maint.completionPct, REPORT_TARGETS.workOrderCompletionPct, true)} value={maint.completionPct === null ? 'No data' : `${maint.completionPct}%`} detail={`Of ${maint.workOrdersRaised} raised this month. Target ${REPORT_TARGETS.workOrderCompletionPct}%`} loading={pending(jobCards)} unavailable={jcUnavailable} />
             <MetricTile compact label="Open work orders" value={maint.openWorkOrders} detail="Open or in progress, all dates" loading={pending(jobCards)} unavailable={jcUnavailable} />
           </MetricGrid>
-          <MetricGrid compact>
+          <MetricGrid compact className="mo-report-metrics">
             <MetricTile compact label="Total downtime" value={`${maint.downtimeHours.toFixed(0)} h`} loading={pending(breakdowns)} unavailable={bdUnavailable} />
             <MetricTile compact label="Work orders closed" tone="success" value={maint.workOrdersCompleted} loading={pending(jobCards)} unavailable={jcUnavailable} />
             <MetricTile compact label="Compliance overdue" tone={comp.overdue === 0 ? 'success' : 'danger'} value={comp.overdue} loading={pending(compliance)} unavailable={unavailable(compliance)} />
@@ -116,7 +117,7 @@ function EngineeringReportContent() {
             </Chart>
           </DataRegion>
         </ChartPanel>
-        <Card padding="lg" className="flex flex-col gap-4">
+        <Card padding="lg" className="flex flex-col gap-4 print:break-inside-avoid">
           <h2 className="font-display text-title font-semibold text-ink">Work order status</h2>
           <DataRegion status={regionStatus(jobCards)} subject="job cards" error={jobCards.error} onRetry={() => jobCards.refetch()}>
             {maint.statusDistribution.length === 0 ? <EmptyState icon="task" title="No job cards yet" className="py-6" /> : (
@@ -135,7 +136,7 @@ function EngineeringReportContent() {
       </div>
 
       <Section title="Production performance" source={production} subject="production records">
-        <MetricGrid compact>
+        <MetricGrid compact className="mo-report-metrics">
           <MetricTile compact label="Tonnes milled" tone={vsTarget(prod.records ? prod.tonnes : null, REPORT_TARGETS.tonnesPerDay * (prod.records || 1), true)} value={`${prod.tonnes.toLocaleString()} t`} detail={`Target ${REPORT_TARGETS.tonnesPerDay.toLocaleString()} t per record`} loading={pending(production)} unavailable={unavailable(production)} />
           <MetricTile compact label="Average recovery" tone={vsTarget(prod.recoveryPct, REPORT_TARGETS.recoveryPct, true)} value={prod.recoveryPct === null ? 'No data' : `${fixed(prod.recoveryPct)}%`} detail={`Target ${REPORT_TARGETS.recoveryPct}%`} loading={pending(production)} unavailable={unavailable(production)} />
           <MetricTile compact label="Gold produced" value={`${prod.goldOz.toFixed(1)} oz`} loading={pending(production)} unavailable={unavailable(production)} />
@@ -160,7 +161,7 @@ function EngineeringReportContent() {
       )}
 
       {maint.topFailures.length > 0 && (
-        <Card padding="lg" className="flex flex-col gap-4">
+        <Card padding="lg" className="flex flex-col gap-4 print:break-inside-avoid">
           <h2 className="font-display text-title font-semibold text-ink">Repeat failures in {label}</h2>
           <ol className="flex flex-col gap-3">
             {maint.topFailures.map(({ equipment, count }, i) => (
@@ -179,7 +180,7 @@ function EngineeringReportContent() {
         <StatusBars title="Lubrication" subject="lubrication records" source={lube} counts={lub} icon="service" />
       </div>
 
-      <Card padding="lg" className="flex flex-col gap-4">
+      <Card padding="lg" className="flex flex-col gap-4 print:break-inside-avoid">
         <h2 className="font-display text-title font-semibold text-ink">Report summary: {label}</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {[
@@ -198,7 +199,7 @@ function EngineeringReportContent() {
       </Card>
 
       <p className="pb-2 text-center font-sans text-caption text-ink-muted">Generated {formatLongDate(now)}. Targets used: breakdowns {REPORT_TARGETS.breakdownsPerMonth} or fewer, mean time to repair {REPORT_TARGETS.mttrHours} h or less, work order completion {REPORT_TARGETS.workOrderCompletionPct}%, recovery {REPORT_TARGETS.recoveryPct}%, {REPORT_TARGETS.tonnesPerDay} t per record.</p>
-    </div>
+    </article>
   );
 }
 

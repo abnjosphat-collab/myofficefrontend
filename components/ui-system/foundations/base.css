@@ -63,6 +63,10 @@ html[data-guidance='off'] .mo-hint-content { display: none !important; }
 
 @media print {
   body { background: #fff; }
+  /* The dark theme has a more specific root selector. Paper must also opt the
+     browser's page box out of dark colour-scheme (not just lighten the article). */
+  html:has(.mo-print-light) { background: #fff; color-scheme: light !important; }
+  body:has(.mo-print-light) [data-floor-backdrop] { display: none !important; }
   /* Paper is always light: inside .mo-print-light the mono dark tokens fall back to the light floor values
      (tokens.css :root), so print-first surfaces print dark-on-white. Values copied once; the light floor is stable. */
   html[data-theme='mono'][data-darkness='dark'] .mo-print-light {
@@ -73,6 +77,60 @@ html[data-guidance='off'] .mo-hint-content { display: none !important; }
     --mo-ink-subtle: #5c6b64;
     --mo-line: #ccd7d1;
     --mo-line-subtle: #e2e9e5;
+    --mo-surface-raised: #ffffff;
+    --mo-surface-subtle: #f7f9f8;
+    --mo-surface-muted: #e8eeeb;
+    --mo-action: #233b31;
+    --mo-success: #27705a;
+    --mo-warning: #77601b;
+    --mo-danger: #a13f47;
+    --mo-chart-1: #2a78d6;
+    --mo-chart-2: #e5621a;
+    --mo-chart-3: #0b7a55;
+    --mo-chart-4: #b57e00;
+    --mo-chart-5: #c44e7d;
+    --mo-chart-6: #4d7c0f;
+    --mo-chart-7: #6d28d9;
+    --mo-chart-8: #b93535;
+    --mo-chart-grid: #e2e9e5;
+    --mo-chart-axis: #5b6d64;
     color-scheme: light;
+  }
+
+  /* Opt-in report printing: retain the report in normal document flow (so it
+     paginates), remove application chrome and phone-only scrolling. Other
+     routes, including the standalone job card, keep their own print layout. */
+  body:has(.mo-print-report) { --mo-canvas: #fff; }
+  body:has(.mo-print-report) :is(aside, [data-nav-strip], [data-shell-topbar], button, [href='#main-content'], [data-sonner-toaster]) {
+    display: none !important;
+  }
+  body:has(.mo-print-report) :is([data-shell-frame], [data-shell-frame] > div, [data-shell-frame] > div > div) {
+    display: block;
+    min-height: 0;
+    background: #fff;
+  }
+  body:has(.mo-print-report) #main-content > div {
+    max-width: none;
+    padding: 0 !important;
+  }
+  .mo-print-report {
+    display: block;
+    background: #fff;
+    color: var(--mo-ink);
+    print-color-adjust: exact;
+  }
+  .mo-print-report > * { margin-bottom: 1rem; }
+  .mo-print-report :is(section, figure) { break-inside: avoid; }
+  .mo-print-report .mo-report-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .mo-print-report .mo-report-metrics > * {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
   }
 }

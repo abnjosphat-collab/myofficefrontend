@@ -138,6 +138,20 @@ join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hoste
 
 ## Motion
 
+**Inline content.** `Presence` defaults to a block wrapper. Pass `as="span"` inside phrasing content (for example
+`StatusBadge` inside a paragraph), so enabling animation preserves valid HTML. Reduced motion retains the same content.
+
+**Modal pointer locks.** `PointerEventsGuard` recognizes mounted Radix content by `role` plus `data-state`, including
+closing content until unmount. Radix portals have no wrapper marker. A plain inline listbox does not own a body lock;
+the guard repairs orphaned locks on mount and after DOM/style changes.
+
+**Report printing.** A report can opt into `.mo-print-report.mo-print-light`: normal document pagination, no shell
+navigation/top bar/actions, a white ground, and legible light-palette text/charts even when the screen is Mono dark.
+The report must include a visible period and make its metric rows wrap (`.mo-report-metrics`). Other pages keep their
+existing print behaviour; the standalone job card shares the light-palette fallback.
+`.mo-print-light` also switches the browser's printed page box to a light colour scheme and hides the decorative
+floor backdrop, so dark-mode margins stay white. Keep short report cards together with `print:break-inside-avoid`.
+
 One motion layer in `motion/`, one feel: **calm and precise** — smooth springs,
 no visible bounce, under 0.5 s, motion only where it explains something. All
 framer-motion use goes through `motion/` (enforced by

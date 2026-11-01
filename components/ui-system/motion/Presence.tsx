@@ -48,6 +48,8 @@ function HighlightWash() {
 }
 
 export interface PresenceProps {
+  /** Use span when the animated content lives inside a paragraph or badge. */
+  as?: 'div' | 'span';
   /** Whether the content is showing. */
   visible: boolean;
   children: ReactNode;
@@ -65,7 +67,7 @@ export interface PresenceProps {
  * rise in, fade + collapse out. Under reduced motion the block appears and
  * disappears instantly.
  */
-export function Presence({ visible, children, className, swapKey = 'content', fadeOnly = false, rise }: PresenceProps) {
+export function Presence({ visible, children, className, swapKey = 'content', fadeOnly = false, rise, as = 'div' }: PresenceProps) {
   const reduce = useIsReducedMotion();
   const riseY = rise ?? (fadeOnly ? 0 : 6);
   const enter = riseY === 0 ? presenceMotion.enterFadeOnly : { ...presenceMotion.enter, initial: { opacity: 0, y: riseY } };
@@ -73,10 +75,11 @@ export function Presence({ visible, children, className, swapKey = 'content', fa
   if (reduce) {
     return visible ? <>{children}</> : null;
   }
+  const Element = as === 'span' ? motion.span : motion.div;
   return (
     <AnimatePresence initial={false} mode="wait">
       {visible && (
-        <motion.div
+        <Element
           key={swapKey}
           data-testid="motion-presence"
           className={className}
@@ -87,7 +90,7 @@ export function Presence({ visible, children, className, swapKey = 'content', fa
           transition={{ ...enter.transition, ...exit.transition }}
         >
           {children}
-        </motion.div>
+        </Element>
       )}
     </AnimatePresence>
   );

@@ -34,7 +34,7 @@ export function FloorBackdrop({ pulse, theme }: { pulse: FloorPulse; theme: Floo
     };
   }, [theme]);
   return (
-    <div className={s.backdrop} aria-hidden="true">
+    <div data-floor-backdrop="" className={s.backdrop} aria-hidden="true">
       <MeshCanvas look="floor" className={s.meshFloor} />
       {/* Keyed on the count, so every event mounts a fresh ripple and the animation plays once. */}
       {pulse.n > 0 && <span key={pulse.n} className={s.ripple} data-pulse="" style={{ ['--pulse' as string]: PULSE_COLOUR[pulse.kind] }} />}
