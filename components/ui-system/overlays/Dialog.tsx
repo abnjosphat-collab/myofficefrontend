@@ -7,7 +7,7 @@ import { cn } from '../foundations/cn';
 import { type } from '../foundations/typography';
 import { IconButton } from '../primitives/Button';
 import { DrawerDragPanel, ZoomBoundary, ZoomOverlay, ZoomTarget } from '../motion';
-import { firstDialogField } from './dialogFocus';
+import { firstDialogField, hasDialogField } from './dialogFocus';
 
 const panelVariants = cva(
   [
@@ -127,10 +127,10 @@ export function Dialog({
         // The title is the light, measurement-free focus target: take it inside
         // the commit, then move to the first field on clean layout after paint.
         // firstDialogField's visibility scan forces a full-page layout; running it
-        // here stalls the open on element-rich pages.
+        // here stalls the open on element-rich pages. Field-less detail dialogs skip the follow-up entirely.
         titleRef.current?.focus();
-        requestAnimationFrame(() => {
-          firstDialogField(root instanceof HTMLElement ? root : null)?.focus({ preventScroll: true });
+        if (root instanceof HTMLElement && hasDialogField(root)) requestAnimationFrame(() => {
+          if (root instanceof HTMLElement && root.isConnected && hasDialogField(root)) firstDialogField(root)?.focus({ preventScroll: true });
         });
       }
     },

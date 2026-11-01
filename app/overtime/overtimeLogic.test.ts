@@ -138,8 +138,10 @@ describe('weekly view', () => {
     expect(v.people[0].mainCause).toMatchObject({ count: 2, hours: 6 });
     expect(v.topShare).toBe(100);
   });
-  it('defaults to the last completed Monday to Sunday week', () => {
-    expect(lastCompletedWeek(new Date(2026, 9, 7))).toEqual({ from: '2026-09-28', to: '2026-10-04' });
+  it('defaults to the last completed Friday to Thursday week', () => {
+    expect(lastCompletedWeek(new Date(2026, 9, 7))).toEqual({ from: '2026-09-25', to: '2026-10-01' });
+    expect(lastCompletedWeek(new Date(2026, 9, 9))).toEqual({ from: '2026-10-02', to: '2026-10-08' });
+    expect(lastCompletedWeek(new Date(2026, 9, 8))).toEqual({ from: '2026-10-02', to: '2026-10-08' });
   });
 });
 

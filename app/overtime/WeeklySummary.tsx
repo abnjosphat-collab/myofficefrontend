@@ -1,6 +1,6 @@
 // app/overtime/WeeklySummary.tsx — one week (or any range) of Engineering overtime: who worked how many hours each day, split into
 // planned and unplanned and into 1.5x and 2.0x, with each person's main reason and every entry behind their total, and the same
-// as an Excel download. Defaults to the last completed Monday-to-Sunday week.
+// as an Excel download. Defaults to the last completed Friday-to-Thursday week.
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -37,7 +37,7 @@ export function WeeklySummary({ records, employees }: { records: OTRecord[]; emp
       <div className="flex flex-wrap items-end gap-3">
         <Field label="From" className="w-40"><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></Field>
         <Field label="To" className="w-40"><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></Field>
-        <Button onClick={() => { setFrom(week.from); setTo(week.to); }} title="The last completed Monday to Sunday">Last week</Button>
+        <Button onClick={() => { setFrom(week.from); setTo(week.to); }} title="The last completed Friday to Thursday">Last week</Button>
         <Select aria-label="Order" className="w-52" value={sort} onValueChange={v => setSort(v as WeeklySort)} options={SORTS} />
         {!invalid && view.rows.length > 0 && <ExportButton label="Download Excel" onPress={download} pending={fb.pending} success={fb.success} className="ml-auto" />}
       </div>

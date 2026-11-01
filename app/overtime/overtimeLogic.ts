@@ -3,7 +3,7 @@
 // weekly summary's view model. The weekly roll-up itself and the reason grouping live in calcOvertime.ts.
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import { WEEKDAYS } from './overtimeMeta';
-import { addDays, buildWeeklyRows, calcHours, groupSimilarReasons, mondayOf, overtimeCostCentre, recordsForEngineeringCostCentreExport, toISODate } from './calcOvertime';
+import { addDays, buildWeeklyRows, calcHours, groupSimilarReasons, overtimeCostCentre, recordsForEngineeringCostCentreExport, toISODate } from './calcOvertime';
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { formatMonth } from '@/lib/format';
 
@@ -153,10 +153,14 @@ export function tally(records: OTRecord[], employees: EmployeeLookup[]) {
 // ── Weekly summary ────────────────────────────────────────────────────────────────────────────────────────
 export type WeeklySort = 'name' | 'total' | 'mineNumber';
 
-/** The most recently completed Monday-to-Sunday week, on any day of the week. */
+/** The most recently completed Friday-to-Thursday week, on any day of the week. The weekly report is due on Fridays, covering the week that ended the day before. */
 export function lastCompletedWeek(now = new Date()): { from: string; to: string } {
-  const monday = addDays(mondayOf(now), -7);
-  return { from: toISODate(monday), to: toISODate(addDays(monday, 6)) };
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const diff = (day + 7 - 4) % 7; // days since the most recent Thursday (Thu=0 .. Wed=6)
+  const thursday = new Date(now);
+  thursday.setDate(now.getDate() - diff);
+  thursday.setHours(0, 0, 0, 0);
+  return { from: toISODate(addDays(thursday, -6)), to: toISODate(thursday) };
 }
 
 export function weeklyView(records: OTRecord[], employees: EmployeeLookup[], from: string, to: string, sort: WeeklySort) {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { firstDialogField } from './dialogFocus';
+import { firstDialogField, hasDialogField } from './dialogFocus';
 
 // jsdom reports no layout boxes; pretend every element is visible.
 vi.spyOn(Element.prototype, 'getClientRects').mockImplementation(() => [{}] as unknown as DOMRectList);
@@ -42,5 +42,19 @@ describe('firstDialogField', () => {
 
   it('ignores plain buttons (close, submit, segments)', () => {
     expect(firstDialogField(root('<button>Close</button>'))).toBeNull();
+  });
+});
+
+describe('hasDialogField', () => {
+  it('reports field candidates without measuring layout', () => {
+    vi.mocked(Element.prototype.getClientRects).mockClear();
+    expect(hasDialogField(null)).toBe(false);
+    expect(hasDialogField(root('<p>no fields</p>'))).toBe(false);
+    expect(hasDialogField(root('<button>Close</button>'))).toBe(false);
+    expect(hasDialogField(root('<input type="text" />'))).toBe(true);
+    expect(hasDialogField(root('<select></select>'))).toBe(true);
+    expect(hasDialogField(root('<textarea></textarea>'))).toBe(true);
+    expect(hasDialogField(root('<button role="combobox">Pick</button>'))).toBe(true);
+    expect(vi.mocked(Element.prototype.getClientRects).mock.calls.length).toBe(0);
   });
 });

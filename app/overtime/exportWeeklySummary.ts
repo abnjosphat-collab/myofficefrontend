@@ -93,7 +93,7 @@ export async function downloadWeeklySummary(view: View, from: string, to: string
     });
 
     // "Where it's coming from" — the same quick who/why breakdown shown on screen,
-    // appended below the grand total so the Monday-morning download carries it too,
+    // appended below the grand total so the Friday download carries it too,
     // not just the live view.
     let cursor = 4 + rows.length + 1 + 2;
 

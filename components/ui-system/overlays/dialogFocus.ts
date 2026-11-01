@@ -1,4 +1,4 @@
-const FIELD_SELECTOR = 'input:not([type="hidden"]), select, textarea, button[role="combobox"]:not(:disabled)';
+export const FIELD_SELECTOR = 'input:not([type="hidden"]), select, textarea, button[role="combobox"]:not(:disabled)';
 
 /**
  * The first form field a keyboard user would reach inside an opened dialog: visible and enabled.
@@ -20,4 +20,15 @@ export function firstDialogField(root: HTMLElement | null): HTMLElement | null {
     return field;
   }
   return null;
+}
+
+/**
+ * Layout-free candidate check: whether the dialog holds anything the caret could
+ * move to. Selector matching never forces layout, unlike firstDialogField's
+ * visibility scan. The dialog skips its post-paint focus pass entirely when this
+ * is false (detail dialogs), and skips a stale pass when the panel is gone.
+ */
+export function hasDialogField(root: HTMLElement | null): boolean {
+  if (!root) return false;
+  return root.querySelector(FIELD_SELECTOR) !== null;
 }

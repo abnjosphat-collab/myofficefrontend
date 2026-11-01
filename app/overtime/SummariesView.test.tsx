@@ -17,7 +17,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 const register = [{ id: 1, employee_id: 'C1', first_name: 'Ann', last_name: 'Alpha', department: 'Engineering', employment_type: 'NEC' }];
-const setup = (people = register) => render(<SummariesView records={[]} register={people} otLoaded />);
+const setup = (people = register, loaded = true) => render(<SummariesView records={[]} register={people} otLoaded registerLoaded={loaded} />);
 const dates = () => screen.getAllByLabelText(/^(From|To)$/) as HTMLInputElement[];
 function changeRange(from: string, to: string) {
   fireEvent.change(dates()[0], { target: { value: from } });
@@ -102,5 +102,13 @@ describe('Overtime summary generation identity', () => {
     view.unmount();
     expect(signal?.aborted).toBe(true);
     await act(async () => old.resolve([]));
+  });
+
+  it('does not let generation run before the employee register is ready', async () => {
+    setup([], false);
+    const generate = screen.getByRole('button', { name: 'Generate' });
+    expect(generate).toBeDisabled();
+    expect(screen.getByText(/register/i)).toBeInTheDocument();
+    expect(api.timesheets).not.toHaveBeenCalled();
   });
 });

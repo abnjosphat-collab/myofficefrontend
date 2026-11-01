@@ -9,7 +9,7 @@ import type { BudgetEmployee } from './budgetReport';
 const emp = (over: Partial<BudgetEmployee> = {}): BudgetEmployee => ({
   dbId: '7', employeeId: 'C1001', firstName: 'A', surname: 'Moyo', occupation: 'Fitter',
   costCentre: 'MECHANICAL', department: 'ENGINEERING', sheet: 'ENGINEERING',
-  employmentType: 'NEC', archived: false, ...over,
+  employmentType: 'NEC', archived: false, matched: true, ...over,
 });
 
 function weekdayEntries(dbId: number, start: Date, end: Date, total: number): TimesheetEntry[] {

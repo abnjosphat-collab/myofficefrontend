@@ -9,7 +9,7 @@ import { Button, useConfirm, DataRegion, DataTable, EmptyState, IconButton, Inpu
 import { ApprovalGate, type SignatureResult } from '@/components/shared/ApprovalGate';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { fmtDate } from '@/components/shared/utils';
-import { useEmployees } from '@/hooks/useLookups';
+import { useEmployeeRegister, useEmployees } from '@/hooks/useLookups';
 import { exportFilename } from '@/lib/exportUtils';
 import { overtimeCostCentre, recordsForEngineeringCostCentreExport } from './calcOvertime';
 import { BulkOvertimeForm } from './BulkOvertimeForm';
@@ -78,6 +78,7 @@ function OvertimeContent() {
   const confirm = useConfirm();
   const employees = useEmployees();
   const list = useOvertime();
+  const { loaded: registerLoaded } = useEmployeeRegister();
   const records = list.items;
   const [tab, setTab] = useState('records');
   const [view, setView] = useViewPreference('overtime', VIEW_CARDS_TABLE);
@@ -387,13 +388,13 @@ function OvertimeContent() {
         </TabsContent>
         <TabsContent value="budget" className="mt-4">
           {list.loaded
-            ? <BudgetView records={records} register={employees} otLoaded={list.loaded} />
+            ? <BudgetView records={records} register={employees} otLoaded={list.loaded} registerLoaded={registerLoaded} />
             : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
         </TabsContent>
 
         <TabsContent value="summaries" className="mt-4">
           {list.loaded
-            ? <SummariesView records={records} register={employees} otLoaded={list.loaded} />
+            ? <SummariesView records={records} register={employees} otLoaded={list.loaded} registerLoaded={registerLoaded} />
             : (list.error ? <p className="font-sans text-body-sm text-ink-muted">The requests could not be loaded; see the Records tab.</p> : <LoadingPulse compact label="Loading requests" />)}
         </TabsContent>
       </Tabs>

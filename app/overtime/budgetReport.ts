@@ -76,6 +76,8 @@ export interface BudgetEmployee {
   sheet: BudgetSheet;
   employmentType: 'NEC' | 'SALARIED' | '';
   archived: boolean;
+  /** False for template rows with no matching Personnel record: Unclassified then means "not matched", not "no type set". */
+  matched: boolean;
 }
 
 /** Personnel rows (raw /api/employees shape) → the register the report runs on. */
@@ -97,6 +99,7 @@ export function toBudgetEmployees(lookups: EmployeeLookup[]): BudgetEmployee[] {
         sheet,
         employmentType: (rawType === 'NEC' || rawType === 'SALARIED' ? rawType : '') as BudgetEmployee['employmentType'],
         archived: false,
+        matched: true,
       };
     })
     .filter(e => e.dbId !== '' && e.employeeId !== '');
@@ -120,7 +123,7 @@ export function buildEngineeringRoster(
       return {
         dbId: '', employeeId: t.code.trim(), firstName: t.firstName, surname: t.surname,
         occupation: t.occupation, costCentre: t.costCentre, department: 'ENGINEERING',
-        sheet: 'ENGINEERING' as const, employmentType: '' as const, archived: false,
+        sheet: 'ENGINEERING' as const, employmentType: '' as const, archived: false, matched: false,
       };
     }
     return {
@@ -148,6 +151,7 @@ export interface BudgetRow {
   ot15Adhoc: number;
   ot20Shift: number;
   status: BudgetStatus;
+  matched: boolean;
   /** What is driving this person's overtime (top cause + shift); blank when there is nothing to say. */
   comment: string;
 }
@@ -295,6 +299,7 @@ export function buildSplitBudgetRows(
         ot15Adhoc: Math.round(ad.adhoc15.total / months),
         ot20Shift: Math.round(ad.shift20.total / months),
         status: bookStatus(emp, shift),
+      matched: emp.matched,
         comment: budgetComment(shift, causes.get(key)),
       } satisfies BudgetRow;
     })

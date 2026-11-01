@@ -73,7 +73,7 @@ const monthLabel = (key: string): string => {
   return `${MONTH_NAMES[Number(m[2]) - 1]} ${m[1]}`;
 };
 
-export function BudgetView({ records, register, otLoaded }: { records: OTRecord[]; register: EmployeeLookup[]; otLoaded: boolean }) {
+export function BudgetView({ records, register, otLoaded, registerLoaded = true }: { records: OTRecord[]; register: EmployeeLookup[]; otLoaded: boolean; registerLoaded?: boolean }) {
   const [book, setBook] = useState<ShiftBook | null>(null);
   const [bookError, setBookError] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -130,11 +130,11 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
   const engEmployees = useMemo(() => buildEngineeringRoster(employees, ENGINEERING_TEMPLATE_ROSTER), [employees]);
 
   const computed = useMemo(() => {
-    if (!otLoaded) return null;
+    if (!otLoaded || !registerLoaded) return null;
     const adhoc = adhocTotals(records, employees);
     const rows = buildSplitBudgetRows(engEmployees, book?.avg ?? new Map(), adhoc.byKey, adhoc.causeByKey);
     return { rows, totals: budgetTotals(rows), orphanCount: adhoc.orphanCount, orphanHours: adhoc.orphanHours };
-  }, [otLoaded, employees, engEmployees, book, records]);
+  }, [otLoaded, registerLoaded, employees, engEmployees, book, records]);
 
   const download = () => fb.run(async () => {
     if (!computed) throw new Error('nothing to download yet');
@@ -142,7 +142,7 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
     catch (e) { toast.error(`The download failed: ${(e as Error).message}`); throw e; }
   });
 
-  const ready = otLoaded && !!computed;
+  const ready = otLoaded && registerLoaded && !!computed;
   const [showAbout, setShowAbout] = useState(true);
   const [noticeHidden, setNoticeHidden] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BudgetRow['status'] | null>(null);
@@ -152,12 +152,15 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
   const shownTotals = useMemo(() => budgetTotals(shown), [shown]);
   const incomplete = allRows.filter(r => r.status === 'Incomplete').length;
   const missing = allRows.filter(r => r.status === 'Missing').length;
-  const unclassified = allRows.filter(r => r.status === 'Unclassified').length;
-  const issueCount = (incomplete > 0 ? 1 : 0) + (missing > 0 ? 1 : 0) + (unclassified > 0 ? 1 : 0) + (computed && computed.orphanCount > 0 ? 1 : 0);
+  const unclassified = allRows.filter(r => r.status === 'Unclassified');
+  const unmatched = unclassified.filter(r => !r.matched).length;
+  const typeless = unclassified.length - unmatched;
+  const issueCount = (incomplete > 0 ? 1 : 0) + (missing > 0 ? 1 : 0) + (unclassified.length > 0 ? 1 : 0) + (computed && computed.orphanCount > 0 ? 1 : 0);
   const qualityItems: { key: string; status: BudgetRow['status'] | null; label: string }[] = [];
   if (incomplete > 0) qualityItems.push({ key: 'Incomplete', status: 'Incomplete', label: `${incomplete} incomplete book ${incomplete === 1 ? 'record' : 'records'}` });
   if (missing > 0) qualityItems.push({ key: 'Missing', status: 'Missing', label: `${missing} without monthly-book data (shift blank)` });
-  if (unclassified > 0) qualityItems.push({ key: 'Unclassified', status: 'Unclassified', label: `${unclassified} without an employment type in Personnel` });
+  if (unmatched > 0) qualityItems.push({ key: 'Unclassified', status: 'Unclassified', label: `${unmatched} on the sheet not matched to Personnel — check the employee number` });
+  if (typeless > 0) qualityItems.push({ key: 'Unclassified-type', status: 'Unclassified', label: `${typeless} without an employment type in Personnel` });
   if (computed && computed.orphanCount > 0) qualityItems.push({ key: 'orphans', status: null, label: `${computed.orphanCount} overtime ${computed.orphanCount === 1 ? 'record' : 'records'} for people outside the register (${computed.orphanHours}h, excluded from rows)` });
 
   return (
@@ -206,8 +209,8 @@ export function BudgetView({ records, register, otLoaded }: { records: OTRecord[
         {ready && <ExportButton label="Download Excel" onPress={download} pending={fb.pending} success={fb.success} />}
       </div>
 
-      {!otLoaded ? (
-        <LoadingPulse compact label="Loading budget data" />
+      {!otLoaded || !registerLoaded ? (
+        <LoadingPulse compact label={!otLoaded ? "Loading budget data" : "Loading register"} />
       ) : !computed ? (
         <Notice tone="danger" title="The budget data could not be loaded">
           <p className="font-sans text-body-sm">The overtime records could not be loaded; see the Records tab.</p>

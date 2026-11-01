@@ -235,3 +235,11 @@ handoffs, normal-motion badge consumers, normal screen navigation, and the job c
    small effort/low product risk; publishing still requires owner authorization.
 3. Reproduce the Overtime employee-lookup readiness/error lead in CURRENT_HANDOFF section 11 before changing it (see follow-up below):
    small-to-medium effort/medium summary-accuracy risk; preserve payroll calculations.
+
+## Follow-up — 1 Nov 2026 (same branch, uncommitted)
+
+All three items above are now worked; full account is CURRENT_HANDOFF section 13.
+
+1. Dialog performance: reproduced red on the production build (1x click-to-open 373ms, 4x far worse), separated costs with a CDP trace (JS commit plus Radix mount/focus/scroll-lock plus full-page style recalculation) and a motion-vs-reduced control that exonerates the animation flight. Smallest effective correction landed (`hasDialogField` fast-path plus stale-pass guard); before/after deltas are noise and the strict gate stays red, reported honestly. No threshold weakened, no work moved outside the window, no replacement dialog.
+2. Sidebar baseline: artifact-only Ubuntu workflow added (`.github/workflows/sidebar-baseline-artifact.yml`, contents read-only, uploads stills plus reports, never commits). Geometry test passes and the still was inspected. Linux execution itself is the one outstanding step (owner's manual Actions run plus human review).
+3. Overtime lookup: lead confirmed with a failing-first test, fixed by gating `SummariesView`/`BudgetView` generation on `useEmployeeRegister().loaded` (shared cache, no extra fetch). Payroll, matching, approvals, caps and workbook columns untouched. Route specs for `/overtime`, `/employees`, `/documents` pass; Summaries/Budget inspected at 1440 and 390. Final full frontend suite: 359 files / 2602 tests passed, exit 0, two fork workers, 2816.84s.

@@ -10,7 +10,7 @@ const emp = (over: Partial<BudgetEmployee> = {}): BudgetEmployee => {
   const base = {
     dbId: '7', employeeId: 'C1001', firstName: 'A', surname: 'Moyo', occupation: 'Fitter',
     costCentre: 'MECHANICAL', department: 'ENGINEERING',
-    employmentType: 'NEC', archived: false, ...over,
+    employmentType: 'NEC', archived: false, matched: true, ...over,
   } as BudgetEmployee & { department: string };
   return { ...base, sheet: sheetForDepartment(base.department) };
 };
@@ -48,8 +48,8 @@ describe('engineering sheet roster', () => {
     const roster = buildEngineeringRoster(register, template);
     expect(roster.map(r => r.employeeId)).toEqual(['C1001', 'C9999']);
     // Register details win where matched; template fills the gaps.
-    expect(roster[0]).toMatchObject({ firstName: 'A', occupation: 'Fitter', department: 'ENGINEERING', sheet: 'ENGINEERING', employmentType: 'NEC' });
-    expect(roster[1]).toMatchObject({ firstName: 'T', surname: 'Ghost', employmentType: '', costCentre: 'ELECTRICAL' });
+    expect(roster[0]).toMatchObject({ firstName: 'A', occupation: 'Fitter', department: 'ENGINEERING', sheet: 'ENGINEERING', employmentType: 'NEC', matched: true });
+    expect(roster[1]).toMatchObject({ firstName: 'T', surname: 'Ghost', employmentType: '', costCentre: 'ELECTRICAL', matched: false });
   });
 });
 

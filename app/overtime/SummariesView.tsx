@@ -51,7 +51,7 @@ interface SummaryResult {
 }
 type Generation = { status: 'idle' | 'loading' } | { status: 'error'; message: string } | { status: 'ready'; result: SummaryResult };
 
-export function SummariesView({ records, register, otLoaded }: { records: OTRecord[]; register: EmployeeLookup[]; otLoaded: boolean }) {
+export function SummariesView({ records, register, otLoaded, registerLoaded = true }: { records: OTRecord[]; register: EmployeeLookup[]; otLoaded: boolean; registerLoaded?: boolean }) {
   const initial = useMemo(() => defaultSummaryRange(), []);
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
@@ -155,7 +155,7 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
             <Field label="To"><Input type="date" value={to} min={from} onChange={e => changeDate('to', e.target.value)} /></Field>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="primary" pending={generating} disabled={!otLoaded} onClick={() => void generate()}>
+            <Button variant="primary" pending={generating} disabled={!otLoaded || !registerLoaded} onClick={() => void generate()}>
               {generating ? 'Generating…' : computed ? 'Regenerate' : 'Generate'}
             </Button>
             {computed && <ExportButton label="Download Excel" onPress={download} pending={fb.pending} success={fb.success} />}
@@ -168,8 +168,8 @@ export function SummariesView({ records, register, otLoaded }: { records: OTReco
         </div>
       </div>
 
-      {!otLoaded || generating ? (
-        <LoadingPulse compact label={generating ? 'Building summary' : 'Loading overtime data'} />
+      {!otLoaded || !registerLoaded || generating ? (
+        <LoadingPulse compact label={generating ? 'Building summary' : !otLoaded ? 'Loading overtime data' : 'Loading register'} />
       ) : generation.status === 'error' ? (
         <Notice
           tone="danger" title="The summary could not be generated"

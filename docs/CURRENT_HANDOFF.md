@@ -716,3 +716,53 @@ build 68 static pages (existing budget-shift-book tracing warning). Full post-in
 passed**, exit 0, two fork workers, 2009.76 seconds. The focused route rerun closes the earlier two prefill failures;
 a second full-product route sweep is not claimed. Strict performance and Linux sidebar pixel baseline remain open.
 No commits, pushes, tags, deployments, SQL or live-data changes; owner dev server retained, temporary production server stopped.
+
+## 13. Dialog, sidebar-baseline and overtime-lookup follow-ups — 1 Nov 2026 (uncommitted)
+
+Three focused items from the recovery audit's "next improvements" list, on `fix/ui-consistency-remediation` (was `26146c4` plus the section-12 Availabilities inclusion). No backend, schema, payroll, theme or migration changes. No commits, pushes, SQL, real sign-ins or live-data changes.
+
+### What was reproduced (production build `68` pages, fixture data, mocked APIs)
+
+- **Dialog performance (confirmed red).** `scripts/perf-zoom-trace.mjs` at 1x CPU: click-to-open `373ms` (budget `300ms`); zoom-open 1 longtask >50ms (max `269ms`); close 1 (max `179ms`); insert 1 (max `78ms`). At 4x: click-to-open `11989ms`, 8/4/5 longtasks over budget in open/close/insert. A CDP timeline trace of a trivial dialog open (gallery Demo dialog, body is one paragraph) shows `FunctionCall 182ms`, `UpdateLayoutTree 148ms`, `EventDispatch 78ms` — React commit plus Radix mount/focus/scroll-lock plus full-page style recalculation, not the animation flight.
+- **Animation exonerated by a current control.** A `/tmp` probe (not committed) opens the maintenance zoom detail with full motion vs `reducedMotion: reduce`: motion `~380-470ms`/1 longtask, reduced `~1020-1350ms`/7 longtasks, order-independent. Reduced motion is consistently slower, so the zoom/spring flight does not cause the delay; mount, focus management, scroll-lock, layout and the page re-render behind the dialog do.
+- **Overtime lookup lead (confirmed).** `app/overtime/page.tsx` passed `useEmployees()` (empty array with no readiness signal) to `SummariesView`/`BudgetView`, while Generate was gated only on the overtime list (`otLoaded`). Pressing Generate with the register still loading or failed produced a successful-looking empty summary ("Nobody to show" / "No Engineering employees on the register") that is indistinguishable from a genuinely empty register. Same shape in `BudgetView` (computed gated on `otLoaded` only).
+- **Sidebar baseline (confirmed absent).** Geometry test passes; no Linux pixel baseline exists and the sanctioned workflow auto-commits/pushes.
+
+### Changes and shared effects
+
+- **Overtime readiness gate (the confirmed fix).** `page.tsx` now also reads `useEmployeeRegister()` (shares the same `employees` cache entry, no extra fetch) and passes `registerLoaded` to `SummariesView` and `BudgetView`. Both views disable generation and show "Loading register" until the register is ready, instead of rendering an empty result; payroll calculations, rounding, matching, approvals, caps and workbook columns untouched. Other overtime tabs keep the filtered `useEmployees()` list, so their behaviour is unchanged.
+- **Dialog focus fast-path (small genuine reduction, gate still red).** `dialogFocus.ts` gains `hasDialogField()` (selector-only, never forces layout); `Dialog.tsx` skips the post-paint focus pass entirely for field-less detail dialogs and skips a stale pass when the panel is gone (rapid close/reopen). Focus trap/restoration, keyboard and screen-reader behaviour, reduced motion, form contents, validation, cancellation and save behaviour unchanged — existing `Dialog.test.tsx` (9 tests) passes unchanged.
+- **Sidebar artifact-only workflow (no product change).** New `.github/workflows/sidebar-baseline-artifact.yml` (manual dispatch, `contents: read`, ubuntu-latest) runs only the `sidebar-rail` geometry test and uploads stills plus reports as `sidebar-rail-artifact` (30-day retention). It cannot commit, push, tag or release by construction. Validated locally: no pushing step, read-only permissions, test listed. Linux execution itself is still outstanding (needs the owner's Actions run); no Windows image is claimed as the baseline.
+
+### Before/after measurements
+
+- Perf gate after the dialog fix (same 1x setup): click-to-open `414ms`, open max `276ms`, close max `220ms`, insert max `84ms`; gallery plain dialog `199ms`/2 longtasks (was `223ms`/2); maintenance detail `475ms`/1 longtask (was `494ms`/1). All deltas are machine noise — the fix removes one rAF task for field-less dialogs but the strict 50ms gate stays red. Remaining cost is React/Radix mount, focus, scroll-lock and page re-render; clearing it needs architectural work (state colocation, replacing Radix) that is out of scope and explicitly not attempted.
+- Overtime: new failing-first test ("does not let generation run before the employee register is ready") failed before the fix (Generate enabled) and passes after (Generate disabled, "Loading register" shown, no source read). Full `SummariesView.test.tsx` 8/8 after.
+- Sidebar: `sidebar-rail` geometry test passes on the current tree (68px rail, uniform 40px rows, centred icons, no overflow); still inspected — rail correct, icons on one axis. The page behind shows a "library could not be loaded" notice from the standalone visual mock (unchanged mock coverage, not this change).
+
+### Tests and rendered checks completed
+
+- Focused: `SummariesView.test.tsx` 8/8; `dialogFocus.test.ts` + `Dialog.test.tsx` 17/17 (existing focus contracts preserved).
+- `tsc --noEmit` clean; `eslint` on all touched files clean.
+- Route specs `--only /overtime,/employees,/documents`: ALL CHECKS PASSED (includes 390/820/844/1180 widths, zero overflow, no browser errors).
+- Rendered: overtime Summaries idle at 1440 and 390 (`/tmp` captures, 0px overflow, Generate enabled once the register loads); Budget tab at both widths (0px overflow); sidebar-rail still inspected.
+- Full frontend unit suite: **359 files / 2602 tests passed**, exit 0, two fork workers, 2816.84s, no overlap with builds. (Same 359 files as the section-12 run; 2600 to 2602 is the two new tests: overtime register-readiness plus `hasDialogField`.)
+
+## 14. Overtime weekly default is now Friday to Thursday — 1 Nov 2026 (uncommitted)
+
+The weekly report is due on Fridays, so the Weekly summary tab defaults to the most recently completed Friday-to-Thursday week (`lastCompletedWeek` now anchors on the most recent Thursday on or before today; e.g. Wed 7 Oct 2026 gives Fri 25 Sep to Thu 1 Oct, Fri 9 Oct gives Fri 2 to Thu 8 Oct). The Last-week button title, file header, and the export comment now say Friday to Thursday/Friday download. Failing-first unit test updated and extended (Wednesday/Friday/Thursday cases, 22/22 pass); `SummariesView` 8/8 unaffected; route spec fills its own dates so it is unaffected. `tsc` clean, `eslint` clean on touched files. No backend, payroll, or calculation changes — the default range only.
+
+## 15. Overtime slow load + employment-type flags — 1 Nov 2026 (uncommitted both repos)
+
+Owner reports: overtime takes too long to load ("Still trying to reach the server") and three people are flagged as without employment type, which the owner disputes.
+
+- **Slow load (backend root cause, fixed).** `GET /api/overtime` selected the whole table across an unbounded paging loop, and every approved row carries its drawn approval signature as a data-URL image (tens of KB each). The frontend never reads those blobs back — approval always sends a fresh one — so the list paid megabytes for nothing and the 20 s fetch timeout kept aborting slow-but-healthy downloads, which is exactly the retry loop the owner saw. The list now strips `approval_signature` in Python (the single-record read keeps the full row). Verified by search that nothing else reads list signatures. Failing-first backend test added (failed before, passes after).
+- **Employment-type flags (frontend messaging bug, fixed).** The three names are all on the ENGINEERING template sheet (C2291 Wailer Manzinya, C2290 Matthew Simango, C0688 Andrew Maendaenda). Unmatched template rows defaulted to `employmentType: ''`, so the quality panel accused them of having "no employment type in Personnel" even when the real problem is the sheet number matching no Personnel record. `BudgetEmployee`/`BudgetRow` now carry `matched`; the panel splits the warning into "on the sheet not matched to Personnel — check the employee number" vs "without an employment type in Personnel". Whichever message the owner's three show now says exactly what to fix. Payroll, matching rules, caps and workbook columns untouched.
+- Verified: backend full suite 2929 passed, pyright holds the 196 baseline; frontend full suite 359 files / 2602 tests passed (341 files + 2385 tests in the main run, 18 worker-start flakes under box load re-ran clean alone with 217 — the known loaded-box flake, none of them touched files). Route spec `--only /overtime` ALL CHECKS PASSED on the rebuilt bundle; Summaries/Budget tabs inspected at 1440 and 390 (0px overflow; the fixture register matches no template numbers, so the Budget tab visibly shows the new "not matched to Personnel — check the employee number" message instead of the old wrong one). Full `eslint` 0 errors, `docs:check` green, `tsc` clean. No SQL run; backend release still needs the owner's explicit "release" (backend first, then frontend preview).
+
+### Remaining failures, limitations and risks
+
+- Strict dialog performance gate is RED and reported as such — not weakened, not gamed. No full-product performance certification is claimed.
+- Linux sidebar pixel baseline still NOT DONE: the artifact workflow is prepared and locally validated but never executed; the outstanding step is exactly one manual Actions run plus human review of the downloaded still.
+- Overtime failure-vs-loading: while the register is unresolved the views show "Loading register" (the lookup contract waits out slow services); a hard register failure keeps that state rather than an error, matching existing lookup behaviour — recorded, not certified against a live failure.
+- Full unit suite result and any release decision are still open; main/production unchanged.
