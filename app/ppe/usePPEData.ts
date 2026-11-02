@@ -11,7 +11,7 @@ import { withDepartment } from '@/lib/api';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { sanitizeDisplayName } from './calcPPE';
 import { PPE_MATRIX_DEFAULTS } from './ppeMeta';
-import type { EmployeeRow, FormState, PPERecord } from './types';
+import type { EmployeeRow, FormState, PPERecord, PPERequirement } from './types';
 
 export { PPE_MATRIX_DEFAULTS };
 
@@ -20,6 +20,18 @@ export const fetchPPERecords = async (department?: string | null) => {
   if (!Array.isArray(data)) throw new Error('PPE records returned an invalid response.');
   return data as PPERecord[];
 };
+export const fetchPPERequirements = async (department?: string | null) => {
+  const data = await api.get<unknown>(withDepartment('/api/ppe/requirements', department));
+  if (!Array.isArray(data)) throw new Error('PPE requirements returned an invalid response.');
+  return data as PPERequirement[];
+};
+
+/** Size requirements with derived fulfilment. Only requested where shown, so Engineering makes no new request on the Mining register. */
+export function usePPERequirements(department?: string | null, enabled = true) {
+  const fetcher = useCallback(() => fetchPPERequirements(department), [department]);
+  return useApiList<PPERequirement>(withDepartment('/api/ppe/requirements', department), undefined, { fetcher, enabled });
+}
+
 export const fetchAllEmployees = async (department?: string | null): Promise<EmployeeRow[]> => {
   const data = await api.get<unknown>(withDepartment('/api/employees/', department));
   if (!Array.isArray(data)) throw new Error('Personnel returned an invalid response.');

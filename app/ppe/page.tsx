@@ -19,6 +19,7 @@ import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
 import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
+import { RainsuitView } from './RainsuitView';
 import { MatrixDialog } from './MatrixDialog';
 import { OrderListView, type BasketAddables } from './OrderListView';
 import { PPEBulkIssueForm } from './PPEBulkIssueForm';
@@ -30,7 +31,7 @@ import { NO_TYPE_FILTER, loadTypeFilter, matchesTypeFilter, saveTypeFilter, type
 import { typeName } from './ppeMeta';
 import { SummaryView } from './SummaryView';
 import { BudgetView } from './budget/BudgetView';
-import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
+import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, usePPERequirements, useRosterRows } from './usePPEData';
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
@@ -49,6 +50,8 @@ function PPEContent() {
   const recs = usePPERecords(dept.param);
   const roster = useRosterRows(dept.param);
   const matrix = usePPEMatrix();
+  // The rainsuit register reads size requirements; it only exists for Engineering, so Mining makes no new request.
+  const requirements = usePPERequirements(miningView ? undefined : dept.param, !miningView);
   const order = useOrderList(dept.param);
   const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
@@ -295,6 +298,7 @@ function PPEContent() {
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
+          {!miningView && <TabsTrigger value="rainsuit" icon="ppe">Rainsuit</TabsTrigger>}
           {!miningView && <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>}
         </TabsList>
 
@@ -346,6 +350,13 @@ function PPEContent() {
           </DataRegion>
         </TabsContent>
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
+        {!miningView && (
+          <TabsContent value="rainsuit" className="mt-4">
+            {requirements.loaded ? <RainsuitView rows={requirements.items} /> : (requirements.error
+              ? <p className="font-sans text-body-sm text-ink-muted">The rainsuit requirements could not be loaded. <Button size="sm" icon="refresh" onClick={() => requirements.refetch()}>Try again</Button> {requirements.error}</p>
+              : <LoadingPulse compact label="Loading rainsuit requirements" />)}
+          </TabsContent>
+        )}
         <TabsContent value="budget" className="mt-4">
           {!miningView && (recs.loaded && roster.loaded ? (
             <BudgetView people={roster.items} records={recs.items} matrix={matrix.matrix} canManage={isAtLeast('manager')} />

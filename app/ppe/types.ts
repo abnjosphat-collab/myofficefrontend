@@ -39,6 +39,15 @@ export interface EmployeeWithPPE {
   section: string;
 }
 
+/** One row of the PPE size requirements register (GET /api/ppe/requirements): a planned allocation, never an
+ * issue. fulfilment is derived from active issue records; rows with no mine number stay visible as unmatched. */
+export interface PPERequirement {
+  id: string; employee_id: string | null; source_name: string; employee_name: string;
+  department: string; mine_section: string; ppe_type: string;
+  size_source: string; size_canonical: string | null; quantity: number;
+  status: 'required'; source_ref: string; notes: string; fulfilled: boolean;
+}
+
 export interface FormState {
   employee_name: string; employee_id: string; position: string;
   ppe_type: string; item_name: string; size: string;
