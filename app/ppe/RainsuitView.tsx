@@ -39,6 +39,11 @@ const DOWNLOAD: DLColumn[] = [
   { key: 'notes', label: 'Notes', width: 40 },
 ];
 
+const SUMMARY_DOWNLOAD: DLColumn[] = [
+  { key: 'size', label: 'Size', width: 9 },
+  { key: 'quantity', label: 'Rainsuits', width: 11 },
+];
+
 export function RainsuitView({ rows }: { rows: PPERequirement[] }) {
   const [f, setF] = useState<RainsuitFilters>(NO_RAINSUIT_FILTERS);
   const set = (patch: Partial<RainsuitFilters>) => setF(prev => ({ ...prev, ...patch }));
@@ -62,7 +67,10 @@ export function RainsuitView({ rows }: { rows: PPERequirement[] }) {
         <Select aria-label="Issue state" className="w-44" value={f.fulfilment} onValueChange={v => set({ fulfilment: v as RainsuitFilters['fulfilment'] })} options={[{ value: ALL, label: 'Fulfilled + outstanding' }, { value: 'fulfilled', label: 'Fulfilled' }, { value: 'outstanding', label: 'Outstanding' }]} />
         <Checkbox label="Show unmatched" description="Rows with no mine number yet." checked={f.showUnmatched} onChange={e => set({ showUnmatched: e.target.checked })} />
         {scopeFiltered && <button type="button" className="font-sans text-label font-semibold text-action" onClick={reset}>Clear filters</button>}
-        <span className="ml-auto"><DownloadButton data={downloadable} columns={DOWNLOAD} filename={exportFilename('PPE_Rainsuit_Register')} title="Rainsuit Register" subtitle={subtitle} /></span>
+        <span className="ml-auto flex flex-wrap gap-2">
+          <DownloadButton data={downloadable} columns={DOWNLOAD} filename={exportFilename('PPE_Rainsuit_Register')} title="Rainsuit Register" subtitle={subtitle} />
+          <DownloadButton label="Download summary" data={[...CANONICAL_SIZES.map(size => ({ size, quantity: summary.bySize(size) })), { size: 'Unknown', quantity: summary.unknown }]} columns={SUMMARY_DOWNLOAD} filename={exportFilename('PPE_Rainsuit_Summary')} title="Rainsuit Size Summary" subtitle={subtitle} />
+        </span>
       </div>
       <p className="font-sans text-body-sm text-ink" role="status">
         {CANONICAL_SIZES.map(s => `${s}: ${summary.bySize(s)}`).join(' · ')}{summary.unknown > 0 && ` · Unknown: ${summary.unknown}`}

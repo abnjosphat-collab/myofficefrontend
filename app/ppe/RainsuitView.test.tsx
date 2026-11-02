@@ -22,6 +22,8 @@ describe('RainsuitView', () => {
     expect(screen.getByText('Fulfilled')).toBeInTheDocument();
     expect(screen.getByText('Not linked yet')).toBeInTheDocument();
     expect(screen.getByText('Corrected from supplementary handwritten list')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Download summary' })).toBeInTheDocument();
   });
   it('shows an empty state with no requirements', () => {
     render(<RainsuitView rows={[]} />);

@@ -8,6 +8,7 @@ import { Button, SearchField, Segmented } from '@/components/ui-system';
 import type { Tool } from './prototype';
 import { groupPieces, PIECE_CONDITIONS, pieceMatches } from './setTypes';
 import { exportTable } from './toolsExports';
+import { inspectionChecklistTable } from './setExportTables';
 
 const PIECE_STATUS = ['present', 'missing', 'damaged'] as const;
 
@@ -19,6 +20,20 @@ export function SetPiecesSection({ tool, manage, onEditPiece }: {
   const pieces = useMemo(() => tool.pieces ?? [], [tool.pieces]);
   const [query, setQuery] = useState('');
   const groups = useMemo(() => groupPieces(pieces.filter(piece => pieceMatches(piece, query))), [pieces, query]);
+
+  const downloadChecklist = () => {
+    const seen = new Map<string, { line_no: number; name: string; size?: string | null; qty: number }>();
+    for (const piece of [...pieces].sort((a, b) => (a.lineNo ?? 0) - (b.lineNo ?? 0))) {
+      const key = `${piece.name} · ${piece.size ?? ''}`;
+      const entry = seen.get(key) ?? { line_no: piece.lineNo ?? seen.size + 1, name: piece.name, size: piece.size, qty: 0 };
+      entry.qty += 1;
+      seen.set(key, entry);
+    }
+    void exportTable('xlsx', inspectionChecklistTable(
+      tool.setTypeTitle ?? 'Set', tool.id, tool.holder?.split(' · ')[0] ?? '',
+      [...seen.values()].map((entry, index) => ({ ...entry, line_no: index + 1, notes: null })),
+    ));
+  };
 
   const download = (format: 'xlsx' | 'pdf') => {
     void exportTable(format, {
@@ -38,6 +53,7 @@ export function SetPiecesSection({ tool, manage, onEditPiece }: {
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => download('xlsx')}>Pieces XLSX</Button>
           <Button variant="ghost" size="sm" onClick={() => download('pdf')}>Pieces PDF</Button>
+          <Button variant="ghost" size="sm" onClick={downloadChecklist}>Checklist</Button>
         </div>
       </div>
       {pieces.length > 7 && <SearchField label="Find a piece" placeholder="Find by piece number or name" value={query} onValueChange={setQuery} />}

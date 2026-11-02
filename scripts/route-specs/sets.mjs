@@ -42,6 +42,10 @@ const spec = {
     check(await page.getByRole('heading', { name: 'Set types' }).isVisible(), 'the toolbox tab lists set types');
     check(await page.getByText('Gedore socket set').first().isVisible(), 'with the type title');
     check(await page.getByText('3 pieces · 0 in store · 1 out').isVisible(), 'with in-store and out counts');
+    const definition = page.waitForEvent('download', { timeout: 8000 });
+    await page.getByRole('button', { name: 'Definition' }).click();
+    await (await definition).saveAs('C:/tmp/shots-tools-rainsuit/set-definition.xlsx');
+    check(true, 'the set definition downloads as a file');
 
     // Add a set: paste rows from Excel, preview what was added, validation first.
     await page.getByRole('button', { name: 'Tools', exact: true }).first().click();
@@ -83,6 +87,7 @@ const spec = {
     check(await panel.getByText('Pieces (3)').isVisible(), 'the set page lists its pieces');
     check(await panel.getByText('SET-07/002').first().isVisible(), 'with numbered pieces');
     check(await panel.getByRole('button', { name: 'Pieces XLSX' }).isVisible(), 'with a piece-list download');
+    check(await panel.getByRole('button', { name: 'Checklist' }).isVisible(), 'with a printable inspection checklist');
     await panel.getByRole('button', { name: 'Receive return' }).click();
     const ret = page.getByRole('dialog', { name: 'Record a return' });
     await ret.waitFor();

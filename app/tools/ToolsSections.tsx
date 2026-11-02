@@ -61,7 +61,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
     case 'toolbox':
       return (
         <>{failed}
-          <SetTypesView types={w.setTypes} error={w.setTypesError} onRetry={() => w.refreshSetTypes()} canManage={manage} onMake={(typeId, count) => w.makeSetsInStore(typeId, count, w.department === 'all' ? 'Engineering' : w.department)} onIssue={typeId => w.openManageModal({ kind: 'issue-set', setTypeId: typeId })} />
+          <SetTypesView types={w.setTypes} error={w.setTypesError} onRetry={() => w.refreshSetTypes()} canManage={manage} onMake={(typeId, count) => w.makeSetsInStore(typeId, count, w.department === 'all' ? 'Engineering' : w.department)} onIssue={typeId => w.openManageModal({ kind: 'issue-set', setTypeId: typeId })} getLines={w.getSetTypeLines} />
           <ToolsToolbox tools={w.tools} checks={w.complianceData.toolbox_checks ?? []}
             canManage={manage} onOpenCheck={w.openToolboxCheck} onSubmitCheck={w.submitToolboxCheck} getCheck={w.getToolboxCheck} />
         </>

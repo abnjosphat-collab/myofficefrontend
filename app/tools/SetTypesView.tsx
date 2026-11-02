@@ -4,17 +4,30 @@
 
 import { useState } from 'react';
 import { Button, EmptyState, Input, Notice } from '@/components/ui-system';
-import type { ServerSetType } from './useToolsWorkspace';
+import type { ServerSetType, ServerSetTypeLine } from './useToolsWorkspace';
+import { setDefinitionTable } from './setExportTables';
+import { exportTable } from './toolsExports';
 
-export function SetTypesView({ types, error, onRetry, canManage, onMake, onIssue }: {
+export function SetTypesView({ types, error, onRetry, canManage, onMake, onIssue, getLines }: {
   types: ServerSetType[];
   error: string | null;
   onRetry: () => void;
   canManage: boolean;
   onMake: (typeId: string, count: number) => void;
   onIssue: (typeId: string) => void;
+  getLines?: (typeId: string) => Promise<ServerSetTypeLine[]>;
 }) {
   const [counts, setCounts] = useState<Record<string, string>>({});
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const downloadDefinition = (type: ServerSetType) => {
+    if (downloading || !getLines) return;
+    setDownloading(type.id);
+    void getLines(type.id)
+      .then(lines => exportTable('xlsx', setDefinitionTable(type.title, lines.map(line => ({
+        line_no: line.line_no, name: line.name, size: line.size, qty: line.qty, notes: line.notes,
+      })))))
+      .finally(() => setDownloading(null));
+  };
   if (error) {
     return <Notice tone="warning" title="Set types unavailable">{error} <Button variant="secondary" onClick={onRetry}>Retry</Button></Notice>;
   }
@@ -45,6 +58,7 @@ export function SetTypesView({ types, error, onRetry, canManage, onMake, onIssue
                   onChange={event => setCounts(current => ({ ...current, [type.id]: event.target.value.replace(/[^0-9]/g, '').slice(0, 2) }))} />
                 <Button variant="secondary" onClick={() => onMake(type.id, Math.max(1, Number(counts[type.id] ?? '1') || 1))}>Make more</Button>
                 <Button variant="primary" onClick={() => onIssue(type.id)}>Issue</Button>
+                {getLines && <Button variant="ghost" pending={downloading === type.id} onClick={() => downloadDefinition(type)}>Definition</Button>}
               </div>
             )}
           </li>
