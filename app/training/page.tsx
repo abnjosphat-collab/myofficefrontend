@@ -10,11 +10,12 @@ import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PersonInput } from '@/components/shared/PersonInput';
-import { Button, Card, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { Button, Card, Checkbox, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { useBulkDelete } from '@/lib/useBulkDelete';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
+import { BulkCertificationForm } from './BulkCertificationForm';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
@@ -23,7 +24,7 @@ const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-s
   Valid: { tone: statusTone('valid'), label: 'Valid', icon: 'valid' }, 'Due Soon': { tone: statusTone('due_soon'), label: 'Due soon', icon: 'due-soon' }, Expired: { tone: statusTone('expired'), label: 'Expired', icon: 'expired' },
 };
 const ALL = '__all__';
-const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', certification_name: '', expiry_date: '', required_refresher: '', certificate_file: null };
+const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', designation: '', section: '', certification_name: '', provider: '', training_date: '', expiry_date: '', required_refresher: '', certificate_file: null };
 
 // A cert missing or with a malformed expiry would otherwise leak "NaNd remaining" onto the register.
 function daysUntilExpiry(d: string): number {
@@ -41,29 +42,36 @@ const complianceTone = (pct: number): 'success' | 'warning' | 'danger' => (pct >
 
 const dlCols: DLColumn[] = [
   { key: 'employee_id', label: 'Employee ID' }, { key: 'employee_name', label: 'Employee Name' }, { key: 'department', label: 'Department' },
-  { key: 'certification_name', label: 'Certification' }, { key: 'required_refresher', label: 'Refresher Required' }, { key: 'expiry_date', label: 'Expiry Date' }, { key: 'status', label: 'Status' },
+  { key: 'certification_name', label: 'Certification' }, { key: 'provider', label: 'Provider' }, { key: 'training_date', label: 'Training Date' },
+  { key: 'required_refresher', label: 'Refresher Required' }, { key: 'expiry_date', label: 'Expiry Date' }, { key: 'status', label: 'Status' },
 ];
 
 function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Certification | null; open: boolean; onOpenChange: (open: boolean) => void; onSaved: () => void }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [touched, setTouched] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   useResetOnOpen(dialogKey(open, cert?.id), () => {
     setTouched(false);
-    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department, certification_name: cert.certification_name, expiry_date: cert.expiry_date, required_refresher: cert.required_refresher, certificate_file: null } : EMPTY_FORM);
+    setAdvanced(false);
+    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department ?? '', designation: cert.snapshot_designation ?? '', section: cert.snapshot_section ?? '', certification_name: cert.certification_name, provider: cert.provider ?? '', training_date: cert.training_date ?? '', expiry_date: cert.expiry_date, required_refresher: cert.required_refresher ?? '', certificate_file: null } : EMPTY_FORM);
   });
   const set = (patch: Partial<FormState>) => setForm(current => ({ ...current, ...patch }));
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
   const days = form.expiry_date ? daysUntilExpiry(form.expiry_date) : null;
   const previewStatus = days === null ? null : days < 0 ? 'Expired' : days <= 90 ? 'Due Soon' : 'Valid';
+  const registerLine = [form.designation, form.section, form.department].filter(v => (v ?? '').trim()).join(' · ');
+  const dateOrderError = form.training_date && form.expiry_date && form.expiry_date < form.training_date;
 
   const submit = async () => {
     setTouched(true);
-    if (!form.employee_name.trim() || !form.employee_id.trim() || !form.certification_name.trim() || !form.expiry_date) return false;
+    if (!form.employee_name.trim() || !form.employee_id.trim() || !form.certification_name.trim() || !form.expiry_date || dateOrderError) return false;
     const fd = new FormData();
     fd.append('employee_name', form.employee_name);
     fd.append('employee_id', form.employee_id);
     fd.append('department', form.department);
     fd.append('certification_name', form.certification_name);
+    fd.append('provider', form.provider);
+    if (form.training_date) fd.append('training_date', form.training_date);
     fd.append('expiry_date', form.expiry_date);
     fd.append('required_refresher', form.required_refresher);
     if (form.certificate_file) fd.append('certificate_file', form.certificate_file);
@@ -75,17 +83,33 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} title={cert ? 'Edit certification' : 'Add certification'} description="Employee name, employee ID, certification and expiry date are required." submitLabel={cert ? 'Save changes' : 'Save certification'} onSubmit={submit} size="lg" zoomId={cert ? undefined : 'training:new'}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><PersonInput value={form.employee_name} onChange={v => set({ employee_name: v })} onPick={e => set({ employee_id: String(e.employee_id ?? ''), ...(e.department ? { department: String(e.department) } : {}) })} /></Field>
-        <Field label="Employee ID" required error={missing(form.employee_id, 'Enter the employee ID.')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value })} placeholder="For example, E001" /></Field>
+        <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><PersonInput value={form.employee_name} onChange={v => set({ employee_name: v, designation: '', section: '' })} onPick={e => set({ employee_name: [e.first_name, e.last_name].filter(Boolean).join(' ') || String((e.full_name ?? e.name) ?? ''), employee_id: String(e.employee_id ?? ''), ...(e.department ? { department: String(e.department) } : {}), designation: String(e.designation ?? e.position ?? ''), section: String(e.section ?? '') })} /></Field>
+        <Field label="Employee ID" required error={missing(form.employee_id, 'Enter the employee ID.')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value, designation: '', section: '' })} placeholder="For example, E001" /></Field>
+        {registerLine ? (
+          <p className="font-sans text-body-sm text-ink-muted sm:col-span-2" aria-live="polite">
+            Register: {registerLine} — these official values are frozen onto this record when saved. Later register changes will not alter it.
+          </p>
+        ) : (
+          <p className="font-sans text-body-sm text-ink-muted sm:col-span-2">No register match yet — pick a name above, or this is saved as written.</p>
+        )}
         <Field label="Department" optional><Input value={form.department} onChange={e => set({ department: e.target.value })} /></Field>
         <Field label="Certification name" required error={missing(form.certification_name, 'Enter the certification name.')}><Input value={form.certification_name} onChange={e => set({ certification_name: e.target.value })} placeholder="For example, First aid and CPR" /></Field>
+        <Field label="Provider" optional><Input value={form.provider} onChange={e => set({ provider: e.target.value })} placeholder="For example, TechEdge" /></Field>
+        <Field label="Training date" optional error={dateOrderError ? 'Training cannot be after the expiry date.' : undefined}><Input type="date" value={form.training_date} onChange={e => set({ training_date: e.target.value })} /></Field>
         <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}><Input type="date" value={form.expiry_date} onChange={e => set({ expiry_date: e.target.value })} /></Field>
-        <Field label="Required refresher" optional><Input value={form.required_refresher} onChange={e => set({ required_refresher: e.target.value })} placeholder="For example, BLS refresher" /></Field>
         <div className="sm:col-span-2">
-          <Field label="Certificate document" optional description={cert?.certificate_url && !form.certificate_file ? 'A file is already attached. Choosing a new one replaces it.' : 'PDF or image (.pdf, .jpg, .png).'}>
-            <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => set({ certificate_file: e.target.files?.[0] ?? null })} className="h-auto py-2 file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:font-sans file:text-label file:text-ink" />
-          </Field>
+          <Checkbox label="Refresher and certificate file" description="Required refresher and the individual certificate document." checked={advanced} onChange={e => setAdvanced(e.target.checked)} />
         </div>
+        {advanced && (
+          <>
+            <Field label="Required refresher" optional><Input value={form.required_refresher} onChange={e => set({ required_refresher: e.target.value })} placeholder="For example, BLS refresher" /></Field>
+            <div className="sm:col-span-2">
+              <Field label="Certificate document" optional description={cert?.certificate_url && !form.certificate_file ? 'A file is already attached. Choosing a new one replaces it.' : 'The individual certificate for this person — PDF or image (.pdf, .jpg, .png). A group attendance sheet is not a certificate.'}>
+                <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => set({ certificate_file: e.target.files?.[0] ?? null })} className="h-auto py-2 file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:font-sans file:text-label file:text-ink" />
+              </Field>
+            </div>
+          </>
+        )}
         {previewStatus && days !== null && (
           <div className="flex flex-wrap items-center gap-3 rounded-control border border-line-subtle bg-surface-subtle p-3 sm:col-span-2">
             <span className="font-sans text-body-sm text-ink-muted">Status once saved:</span>
@@ -113,6 +137,7 @@ function TrainingContent() {
   const [sort, setSort] = useState<SortState>(null);
   const [editing, setEditing] = useState<Certification | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const depts = useMemo(() => [...new Set(certs.map(c => c.department).filter(Boolean))].sort(), [certs]);
   const filtered = useMemo(() => {
@@ -120,7 +145,7 @@ function TrainingContent() {
     return certs
       .filter(c => statusFilter === ALL || c.status === statusFilter)
       .filter(c => deptFilter === ALL || c.department === deptFilter)
-      .filter(c => !q || c.employee_name.toLowerCase().includes(q) || c.certification_name.toLowerCase().includes(q) || c.employee_id.toLowerCase().includes(q))
+      .filter(c => !q || c.employee_name.toLowerCase().includes(q) || c.certification_name.toLowerCase().includes(q) || c.employee_id.toLowerCase().includes(q) || (c.provider ?? '').toLowerCase().includes(q))
       .sort((a, b) => (STATUS_ORDER[b.status] ?? 0) - (STATUS_ORDER[a.status] ?? 0));
   }, [certs, statusFilter, deptFilter, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
@@ -152,7 +177,7 @@ function TrainingContent() {
 
   const COLUMNS: Column<Certification>[] = [
     { id: 'employee_name', header: 'Employee', sortable: true, sticky: true, cell: c => <span>{c.employee_name}<span className="block text-caption font-normal text-ink-muted">{[c.department, c.employee_id].filter(Boolean).join(' · ')}</span></span> },
-    { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}</span> },
+    { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{c.provider && <span className="block text-caption text-ink-muted">{c.provider}{c.training_date ? ` · trained ${c.training_date}` : ''}</span>}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}{c.group_evidence_url && <span className="block text-caption text-ink-muted">Group evidence on file</span>}</span> },
     { id: 'expiry_date', header: 'Expiry', sortable: true, cell: c => <span><span className="tabular whitespace-nowrap">{c.expiry_date ? formatDate(c.expiry_date) : 'Not set'}</span><span className="block"><DaysLeft expiry={c.expiry_date} /></span></span> },
     { id: 'status', header: 'Status', sortable: true, cell: c => <StatusTag status={c.status} /> },
     { id: 'certificate', header: 'Certificate', hideBelow: 'md', cell: c => (c.certificate_url ? <a href={c.certificate_url} target="_blank" rel="noreferrer" className="focus-ring rounded-xs text-action underline underline-offset-2">Open file</a> : <span className="text-ink-muted">None</span>) },
@@ -166,6 +191,7 @@ function TrainingContent() {
         description={scope ? `Employee qualifications, expiry dates and compliance — showing ${scope} only.` : 'Employee qualifications, expiry dates and compliance.'}
         actions={(
           <>
+            <Button variant="secondary" icon="plus" onClick={() => setBulkOpen(true)}>Bulk entry</Button>
             <ZoomLink zoomId="training:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openEditor(null)}>Add certification</Button></ZoomLink>
           </>
         )}
@@ -293,6 +319,7 @@ function TrainingContent() {
       </Tabs>
 
       <CertificationDialog cert={editing} open={dialogOpen} onOpenChange={setDialogOpen} onSaved={() => fetchAll(true)} />
+      <BulkCertificationForm open={bulkOpen} onOpenChange={setBulkOpen} onCreated={() => fetchAll(true)} certs={certs} />
     </div>
   );
 }

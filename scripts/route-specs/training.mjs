@@ -6,6 +6,10 @@ const CERTS = [
   { id: 2, employee_name: 'Ben Beta', employee_id: 'E2', department: 'Mining', certification_name: 'Blasting', expiry_date: iso(40), required_refresher: '', status: 'Due Soon', certificate_url: null },
   { id: 3, employee_name: 'Cat Gamma', employee_id: 'E3', department: 'Mining', certification_name: 'Rigging', expiry_date: iso(400), required_refresher: '', status: 'Valid', certificate_url: null },
 ];
+const REGISTER = [
+  { id: 1, employee_id: 'C1165', first_name: 'Ed', last_name: 'Echo', designation: 'Fitter Class 1', section: 'Mechanical', department: 'Engineering' },
+  { id: 2, employee_id: 'C1166', first_name: 'Fay', last_name: 'Foxtrot', designation: 'Electrician', section: 'Electrical', department: 'Engineering' },
+];
 const spec = {
   route: '/training',
   h1: 'Training',
@@ -14,6 +18,14 @@ const spec = {
     '/api/training/reports/compliance_rate': { compliance_rate: 67, total_tracked: 3, non_compliant: 1 },
     '/api/training/reports/due_refreshers': [{ refresher: 'BLS', employees_due: 3 }],
     'DELETE /api/training/1': {},
+    '/api/employees': REGISTER,
+    'POST /api/training/bulk': {
+      batch_id: 'b1', total: 2, created: 1, skipped: 0, failed: 1,
+      results: [
+        { employee_id: 'C1165', outcome: 'created', record_id: 'n1', uncertain: false },
+        { employee_id: 'C1166', outcome: 'failed', reason: 'No save confirmation received.', uncertain: true },
+      ],
+    },
   },
   async ready(page, calls, { check, shot }) {
     const table = page.getByRole('table', { name: 'Certification register' });
@@ -57,6 +69,54 @@ const spec = {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
     await page.waitForTimeout(700);
     check(calls.some(c => c.method === 'DELETE' && c.pathname === '/api/training/1'), 'confirming sends the delete');
+
+    // bulk certification entry: validation, trade filter, select-all, review, partial result
+    await page.getByRole('button', { name: 'Bulk entry' }).click();
+    const bulk = page.getByRole('dialog', { name: 'Certifications for several people' });
+    await bulk.waitFor({ timeout: 5000 });
+    await bulk.getByRole('button', { name: 'Record certifications' }).click();
+    check(await bulk.getByText('Add at least one employee.').isVisible(), 'bulk entry requires people');
+    await bulk.getByRole('combobox', { name: 'Trade' }).click();
+    await page.getByRole('option', { name: 'Fitter Class 1' }).click();
+    await page.waitForTimeout(500);
+    check(await bulk.getByRole('button', { name: 'Select all 1' }).isVisible(), 'trade filter narrows to Fitter Class 1');
+    await bulk.getByRole('combobox', { name: 'Trade' }).click();
+    await page.getByRole('option', { name: 'All trades' }).click();
+    await bulk.getByRole('button', { name: 'Select all 2' }).click();
+    await page.waitForTimeout(500);
+    check((await bulk.innerText()).includes('2 picked'), 'select-all adds everyone the filters match');
+    check(await bulk.getByText('Review (2)').isVisible(), 'chosen people are reviewable before sending');
+    await bulk.getByRole('list', { name: 'Chosen people, review' }).getByRole('button', { name: 'Remove' }).first().click();
+    await page.waitForTimeout(500);
+    check((await bulk.innerText()).includes('1 picked'), 'one person can be removed from the review');
+    await bulk.getByRole('button', { name: 'Select all 1' }).click();
+    await bulk.getByLabel(/^Certification/).fill('Safety induction');
+    await bulk.getByLabel(/^Training date/).fill(iso(0));
+    await bulk.getByLabel(/^Expiry date/).fill(iso(200));
+    await bulk.getByRole('button', { name: 'Record 2 certifications' }).click();
+    await page.waitForTimeout(700);
+    const post = calls.filter(c => c.method === 'POST' && c.pathname === '/api/training/bulk').pop();
+    check(post?.body?.items?.length === 2, 'bulk sends one entry per person', JSON.stringify(post?.body).slice(0, 200));
+    check(await bulk.getByText('Not confirmed', { exact: true }).isVisible(), 'uncertain outcomes are reported, not hidden');
+    await page.waitForTimeout(500);
+    check((await bulk.innerText()).includes('1 picked'), 'confirmed rows leave the retry list');
+    await shot(page, 'bulk@1440');
+    await bulk.getByRole('button', { name: 'Cancel' }).click();
+    const bdc = page.getByRole('alertdialog');
+    await bdc.waitFor({ timeout: 5000 });
+    await bdc.getByRole('button', { name: 'Discard changes' }).click();
+    await bulk.waitFor({ state: 'hidden', timeout: 5000 });
+  },
+  async mobile(page, { check, shot, expectNoOverflow }) {
+    await page.getByRole('button', { name: 'Bulk entry' }).click();
+    const bulk = page.getByRole('dialog', { name: 'Certifications for several people' });
+    await bulk.waitFor({ timeout: 5000 });
+    await bulk.getByRole('button', { name: 'Select all 2' }).click();
+    check((await bulk.innerText()).includes('2 picked'), 'bulk selection works at 390px');
+    check(await bulk.getByText('Review (2)').isVisible(), 'the review list reads at 390px');
+    await expectNoOverflow(page, 'bulk@390');
+    await shot(page, 'bulk@390');
+    await page.keyboard.press('Escape');
   },
   create: {
     open: 'Add certification', dialog: 'Add certification', path: '/api/training', submit: 'Save certification',

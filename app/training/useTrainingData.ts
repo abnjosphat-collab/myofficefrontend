@@ -9,10 +9,28 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/apiClient';
 import { retryTransient } from '@/lib/transientRetry';
 import { useAutoRefresh } from '@/lib/useAutoRefresh';
-import type { Certification, ComplianceReport, RefresherItem } from './types';
+import type { BulkPersonOverride, BulkSharedDetails, BulkSubmitResponse, Certification, ComplianceReport, RefresherItem } from './types';
 
 export async function createCertification(fd: FormData) {
   return api.post('/api/training', fd);
+}
+
+export async function createBulkCertifications(shared: BulkSharedDetails, people: BulkPersonOverride[]) {
+  return api.post<BulkSubmitResponse>('/api/training/bulk', {
+    certification_name: shared.certification_name,
+    provider: shared.provider,
+    training_date: shared.training_date,
+    expiry_date: shared.expiry_date,
+    required_refresher: shared.required_refresher,
+    group_evidence_url: shared.group_evidence_url || undefined,
+    items: people.map(p => ({
+      employee_id: p.employee_id,
+      ...(p.expiry_date ? { expiry_date: p.expiry_date } : {}),
+      ...(p.required_refresher !== undefined ? { required_refresher: p.required_refresher } : {}),
+      ...(p.provider !== undefined ? { provider: p.provider } : {}),
+      ...(p.training_date ? { training_date: p.training_date } : {}),
+    })),
+  });
 }
 export async function updateCertification(id: string | number, fd: FormData) {
   return api.put(`/api/training/${id}`, fd);
