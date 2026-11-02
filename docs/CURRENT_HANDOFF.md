@@ -568,3 +568,11 @@ Owner report: "Clerk" did not appear on the Designation dropdown. Root cause: `D
 
 The other repo's pre-existing edit; Tools polish edits; the no-caching rules in `PWA_UPDATES.md`; (the old never-auto-refresh rule was superseded by owner-approved batch B2, 27 Oct 2026 — see §8o);
 the failure-state patterns; the owner's constraints in section 1.
+
+## 2026-11-02 overtime release
+
+Owner authorised commit/push to main. Release isolated from unfinished Mining/PPE work in clean worktrees. Backend main 7e75d9e has green CI; owner confirmed /api/version serves that exact commit after an initial 503 cleared on retry. Backend exact-release suite: 2932 passed, 93.09% coverage; dependency audit clean after dnspython 2.9.0 security update.
+
+Frontend exact-release checks: TypeScript, targeted lint, documentation contracts, production build (68 static routes), 29 focused picker/bulk tests, 3 budget-route tests, and 2 production-browser overtime scenarios at 1440/390 passed. The source working tree's broader 2638-test run is separate evidence, not an exact-release full-suite result. Existing Linux main CI filename failure was corrected by splitting both path separators in the budget workbook response; no calculations changed. Frontend CI and Vercel production status must be checked against the release commit after push.
+
+Bulk overtime now distinguishes confirmed success, explicit refusal, and uncertain outcomes without replaying writes. Tab/Enter can select consecutive names while keeping Employees search focused; empty Tab advances. No SQL or live records changed. Existing dirty worktrees remain preserved.

@@ -18,7 +18,7 @@ export interface ChecklistOption {
   description?: string;
 }
 
-export function OptionChecklist({ label, options, value, onChange, searchPlaceholder, searchAside, emptyText, pickedWord = 'picked', noneText = 'Nobody picked yet.', showChips = true, chipsLabel, labelOf, search = true }: {
+export function OptionChecklist({ label, options, value, onChange, searchPlaceholder, searchAside, renderSearch, emptyText, pickedWord = 'picked', noneText = 'Nobody picked yet.', showChips = true, chipsLabel, labelOf, search = true }: {
   /** What is being chosen ("Employees", "PPE types"); seeds the accessible names. */
   label: string;
   /** Already scoped by the caller (a section filter, a mode); search narrows further. */
@@ -28,6 +28,8 @@ export function OptionChecklist({ label, options, value, onChange, searchPlaceho
   searchPlaceholder?: string;
   /** Rendered beside the search box (a section Select, a mode switch). */
   searchAside?: ReactNode;
+  /** Optional shared search control; it owns the same query as checkbox filtering. */
+  renderSearch?: (props: { value: string; onValueChange: (value: string) => void }) => ReactNode;
   /** Shown when search matches nothing ("No employee matches."). */
   emptyText: string;
   /** Count-line wording: "1 picked." / "Nobody picked yet." */
@@ -56,7 +58,7 @@ export function OptionChecklist({ label, options, value, onChange, searchPlaceho
         <div className="flex flex-col gap-2 sm:flex-row">
           {search && (
             <div className="min-w-0 flex-1">
-              <SearchField label={`Search ${label}`} value={query} onValueChange={setQuery} placeholder={searchPlaceholder || 'Search'} />
+              {renderSearch ? renderSearch({ value: query, onValueChange: setQuery }) : <SearchField label={`Search ${label}`} value={query} onValueChange={setQuery} placeholder={searchPlaceholder || 'Search'} />}
             </div>
           )}
           {searchAside}

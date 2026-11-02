@@ -19,6 +19,7 @@ import { PAYOUT_LABELS, PLANNING_LABELS, TYPE_LABELS } from './overtimeMeta';
 import { SELECTABLE_OT_TYPES, overtimeCostCentreOptions, type OTForm, type OTRecord, type OTType, type PayoutMethod, type PlanningStatus } from './types';
 import { buildOvertimePayload, createOT } from './useOvertimeData';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
+import { ApiError } from '@/lib/apiClient';
 
 type Shared = Omit<OTForm, 'employee_name' | 'employee_id' | 'position' | 'department' | 'contact_number'>;
 const sharedOf = (): Shared => {
@@ -52,17 +53,26 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
     setTouched(true);
     if (bad) return false;
     if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
-    const failed: { person: PickedPerson; reason: string }[] = [];
+    const failed: { person: PickedPerson; reason: string; uncertain: boolean }[] = [];
     let ok = 0;
     for (const p of people) {
       try { await createOT(buildOvertimePayload({ ...form, employee_name: p.name, employee_id: p.employee_id, ...metaOf(p) }, useHours)); ok += 1; }
-      catch (e) { failed.push({ person: p, reason: e instanceof Error ? e.message : 'Not saved.' }); }
+      catch (e) {
+        // Only a received client-error refusal proves this attempt was not accepted.
+        // A timeout, unreadable response or transport/server error may follow a commit.
+        const refused = e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 408;
+        failed.push({ person: p, reason: e instanceof Error ? e.message : 'No save confirmation received.', uncertain: !refused });
+      }
     }
-    if (ok) onCreated();
+    const uncertain = failed.filter(f => f.uncertain).length;
+    if (ok || uncertain) onCreated();
     if (form.reason.trim()) rememberChoice(REASON_HISTORY_KEY, form.reason);
     if (failed.length) {
       setPeople(failed.map(f => f.person));
-      throw new Error(`${ok} submitted, ${failed.length} not saved. ${failed.map(f => `${f.person.name}: ${f.reason}`).join(' ')}`);
+      const outcome = uncertain ? `${uncertain} not confirmed${failed.length > uncertain ? `, ${failed.length - uncertain} not saved` : ''}` : `${failed.length} not saved`;
+      const details = failed.map(f => `${f.person.name}: ${f.reason}`).join(' ');
+      const followup = uncertain ? `${/[.!?]$/.test(details) ? ' ' : '. '}A response was lost or the server had a problem; some requests may already be saved. Check the refreshed overtime list before retrying.` : '';
+      throw new Error(`${ok} submitted, ${outcome}. ${details}${followup}`);
     }
     return undefined;
   };
@@ -70,7 +80,7 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
   return (
     <FormDialog open={open} onOpenChange={onOpenChange} size="lg" title="Overtime for several people" description="One request per person, all with these details." zoomId="overtime:new-bulk" submitLabel={people.length > 0 ? `Submit ${people.length} ${people.length === 1 ? 'request' : 'requests'}` : 'Submit'} onSubmit={submit}>
       <div className="flex flex-col gap-5">
-        <PeopleChecklist label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Tick everyone who worked the same overtime.'} />
+        <PeopleChecklist autocomplete keepFocusOnPick label="Employees" value={people} onChange={setPeople} hint={touched && people.length === 0 ? undefined : 'Type a name and press Tab to add, or tick everyone who worked the same overtime.'} />
         {touched && people.length === 0 && <p role="alert" className="-mt-3 font-sans text-caption text-danger">Add at least one employee.</p>}
         {touched && noPosition.length > 0 && <Notice tone="danger" title="No position on record">The server needs a position for every request. Use New request for {noPosition.map(p => p.name).join(', ')}.</Notice>}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

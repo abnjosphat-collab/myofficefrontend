@@ -20,12 +20,64 @@ beforeEach(() => {
   clearRecentPeople();
 });
 
-function Harness() {
+function Harness({ autocomplete = false, keepFocusOnPick = false }: { autocomplete?: boolean; keepFocusOnPick?: boolean }) {
   const [value, setValue] = useState<PickedPerson[]>([]);
-  return <PeopleChecklist label="Employees" value={value} onChange={setValue} />;
+  return <PeopleChecklist label="Employees" value={value} onChange={setValue} autocomplete={autocomplete} keepFocusOnPick={keepFocusOnPick} />;
 }
 
 describe('PeopleChecklist', () => {
+  it('keeps focus for consecutive Tab selections when opted in, but an empty Tab still advances', async () => {
+    const user = userEvent.setup();
+    render(<Harness autocomplete keepFocusOnPick />);
+    const input = screen.getByRole('combobox', { name: 'Employees' });
+    await user.type(input, 'Zed');
+    await user.tab();
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue('');
+    expect(screen.getByRole('checkbox', { name: /Zed Zulu/ })).toBeChecked();
+    await user.type(input, 'Alpha');
+    await user.tab();
+    expect(input).toHaveFocus();
+    expect(screen.getByRole('checkbox', { name: /Ann Alpha/ })).toBeChecked();
+    await user.tab();
+    expect(input).not.toHaveFocus();
+  });
+
+  it('can complete a name with Tab and add the corresponding employee without submitting', async () => {
+    const user = userEvent.setup();
+    const submit = vi.fn(e => e.preventDefault());
+    render(<form onSubmit={submit}><Harness autocomplete /></form>);
+    const input = screen.getByRole('combobox', { name: 'Employees' });
+    await user.type(input, 'Zed');
+    expect(document.querySelector('[data-name-completion]')).toHaveTextContent('Zulu');
+    await user.tab();
+    expect(screen.getByRole('checkbox', { name: /Zed Zulu/ })).toBeChecked();
+    expect(input).toHaveValue('');
+    expect(input).not.toHaveFocus();
+    expect(submit).not.toHaveBeenCalled();
+    await user.click(input);
+    await user.type(input, 'Zed');
+    expect(screen.queryByRole('option', { name: /Zed Zulu/ })).not.toBeInTheDocument();
+    await user.tab();
+    expect(screen.getByRole('button', { name: /Remove Zed Zulu/ })).toBeVisible();
+  });
+
+  it('completes by mine number with Enter and respects the section filter', async () => {
+    const user = userEvent.setup();
+    render(<Harness autocomplete />);
+    const input = screen.getByRole('combobox', { name: 'Employees' });
+    await user.click(screen.getByRole('combobox', { name: 'Section' }));
+    await user.click(screen.getByRole('option', { name: 'Plant' }));
+    await user.type(input, 'C009');
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('checkbox', { name: /Zed Zulu/ })).toBeChecked();
+    expect(input).toHaveFocus();
+    await user.type(input, 'Ann');
+    expect(screen.queryByRole('option', { name: /Ann/ })).not.toBeInTheDocument();
+    await user.clear(input);
+    expect(screen.queryByRole('checkbox', { name: /Ann Alpha/ })).not.toBeInTheDocument();
+  });
+
   it('ticks add people and unticks remove them', async () => {
     const user = userEvent.setup();
     render(<Harness />);

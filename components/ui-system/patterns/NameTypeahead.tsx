@@ -29,12 +29,14 @@ export interface NameTypeaheadProps {
   disabled?: boolean;
   /** Start with the caret in the box. The dialog leaves focus alone while this is set. */
   autoFocusSearch?: boolean;
+  /** Crew entry: keep the search focused after a pick, including Tab. Empty Tab still advances. */
+  keepFocusOnPick?: boolean;
   className?: string;
   'aria-label'?: string;
 }
 
 export function NameTypeahead({
-  text, onTextChange, options, recent, onChoose, onBlur, multiple = false, emptyMessage, placeholder, disabled, autoFocusSearch, className, ...aria
+  text, onTextChange, options, recent, onChoose, onBlur, multiple = false, emptyMessage, placeholder, disabled, autoFocusSearch, keepFocusOnPick = false, className, ...aria
 }: NameTypeaheadProps) {
   const field = useFieldProps();
   const markDirty = useMarkDirty();
@@ -59,6 +61,7 @@ export function NameTypeahead({
     onChoose(s, multiple ? `${head}${s.label}, ` : s.label);
     setOpen(false);
     setHighlight(0);
+    if (keepFocusOnPick) inputRef.current?.focus({ preventScroll: true });
   };
   const keepOpen = (target: EventTarget | null) => target instanceof Node && !!anchorRef.current?.contains(target);
 
@@ -105,8 +108,8 @@ export function NameTypeahead({
                 setHighlight(h => (e.key === 'ArrowDown' ? (h >= last ? 0 : h + 1) : (h <= 0 ? last : h - 1)));
                 return;
               }
-              // Tab takes the highlighted name and lets focus move on; with nothing typed it only moves on.
-              if (e.key === 'Tab' && !e.shiftKey && showPanel && current && part.trim() !== '') { choose(current); return; }
+              // Tab normally advances after a pick; crew entry can keep focus. Empty Tab always advances.
+              if (e.key === 'Tab' && !e.shiftKey && showPanel && current && part.trim() !== '') { if (keepFocusOnPick) e.preventDefault(); choose(current); return; }
               if (e.key === 'Enter' && showPanel && current) { e.preventDefault(); choose(current); }
             }}
           />

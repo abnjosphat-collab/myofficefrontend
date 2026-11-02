@@ -23,7 +23,7 @@ export async function GET() {
     const parsed = await parseShiftBook(buf as unknown as ArrayBuffer);
     const avg = bookShiftAverages(parsed);
     return NextResponse.json({
-      fileName: path.split('\\').pop() ?? path,
+      fileName: path.split(/[\\/]/).pop() ?? path,
       monthsUsed: parsed.monthsUsed,
       averages: [...avg.entries()].map(([code, value]) => ({ code, value })),
     });
