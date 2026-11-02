@@ -29,6 +29,7 @@ export interface EmployeeLookup {
   position?: string;
   department?: string;
   section?: string;
+  id_number?: string;
   email?: string;
   phone?: string;
   [k: string]: unknown;

@@ -16,6 +16,8 @@ import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
 import { BulkCertificationForm } from './BulkCertificationForm';
+import { normalizeEmployeeId } from './calcTrainingBulk';
+import { useEmployees } from '@/hooks/useLookups';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 
@@ -24,16 +26,18 @@ const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-s
   Valid: { tone: statusTone('valid'), label: 'Valid', icon: 'valid' }, 'Due Soon': { tone: statusTone('due_soon'), label: 'Due soon', icon: 'due-soon' }, Expired: { tone: statusTone('expired'), label: 'Expired', icon: 'expired' },
 };
 const ALL = '__all__';
-const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', designation: '', section: '', certification_name: '', provider: '', training_date: '', expiry_date: '', required_refresher: '', certificate_file: null };
+const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', designation: '', section: '', certification_name: '', provider: '', training_date: '', expiry_date: '', no_expiry: false, required_refresher: '', certificate_file: null };
 
 // A cert missing or with a malformed expiry would otherwise leak "NaNd remaining" onto the register.
-function daysUntilExpiry(d: string): number {
+// A training with no expiry never lapses; callers keep it out of countdowns and say so explicitly.
+function daysUntilExpiry(d: string | null | undefined): number {
   if (!d) return 0;
   const t = new Date(d).getTime();
   return Number.isNaN(t) ? 0 : Math.ceil((t - Date.now()) / 86400000);
 }
 const StatusTag = ({ status }: { status: string }) => { const s = STATUS[status] ?? { tone: 'neutral' as Tone, label: status || 'Unknown', icon: 'info' as never }; return <StatusBadge tone={s.tone} icon={s.icon}>{s.label}</StatusBadge>; };
-const DaysLeft = ({ expiry }: { expiry: string }) => {
+const DaysLeft = ({ expiry }: { expiry: string | null }) => {
+  if (!expiry) return <span className="text-caption tabular text-ink-muted">Does not expire</span>;
   const days = daysUntilExpiry(expiry);
   const tone = days < 0 ? 'text-danger' : days <= 90 ? 'text-warning' : 'text-ink-muted';
   return <span className={`text-caption tabular ${tone}`}>{days < 0 ? `${Math.abs(days)} days overdue` : `${days} days left`}</span>;
@@ -53,26 +57,34 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   useResetOnOpen(dialogKey(open, cert?.id), () => {
     setTouched(false);
     setAdvanced(false);
-    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department ?? '', designation: cert.snapshot_designation ?? '', section: cert.snapshot_section ?? '', certification_name: cert.certification_name, provider: cert.provider ?? '', training_date: cert.training_date ?? '', expiry_date: cert.expiry_date, required_refresher: cert.required_refresher ?? '', certificate_file: null } : EMPTY_FORM);
+    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department ?? '', designation: cert.snapshot_designation ?? '', section: cert.snapshot_section ?? '', certification_name: cert.certification_name, provider: cert.provider ?? '', training_date: cert.training_date ?? '', expiry_date: cert.expiry_date ?? '', no_expiry: cert.expiry_date == null, required_refresher: cert.required_refresher ?? '', certificate_file: null } : EMPTY_FORM);
   });
   const set = (patch: Partial<FormState>) => setForm(current => ({ ...current, ...patch }));
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
-  const days = form.expiry_date ? daysUntilExpiry(form.expiry_date) : null;
-  const previewStatus = days === null ? null : days < 0 ? 'Expired' : days <= 90 ? 'Due Soon' : 'Valid';
-  const registerLine = [form.designation, form.section, form.department].filter(v => (v ?? '').trim()).join(' · ');
-  const dateOrderError = form.training_date && form.expiry_date && form.expiry_date < form.training_date;
+  // The live register row for whatever ID is typed or picked — exact personnel-number
+  // match only, so hand-typed contractor rows never borrow someone else's details.
+  const employees = useEmployees();
+  const match = employees.find(e => normalizeEmployeeId(e.employee_id) === normalizeEmployeeId(form.employee_id));
+  const trade = String(match?.designation ?? match?.position ?? form.designation ?? '');
+  const section = String(match?.section ?? form.section ?? '');
+  const nationalId = match?.id_number != null ? String(match.id_number) : '';
+  const registerDept = String(match?.department ?? '');
+  const days = form.no_expiry ? null : form.expiry_date ? daysUntilExpiry(form.expiry_date) : null;
+  const previewStatus = form.no_expiry ? 'Valid' : days === null ? null : days < 0 ? 'Expired' : days <= 90 ? 'Due Soon' : 'Valid';
+  const dateOrderError = !form.no_expiry && !!form.training_date && !!form.expiry_date && form.expiry_date < form.training_date;
 
   const submit = async () => {
     setTouched(true);
-    if (!form.employee_name.trim() || !form.employee_id.trim() || !form.certification_name.trim() || !form.expiry_date || dateOrderError) return false;
+    if (!form.employee_name.trim() || !form.employee_id.trim() || !form.certification_name.trim() || (!form.no_expiry && !form.expiry_date) || dateOrderError) return false;
     const fd = new FormData();
     fd.append('employee_name', form.employee_name);
     fd.append('employee_id', form.employee_id);
-    fd.append('department', form.department);
+    fd.append('department', match ? registerDept : form.department);
     fd.append('certification_name', form.certification_name);
     fd.append('provider', form.provider);
     if (form.training_date) fd.append('training_date', form.training_date);
-    fd.append('expiry_date', form.expiry_date);
+    if (!form.no_expiry && form.expiry_date) fd.append('expiry_date', form.expiry_date);
+    if (cert && form.no_expiry) fd.append('no_expiry', 'true');
     fd.append('required_refresher', form.required_refresher);
     if (form.certificate_file) fd.append('certificate_file', form.certificate_file);
     if (cert) await updateCertification(cert.id, fd); else await createCertification(fd);
@@ -85,18 +97,28 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Employee name" required error={missing(form.employee_name, 'Enter the employee name.')}><PersonInput value={form.employee_name} onChange={v => set({ employee_name: v, designation: '', section: '' })} onPick={e => set({ employee_name: [e.first_name, e.last_name].filter(Boolean).join(' ') || String((e.full_name ?? e.name) ?? ''), employee_id: String(e.employee_id ?? ''), ...(e.department ? { department: String(e.department) } : {}), designation: String(e.designation ?? e.position ?? ''), section: String(e.section ?? '') })} /></Field>
         <Field label="Employee ID" required error={missing(form.employee_id, 'Enter the employee ID.')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value, designation: '', section: '' })} placeholder="For example, E001" /></Field>
-        {registerLine ? (
-          <p className="font-sans text-body-sm text-ink-muted sm:col-span-2" aria-live="polite">
-            Register: {registerLine} — these official values are frozen onto this record when saved. Later register changes will not alter it.
-          </p>
+        {match ? (
+          <div className="rounded-control border border-line-subtle bg-surface-subtle p-3 sm:col-span-2" aria-live="polite">
+            <p className="font-sans text-body-sm text-ink">
+              {[trade, section, registerDept].filter(v => v.trim()).join(' · ')}{nationalId ? ` · ID ${nationalId}` : ''}
+            </p>
+            <p className="font-sans text-caption text-ink-muted">From the employee register — these official values are frozen onto this record when saved. Later register changes will not alter it.</p>
+          </div>
         ) : (
           <p className="font-sans text-body-sm text-ink-muted sm:col-span-2">No register match yet — pick a name above, or this is saved as written.</p>
         )}
-        <Field label="Department" optional><Input value={form.department} onChange={e => set({ department: e.target.value })} /></Field>
+        {!match && (
+          <Field label="Department" optional><Input value={form.department} onChange={e => set({ department: e.target.value })} /></Field>
+        )}
         <Field label="Certification name" required error={missing(form.certification_name, 'Enter the certification name.')}><Input value={form.certification_name} onChange={e => set({ certification_name: e.target.value })} placeholder="For example, First aid and CPR" /></Field>
         <Field label="Provider" optional><Input value={form.provider} onChange={e => set({ provider: e.target.value })} placeholder="For example, TechEdge" /></Field>
         <Field label="Training date" optional error={dateOrderError ? 'Training cannot be after the expiry date.' : undefined}><Input type="date" value={form.training_date} onChange={e => set({ training_date: e.target.value })} /></Field>
-        <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}><Input type="date" value={form.expiry_date} onChange={e => set({ expiry_date: e.target.value })} /></Field>
+        <div className="sm:col-span-2">
+          <Checkbox label="Does not expire" description="Some trainings have no expiry date." checked={form.no_expiry} onChange={e => set({ no_expiry: e.target.checked })} />
+        </div>
+        {!form.no_expiry && (
+          <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}><Input type="date" value={form.expiry_date} onChange={e => set({ expiry_date: e.target.value })} /></Field>
+        )}
         <div className="sm:col-span-2">
           <Checkbox label="Refresher and certificate file" description="Required refresher and the individual certificate document." checked={advanced} onChange={e => setAdvanced(e.target.checked)} />
         </div>
@@ -110,7 +132,13 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
             </div>
           </>
         )}
-        {previewStatus && days !== null && (
+        {form.no_expiry ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-control border border-line-subtle bg-surface-subtle p-3 sm:col-span-2">
+            <span className="font-sans text-body-sm text-ink-muted">Status once saved:</span>
+            <StatusTag status="Valid" />
+            <span className="font-sans text-body-sm text-ink-muted">Does not expire</span>
+          </div>
+        ) : previewStatus && days !== null && (
           <div className="flex flex-wrap items-center gap-3 rounded-control border border-line-subtle bg-surface-subtle p-3 sm:col-span-2">
             <span className="font-sans text-body-sm text-ink-muted">Status once saved:</span>
             <StatusTag status={previewStatus} />
@@ -148,7 +176,7 @@ function TrainingContent() {
       .filter(c => !q || c.employee_name.toLowerCase().includes(q) || c.certification_name.toLowerCase().includes(q) || c.employee_id.toLowerCase().includes(q) || (c.provider ?? '').toLowerCase().includes(q))
       .sort((a, b) => (STATUS_ORDER[b.status] ?? 0) - (STATUS_ORDER[a.status] ?? 0));
   }, [certs, statusFilter, deptFilter, search]);
-  const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
+  const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date ?? '' : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
   const bulk = useBulkSelection(certs, filtered, rowId);
   const { confirmBulkDelete, deleting } = useBulkDelete();
   const removeMany = () => void confirmBulkDelete({
@@ -159,7 +187,7 @@ function TrainingContent() {
   });
   const listCalm = JSON.stringify([search, statusFilter, deptFilter, sort]);
   const counts = useMemo(() => ({ total: certs.length, valid: certs.filter(c => c.status === 'Valid').length, expired: certs.filter(c => c.status === 'Expired').length, dueSoon: certs.filter(c => c.status === 'Due Soon').length }), [certs]);
-  const expiring = useMemo(() => certs.filter(c => { const d = daysUntilExpiry(c.expiry_date); return d >= 0 && d <= 90; }).sort((a, b) => daysUntilExpiry(a.expiry_date) - daysUntilExpiry(b.expiry_date)), [certs]);
+  const expiring = useMemo(() => certs.filter(c => c.expiry_date != null && daysUntilExpiry(c.expiry_date) >= 0 && daysUntilExpiry(c.expiry_date) <= 90).sort((a, b) => daysUntilExpiry(a.expiry_date) - daysUntilExpiry(b.expiry_date)), [certs]);
   const deptCompliance = useMemo(() => {
     const map = new Map<string, { total: number; expired: number }>();
     certs.forEach(c => { const d = c.department || 'Unknown'; const ex = map.get(d) ?? { total: 0, expired: 0 }; map.set(d, { total: ex.total + 1, expired: ex.expired + (c.status === 'Expired' ? 1 : 0) }); });
@@ -178,7 +206,7 @@ function TrainingContent() {
   const COLUMNS: Column<Certification>[] = [
     { id: 'employee_name', header: 'Employee', sortable: true, sticky: true, cell: c => <span>{c.employee_name}<span className="block text-caption font-normal text-ink-muted">{[c.department, c.employee_id].filter(Boolean).join(' · ')}</span></span> },
     { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{c.provider && <span className="block text-caption text-ink-muted">{c.provider}{c.training_date ? ` · trained ${c.training_date}` : ''}</span>}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}{c.group_evidence_url && <span className="block text-caption text-ink-muted">Group evidence on file</span>}</span> },
-    { id: 'expiry_date', header: 'Expiry', sortable: true, cell: c => <span><span className="tabular whitespace-nowrap">{c.expiry_date ? formatDate(c.expiry_date) : 'Not set'}</span><span className="block"><DaysLeft expiry={c.expiry_date} /></span></span> },
+    { id: 'expiry_date', header: 'Expiry', sortable: true, cell: c => <span><span className="tabular whitespace-nowrap">{c.expiry_date ? formatDate(c.expiry_date) : 'Does not expire'}</span><span className="block"><DaysLeft expiry={c.expiry_date} /></span></span> },
     { id: 'status', header: 'Status', sortable: true, cell: c => <StatusTag status={c.status} /> },
     { id: 'certificate', header: 'Certificate', hideBelow: 'md', cell: c => (c.certificate_url ? <a href={c.certificate_url} target="_blank" rel="noreferrer" className="focus-ring rounded-xs text-action underline underline-offset-2">Open file</a> : <span className="text-ink-muted">None</span>) },
   ];

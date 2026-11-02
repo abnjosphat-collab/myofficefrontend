@@ -7,8 +7,8 @@ const CERTS = [
   { id: 3, employee_name: 'Cat Gamma', employee_id: 'E3', department: 'Mining', certification_name: 'Rigging', expiry_date: iso(400), required_refresher: '', status: 'Valid', certificate_url: null },
 ];
 const REGISTER = [
-  { id: 1, employee_id: 'C1165', first_name: 'Ed', last_name: 'Echo', designation: 'Fitter Class 1', section: 'Mechanical', department: 'Engineering' },
-  { id: 2, employee_id: 'C1166', first_name: 'Fay', last_name: 'Foxtrot', designation: 'Electrician', section: 'Electrical', department: 'Engineering' },
+  { id: 1, employee_id: 'C1165', first_name: 'Ed', last_name: 'Echo', designation: 'Fitter Class 1', section: 'Mechanical', department: 'Engineering', id_number: '63-1234567-A1' },
+  { id: 2, employee_id: 'C1166', first_name: 'Fay', last_name: 'Foxtrot', designation: 'Electrician', section: 'Electrical', department: 'Engineering', id_number: '08-7654321-B2' },
 ];
 const spec = {
   route: '/training',
@@ -18,6 +18,7 @@ const spec = {
     '/api/training/reports/compliance_rate': { compliance_rate: 67, total_tracked: 3, non_compliant: 1 },
     '/api/training/reports/due_refreshers': [{ refresher: 'BLS', employees_due: 3 }],
     'DELETE /api/training/1': {},
+    'POST /api/training': { id: 999 },
     '/api/employees': REGISTER,
     'POST /api/training/bulk': {
       batch_id: 'b1', total: 2, created: 1, skipped: 0, failed: 1,
@@ -106,6 +107,21 @@ const spec = {
     await bdc.waitFor({ timeout: 5000 });
     await bdc.getByRole('button', { name: 'Discard changes' }).click();
     await bulk.waitFor({ state: 'hidden', timeout: 5000 });
+
+    // no-expiry save + register autofill (trade, section, department, national ID)
+    await page.getByRole('button', { name: 'Add certification' }).click();
+    const add = page.getByRole('dialog', { name: 'Add certification' });
+    await add.waitFor({ timeout: 5000 });
+    await add.getByLabel(/^Employee name/).fill('Ed Echo');
+    await add.getByLabel(/^Employee ID/).fill('C1165');
+    check((await add.innerText()).includes('Fitter Class 1'), 'trade autofills from the register');
+    check((await add.innerText()).includes('63-1234567-A1'), 'national ID autofills from the register');
+    await add.getByLabel(/^Certification name/).fill('Induction');
+    await add.getByRole('checkbox', { name: 'Does not expire' }).click();
+    check((await add.getByLabel(/^Expiry date/).count()) === 0, 'no-expiry hides the expiry date');
+    await add.getByRole('button', { name: 'Save certification' }).click();
+    await add.waitFor({ state: 'hidden', timeout: 5000 });
+    check(true, 'no-expiry save closes the dialog');
   },
   async mobile(page, { check, shot, expectNoOverflow }) {
     await page.getByRole('button', { name: 'Bulk entry' }).click();

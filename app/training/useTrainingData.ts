@@ -20,7 +20,7 @@ export async function createBulkCertifications(shared: BulkSharedDetails, people
     certification_name: shared.certification_name,
     provider: shared.provider,
     training_date: shared.training_date,
-    expiry_date: shared.expiry_date,
+    ...(shared.expiry_date ? { expiry_date: shared.expiry_date } : {}),
     required_refresher: shared.required_refresher,
     group_evidence_url: shared.group_evidence_url || undefined,
     items: people.map(p => ({

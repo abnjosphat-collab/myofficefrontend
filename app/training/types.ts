@@ -8,7 +8,7 @@ export interface Certification {
   employee_id: string;
   department: string;
   certification_name: string;
-  expiry_date: string;
+  expiry_date: string | null;
   required_refresher: string;
   status: 'Valid' | 'Due Soon' | 'Expired';
   certificate_url?: string | null;
@@ -27,7 +27,7 @@ export interface ComplianceReport { compliance_rate: number; total_tracked: numb
 export interface FormState {
   employee_name: string; employee_id: string; department: string;
   designation: string; section: string;
-  certification_name: string; provider: string; training_date: string; expiry_date: string; required_refresher: string; certificate_file: File | null;
+  certification_name: string; provider: string; training_date: string; expiry_date: string; no_expiry: boolean; required_refresher: string; certificate_file: File | null;
 }
 
 export interface BulkPersonOverride {
@@ -42,7 +42,7 @@ export interface BulkSharedDetails {
   certification_name: string;
   provider: string;
   training_date: string;
-  expiry_date: string;
+  expiry_date?: string;
   required_refresher: string;
   group_evidence_url?: string;
 }
