@@ -576,3 +576,170 @@ Owner authorised commit/push to main. Release isolated from unfinished Mining/PP
 Frontend exact-release checks: TypeScript, targeted lint, documentation contracts, production build (68 static routes), 29 focused picker/bulk tests, 3 budget-route tests, and 2 production-browser overtime scenarios at 1440/390 passed. The source working tree's broader 2638-test run is separate evidence, not an exact-release full-suite result. Existing Linux main CI filename failure was corrected by splitting both path separators in the budget workbook response; no calculations changed. Frontend CI and Vercel production status must be checked against the release commit after push.
 
 Bulk overtime now distinguishes confirmed success, explicit refusal, and uncertain outcomes without replaying writes. Tab/Enter can select consecutive names while keeping Employees search focused; empty Tab advances. No SQL or live records changed. Existing dirty worktrees remain preserved.
+
+## 2026-11-02 training employee-link + bulk entry (pushed; migration applied)
+
+Employee-linked Training records and bulk certification entry (brief + owner answers: minimal field set, date-keyed duplicate block, leave-plus-exact-link backfill). Trade evidence: Fitter Class 1 is a plain register `designation`, section Mechanical. Fitter/TechEdge names are examples only.
+- Backend + frontend branches `feature/training-employee-bulk-20261102` pushed (new branches, no deploy): backend `e0ff0e9`, frontend `4da07eb`. Only training files, staged by path. `POST /api/training/bulk`, at-training snapshots, per-item scope, group evidence kept apart from certificates. The backend push went from an isolated worktree off public `origin/main` so the checkout's three unpublished rainsuit/toolsets commits were not published; Tools/PPE files untouched throughout.
+- Follow-up this session: bulk save 405 diagnosed as production running pre-feature backend (route absent; verified by code, no prod reads) — bulk form now says so explicitly; "Does not expire" option added (nullable expiry, review-only migration `supabase_migration_training_optional_expiry.sql`, NOT run); single dialog resolves the live register row for any typed/picked ID and shows Trade · Section · Department · national ID (display-only, never stored/exported).
+- Gates: backend focused 42, full backend 2968 passed exit 0; frontend tsc/eslint clean, training vitest 21, `/training` spec 50/50 incl. bulk + no-expiry + autofill at desktop and 390px, docs:check green, production build 68/68. Full frontend suite 362/366 files (2664/2669); the 4 failing files (PPE/overtime/pachedu, no training imports) pass on re-run — load flakes under the shared tree.
+- Migration `supabase_migration_training_employee_link.sql` APPLIED to production project `geomlsxphwaxpaloweky` per explicit owner order (HTTP 201; live column check confirms all seven columns). Other session SQL files not run.
+- Owner actions: deploy the backend branch (bulk cannot work until then), then run the optional-expiry migration; review branches / open PRs (not created); production smoke of one exact-ID save + one two-person bulk + retry. This entry itself is uncommitted.
+
+## 23. Tool Sets + Rainsuit — 2 Nov 2026 (released to main, SQL pending owner)
+
+Implements the `docs/handoffs/mining-tools-rainsuit-2026-11-02/` brief (START_HERE +
+REQUIREMENTS + SOURCE_MAP + VERIFICATION_AND_DELIVERY, plus SPEC.md and
+IMPORT_PREVIEW.md written this run). Owner answers locked upfront: planned allocation
+(empty Issue Log — nothing historically issued), rainsuit rows are size requirements
+(not issues), inspections reuse the quarterly rhythm. Backend branch
+`feature/tool-sets-rainsuit-20261102` (from `fix/overtime-list-payload`); frontend
+branch `feature/tool-sets-rainsuit-20261102` (from `fix/ui-consistency-remediation`).
+No pushes, no SQL run, no live reads/writes (egress quota respected throughout).
+
+### Workbook evidence (local reads only)
+- SET-228: 135 lines, quantities sum to 227 (computed, matches printed total);
+  advertised 228 vs printed 227 gap stated in source, never adjusted; duplicate
+  flexible extension bar rows 86/94 retained as printed; Issue Log 100 blank
+  template rows, zero complete/partial — planned allocation. Physical count before
+  first issue is a source-stated precondition.
+- Raincoat: 24 Engineering rows, 30/10/2026, qty 1; S=1 M=0 L=7 XL=4 XXL=10 XXXL=2
+  (matches cached COUNTIF); title is REQUIREMENTS; handwriting/verify flags kept
+  verbatim; Togara vs Tongogara treated as different people until confirmed.
+
+### Backend (batches 1–5, all committed on the feature branch)
+- `app/tool_set228_workbook.py` + tests (6/6): overview/contents/log parse,
+  228-vs-227 and duplicate kept visible, surname-only recipient reconciliation
+  (exact match; ambiguous/unmatched quarantined, never fuzzy-merged).
+- `app/rainsuit_workbook.py` + tests (7/7): requirements parse (TOTAL footer
+  excluded — caught by real-file verification), canonical S–XXXL mapping with
+  source preserved, unknown never coerced, token-match reconciliation.
+- `app/tool_set228_seed.py` + generated `supabase_seed_set_228_2026-11-02.sql`
+  (135 lines, guarded on title, deterministic IDs); `app/rainsuit_seed.py` +
+  generated `supabase_seed_ppe_requirements_raincoat_2026-11-02.sql` (24 rows,
+  mine numbers NULL until owner links them).
+- `GET /api/ppe/requirements` in `app/routers/ppe.py` + tests (2/2): department
+  scope like the register; fulfilment derived from active rainsuit records only;
+  unmatched rows visible, never fulfilled. New migration
+  `supabase_migration_ppe_requirements_2026-11-02.sql` (OWNER RUNS).
+- Gates: full backend suite **2996 passed**, coverage 92.78% (≥90 gate);
+  pyright 0 errors on all touched files (repo baseline over-limit is pre-existing);
+  `git diff --check` clean. New endpoint needs the requirements table: existing
+  workflows unaffected (additive route/table), Rainsuit tab degrades to its error
+  state until the owner runs the migration.
+
+### Frontend (Rainsuit tab, set exports + download wiring)
+- `calcRainsuit.ts` + tests (6/6), `RainsuitView.tsx` + tests (register table,
+  L:7/XL:4/XXL:10/XXXL:2/S:1 strip, Fulfilled/Outstanding/Unmatched badges,
+  register + size-summary downloads), `PPERequirement` type, `usePPERequirements`
+  (quiet unless the Engineering tab shows). New "Rainsuit" tab on `/ppe`
+  (Engineering only; Mining view makes no new request).
+- `setExportTables.ts` + tests: definition, allocation register, printable
+  checklist (write-in columns + sign-off row), unresolved-findings builders;
+  exporter integration test proves four non-empty xlsx through real `exportTable`.
+- Wiring: per-type Definition download in `SetTypesView` (via `getLines`),
+  Checklist download in `SetPiecesSection` (grouped from pieces), both tested
+  (`setDownloads.test.tsx` 3/3).
+- Rendered: new `ppe-rainsuit.mjs` (tab, summary, badges, filters, download
+  capture) + `sets.mjs` additions (definition download, checklist button);
+  `verify-routes --only /ppe` ALL CHECKS PASSED (5 entries incl. Mining
+  regression); `--only /tools` ALL CHECKS PASSED. Screenshots inspected:
+  `ppe-rainsuit-register@1440.png` and `@390.png` (no overflow; filters stack).
+- Verified files: `rainsuit-register.xlsx` (filtered L scope reconciles),
+  `set-definition.xlsx` (real UI path), and all four set workbooks (titles,
+  totals, frozen panes, autofilters, checklist sign-off row).
+- Gates: `tsc` clean, `eslint` clean on touched files, `npm run build` green,
+  `docs:check` green (ledger regen: /ppe 12→14, /tools 33→35; the /training
+  1→2 line comes from the concurrent session's working-tree spec, preserved
+  untouched). Full frontend suite result pending at time of writing.
+
+### Owner actions outstanding (nothing applied)
+1. Supply mine numbers for the 18 tool recipients + 24 raincoat names (matching
+   report rules in IMPORT_PREVIEW.md); confirm Togara/Tongogara, L. Phiri size,
+   J. Dhauya size.
+2. Physical count of one kit against the printed 227-piece list.
+3. Run SQL in order: requirements migration → raincoat seed → SET-228 seed.
+4. In-ERP: make 18 sets, issue via Issue a set; fulfil rainsuits via normal issues.
+5. Signed-in acceptance + "release" per VERIFICATION_AND_DELIVERY.md (backend
+   main first, then frontend main; pushes authorized to main only at that point).
+
+### Remaining limitations
+- Allocation-register and unresolved-findings exports are builder-verified with
+  inspected sample files; their in-product buttons are a named follow-up
+  (definition + checklist downloads are in-product).
+- Strict dialog performance gate and Linux sidebar pixel baseline stay open
+  (prior sections, unchanged by this work).
+
+## 24. Employee-linked training + bulk certification entry — 2 Nov 2026 (pushed, migration applied)
+
+Implements the Training brief. Owner answers locked upfront: minimal field set
+(provider + training_date + designation/section/department snapshots), date-keyed
+duplicate block (same person + certification + training date; different date is a
+renewal), leave-plus-exact-link backfill (legacy rows untouched, no fuzzy matching).
+Trade evidence from the register: Fitter Class 1 is a plain `designation` string,
+section Mechanical — no assumption baked in. TechEdge used only as example text.
+
+### Branches and isolation (Tools/PPE session preserved throughout)
+- Backend + frontend: `feature/training-employee-bulk-20261102`, pushed to origin
+  (new branches; nothing deploys from them). Backend commit `e0ff0e9`, frontend
+  commit `4da07eb`. Only training files committed, staged by path.
+- The backend checkout gained three other-session commits mid-work (7de8653,
+  9e9e824, 49764f8, all rainsuit/toolsets, unpublished); the push went from an
+  isolated worktree off public `origin/main` so none of their commits were
+  published. The local backend branch still carries them plus uncommitted trees —
+  left alone, do not rewrite. Their untracked SQL/workbook/test files and the
+  frontend `app/ppe/calcRainsuit.test.ts` + `ppe-rainsuit.mjs` were never touched.
+- No shared components edited (`ui-system`, hooks, lib untouched). Temporary push
+  worktrees (`frontend-training-push`, `backend-training-push`) removed after use.
+
+### Backend (`app/routers/training.py`, additive only)
+- `employee_id` normalised (uppercased); on exact register match the name,
+  department and snapshots come from the register, otherwise submitted values are
+  kept as a legacy unlinked row. Later personnel edits never rewrite snapshots;
+  free-text edits cannot overwrite linked register values (all pinned by
+  `tests/test_training_bulk_link.py`, 13 tests).
+- New nullable columns: provider, training_date, snapshot_designation,
+  snapshot_section, snapshot_department, group_evidence_url (shared attendance
+  sheet, never anyone's certificate), batch_id. Legacy rows without training_date
+  never trigger the guard.
+- `POST /api/training/bulk` (≤200/batch): shared details once, per-person
+  overrides, per-item created/skipped/failed+uncertain; scoped viewers enforced
+  per item via the existing person rule. Single create/update return 409 on the
+  same person + certification + date.
+- Gates: focused training tests 39 passed; full backend suite **2996 passed**.
+
+### Frontend (`app/training/`, additive only)
+- Single dialog: autocomplete pick fills number, trade, section, department with a
+  frozen-snapshot note; provider + training date added; refresher/file behind a
+  progressive toggle. Export columns extended (provider, training date).
+- `BulkCertificationForm.tsx` + `calcTrainingBulk.ts` (18 tests): register
+  trade/section/department filters, select-all matching, review list with removal,
+  duplicate pre-warnings, advanced per-person dates + group evidence link,
+  retry-safe results. `scripts/route-specs/training.mjs` extended: `/training`
+  spec **46/46 checks pass**, incl. bulk flow at desktop and `mobile` bulk checks
+  at 390px; screenshots inspected (`training-bulk@1440`, `training-bulk@390`).
+- Gates: `tsc` clean, eslint clean on touched files, `docs:check` green,
+  production `npm run build` green (68 pages; one pre-existing overtime warning).
+- Full frontend suite: 362/366 files, 2664/2669 tests; the 4 failing files
+  (PPEIssueForm, parseShiftBook, OTBulkEditDialog, pachedu ReportDialog — zero
+  training imports, all in the concurrent session's active areas) pass on
+  targeted re-run (PPEIssueForm 6/6 solo), i.e. load/transient flakes under the
+  shared tree, not training regressions.
+
+### Migration — APPLIED to production per explicit owner order
+- `backend/supabase_migration_training_employee_link.sql` ran via the sanctioned
+  `scripts/apply_migration.py` against project `geomlsxphwaxpaloweky`: HTTP 201,
+  and a live column check confirms all seven columns on
+  `training_certifications`. Additive nullable-only; no backfill ran (by design).
+- The other session's SQL files (reset-work-orders, PPE requirements) were not
+  run. Post-check reads were limited to `information_schema`.
+
+### Owner actions outstanding
+1. Review the two pushed feature branches (PRs not created — not authorized).
+   Backend push base is `origin/main`; merge order per §23 release rule.
+2. Production smoke: open `/training`, add one certification for an exact
+   register ID and confirm the snapshot line; run one two-person bulk entry and
+   confirm skip-on-retry. No live test writes were made in this session.
+3. Optional: re-run the full frontend suite on a quiet tree to reconfirm the
+   four flaky files; link ambiguous legacy training rows one record at a time
+   via PUT with the register personnel number (exact matches only).
