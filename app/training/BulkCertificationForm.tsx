@@ -43,6 +43,7 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
   const [section, setSection] = useState('');
   const [department, setDepartment] = useState('');
   const [shared, setShared] = useState<BulkSharedDetails>(blankShared);
+  const [noExpiry, setNoExpiry] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [evidence, setEvidence] = useState('');
   const [overrides, setOverrides] = useState<Record<string, BulkPersonOverride>>({});
@@ -51,7 +52,7 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
 
   useResetOnOpen(dialogKey(open, undefined), () => {
     setIds([]); setTrade(''); setSection(''); setDepartment('');
-    setShared(blankShared()); setAdvanced(false); setEvidence(''); setOverrides({});
+    setShared(blankShared()); setNoExpiry(false); setAdvanced(false); setEvidence(''); setOverrides({});
     setTouched(false); setLastResult(null);
   });
 
@@ -89,22 +90,25 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
     touched && evidence.trim() && !evidence.trim().startsWith('http') ? 'Enter a link starting with http(s), or leave it empty.' : undefined;
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
   const dateOrderError =
-    touched && shared.training_date && shared.expiry_date && shared.expiry_date < shared.training_date
+    touched && !noExpiry && shared.training_date && shared.expiry_date && shared.expiry_date < shared.training_date
       ? 'The expiry date is before the training date.' : undefined;
   const invalid = ids.length === 0 || !shared.certification_name.trim() || !shared.training_date
-    || !shared.expiry_date || !!dateOrderError || !!evidenceError;
+    || (!noExpiry && !shared.expiry_date) || !!dateOrderError || !!evidenceError;
 
   const submit = async () => {
     setTouched(true);
     if (invalid) return false;
+    const effectiveShared = {
+      ...shared,
+      expiry_date: noExpiry ? undefined : (shared.expiry_date || undefined),
+      group_evidence_url: evidence.trim() || undefined,
+    };
     const { items } = buildBulkPayload(
-      { ...shared, group_evidence_url: evidence.trim() || undefined }, ids.map(employee_id => ({ employee_id })), overrides,
+      effectiveShared, ids.map(employee_id => ({ employee_id })), overrides,
     );
     let confirmed = false;
     try {
-      const res = await createBulkCertifications(
-        { ...shared, group_evidence_url: evidence.trim() || undefined }, items,
-      );
+      const res = await createBulkCertifications(effectiveShared, items);
       confirmed = true;
       const split = splitResults(res.results);
       setLastResult(split);
@@ -124,6 +128,11 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
       throw new Error(`${parts}. ${details}${split.uncertain.length > 0 ? ' Check the register before retrying the unconfirmed ones.' : ''}`);
     } catch (e) {
       if (confirmed) throw e;
+      const outdated = e instanceof ApiError && (e.status === 404 || e.status === 405);
+      if (outdated) {
+        throw new Error('Not saved: this backend does not support bulk entry yet. '
+          + 'Ask the owner to deploy the latest backend, then try again. Nobody was recorded.');
+      }
       const refused = e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 408;
       throw new Error(refused
         ? `Not saved: ${e instanceof Error ? e.message : 'The server refused the batch.'}`
@@ -181,9 +190,14 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
           <Field label="Training date" required error={missing(shared.training_date, 'Choose the training date.')}>
             <Input type="date" value={shared.training_date} onChange={e => setShared(s => ({ ...s, training_date: e.target.value }))} />
           </Field>
-          <Field label="Expiry date" required error={missing(shared.expiry_date, 'Choose the expiry date.')}>
-            <Input type="date" value={shared.expiry_date} onChange={e => setShared(s => ({ ...s, expiry_date: e.target.value }))} />
-          </Field>
+          <div className="sm:col-span-2">
+            <Checkbox label="Does not expire" description="Some trainings have no expiry date." checked={noExpiry} onChange={e => setNoExpiry(e.target.checked)} />
+          </div>
+          {!noExpiry && (
+            <Field label="Expiry date" required error={missing(shared.expiry_date ?? '', 'Choose the expiry date.')}>
+              <Input type="date" value={shared.expiry_date ?? ''} onChange={e => setShared(s => ({ ...s, expiry_date: e.target.value }))} />
+            </Field>
+          )}
           <Field label="Required refresher" optional className="sm:col-span-2">
             <Input value={shared.required_refresher} onChange={e => setShared(s => ({ ...s, required_refresher: e.target.value }))} placeholder="For example, Annual refresher" />
           </Field>
