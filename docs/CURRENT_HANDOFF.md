@@ -766,7 +766,105 @@ Owner decisions (asked, answered): (a) average overtime-module hours over the ca
 
 - **Dynamic window.** New `dataMonths(records)` (eligible records only: valid date, not rejected/cancelled) returns `{from, to, count}`; empty data falls back to Jul–Sep ÷3. BudgetView averages over that window, divides by its month count, and states the actual window in the About text. Summaries already uses its own picked range. Unknown-numbered records stay orphans (a mistyped number is flagged, not guessed).
 - **Everyone shown.** `toBudgetEmployees` keeps register rows without mine numbers; new `budgetKey` files them under a `name:` key that can never collide with a number; `adhocTotals` attributes blank-number records by exact unique name (both orders); `buildSplitBudgetRows` looks everything up by the same key and carries `dbId` on rows; Summaries uses Personnel ids for row keys and the shift map. Weekly and Insights already key by name when no number exists — untouched.
-- Verified: failing-first tests (6 new, failed before, pass after); full `app/overtime` dir 131/131; `tsc`/`eslint` clean. Route spec, renders, full suite, commit/push/release below when they land.
+- Verified: failing-first tests (6 new, failed before, pass after); full `app/overtime` dir 131/131; `tsc`/`eslint` clean. Route spec `--only /overtime` ALL CHECKS PASSED on the rebuilt bundle; Summaries/Budget tabs inspected at 1440/390 (Budget About text now states the data-driven window, e.g. "October 2026 to October 2026 (total ÷ 1)" on fixture data). Full suite **359 files / 2608 tests passed**, exit 0, two fork workers, 1644.91s, no flakes. Committed as `55a2176`, pushed to `fix/ui-consistency-remediation`. Release still awaits the owner's explicit "release".
+
+## 17. Mining PPE batch 1 — workbook parser + reconciliation (backend, uncommitted)
+
+Verified the brief first: workbook SHA256 matches FINDINGS (source unchanged, no reanalysis); brief's reuse claims hold (`groupByEmployee`, `useMatrix`/matrix dialog, `employee_import` preview/commit/undo); genuine gaps confirmed (global matrix with cross-section recalc, no `safety_chain`/`sinking_suit`/`jacket` codes, no events table, no quantity field). Backend already contains Batches 2–4 (set types, budgets, Mining importer) — this program's SOLUTION batches are separate work.
+
+- New `app/mining_ppe_workbook.py`: parses Tracker/Settings/Issue Log from the exact audited layout (header row 5, triplets at 4/7/…, Settings A5:A12 + B15, log body from row 5); unknown policy stays None; invalid/future/pre-2020 dates and hardcoded derived cells quarantined, never corrected; Issue Log complete vs fragment rows split; `reconcile_people` matches normalized mine numbers only — cross-department, duplicate-number and same-number name differences are conflicts, never merges.
+- Tests: `tests/test_mining_ppe_workbook.py`, 8/8 on synthetic workbooks (invented names only). Independent oracle: parser rerun on the real file reproduces every `workbook-evidence.json` count (768 people, policy incl. None Harness/Jackets, all exception cells, log rows) and the log-row-5 ↔ Tracker-283 link (C2000/Overalls/2026-09-04). Note: log row 5 cost centre reads "Production" vs Tracker "MINE DEVELOPMENT" — kept as-is for review, not normalized.
+- `pyright` holds the 196 baseline. No routes, schema, commits or live changes.
+
+## 18. Mining PPE batch 2 — scoped matrix policy + catalogue (backend + frontend, uncommitted)
+
+- Backend `app/routers/ppe.py`: `MatrixEntry.department` (blank = company, validated against separate departments); new `_scoped_department` (explicit manager ask, else the caller's own department scope, else company) and `_effective_matrix` (defaults + company rows + own-department rows; unknown policy never invented); GET/PUT/apply/apply-all all honour `?department=`; recalculation filters records by department when scoped. Pre-migration reads degrade gracefully (company matrix); scoped writes require the new schema. `pyright` still 196.
+- Migration `supabase_migration_ppe_matrix_department_2026-11-01.sql` (OWNER RUNS, after backend deploy): adds `department` (default ''), composite PK `(ppe_type, department)`, seeds the 8 Mining rows (workbook intervals; Harness/Jackets 24 owner-confirmed) with provenance comments. Re-runnable.
+- Frontend: `PPE_TYPES` gains `safety_chain`, `sinking_suit`, `jacket` (no merges); `usePPEMatrix`/`setMatrixInterval`/`applyMatrixType`/`applyMatrixAll` accept an optional department. MatrixDialog/page unchanged (company calls identical).
+- Tests: 8 new scoped backend tests (company unchanged, Mining isolation, 400 on bad scope, Mining-account default, apply scoping); 3 existing response assertions extended for the new `department` field (recalc counts identical — the equivalence proof); new catalogue + hook tests frontend. Suites: backend PPE files 69 passed; frontend PPE files 57 passed; `tsc`/`eslint` clean.
+- Note: during batch 2 a scripted edit doubled file line-endings on `ppe.py` (caught by diff stat); normalized to LF, diff is now 66+/23- as intended. The `C:\tmp\ppe_matrix_edit.py` and tighten scripts are throwaway (outside repos).
+
+## 19. Mining PPE batch 3 - event lifecycle (backend, uncommitted)
+
+- Backend app/routers/ppe.py: single atomic write path POST /api/ppe/events
+  (PPEEventIn: kind issue/return/correction, quantity >= 1, idempotency_key
+  required) plus GET /api/ppe/events history. Issue stamps the person from
+  the register, enforces department scope (404 outside it), rejects same-day
+  duplicates (409) and derives expiry from the scoped matrix. Return flips
+  active rows to returned (double return 409). Correction needs supervisor +
+  note, patches only supplied date fields and stores before/after in
+  evidence - supersede, never edit/remove. Replay of a key returns the stored
+  result (duplicate: true); the UNIQUE constraint is the backstop.
+- Fixed a person_scope NameError on the scoped-issue line (would have 500'd
+  every Mining-viewer issue); the new scope test fails on the old line and
+  passes on the fix.
+- Migration supabase_migration_ppe_events_2026-11-01.sql (OWNER RUNS):
+  ppe_events table + indexes, UNIQUE(idempotency_key), quantity >= 1, kind
+  check, RLS enabled with service_role-only grants (repo RLS gate passes).
+- Tests: tests/test_ppe_events.py, 11/11 (issue+expiry, replay idempotency,
+  409/400/422 paths, scope 404, return lifecycle, correction audit,
+  zero-quantity validation). Suites: RLS + events + matrix + workbook 42/42;
+  full backend suite 2955 passed, 1 failed (the missing-RLS gate) before the
+  SQL fix.
+- No commits, pushes, sign-ins or live SQL. Owner still runs both migration files.
+
+## 20. Mining PPE batch 4 - views and exports (frontend + backend refinement, uncommitted)
+
+- Events carry their business date and at-issue section now: backend `_event_issue`
+  stamps `effective_date` (issue date) and `section` (register value at write time);
+  return uses today and the record's snapshot; correction follows the corrected date.
+  Migration extended with `effective_date DATE` + `section TEXT`. The Issue Log never
+  re-derives history.
+- Frontend data layer (`usePPEData.ts`, `types.ts`): `PPEEvent`, `fetchPPEEvents`,
+  `postPPEEvent`, `toEventBody` (fresh idempotency key per issue, quantity defaults 1),
+  `usePPEEvents(department, enabled)` — quiet until the Mining register shows, so
+  Engineering makes no new request. Tests: 5 new in `usePPEData.test.tsx`, failed first.
+- `calcIssueLog.ts` + 8 failing-first tests: kind/date/item/cost-centre/search filters,
+  newest-first, opening observations marked with unknown quantity, cost-centre options.
+- `IssueLogView.tsx` + 3 render tests: filters, opening badge, download of exactly the
+  filtered result via shared `DownloadButton` (Excel/PDF, branded). Mining-only "Issue
+  log" tab; error/loading/empty states; 1440 inspected, 390 no page overflow.
+- Mining issues go through the atomic event path: `page.tsx` `save()` posts
+  `POST /api/ppe/events` (query-scoped, fresh key, quantity) for fresh Mining issues;
+  bulk form takes a `createOne` override posting one event per person; order-list
+  renewals and Engineering keep the record path untouched. `PPEIssueForm` shows a
+  Quantity field (positive whole number, validated) for new Mining issues only.
+- Matrix dialog follows the register: `usePPEMatrix('Mining')` + department on every
+  save/apply in the Mining view, so a Mining manager can no longer recalculate
+  Engineering rows. Engineering calls byte-identical (`department: null` proven by spec).
+- Rendered: new `scripts/route-specs/ppe-mining.mjs` (Mining badge, 3 people incl. blank
+  card, log filters/badge/download, event post with quantity + scoping, matrix scoping).
+  `verify-routes --only /ppe`: ALL CHECKS PASSED across all four /ppe specs (budget,
+  mining, register, basket) — Engineering regression intact. Screenshots inspected:
+  mining register, issue log @1440/@390, no overflow.
+- Suites: `tsc` clean, `eslint` clean, `docs:check` green, `npm run build` green,
+  app/ppe 183/183. Full backend suite 2963 passed, 0 failed.
+
+## 21. Mining PPE batch 5 - rehearsal + Engineering regression (backend, uncommitted)
+
+- `tests/test_ppe_import_rehearsal.py` (4 tests): synthetic workbook through parse,
+  reconcile and payload building — preview balances (2 payloads from 768-scale logic:
+  matched x valid dated known-policy items only; conflict/date-exception/unknown-policy
+  stay queued), reruns build identical idempotency keys, Mining seed leaves the
+  Engineering baseline (`_effective_matrix('Engineering')` == company, no jacket),
+  conflicts/blanks never become payloads.
+- Engineering regression: full backend suite 2963/2963; all four /ppe route specs green;
+  full frontend suite 361 files / 2626 tests passed, exit 0 — the first full pass took
+  336 files / 2516 tests with 25 files never starting workers (resource flakes under load,
+  none of them PPE files), and the 25-file rerun passed 25/25 files and 110/110 tests.
+
+## 22. Mining PPE batch 6 - owner review pack (docs, uncommitted)
+
+- `audit/mining-ppe-2026-11-01/IMPORT_PREVIEW.md`: generated read-only from the real
+  workbook (SHA256 matches evidence). 768 people, 7 cost centres, per-item dated counts,
+  9 quarantined date exceptions, 8 hardcoded derived cells, 1 complete + 1 quarantined
+  log row, policy mapping with owner-confirmed Harness/Jackets 24, SQL order, restore
+  plan, open decisions. No names or mine numbers; no live reads or writes.
+- Screenshots: `C:/tmp/shots-ppe4/ppe-mining-register@1440.png`,
+  `ppe-issue-log@1440.png`, `ppe-issue-log@390.png` (inspected, no overflow).
+- Still outstanding, owner-only: run both migration SQL files, sign in and accept the
+  register counts + this preview, authorise the live import, perform signed-in
+  acceptance. No commits/pushes/deployments without an explicit per-turn go-ahead.
 
 ### Remaining failures, limitations and risks
 
@@ -802,3 +900,38 @@ preserving historical Cost centre snapshots. Opening observations are not proof 
 No application source changes, migrations, imports, live employee/PPE writes, sign-in, commits, pushes or deployment
 for this analysis. No live register collision check yet. Only the read-only workbook evidence script was executed;
 no product tests/rendered verification is claimed. Proposed new screens/policy require owner review before construction.
+
+
+## Overtime saving and bulk autocomplete — 2 Nov 2026 (uncommitted)
+
+Owner reports live partial/total bulk-save failures and requests individual-style autocomplete/Tab in bulk entry.
+Full evidence: docs/OVERTIME_SAVE_INVESTIGATION_2026-11-02.md. Render excerpt shows httpx.ReadError / Errno 11 and
+a nearby instance restart; restart cause and full POST traceback are not established. Automated API diagnostics see
+a 429 HTML challenge without CORS, not proven to be the owner's browser result. No live overtime was submitted.
+
+Scoped backend change: one create operation runs in the threadpool with actor context; list/create transport outages
+return referenced 503 responses, no replay of uncertain writes. Bulk UI keeps successful/failed people separate and labels
+transport/5xx/408/unreadable outcomes not confirmed, refreshes even if zero saves were confirmed, and tells the person to check before retry.
+PeopleChecklist's opt-in autocomplete reuses NameTypeahead, preserving Section, ticks,
+select-all and chips; other consumers retain default search. No calculations, approval rules, SQL or access changes.
+
+Backend 85 focused tests; full 2959 passed / 92.94% coverage after resolving a Windows temp-folder permission setup
+problem with a new verified workspace basetemp. Pyright holds 196. Frontend focused 29 passed plus final bulk 6/6;
+tsc, full lint (0 errors/23 warnings), docs checks (26 TypeDoc warnings), build (68 static pages) pass. Final Chromium
+2/2 at 1440/390 with screenshots inspected; overtime route 65 PASS/0 FAIL; axe zero serious/critical. Full frontend suite:
+**362 files / 2638 tests passed**, exit 0, 3189.58 seconds, two fork workers. PPE cross-consumer pass has two new Mining
+scenario failures, recorded separately. Backend Sphinx has three
+toctree warnings and exits 1; no documentation pass claimed. Initial owner Tab/cancel check passed; focus follow-up below.
+
+Mining changes/worktrees/debug/reset SQL preserved. No commit, push, deployment, real-user sign-in or live mutation.
+These local improvements do not certify that production connectivity/restart issues have been resolved.
+
+Owner replied yes to the initial real-session Tab/Enter/cancel check, then requested repeat-entry focus. Bulk overtime
+now opts into keepFocusOnPick: Tab/Enter adds and keeps Employees focused; empty Tab still advances. Individual pickers
+retain their default Tab advancement. New focus regression fails before/passes after; final focused checklist/picker/bulk
+run 29 passed across 3 files; final bulk-outcome cases 6/6 include timeout and unreadable-response uncertainty. Final
+production browser run 2/2 at 1440/390 against the focus build. No second manual focus acceptance or live save claimed.
+
+Final frontend diff check passes; scoped backend overtime diff check passes. Whole backend diff check fails on repeated
+trailing-CR/blank-line errors in the concurrent Mining `app/routers/ppe.py` edit. That file was preserved untouched;
+do not blanket-stage/normalize the combined worktree. No release or production-resolution claim.

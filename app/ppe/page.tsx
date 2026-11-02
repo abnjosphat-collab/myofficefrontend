@@ -2,7 +2,7 @@
 // replacement matrix that sets expiry dates, and the summaries and downloads. Everything on the page comes from the issued records.
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
 import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
+import { IssueLogView } from './IssueLogView';
 import { MatrixDialog } from './MatrixDialog';
 import { OrderListView, type BasketAddables } from './OrderListView';
 import { PPEBulkIssueForm } from './PPEBulkIssueForm';
@@ -30,7 +31,7 @@ import { NO_TYPE_FILTER, loadTypeFilter, matchesTypeFilter, saveTypeFilter, type
 import { typeName } from './ppeMeta';
 import { SummaryView } from './SummaryView';
 import { BudgetView } from './budget/BudgetView';
-import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, setMatrixInterval, setPPEStatus, updatePPERecord, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
+import { applyMatrixAll, applyMatrixType, createPPERecord, deletePPERecord, postPPEEvent, setMatrixInterval, setPPEStatus, toEventBody, updatePPERecord, usePPEEvents, usePPEMatrix, usePPERecords, useRosterRows } from './usePPEData';
 import { useOrderList } from './useOrderList';
 import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
@@ -48,7 +49,11 @@ function PPEContent() {
   const miningView = dept.param === 'Mining';
   const recs = usePPERecords(dept.param);
   const roster = useRosterRows(dept.param);
-  const matrix = usePPEMatrix();
+  // The matrix dialog edits the Mining policy when the Mining register is showing: a company save would recalculate
+  // Engineering rows too, so the scope always follows the register on screen.
+  const matrix = usePPEMatrix(miningView ? 'Mining' : undefined);
+  // The Issue Log reads the durable event history; it only exists for Mining, so Engineering makes no new request.
+  const events = usePPEEvents(miningView ? 'Mining' : undefined, miningView);
   const order = useOrderList(dept.param);
   const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
@@ -137,7 +142,11 @@ function PPEContent() {
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
   const filtered = unmatchedOnly || f.view !== 'all' || f.section !== ALL || f.search !== '';
-  const reload = () => { void recs.refetch(); };
+  const reload = () => { void recs.refetch(); void events.refetch(); };
+  const nameOf = useCallback((id: string) => holders.find(h => h.employee_id === id)?.employee_name ?? '', [holders]);
+  // Mining bulk issues go through the same atomic event path as single issues (one event per person, quantity 1),
+  // so the Issue Log stays complete; Engineering bulk keeps posting records directly.
+  const bulkCreateOne = miningView ? async (d: Partial<FormState>) => { await postPPEEvent(toEventBody({ employee_id: d.employee_id ?? '', ppe_type: d.ppe_type ?? 'helmet', issue_date: d.issue_date ?? todayLocal(), quantity: 1 }), 'Mining'); } : undefined;
 
   const openIssue = (employee: EmployeeWithPPE | null = null) => { setHolderId(null); setForm({ record: null, prefill: null, employee, fulfils: null }); };
   const openEdit = (r: PPERecord) => { setItemId(null); setHolderId(null); setForm({ record: r, prefill: null, employee: holders.find(h => h.employee_id === r.employee_id) ?? null, fulfils: null }); };
@@ -152,6 +161,10 @@ function PPEContent() {
     const renewed = id ? undefined : renewalTarget(records, form?.fulfils, data);
     if (id) { await updatePPERecord(id, data); order.remove(id); }
     else if (renewed) await updatePPERecord(String(renewed.id), { ...data, ...(renewed.updated_at ? { expected_updated_at: renewed.updated_at } : {}) });
+    // A fresh Mining issue is one atomic event: the server projects the register row from it, so the card, the log
+    // and the summary all update from the same write and a retried tap cannot duplicate it. Order-list renewals and
+    // Engineering issues keep the record path above.
+    else if (miningView) await postPPEEvent(toEventBody({ employee_id: data.employee_id, ppe_type: data.ppe_type, issue_date: data.issue_date, quantity: data.quantity ?? 1 }), 'Mining');
     else await createPPERecord(data);
     if (form?.fulfils) order.remove(form.fulfils);
     order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
@@ -215,7 +228,7 @@ function PPEContent() {
   };
 
   const setInterval = async (type: string, months: number) => {
-    const res = await setMatrixInterval(type, months);
+    const res = await setMatrixInterval(type, months, miningView ? 'Mining' : undefined);
     matrix.setMatrix(m => ({ ...m, [type]: months }));
     toast.success(res?.updated ? `Interval saved. ${res.updated} existing ${res.updated === 1 ? 'item' : 'items'} recalculated.` : 'Interval saved.');
     if (res?.updated) reload();
@@ -224,13 +237,13 @@ function PPEContent() {
     const count = records.filter(r => r.ppe_type === type && r.status === 'active').length;
     const months = matrix.matrix[type];
     if (!await confirm({ title: months === 0 ? `Clear the expiry on ${count} active ${typeName(type)} items?` : `Reset the expiry of ${count} active ${typeName(type)} items to issue date plus ${months} months?`, message: 'This overwrites their current expiry dates.', confirmLabel: 'Recalculate', destructive: true })) return;
-    const res = await applyMatrixType(type);
+    const res = await applyMatrixType(type, miningView ? 'Mining' : undefined);
     toast.success(`Recalculated ${res?.updated ?? count} ${typeName(type)} items.`); reload();
   };
   const recalcAll = async () => {
     const n = records.filter(r => r.status === 'active').length;
     if (!await confirm({ title: `Recalculate the expiry of all ${n} active items?`, message: 'Uses the current matrix for every type and overwrites their current expiry dates.', confirmLabel: 'Recalculate all', destructive: true })) return;
-    const res = await applyMatrixAll();
+    const res = await applyMatrixAll(miningView ? 'Mining' : undefined);
     toast.success(`Recalculated ${res?.total_updated ?? 0} items across all types.`);
     if (res?.failed?.length) throw new Error(`These types could not be recalculated: ${res.failed.map(typeName).join(', ')}.`);
     reload();
@@ -293,6 +306,7 @@ function PPEContent() {
         <TabsList aria-label="PPE sections">
           <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
+          {miningView && <TabsTrigger value="log" icon="history">Issue log</TabsTrigger>}
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
           {!miningView && <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>}
@@ -337,6 +351,13 @@ function PPEContent() {
           {recs.loaded ? <DueItems records={sectionRecords} counts={{ overdue: scoped.overdue, soon: scoped.soon }} actions={actions} onBulkNotRequired={bulkNotRequired} onAddToOrder={addToOrder} sectionActive={scope ? true : f.section !== ALL} scopeName={scope ?? null} typeFilter={typeFilter} typeOptions={typeOpts} onTypeFilterChange={patchTypeFilter} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}
         </TabsContent>
 
+        {miningView && (
+          <TabsContent value="log" className="mt-4">
+            {events.loaded ? <IssueLogView events={events.items} nameOf={nameOf} /> : (events.error
+              ? <p className="font-sans text-body-sm text-ink-muted">The movements could not be loaded. <Button size="sm" icon="refresh" onClick={() => events.refetch()}>Try again</Button> {events.error}</p>
+              : <LoadingPulse compact label="Loading movements" />)}
+          </TabsContent>
+        )}
         <TabsContent value="order" className="mt-4">
           <DataRegion
             status={deriveDataStatus({ loaded: order.loaded, loading: order.loading, error: order.error, errorStatus: order.errorStatus, count: 1, transient: isTransientStatus(order.errorStatus) })}
@@ -358,7 +379,7 @@ function PPEContent() {
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
       <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
       <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} department={dept.param} />
-      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} department={dept.param} />
+      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} department={dept.param} createOne={bulkCreateOne} />
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>
   );
