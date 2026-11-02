@@ -45,6 +45,10 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
   const effective = { ...form, expiry_date: expiry };
   const problems = formProblems(effective);
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
+  // Mining issues move through the atomic event path, which needs a positive whole quantity; the Engineering record
+  // path has no quantity, so the field — and the value — only exist for a new Mining issue.
+  const miningQty = !editing && department === 'Mining';
+  const qtyProblem = miningQty && (form.quantity === undefined || !Number.isInteger(form.quantity) || (form.quantity as number) < 1) ? 'Enter a whole number of 1 or more.' : undefined;
   // Editing a record whose number matches nobody is a re-link: saving writes the picked register number.
   const relink = editing && employee?.unmatched === true;
   const personLabel = !editing ? 'Pick an employee' : relink ? 'Re-link to the right person' : 'Person';
@@ -57,8 +61,8 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
 
   const submit = async () => {
     setTouched(true);
-    if (Object.keys(problems).length > 0) return false;
-    await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim(), ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
+    if (Object.keys(problems).length > 0 || qtyProblem) return false;
+    await onSave({ ...effective, employee_id: form.employee_id.trim(), employee_name: form.employee_name.trim(), ...(miningQty ? { quantity: form.quantity ?? 1 } : {}), ...(editing && record?.updated_at ? { expected_updated_at: record.updated_at } : {}) }, record?.id);
     toast.success(editing ? 'PPE record updated.' : 'PPE issued.');
   };
 
@@ -82,6 +86,7 @@ export function PPEIssueForm({ open, record, prefill, employee, matrix, onOpenCh
           <Field label="PPE type" required><Select aria-label="PPE type" value={form.ppe_type} onValueChange={v => set({ ppe_type: v })} options={TYPE_OPTIONS} /></Field>
           <Field label="Item or brand" required error={err('item_name')}><Input value={form.item_name} onChange={e => set({ item_name: e.target.value })} placeholder="Brand and model" /></Field>
           <Field label="Size" optional><Input value={form.size} onChange={e => set({ size: e.target.value })} placeholder="L, 8, XL" /></Field>
+          {miningQty && <Field label="Quantity" required error={touched ? qtyProblem : undefined} description="How many items change hands."><Input type="number" min={1} step={1} value={form.quantity ?? 1} onChange={e => set({ quantity: e.target.value === '' ? undefined : Math.floor(Number(e.target.value)) })} /></Field>}
           <Field label="Issued by" optional><PersonInput value={form.issued_by} onChange={v => set({ issued_by: v })} placeholder="Type to search employees" /></Field>
           <Field label="Issue date" required error={err('issue_date')}><Input type="date" value={form.issue_date} onChange={e => set({ issue_date: e.target.value })} /></Field>
           <Field label="Expiry date" optional error={err('expiry_date')} description={!touchedExpiry && computed !== undefined ? (matrix[form.ppe_type] > 0 ? `Worked out from the matrix: ${matrix[form.ppe_type]} months. Type a date to override.` : 'This type does not expire.') : 'Typed by hand.'}>

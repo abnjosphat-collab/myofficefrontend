@@ -19,8 +19,10 @@ import type { FormState, PPERecord } from './types';
 type Shared = Omit<FormState, 'employee_name' | 'employee_id' | 'position' | 'mine_section' | 'expected_updated_at'>;
 const sharedOf = (): Shared => ({ ppe_type: 'helmet', item_name: '', size: '', issue_date: todayLocal(), expiry_date: '', condition: 'good', status: 'active', notes: '', issued_by: '', location: 'Workshop' });
 
-export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreated, department }: {
+export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreated, department, createOne }: {
   open: boolean; records: PPERecord[]; matrix: Record<string, number>; onOpenChange: (open: boolean) => void; onCreated: () => void; department?: string | null;
+  /** Overrides the per-person write (Mining posts one atomic event per person so the Issue Log stays complete). */
+  createOne?: (data: Partial<FormState>) => Promise<unknown>;
 }) {
   const employees = useEmployees(department);
   const [people, setPeople] = useState<PickedPerson[]>([]);
@@ -50,7 +52,7 @@ export function PPEBulkIssueForm({ open, records, matrix, onOpenChange, onCreate
     const failed: { person: PickedPerson; reason: string }[] = [];
     let ok = 0;
     for (const p of people) {
-      try { await createPPERecord({ ...effective, employee_name: p.name, employee_id: p.employee_id, ...metaOf(p) }); ok += 1; }
+      try { await (createOne ?? createPPERecord)({ ...effective, employee_name: p.name, employee_id: p.employee_id, ...metaOf(p) }); ok += 1; }
       catch (e) { failed.push({ person: p, reason: e instanceof Error ? e.message : 'Not saved.' }); }
     }
     if (ok) onCreated();

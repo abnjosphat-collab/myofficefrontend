@@ -48,10 +48,28 @@ export interface PPERequirement {
   status: 'required'; source_ref: string; notes: string; fulfilled: boolean;
 }
 
+/** One row of the durable PPE event log (GET /api/ppe/events): the atomic issue/return/correction the register
+ * projection is derived from. Imported opening observations carry kind 'issue' with an unknown (null) quantity and a
+ * source badge in evidence; actual issues always carry a positive quantity. */
+export interface PPEEvent {
+  id: string; kind: 'issue' | 'return' | 'correction';
+  employee_id: string; ppe_type: string; quantity: number | null;
+  department: string; record_id: number | null;
+  /** Business date of the movement (the issue date for issues, the day of return/correction otherwise). */
+  effective_date: string;
+  /** Cost centre the person belonged to when the movement was recorded — history, not the live register value. */
+  section: string;
+  predecessor_event_id: string | null; reversed_event_id: string | null;
+  idempotency_key: string; evidence: Record<string, unknown>;
+  result: Record<string, unknown>; actor: string;
+}
+
 export interface FormState {
   employee_name: string; employee_id: string; position: string;
   ppe_type: string; item_name: string; size: string;
   issue_date: string; expiry_date: string;
+  /** Mining issues record how many items changed hands (the atomic event path); the Engineering record path ignores it. */
+  quantity?: number;
   condition: string; status: string; notes: string;
   issued_by: string; location: string; mine_section: string;
   premature_failure?: boolean; failure_reason?: string;

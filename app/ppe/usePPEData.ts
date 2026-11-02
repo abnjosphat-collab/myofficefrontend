@@ -11,7 +11,7 @@ import { withDepartment } from '@/lib/api';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
 import { sanitizeDisplayName } from './calcPPE';
 import { PPE_MATRIX_DEFAULTS } from './ppeMeta';
-import type { EmployeeRow, FormState, PPERecord, PPERequirement } from './types';
+import type { EmployeeRow, FormState, PPEEvent, PPERecord, PPERequirement } from './types';
 
 export { PPE_MATRIX_DEFAULTS };
 
@@ -30,6 +30,29 @@ export const fetchPPERequirements = async (department?: string | null) => {
 export function usePPERequirements(department?: string | null, enabled = true) {
   const fetcher = useCallback(() => fetchPPERequirements(department), [department]);
   return useApiList<PPERequirement>(withDepartment('/api/ppe/requirements', department), undefined, { fetcher, enabled });
+}
+
+export const fetchPPEEvents = async (department?: string | null) => {
+  const data = await api.get<unknown>(withDepartment('/api/ppe/events', department));
+  if (!Array.isArray(data)) throw new Error('PPE events returned an invalid response.');
+  return data as PPEEvent[];
+};
+/** One Mining issue as the single atomic server write: the event projects the register row, so cards, the log and
+ * summaries all update from the same write and a retried tap returns the stored result instead of a second row. */
+export const toEventBody = (form: Pick<FormState, 'employee_id' | 'ppe_type' | 'issue_date'> & { quantity?: number }) => ({
+  kind: 'issue' as const,
+  employee_id: form.employee_id.trim(),
+  ppe_type: form.ppe_type,
+  quantity: form.quantity ?? 1,
+  issue_date: form.issue_date,
+  idempotency_key: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+});
+export const postPPEEvent = async (body: ReturnType<typeof toEventBody>, department?: string | null) =>
+  api.post(withDepartment('/api/ppe/events', department), body);
+
+export function usePPEEvents(department?: string | null, enabled = true) {
+  const fetcher = useCallback(() => fetchPPEEvents(department), [department]);
+  return useApiList<PPEEvent>(withDepartment('/api/ppe/events', department), undefined, { fetcher, enabled });
 }
 
 export const fetchAllEmployees = async (department?: string | null): Promise<EmployeeRow[]> => {
@@ -69,13 +92,13 @@ export const deletePPERecord = async (id: string) => api.delete(`/api/ppe/${id}`
 /** Status only: the server changes just what it is sent, so nothing else on the record is touched. */
 export const setPPEStatus = async (id: string, status: string) => api.patch(`/api/ppe/${id}`, { status });
 
-export async function setMatrixInterval(ppeType: string, months: number) { return api.put<{ updated: number }>('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months }); }
-export async function applyMatrixType(ppeType: string) { return api.post<{ updated: number }>(`/api/ppe/matrix/${ppeType}/apply`, {}); }
-export async function applyMatrixAll() { return api.post<{ total_updated: number; failed?: string[] }>('/api/ppe/matrix/apply-all', {}); }
+export async function setMatrixInterval(ppeType: string, months: number, department?: string) { return api.put<{ updated: number }>('/api/ppe/matrix', { ppe_type: ppeType, interval_months: months, department: department ?? null }); }
+export async function applyMatrixType(ppeType: string, department?: string) { return api.post<{ updated: number }>(withDepartment(`/api/ppe/matrix/${ppeType}/apply`, department), {}); }
+export async function applyMatrixAll(department?: string) { return api.post<{ total_updated: number; failed?: string[] }>(withDepartment('/api/ppe/matrix/apply-all', department), {}); }
 
 /** The saved replacement matrix over the company defaults, with its own load and error state. Contract (D8): the merge
  * is key-exact (server vocabulary wins); anything counted against these keys stays exact, loose matching is browsing-only. */
-export function usePPEMatrix() {
+export function usePPEMatrix(department?: string) {
   const [matrix, setMatrix] = useState<Record<string, number>>(PPE_MATRIX_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,12 +107,12 @@ export function usePPEMatrix() {
     const id = ++latest.current;
     setLoading(true); setError(null);
     try {
-      const data = await retryTransient(() => api.get<unknown>('/api/ppe/matrix'));
+      const data = await retryTransient(() => api.get<unknown>(withDepartment('/api/ppe/matrix', department)));
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('PPE replacement matrix returned an invalid response.');
       if (id === latest.current) setMatrix({ ...PPE_MATRIX_DEFAULTS, ...(data as Record<string, number>) });
     } catch (e) { if (id === latest.current) setError(e instanceof Error ? e.message : 'The saved replacement matrix could not be loaded.'); }
     finally { if (id === latest.current) setLoading(false); }
-  }, []);
+  }, [department]);
   useEffect(() => { void refetch(); }, [refetch]);
   return { matrix, setMatrix, loading, error, refetch };
 }
