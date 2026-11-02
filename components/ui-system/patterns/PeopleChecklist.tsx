@@ -12,17 +12,22 @@ import { Field } from '../primitives/Field';
 import { Select } from '../overlays/Select';
 import { OptionChecklist, type ChecklistOption } from './OptionChecklist';
 import { lookupName, type PickedPerson } from './PeoplePicker';
+import { NameTypeahead } from './NameTypeahead';
 
 const toPicked = (e: EmployeeLookup): PickedPerson => ({ employee_id: String(e.employee_id), name: lookupName(e) });
 const toOption = (e: EmployeeLookup): ChecklistOption => ({ value: String(e.employee_id), label: lookupName(e), description: [e.employee_id, e.designation].filter(Boolean).join(' · ') });
 
-export function PeopleChecklist({ label, value, onChange, hint, placeholder, department }: {
+export function PeopleChecklist({ label, value, onChange, hint, placeholder, department, autocomplete = false, keepFocusOnPick = false }: {
   label: string;
   value: PickedPerson[];
   onChange: (people: PickedPerson[]) => void;
   hint?: string;
   placeholder?: string;
   department?: string | null;
+  /** Suggest unselected people inline; Tab adds one and advances, Enter adds and stays. */
+  autocomplete?: boolean;
+  /** Keep autocomplete focused for the next person; empty Tab still advances. */
+  keepFocusOnPick?: boolean;
 }) {
   const employees = useEmployees(department);
   const [section, setSection] = useState('');
@@ -47,6 +52,12 @@ export function PeopleChecklist({ label, value, onChange, hint, placeholder, dep
         <OptionChecklist
           label={label} options={options} value={ids} onChange={onIds}
           searchPlaceholder={placeholder || 'Search by name, ID or job'} emptyText="No employee matches."
+          renderSearch={autocomplete ? ({ value: text, onValueChange }) => (
+            <NameTypeahead aria-label={label} text={text} onTextChange={onValueChange} keepFocusOnPick={keepFocusOnPick}
+              options={options.filter(o => !ids.includes(o.value)).map(o => ({ ...o, keywords: [o.value, o.description ?? ''] }))}
+              onChoose={choice => { onIds([...ids, choice.value]); onValueChange(''); }}
+              placeholder={placeholder || 'Type a name or ID; Tab adds the suggestion'} />
+          ) : undefined}
           labelOf={id => value.find(p => p.employee_id === id)?.name ?? id}
           searchAside={sections.length > 0 && (
             <Field label="Section" optional className="sm:w-44 sm:shrink-0">

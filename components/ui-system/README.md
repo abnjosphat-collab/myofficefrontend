@@ -121,6 +121,11 @@ input (`aria-activedescendant`), idle recent results, portalled list with collis
 (a `Segmented` label is screen-reader-only, so anything needing a visible explanation is cards). `MultiSelectFilter` is the
 one include/exclude tick-list-in-a-popover with counts, chips and Reset; its list core `OptionChecklist` is shared with
 `PeopleChecklist`, so search, select-all-filtered and chip behaviour never drift between people and value pickers.
+`PeopleChecklist autocomplete` opts into the shared inline name completion: Tab adds the suggested unselected person
+and advances focus; Enter adds and keeps focus. Section filtering, checkboxes and chips remain available. Its search
+uses `OptionChecklist.renderSearch`, which receives the same query used to filter the list; the default stays SearchField.
+Bulk overtime additionally opts into `keepFocusOnPick`: Tab or Enter adds and keeps the Employees box focused for
+the next person. An empty Tab still advances. Single-person pickers retain their default Tab-to-advance behaviour.
 
 **Fields.** Wrap controls in `Field` (label, description, error, required/optional text). `useFieldProps()` lets a control
 join its Field. Legacy typeaheads (`PredictiveInput`, `AutofillInput`) are hosted inside Fields through
