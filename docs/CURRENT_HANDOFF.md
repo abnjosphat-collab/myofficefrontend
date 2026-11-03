@@ -763,3 +763,9 @@ Tech Edge Winder training & Certification register: national-ID display, surface
 ### Owner actions outstanding (nothing committed, pushed, deployed or applied)
 1. Say "commit" (and separately "push") per repo if this is accepted; run `supabase_migration_training_register_details.sql` after the backend deploy ordering.
 2. Note: every module's exports no longer carry the Generated footer (owner-ordered shared change) — confirm that reach is intended before merge.
+
+## 9f. Mining PPE resume (Muse, 3 Nov 2026; owner blanket authorisation for resume/SQL/merge/push)
+- 1 Nov mining-PPE build (commits 7533c7f/d0b62a1) cherry-picked onto current main as backend 885636a+d6ff07d / frontend 133fd53+f0503c6; conflicts resolved (ppe.py requirements+events splice, page/types/usePPEData unions). Scoped-matrix import fix + regression test included.
+- Live SQL already applied: ppe_matrix PK is now (ppe_type, department), 8 Mining rows; ppe_events table present, 0 rows. Verified read-only.
+- Gates green: backend pytest 3006 passed; pyright 205=205 parity (zero in touched files); frontend tsc/eslint clean; PPE vitest 191 passed; docs:check 0 errors; /ppe route specs ALL CHECKS PASSED.
+- Live import of Mining/PPE CARDS_054942.xlsx (768 + observations) runs after merge+deploy, guarded with backup + undo log. Mining account (manager role) keeps least privilege: import runs via admin path, not an admin grant.
