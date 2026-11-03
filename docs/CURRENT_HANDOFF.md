@@ -769,3 +769,9 @@ Tech Edge Winder training & Certification register: national-ID display, surface
 - Live SQL already applied: ppe_matrix PK is now (ppe_type, department), 8 Mining rows; ppe_events table present, 0 rows. Verified read-only.
 - Gates green: backend pytest 3006 passed; pyright 205=205 parity (zero in touched files); frontend tsc/eslint clean; PPE vitest 191 passed; docs:check 0 errors; /ppe route specs ALL CHECKS PASSED.
 - Live import of Mining/PPE CARDS_054942.xlsx (768 + observations) runs after merge+deploy, guarded with backup + undo log. Mining account (manager role) keeps least privilege: import runs via admin path, not an admin grant.
+## 9g. Mining gaps tab + name normalisation (Muse, 3 Nov 2026; merged + pushed to main)
+- Order list: confirmed already automatic for Mining (same buildBasket auto lines as Engineering; 892 due live).
+- Temporary Mining-only Gaps tab (calcGaps/GapsView + tests + spec): implausible dates (pre-2023 or future, 39 rows: 1936/1962/2012/2023s/2027/2029), 2,984 sizeless records, 139 people with no PPE, 751 missing titles, C0892 quarantine, 16 cross-listed info.
+- Names normalised live via guarded SQL (initcap; C0624 kept as McManaman by explicit exception; snapshots backed up). Darlington row untouched.
+- Gates: tsc/eslint clean, PPE vitest 200/200, /ppe route specs ALL CHECKS PASSED (one timing flake on re-run green), docs:check 0 errors. Live import: 751 created + Darlington filled, 2,984 PPE, import_id 7c75782a; 16 skipped per owner; C0892 cell quarantined.
+- WARNING 2026-11-04: Supabase project REST API restricted (exceed_egress_quota, HTTP 402). Production reads are affected until the owner upgrades or removes spend caps. Live writes used Management API path; PostgREST-dependent flows (app reads, re-imports) are blocked meanwhile.
