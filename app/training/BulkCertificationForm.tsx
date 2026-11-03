@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import {
-  Checkbox, Field, FormDialog, Input, Notice, OptionChecklist, Select,
+  Checkbox, Field, FormDialog, Input, Notice, OptionChecklist, Select, Textarea,
   type ChecklistOption,
 } from '@/components/ui-system';
 import { NameTypeahead } from '@/components/ui-system/patterns/NameTypeahead';
@@ -17,8 +17,8 @@ import { recordRecentPerson } from '@/lib/peopleHistory';
 import { ApiError } from '@/lib/apiClient';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import {
-  buildBulkPayload, distinctDepartments, distinctDesignations, distinctSections,
-  filterRegister, findExistingDuplicates, normalizeEmployeeId, retryIds, splitResults,
+  GRADES, buildBulkPayload, distinctDepartments, distinctDesignations, distinctSections,
+  filterRegister, findExistingDuplicates, normalizeEmployeeId, retryIds, splitResults, windowError,
   type SplitResults,
 } from './calcTrainingBulk';
 import { createBulkCertifications } from './useTrainingData';
@@ -31,7 +31,8 @@ const toOption = (e: Parameters<typeof filterRegister>[0][number]): ChecklistOpt
 });
 
 const blankShared = (): BulkSharedDetails => ({
-  certification_name: '', provider: '', training_date: '', expiry_date: '', required_refresher: '',
+  certification_name: '', provider: '', start_date: '', completion_date: '', expiry_date: '', required_refresher: '',
+  grade: '', details: '', trainers: '', venue: '',
 });
 
 export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: {
@@ -69,11 +70,24 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
     const e = byId.get(normalizeEmployeeId(id));
     return e ? lookupName(e) : id;
   };
+  // The completion date is the duplicate guard's key, falling back to the
+  // start date when only that is known.
+  const keyDate = shared.completion_date || shared.start_date;
   const dupes = useMemo(
-    () => findExistingDuplicates(certs, ids, shared.certification_name, shared.training_date),
-    [certs, ids, shared.certification_name, shared.training_date],
+    () => findExistingDuplicates(certs, ids, shared.certification_name, keyDate),
+    [certs, ids, shared.certification_name, keyDate],
   );
 
+  // Choosing a trade ticks everyone that trade currently matches, so a crew
+  // like "all Fitter Class 1" is one tap. Clearing the trade keeps whoever is
+  // already picked; unticking is always individual, via the review list.
+  const pickTrade = (next: string) => {
+    setTrade(next);
+    setLastResult(null);
+    if (!next) return;
+    const matched = filterRegister(employees, { query: '', designation: next, section, department });
+    setIds(matched.map(e => String(e.employee_id)).filter(id => byId.has(normalizeEmployeeId(id))));
+  };
   const pick = (next: string[]) => {
     const prev = new Set(ids);
     for (const id of next) {
@@ -89,11 +103,12 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
   const evidenceError =
     touched && evidence.trim() && !evidence.trim().startsWith('http') ? 'Enter a link starting with http(s), or leave it empty.' : undefined;
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
+  const windowErr = touched ? windowError(shared.start_date, shared.completion_date) : undefined;
   const dateOrderError =
-    touched && !noExpiry && shared.training_date && shared.expiry_date && shared.expiry_date < shared.training_date
-      ? 'The expiry date is before the training date.' : undefined;
-  const invalid = ids.length === 0 || !shared.certification_name.trim() || !shared.training_date
-    || (!noExpiry && !shared.expiry_date) || !!dateOrderError || !!evidenceError;
+    touched && !noExpiry && keyDate && shared.expiry_date && shared.expiry_date < keyDate
+      ? 'The expiry date is before the completion date.' : undefined;
+  const invalid = ids.length === 0 || !shared.certification_name.trim() || !keyDate
+    || (!noExpiry && !shared.expiry_date) || !!windowErr || !!dateOrderError || !!evidenceError;
 
   const submit = async () => {
     setTouched(true);
@@ -143,7 +158,10 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
   const chosen = ids.map(id => ({ id, employee: byId.get(normalizeEmployeeId(id)) }));
   const effectiveOf = (id: string) => {
     const o = overrides[normalizeEmployeeId(id)];
-    return { expiry: o?.expiry_date || shared.expiry_date, trained: o?.training_date || shared.training_date };
+    return {
+      expiry: o?.expiry_date || shared.expiry_date,
+      trained: o?.completion_date || shared.completion_date || o?.start_date || shared.start_date,
+    };
   };
 
   return (
@@ -163,8 +181,8 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
             )}
             searchAside={(
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Field label="Trade" optional className="sm:w-44">
-                  <Select aria-label="Filter by trade" value={trade} onValueChange={setTrade}
+                <Field label="Trade" optional className="sm:w-44" description="Picking a trade selects everyone it matches.">
+                  <Select aria-label="Filter by trade" value={trade} onValueChange={pickTrade}
                     options={[{ value: '', label: 'All trades' }, ...distinctDesignations(employees).map(d => ({ value: d, label: d }))]} />
                 </Field>
                 <Field label="Section" optional className="sm:w-40">
@@ -187,8 +205,24 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
           <Field label="Provider" optional>
             <Input value={shared.provider} onChange={e => setShared(s => ({ ...s, provider: e.target.value }))} placeholder="For example, TechEdge" />
           </Field>
-          <Field label="Training date" required error={missing(shared.training_date, 'Choose the training date.')}>
-            <Input type="date" value={shared.training_date} onChange={e => setShared(s => ({ ...s, training_date: e.target.value }))} />
+          <Field label="Start date" optional error={windowErr}>
+            <Input type="date" value={shared.start_date} onChange={e => setShared(s => ({ ...s, start_date: e.target.value }))} />
+          </Field>
+          <Field label="Completion date" required error={missing(shared.completion_date, 'Choose the completion date.') ?? windowErr ?? dateOrderError}>
+            <Input type="date" value={shared.completion_date} onChange={e => setShared(s => ({ ...s, completion_date: e.target.value }))} />
+          </Field>
+          <Field label="Result" optional>
+            <Select value={shared.grade} onValueChange={v => setShared(s => ({ ...s, grade: v }))}
+              options={[{ value: '', label: 'Not recorded' }, ...GRADES.map(g => ({ value: g, label: g }))]} />
+          </Field>
+          <Field label="Trainers" optional>
+            <Input value={shared.trainers} onChange={e => setShared(s => ({ ...s, trainers: e.target.value }))} placeholder="For example, T. Nkomo, S. Dube" />
+          </Field>
+          <Field label="Venue" optional>
+            <Input value={shared.venue} onChange={e => setShared(s => ({ ...s, venue: e.target.value }))} placeholder="For example, TechEdge Training Centre" />
+          </Field>
+          <Field label="Training details" optional className="sm:col-span-2" description="The specific skills covered, in addition to the certification name.">
+            <Textarea value={shared.details} onChange={e => setShared(s => ({ ...s, details: e.target.value }))} rows={3} placeholder="For example, Winder brake testing, rope inspection and emergency procedures" />
           </Field>
           <div className="sm:col-span-2">
             <Checkbox label="Does not expire" description="Some trainings have no expiry date." checked={noExpiry} onChange={e => setNoExpiry(e.target.checked)} />
@@ -202,7 +236,7 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
             <Input value={shared.required_refresher} onChange={e => setShared(s => ({ ...s, required_refresher: e.target.value }))} placeholder="For example, Annual refresher" />
           </Field>
         </div>
-        {dateOrderError && <Notice tone="danger" title="Check the dates">{dateOrderError}</Notice>}
+        {(dateOrderError || windowErr) && <Notice tone="danger" title="Check the dates">{dateOrderError ?? windowErr}</Notice>}
         {dupes.size > 0 && (
           <Notice tone="warning" title="Already recorded">
             {dupes.size} of {ids.length} {dupes.size === 1 ? 'has' : 'have'} this certification for this date ({[...dupes].map(labelOf).join(', ')}).
@@ -222,15 +256,15 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
               <div className="flex flex-col gap-2">
                 <p className="font-sans text-label font-medium text-ink">Per-person dates (empty follows the shared dates)</p>
                 {chosen.map(({ id, employee }) => (
-                  <div key={id} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_1fr]">
+                  <div key={id} className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                     <p className="font-sans text-body-sm text-ink">{labelOf(id)}{employee?.designation ? <span className="block text-caption text-ink-muted">{String(employee.designation)}</span> : null}</p>
                     <Field label={`Expiry for ${labelOf(id)}`} optional>
                       <Input type="date" aria-label={`Expiry for ${labelOf(id)}`} value={overrides[normalizeEmployeeId(id)]?.expiry_date ?? ''}
                         onChange={e => setOverrides(o => ({ ...o, [normalizeEmployeeId(id)]: { ...o[normalizeEmployeeId(id)], employee_id: normalizeEmployeeId(id), expiry_date: e.target.value || undefined } }))} />
                     </Field>
-                    <Field label={`Trained on for ${labelOf(id)}`} optional>
-                      <Input type="date" aria-label={`Training date for ${labelOf(id)}`} value={overrides[normalizeEmployeeId(id)]?.training_date ?? ''}
-                        onChange={e => setOverrides(o => ({ ...o, [normalizeEmployeeId(id)]: { ...o[normalizeEmployeeId(id)], employee_id: normalizeEmployeeId(id), training_date: e.target.value || undefined } }))} />
+                    <Field label={`Completed for ${labelOf(id)}`} optional>
+                      <Input type="date" aria-label={`Completion date for ${labelOf(id)}`} value={overrides[normalizeEmployeeId(id)]?.completion_date ?? ''}
+                        onChange={e => setOverrides(o => ({ ...o, [normalizeEmployeeId(id)]: { ...o[normalizeEmployeeId(id)], employee_id: normalizeEmployeeId(id), completion_date: e.target.value || undefined } }))} />
                     </Field>
                   </div>
                 ))}
@@ -249,7 +283,7 @@ export function BulkCertificationForm({ open, onOpenChange, onCreated, certs }: 
                   <li key={id} className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-line-subtle px-3 py-2">
                     <span className="font-sans text-body-sm text-ink">{labelOf(id)}
                       <span className="block text-caption text-ink-muted">
-                        {[id, employee?.designation ?? employee?.position, eff.trained ? `trained ${eff.trained}` : '', eff.expiry ? `expires ${eff.expiry}` : ''].filter(Boolean).join(' · ')}
+                        {[id, employee?.designation ?? employee?.position, eff.trained ? `completed ${eff.trained}` : '', eff.expiry ? `expires ${eff.expiry}` : ''].filter(Boolean).join(' · ')}
                         {dupes.has(normalizeEmployeeId(id)) ? ' · already recorded' : ''}
                       </span>
                     </span>

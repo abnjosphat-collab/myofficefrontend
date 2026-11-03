@@ -16,10 +16,19 @@ export async function createCertification(fd: FormData) {
 }
 
 export async function createBulkCertifications(shared: BulkSharedDetails, people: BulkPersonOverride[]) {
+  // The server still requires the legacy training date: the completion date is
+  // its modern key, falling back to the start date when only that is known.
+  const keyDate = shared.completion_date || shared.start_date;
   return api.post<BulkSubmitResponse>('/api/training/bulk', {
     certification_name: shared.certification_name,
     provider: shared.provider,
-    training_date: shared.training_date,
+    training_date: keyDate,
+    ...(shared.start_date ? { start_date: shared.start_date } : {}),
+    ...(shared.completion_date ? { completion_date: shared.completion_date } : {}),
+    ...(shared.grade ? { grade: shared.grade } : {}),
+    ...(shared.details ? { details: shared.details } : {}),
+    ...(shared.trainers ? { trainers: shared.trainers } : {}),
+    ...(shared.venue ? { venue: shared.venue } : {}),
     ...(shared.expiry_date ? { expiry_date: shared.expiry_date } : {}),
     required_refresher: shared.required_refresher,
     group_evidence_url: shared.group_evidence_url || undefined,
@@ -29,6 +38,12 @@ export async function createBulkCertifications(shared: BulkSharedDetails, people
       ...(p.required_refresher !== undefined ? { required_refresher: p.required_refresher } : {}),
       ...(p.provider !== undefined ? { provider: p.provider } : {}),
       ...(p.training_date ? { training_date: p.training_date } : {}),
+      ...(p.start_date ? { start_date: p.start_date } : {}),
+      ...(p.completion_date ? { completion_date: p.completion_date } : {}),
+      ...(p.grade !== undefined ? { grade: p.grade } : {}),
+      ...(p.details !== undefined ? { details: p.details } : {}),
+      ...(p.trainers !== undefined ? { trainers: p.trainers } : {}),
+      ...(p.venue !== undefined ? { venue: p.venue } : {}),
     })),
   });
 }

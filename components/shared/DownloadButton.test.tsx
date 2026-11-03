@@ -78,6 +78,17 @@ describe('DownloadButton Excel export', () => {
     const dataRow = ws.getRow(4).values as unknown[];
     expect(dataRow.slice(1)).toEqual(['C1', 'Jane Doe', 'Engineering']);
   });
+
+  it('emits no "Generated ... Ozech MyOffice" footer row (owner-ordered removal)', async () => {
+    const ws = await downloadAndParse({ title: 'Personnel Registry' });
+    const texts: string[] = [];
+    ws.eachRow((row) => {
+      (row.values as unknown[]).slice(1).forEach((v) => {
+        if (typeof v === 'string') texts.push(v);
+      });
+    });
+    expect(texts.join('\n')).not.toMatch(/Generated/);
+  });
 });
 
 describe('DownloadButton phases', () => {

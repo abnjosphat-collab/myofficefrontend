@@ -3,6 +3,7 @@
 // and outcome sorting (created / skipped / refused / uncertain, retry-safe).
 import { describe, expect, it } from 'vitest';
 import {
+  GRADES,
   buildBulkPayload,
   bulkKey,
   distinctDesignations,
@@ -11,13 +12,15 @@ import {
   normalizeEmployeeId,
   retryIds,
   splitResults,
+  windowError,
 } from './calcTrainingBulk';
-import type { Certification } from './types';
+import type { BulkSharedDetails, Certification } from './types';
 
 const cert = (over: Partial<Certification> = {}): Certification => ({
   id: '1', employee_name: 'Rudo Moyo', employee_id: 'C1165', department: 'Engineering',
   certification_name: 'Safety Induction', expiry_date: '2027-01-01', required_refresher: '',
   status: 'Valid', provider: '', training_date: '2026-11-01',
+  start_date: null, completion_date: null, grade: '', details: '', trainers: '', venue: '',
   snapshot_designation: '', snapshot_section: '', snapshot_department: '', ...over,
 });
 
@@ -53,6 +56,29 @@ describe('findExistingDuplicates', () => {
   it('warns about nothing without a certification and date', () => {
     expect(findExistingDuplicates(register, ['C1165'], '', '')).toEqual(new Set());
   });
+  it('keys on the completion date when one is recorded, not the legacy training date', () => {
+    const done = [cert({ completion_date: '2026-11-05' })];
+    expect(findExistingDuplicates(done, ['C1165'], 'Safety Induction', '2026-11-05')).toEqual(new Set(['C1165']));
+    expect(findExistingDuplicates(done, ['C1165'], 'Safety Induction', '2026-11-01')).toEqual(new Set());
+  });
+});
+
+describe('windowError', () => {
+  it('refuses a start after the completion', () => {
+    expect(windowError('2026-11-05', '2026-11-01')).toBe('The start date is after the completion date.');
+  });
+  it('accepts a blank end and an equal window', () => {
+    expect(windowError('', '2026-11-01')).toBeUndefined();
+    expect(windowError('2026-11-01', '')).toBeUndefined();
+    expect(windowError('2026-11-01', '2026-11-01')).toBeUndefined();
+    expect(windowError('2026-11-01', '2026-11-05')).toBeUndefined();
+  });
+});
+
+describe('GRADES', () => {
+  it('offers Distinction, Merit, Pass and Fail', () => {
+    expect([...GRADES]).toEqual(['Distinction', 'Merit', 'Pass', 'Fail']);
+  });
 });
 
 describe('filterRegister', () => {
@@ -84,12 +110,18 @@ describe('filterRegister', () => {
 });
 
 describe('buildBulkPayload', () => {
-  const shared = { certification_name: 'Safety Induction', provider: 'TechEdge', training_date: '2026-11-01', expiry_date: '2027-11-01', required_refresher: '' };
+  const shared: BulkSharedDetails = { certification_name: 'Safety Induction', provider: 'TechEdge', start_date: '2026-10-28', completion_date: '2026-11-01', expiry_date: '2027-11-01', required_refresher: '', grade: '', details: '', trainers: '', venue: '' };
   it('dedupes people and keeps per-person differences', () => {
     const { items } = buildBulkPayload(shared, [{ employee_id: 'c1165' }, { employee_id: 'C1165' }, { employee_id: 'C1166' }], {
       C1166: { employee_id: 'C1166', expiry_date: '2028-01-01' },
     });
     expect(items).toEqual([{ employee_id: 'C1165' }, { employee_id: 'C1166', expiry_date: '2028-01-01' }]);
+  });
+  it('carries grade, details, trainers and venue overrides through untouched', () => {
+    const { items } = buildBulkPayload(shared, [{ employee_id: 'C1165' }], {
+      C1165: { employee_id: 'C1165', grade: 'Merit', details: 'Rope inspection', trainers: 'T. Nkomo', venue: 'TechEdge' },
+    });
+    expect(items).toEqual([{ employee_id: 'C1165', grade: 'Merit', details: 'Rope inspection', trainers: 'T. Nkomo', venue: 'TechEdge' }]);
   });
 });
 

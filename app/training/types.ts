@@ -14,6 +14,12 @@ export interface Certification {
   certificate_url?: string | null;
   provider: string;
   training_date: string | null;
+  start_date: string | null;
+  completion_date: string | null;
+  grade: string;
+  details: string;
+  trainers: string;
+  venue: string;
   snapshot_designation: string;
   snapshot_section: string;
   snapshot_department: string;
@@ -27,7 +33,7 @@ export interface ComplianceReport { compliance_rate: number; total_tracked: numb
 export interface FormState {
   employee_name: string; employee_id: string; department: string;
   designation: string; section: string;
-  certification_name: string; provider: string; training_date: string; expiry_date: string; no_expiry: boolean; required_refresher: string; certificate_file: File | null;
+  certification_name: string; provider: string; start_date: string; completion_date: string; expiry_date: string; no_expiry: boolean; required_refresher: string; grade: string; details: string; trainers: string; venue: string; certificate_file: File | null;
 }
 
 export interface BulkPersonOverride {
@@ -36,14 +42,25 @@ export interface BulkPersonOverride {
   required_refresher?: string;
   provider?: string;
   training_date?: string;
+  start_date?: string;
+  completion_date?: string;
+  grade?: string;
+  details?: string;
+  trainers?: string;
+  venue?: string;
 }
 
 export interface BulkSharedDetails {
   certification_name: string;
   provider: string;
-  training_date: string;
+  start_date: string;
+  completion_date: string;
   expiry_date?: string;
   required_refresher: string;
+  grade: string;
+  details: string;
+  trainers: string;
+  venue: string;
   group_evidence_url?: string;
 }
 
