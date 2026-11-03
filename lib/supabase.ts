@@ -113,3 +113,18 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
     .single();
   return (data ?? null) as UserProfile | null;
 }
+
+/**
+ * Removes any persisted Supabase session from this browser. Sign-out calls
+ * this after revoking server-side; it also runs when the revoke itself fails
+ * (flaky network), so a dead session can never resurrect on the next load.
+ */
+export function clearStoredSession(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const doomed: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) doomed.push(key);
+  }
+  for (const key of doomed) window.localStorage.removeItem(key);
+}
