@@ -2,7 +2,6 @@
 
 import { toast } from 'sonner';
 import { EXPORT_CHECK_MS, ExportButton, useActionFeedback } from '@/components/ui-system';
-import { formatDate, formatDateTime } from '@/lib/format';
 import { EXPORT_BRAND_ARGB, EXPORT_BRAND_RGB } from '@/lib/exportUtils';
 
 export interface DLColumn {
@@ -63,7 +62,7 @@ export function DownloadButton({
   statusColumn, statusColor, iconOnly = false, label, size,
 }: DownloadButtonProps) {
   const pdfCols = pdfColumns ?? columns;
-  // The trigger phases: idle → pending → success (held 1.2 s) → idle around
+  // The trigger phases: idle â†’ pending â†’ success (held 1.2 s) â†’ idle around
   // both builds. A failed build toasts and returns to idle with no check.
   const { pending, success, run } = useActionFeedback(EXPORT_CHECK_MS);
   const download = (build: () => Promise<boolean>) => () => void run(async () => {
@@ -80,7 +79,7 @@ export function DownloadButton({
       wb.created = new Date();
       const ws = wb.addWorksheet(title ?? filename);
 
-      // ── Optional title + subtitle rows ──────────────────────────────────
+      // â”€â”€ Optional title + subtitle rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       let headerRowNum = 1;
 
       if (title) {
@@ -103,13 +102,13 @@ export function DownloadButton({
         headerRowNum++;
       }
 
-      // ── Column definitions ───────────────────────────────────────────────
+      // â”€â”€ Column definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // Deliberately no `header` property here. ExcelJS's `worksheet.columns` setter
-      // always writes each column's `header` text into row 1, unconditionally — a hard
+      // always writes each column's `header` text into row 1, unconditionally â€” a hard
       // ExcelJS convention, not configurable. When a title/subtitle exists (row 1 is
       // already "Personnel Registry" etc., merged across every column), that write
       // clobbers it, and because the row is merged it also silently collapses every
-      // column's distinct header text down to whichever one ExcelJS wrote last — the
+      // column's distinct header text down to whichever one ExcelJS wrote last â€” the
       // downloaded file's real header row showed one column's label repeated across
       // every column, and the title was gone. `key`/`width` alone are unaffected by
       // this and are all `ws.addRow(valuesObject)` below actually needs; the header
@@ -119,7 +118,7 @@ export function DownloadButton({
         width: c.width ?? Math.max(c.label.length + 6, 18),
       }));
 
-      // ── Header row (text + styling) ───────────────────────────────────────
+      // â”€â”€ Header row (text + styling) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const hdr = ws.getRow(headerRowNum);
       hdr.height = 24;
       columns.forEach((c, i) => { hdr.getCell(i + 1).value = c.label; });
@@ -135,7 +134,7 @@ export function DownloadButton({
 
       ws.views = [{ state: 'frozen', ySplit: headerRowNum }];
 
-      // ── Data rows — readable light-mode two-tone ─────────────────────────
+      // â”€â”€ Data rows â€” readable light-mode two-tone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // Numbers/booleans are written as-is (not stringified) so Excel keeps
       // them sortable/filterable and numeric-formattable, unless a column's
       // `format` explicitly overrides the value (that string wins then).
@@ -150,7 +149,7 @@ export function DownloadButton({
         const bg = i % 2 === 0 ? 'FFFFFFFF' : 'FFEFF6FA';  // white / very-light-blue
         exRow.eachCell(cell => {
           cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
-          cell.font      = { color: { argb: 'FF1A2F44' }, size: 10, name: 'Calibri' };  // dark navy — readable on any bg
+          cell.font      = { color: { argb: 'FF1A2F44' }, size: 10, name: 'Calibri' };  // dark navy â€” readable on any bg
           cell.alignment = { vertical: 'middle' };
           cell.border    = { bottom: { style: 'hair', color: { argb: 'FFCDDDE8' } } };
         });
@@ -160,14 +159,7 @@ export function DownloadButton({
         }
       });
 
-      // ── Footer metadata ──────────────────────────────────────────────────
-      ws.addRow([]);
-      const footer = ws.addRow([
-        `Generated ${formatDateTime(new Date())} · ${data.length} record${data.length !== 1 ? 's' : ''} · Ozech MyOffice`,
-      ]);
-      footer.getCell(1).font = { size: 8, color: { argb: 'FF9BAAB8' }, italic: true, name: 'Calibri' };
-      ws.mergeCells(footer.number, 1, footer.number, columns.length);
-
+      // No footer metadata row: owner decision â€” exports end at the last record.
       ws.autoFilter = {
         from: { row: headerRowNum, column: 1 },
         to:   { row: headerRowNum, column: columns.length },
@@ -178,7 +170,7 @@ export function DownloadButton({
         new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
         `${filename}.xlsx`,
       );
-      toast.success(`Excel downloaded — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      toast.success(`Excel downloaded â€” ${data.length} record${data.length !== 1 ? 's' : ''}`);
       return true;
     } catch (err) {
       toast.error(`Download failed: ${(err as Error).message}`);
@@ -208,11 +200,6 @@ export function DownloadButton({
         doc.text(subtitle, 14, y);
         y += 6;
       }
-      doc.setFontSize(7);
-      doc.setTextColor(160, 170, 180);
-      doc.text(`Generated ${formatDate(new Date())} · ${data.length} records`, 14, y);
-      y += 4;
-
       const statusColIdx = statusColumn ? pdfCols.findIndex(c => c.key === statusColumn) : -1;
       autoTable(doc, {
         startY: y,
@@ -235,7 +222,7 @@ export function DownloadButton({
       });
 
       doc.save(`${filename}.pdf`);
-      toast.success(`PDF downloaded — ${data.length} record${data.length !== 1 ? 's' : ''}`);
+      toast.success(`PDF downloaded â€” ${data.length} record${data.length !== 1 ? 's' : ''}`);
       return true;
     } catch (err) {
       toast.error(`Download failed: ${(err as Error).message}`);

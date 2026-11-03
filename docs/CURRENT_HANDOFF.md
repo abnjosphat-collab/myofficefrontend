@@ -743,3 +743,23 @@ section Mechanical — no assumption baked in. TechEdge used only as example tex
 3. Optional: re-run the full frontend suite on a quiet tree to reconfirm the
    four flaky files; link ambiguous legacy training rows one record at a time
    via PUT with the register personnel number (exact matches only).
+## 25. Training register round 2 — 3 Nov 2026 (UNCOMMITTED, no push, no SQL run)
+
+Tech Edge Winder training & Certification register: national-ID display, surfaced certificate upload, start/completion split, trainers/venue/details/grade, trade auto-select, bulk polish; shared export footer removed per owner order. Branches `feature/training-register-round2` in isolated R2 worktrees off origin/main; Tools/PPE untouched; the only shared-component touch is the ordered DownloadButton footer removal.
+
+### Backend (in worktree; review-only migration NOT run)
+- `app/routers/training.py`: GRADES Distinction/Merit/Pass/Fail (blank allowed, else 422), `_checked_window` (start <= completion, else 422), nullable start_date/completion_date/details/trainers/venue/grade; duplicate guard rekeyed to completion_date with legacy training_date fallback; single + bulk endpoints carry the fields with per-item validation (uncertain=False on bad grade/window).
+- `supabase_migration_training_register_details.sql`: review-only, NOT run — runs after backend deploy ordering.
+- Gates: full backend suite **2973 passed**.
+
+### Frontend (`app/training/` + ordered shared change)
+- `components/shared/DownloadButton.tsx`: the "Generated … Ozech MyOffice" footer removed from Excel + PDF at shared level per owner order (every module's exports lose it); stale format import dropped. Pinned by a new footer-absent test (`DownloadButton.test.tsx` 10/10).
+- Export title/filename: "Tech Edge Winder training & Certification register" / `TechEdge_Winder_Training_Certification_Register_<date>`; new columns Start/Completion/Result/Details/Trainers/Venue; national ID renders in the table + dialog from the live register, never exported.
+- Single dialog: start/completion split (completion feeds the legacy training_date the server still accepts), Result dropdown (Not recorded + 4 grades), details/trainers/venue, certificate upload in the main form (PDF/image), refresher behind the toggle; expiry validated against completion.
+- Bulk: picking a trade auto-selects everyone it matches; shared start/completion/result/details/trainers/venue; per-person completion + expiry; duplicate pre-check keyed on completion; legacy training_date sent as completion||start (the server requires it).
+- `scripts/route-specs/training.mjs`: trade auto-select, Completion label, Merit grade + legacy-key assertions.
+- Gates: tsc clean, eslint clean on touched files, training vitest 26/26, DownloadButton 10/10 + export-consistency 4/4, `/training` spec **ALL CHECKS PASSED** (desktop, 390, tablet/phone viewports), docs:check green, production build 68/68. Route shots captured (register/bulk/analytics @1440/@390); no image viewer in this session, so the spec's visibility/no-overflow assertions are the rendered evidence. Full frontend suite not re-run (training scope only). `.env.local` copied into the worktree (gitignored, same as round 1) because the route harness needs it to boot.
+
+### Owner actions outstanding (nothing committed, pushed, deployed or applied)
+1. Say "commit" (and separately "push") per repo if this is accepted; run `supabase_migration_training_register_details.sql` after the backend deploy ordering.
+2. Note: every module's exports no longer carry the Generated footer (owner-ordered shared change) — confirm that reach is intended before merge.

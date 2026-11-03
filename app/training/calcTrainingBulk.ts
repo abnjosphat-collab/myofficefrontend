@@ -6,13 +6,27 @@ import { normalizeDesignation } from '@/lib/employeeCatalog';
 import type { EmployeeLookup } from '@/hooks/useLookups';
 import type { BulkItemResult, BulkPersonOverride, BulkSharedDetails, Certification } from './types';
 
+/** The result scale the grade dropdown offers; blank means not recorded. */
+export const GRADES = ['Distinction', 'Merit', 'Pass', 'Fail'] as const;
+
+/** Start must not be after completion; either end may be blank. */
+export function windowError(start: string, completion: string): string | undefined {
+  if (start && completion && start > completion) return 'The start date is after the completion date.';
+  return undefined;
+}
+
 /** Personnel numbers compare uppercased and trimmed: "c1165" is "C1165". */
 export const normalizeEmployeeId = (value: unknown): string =>
   String(value ?? '').trim().toUpperCase();
 
-/** The accidental-duplicate identity: person + certification + training date. */
-export const bulkKey = (employeeId: string, certification: string, trainingDate: string): string =>
-  `${normalizeEmployeeId(employeeId)}|${certification.trim().toLowerCase()}|${trainingDate}`;
+/**
+ * The accidental-duplicate identity: person + certification + completion date
+ * (falling back to the legacy training date when no completion date is set) â€”
+ * the same key the server guards on, so the form warns about what the server
+ * would skip. A different date is a renewal, not a duplicate.
+ */
+export const bulkKey = (employeeId: string, certification: string, keyDate: string): string =>
+  `${normalizeEmployeeId(employeeId)}|${certification.trim().toLowerCase()}|${keyDate}`;
 
 /**
  * A client-side pre-check against the loaded register: who among these people
@@ -20,16 +34,16 @@ export const bulkKey = (employeeId: string, certification: string, trainingDate:
  * is the authority and the list may be stale or scoped.
  */
 export function findExistingDuplicates(
-  certs: Certification[], employeeIds: string[], certification: string, trainingDate: string,
+  certs: Certification[], employeeIds: string[], certification: string, keyDate: string,
 ): Set<string> {
-  if (!certification.trim() || !trainingDate) return new Set();
+  if (!certification.trim() || !keyDate) return new Set();
   const wanted = certification.trim().toLowerCase();
   const ids = new Set(employeeIds.map(normalizeEmployeeId));
   const found = new Set<string>();
   for (const c of certs) {
     if (!ids.has(normalizeEmployeeId(c.employee_id))) continue;
     if ((c.certification_name || '').trim().toLowerCase() !== wanted) continue;
-    if ((c.training_date || '') !== trainingDate) continue;
+    if ((c.completion_date || c.training_date || '') !== keyDate) continue;
     found.add(normalizeEmployeeId(c.employee_id));
   }
   return found;

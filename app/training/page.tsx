@@ -10,13 +10,13 @@ import { formatDate } from '@/lib/format';
 import { statusTone } from '@/lib/status';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { PersonInput } from '@/components/shared/PersonInput';
-import { Button, Card, Checkbox, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
+import { Button, Card, Checkbox, DataRegion, DataTable, EmptyState, Field, FormDialog, IconButton, Input, MetricGrid, MetricTile, Notice, PageHeader, Progress, SearchField, Select, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger, Textarea, Toolbar, UpdatedCaption, sortRows, type Column, type SortState, type Tone, ZoomLink, BulkBar, useBulkSelection, rowId } from '@/components/ui-system';
 import { useBulkDelete } from '@/lib/useBulkDelete';
 import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
 import { BulkCertificationForm } from './BulkCertificationForm';
-import { normalizeEmployeeId } from './calcTrainingBulk';
+import { GRADES, normalizeEmployeeId, windowError } from './calcTrainingBulk';
 import { useEmployees } from '@/hooks/useLookups';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
@@ -26,7 +26,7 @@ const STATUS: Record<string, { tone: Tone; label: string; icon: 'valid' | 'due-s
   Valid: { tone: statusTone('valid'), label: 'Valid', icon: 'valid' }, 'Due Soon': { tone: statusTone('due_soon'), label: 'Due soon', icon: 'due-soon' }, Expired: { tone: statusTone('expired'), label: 'Expired', icon: 'expired' },
 };
 const ALL = '__all__';
-const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', designation: '', section: '', certification_name: '', provider: '', training_date: '', expiry_date: '', no_expiry: false, required_refresher: '', certificate_file: null };
+const EMPTY_FORM: FormState = { employee_name: '', employee_id: '', department: '', designation: '', section: '', certification_name: '', provider: '', start_date: '', completion_date: '', expiry_date: '', no_expiry: false, required_refresher: '', grade: '', details: '', trainers: '', venue: '', certificate_file: null };
 
 // A cert missing or with a malformed expiry would otherwise leak "NaNd remaining" onto the register.
 // A training with no expiry never lapses; callers keep it out of countdowns and say so explicitly.
@@ -44,9 +44,12 @@ const DaysLeft = ({ expiry }: { expiry: string | null }) => {
 };
 const complianceTone = (pct: number): 'success' | 'warning' | 'danger' => (pct >= 90 ? 'success' : pct >= 70 ? 'warning' : 'danger');
 
+const EXPORT_TITLE = 'Tech Edge Winder training & Certification register';
 const dlCols: DLColumn[] = [
   { key: 'employee_id', label: 'Employee ID' }, { key: 'employee_name', label: 'Employee Name' }, { key: 'department', label: 'Department' },
-  { key: 'certification_name', label: 'Certification' }, { key: 'provider', label: 'Provider' }, { key: 'training_date', label: 'Training Date' },
+  { key: 'certification_name', label: 'Certification' }, { key: 'details', label: 'Training Details' }, { key: 'provider', label: 'Provider' },
+  { key: 'trainers', label: 'Trainers' }, { key: 'venue', label: 'Venue' }, { key: 'start_date', label: 'Start Date' },
+  { key: 'completion_date', label: 'Completion Date' }, { key: 'grade', label: 'Result' },
   { key: 'required_refresher', label: 'Refresher Required' }, { key: 'expiry_date', label: 'Expiry Date' }, { key: 'status', label: 'Status' },
 ];
 
@@ -57,7 +60,7 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   useResetOnOpen(dialogKey(open, cert?.id), () => {
     setTouched(false);
     setAdvanced(false);
-    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department ?? '', designation: cert.snapshot_designation ?? '', section: cert.snapshot_section ?? '', certification_name: cert.certification_name, provider: cert.provider ?? '', training_date: cert.training_date ?? '', expiry_date: cert.expiry_date ?? '', no_expiry: cert.expiry_date == null, required_refresher: cert.required_refresher ?? '', certificate_file: null } : EMPTY_FORM);
+    setForm(cert ? { employee_name: cert.employee_name, employee_id: cert.employee_id, department: cert.department ?? '', designation: cert.snapshot_designation ?? '', section: cert.snapshot_section ?? '', certification_name: cert.certification_name, provider: cert.provider ?? '', start_date: cert.start_date ?? '', completion_date: cert.completion_date ?? cert.training_date ?? '', expiry_date: cert.expiry_date ?? '', no_expiry: cert.expiry_date == null, required_refresher: cert.required_refresher ?? '', grade: cert.grade ?? '', details: cert.details ?? '', trainers: cert.trainers ?? '', venue: cert.venue ?? '', certificate_file: null } : EMPTY_FORM);
   });
   const set = (patch: Partial<FormState>) => setForm(current => ({ ...current, ...patch }));
   const missing = (value: string, message: string) => (touched && !value.trim() ? message : undefined);
@@ -71,7 +74,12 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
   const registerDept = String(match?.department ?? '');
   const days = form.no_expiry ? null : form.expiry_date ? daysUntilExpiry(form.expiry_date) : null;
   const previewStatus = form.no_expiry ? 'Valid' : days === null ? null : days < 0 ? 'Expired' : days <= 90 ? 'Due Soon' : 'Valid';
-  const dateOrderError = !form.no_expiry && !!form.training_date && !!form.expiry_date && form.expiry_date < form.training_date;
+  // The completion date is the duplicate guard's key, falling back to the
+  // start date (and, for legacy rows, the old training date) when unset.
+  const keyDate = form.completion_date || form.start_date;
+  const windowErr = windowError(form.start_date, form.completion_date);
+  const expiryOrderError = !form.no_expiry && !!keyDate && !!form.expiry_date && form.expiry_date < keyDate;
+  const dateOrderError = expiryOrderError || !!windowErr;
 
   const submit = async () => {
     setTouched(true);
@@ -82,7 +90,13 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
     fd.append('department', match ? registerDept : form.department);
     fd.append('certification_name', form.certification_name);
     fd.append('provider', form.provider);
-    if (form.training_date) fd.append('training_date', form.training_date);
+    if (form.start_date) fd.append('start_date', form.start_date);
+    if (form.completion_date) fd.append('completion_date', form.completion_date);
+    if (keyDate) fd.append('training_date', keyDate);
+    if (form.grade) fd.append('grade', form.grade);
+    if (form.details.trim()) fd.append('details', form.details.trim());
+    if (form.trainers.trim()) fd.append('trainers', form.trainers.trim());
+    if (form.venue.trim()) fd.append('venue', form.venue.trim());
     if (!form.no_expiry && form.expiry_date) fd.append('expiry_date', form.expiry_date);
     if (cert && form.no_expiry) fd.append('no_expiry', 'true');
     fd.append('required_refresher', form.required_refresher);
@@ -112,25 +126,26 @@ function CertificationDialog({ cert, open, onOpenChange, onSaved }: { cert: Cert
         )}
         <Field label="Certification name" required error={missing(form.certification_name, 'Enter the certification name.')}><Input value={form.certification_name} onChange={e => set({ certification_name: e.target.value })} placeholder="For example, First aid and CPR" /></Field>
         <Field label="Provider" optional><Input value={form.provider} onChange={e => set({ provider: e.target.value })} placeholder="For example, TechEdge" /></Field>
-        <Field label="Training date" optional error={dateOrderError ? 'Training cannot be after the expiry date.' : undefined}><Input type="date" value={form.training_date} onChange={e => set({ training_date: e.target.value })} /></Field>
+        <Field label="Start date" optional error={windowErr}><Input type="date" value={form.start_date} onChange={e => set({ start_date: e.target.value })} /></Field>
+        <Field label="Completion date" optional error={windowErr ?? (expiryOrderError ? 'The expiry date is before the completion date.' : undefined)}><Input type="date" value={form.completion_date} onChange={e => set({ completion_date: e.target.value })} /></Field>
+        <Field label="Result" optional><Select value={form.grade} onValueChange={v => set({ grade: v })} options={[{ value: '', label: 'Not recorded' }, ...GRADES.map(g => ({ value: g, label: g }))]} /></Field>
+        <Field label="Trainers" optional><Input value={form.trainers} onChange={e => set({ trainers: e.target.value })} placeholder="For example, T. Nkomo, S. Dube" /></Field>
+        <Field label="Venue" optional><Input value={form.venue} onChange={e => set({ venue: e.target.value })} placeholder="For example, TechEdge Training Centre" /></Field>
+        <Field label="Training details" optional className="sm:col-span-2" description="The specific skills covered, in addition to the certification name."><Textarea value={form.details} onChange={e => set({ details: e.target.value })} rows={3} placeholder="For example, Winder brake testing, rope inspection and emergency procedures" /></Field>
         <div className="sm:col-span-2">
           <Checkbox label="Does not expire" description="Some trainings have no expiry date." checked={form.no_expiry} onChange={e => set({ no_expiry: e.target.checked })} />
         </div>
         {!form.no_expiry && (
           <Field label="Expiry date" required error={touched && !form.expiry_date ? 'Choose the expiry date.' : undefined}><Input type="date" value={form.expiry_date} onChange={e => set({ expiry_date: e.target.value })} /></Field>
         )}
-        <div className="sm:col-span-2">
-          <Checkbox label="Refresher and certificate file" description="Required refresher and the individual certificate document." checked={advanced} onChange={e => setAdvanced(e.target.checked)} />
+        <div className="flex flex-col gap-4 sm:col-span-2">
+          <Field label="Certificate document" optional description={cert?.certificate_url && !form.certificate_file ? 'A file is already attached. Choosing a new one replaces it.' : 'The individual certificate for this person (PDF or image). A group attendance sheet is not a certificate.'}>
+            <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => set({ certificate_file: e.target.files?.[0] ?? null })} className="h-auto py-2 file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:font-sans file:text-label file:text-ink" />
+          </Field>
+          <Checkbox label="Refresher" description="A required refresher for this certification." checked={advanced} onChange={e => setAdvanced(e.target.checked)} />
         </div>
         {advanced && (
-          <>
-            <Field label="Required refresher" optional><Input value={form.required_refresher} onChange={e => set({ required_refresher: e.target.value })} placeholder="For example, BLS refresher" /></Field>
-            <div className="sm:col-span-2">
-              <Field label="Certificate document" optional description={cert?.certificate_url && !form.certificate_file ? 'A file is already attached. Choosing a new one replaces it.' : 'The individual certificate for this person — PDF or image (.pdf, .jpg, .png). A group attendance sheet is not a certificate.'}>
-                <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => set({ certificate_file: e.target.files?.[0] ?? null })} className="h-auto py-2 file:mr-3 file:rounded-control file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:font-sans file:text-label file:text-ink" />
-              </Field>
-            </div>
-          </>
+            <Field label="Required refresher" optional className="sm:col-span-2"><Input value={form.required_refresher} onChange={e => set({ required_refresher: e.target.value })} placeholder="For example, BLS refresher" /></Field>
         )}
         {form.no_expiry ? (
           <div className="flex flex-wrap items-center gap-3 rounded-control border border-line-subtle bg-surface-subtle p-3 sm:col-span-2">
@@ -173,7 +188,7 @@ function TrainingContent() {
     return certs
       .filter(c => statusFilter === ALL || c.status === statusFilter)
       .filter(c => deptFilter === ALL || c.department === deptFilter)
-      .filter(c => !q || c.employee_name.toLowerCase().includes(q) || c.certification_name.toLowerCase().includes(q) || c.employee_id.toLowerCase().includes(q) || (c.provider ?? '').toLowerCase().includes(q))
+      .filter(c => !q || c.employee_name.toLowerCase().includes(q) || c.certification_name.toLowerCase().includes(q) || c.employee_id.toLowerCase().includes(q) || (c.provider ?? '').toLowerCase().includes(q) || (c.details ?? '').toLowerCase().includes(q) || (c.trainers ?? '').toLowerCase().includes(q) || (c.venue ?? '').toLowerCase().includes(q) || (c.grade ?? '').toLowerCase().includes(q))
       .sort((a, b) => (STATUS_ORDER[b.status] ?? 0) - (STATUS_ORDER[a.status] ?? 0));
   }, [certs, statusFilter, deptFilter, search]);
   const rows = useMemo(() => sortRows(filtered, sort, (c, id) => (id === 'expiry_date' ? c.expiry_date ?? '' : id === 'status' ? STATUS_ORDER[c.status] ?? 0 : String(c[id as keyof Certification] ?? '').toLowerCase())), [filtered, sort]);
@@ -203,9 +218,17 @@ function TrainingContent() {
   const unavailable = (flag: boolean) => !loading && flag;
   const hasFilters = !!search || statusFilter !== ALL || deptFilter !== ALL;
 
+  const employees = useEmployees();
+  // The national ID comes from the live register on every render â€” it is shown
+  // on screen only, never written to exports, and later register changes show
+  // here while the frozen at-training snapshot on the record stays untouched.
+  const idNumberOf = (employeeId: string) => {
+    const found = employees.find(e => normalizeEmployeeId(e.employee_id) === normalizeEmployeeId(employeeId));
+    return found?.id_number != null ? String(found.id_number) : '';
+  };
   const COLUMNS: Column<Certification>[] = [
-    { id: 'employee_name', header: 'Employee', sortable: true, sticky: true, cell: c => <span>{c.employee_name}<span className="block text-caption font-normal text-ink-muted">{[c.department, c.employee_id].filter(Boolean).join(' · ')}</span></span> },
-    { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{c.provider && <span className="block text-caption text-ink-muted">{c.provider}{c.training_date ? ` · trained ${c.training_date}` : ''}</span>}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}{c.group_evidence_url && <span className="block text-caption text-ink-muted">Group evidence on file</span>}</span> },
+    { id: 'employee_name', header: 'Employee', sortable: true, sticky: true, cell: c => <span>{c.employee_name}<span className="block text-caption font-normal text-ink-muted">{[c.department, c.employee_id, idNumberOf(c.employee_id) ? `ID ${idNumberOf(c.employee_id)}` : ''].filter(Boolean).join(' · ')}</span></span> },
+    { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{([c.provider, c.completion_date || c.training_date, c.grade].some(Boolean)) && <span className="block text-caption text-ink-muted">{[c.provider, (c.completion_date || c.training_date) ? `completed ${c.completion_date || c.training_date}` : '', c.grade].filter(Boolean).join(' · ')}</span>}{c.details && <span className="block text-caption text-ink-muted">{c.details}</span>}{c.trainers && <span className="block text-caption text-ink-muted">Trainers: {c.trainers}</span>}{c.venue && <span className="block text-caption text-ink-muted">Venue: {c.venue}</span>}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}{c.group_evidence_url && <span className="block text-caption text-ink-muted">Group evidence on file</span>}</span> },
     { id: 'expiry_date', header: 'Expiry', sortable: true, cell: c => <span><span className="tabular whitespace-nowrap">{c.expiry_date ? formatDate(c.expiry_date) : 'Does not expire'}</span><span className="block"><DaysLeft expiry={c.expiry_date} /></span></span> },
     { id: 'status', header: 'Status', sortable: true, cell: c => <StatusTag status={c.status} /> },
     { id: 'certificate', header: 'Certificate', hideBelow: 'md', cell: c => (c.certificate_url ? <a href={c.certificate_url} target="_blank" rel="noreferrer" className="focus-ring rounded-xs text-action underline underline-offset-2">Open file</a> : <span className="text-ink-muted">None</span>) },
@@ -244,13 +267,13 @@ function TrainingContent() {
 
         <TabsContent value="register" className="mt-5 flex flex-col gap-4">
           <Toolbar filtered={hasFilters}
-            trailing={<DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" />}
+            trailing={<DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} />}
           >
             <SearchField value={search} onValueChange={setSearch} placeholder="Search employee, certification or ID" wrapperClassName="min-w-56 max-w-md flex-1" />
             <Select className="w-44" aria-label="Filter by status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: ALL, label: 'All statuses' }, { value: 'Valid', label: 'Valid' }, { value: 'Due Soon', label: 'Due soon' }, { value: 'Expired', label: 'Expired' }]} />
             <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} />
           </Toolbar>
-          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={dlCols} filename={`Training_Register_${todayLocal()}`} title="Training & Certification Register" /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
+          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
           <DataRegion
             status={registerStatus}
             subject="certifications"
