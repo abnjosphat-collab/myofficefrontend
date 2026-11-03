@@ -127,9 +127,20 @@ export function splitResults(results: BulkItemResult[]): SplitResults {
 
 /**
  * Who stays for a retry: certain refusals (fix and resend) and uncertain
- * outcomes (check the register first — they may already be recorded).
+ * outcomes (check the register first - they may already be recorded).
  * Created rows and server-confirmed skips never resubmit.
  */
 export function retryIds(results: BulkItemResult[]): string[] {
   return results.filter(r => r.outcome === 'failed').map(r => normalizeEmployeeId(r.employee_id)).filter(Boolean);
+}
+
+/**
+ * Copies the live register's national ID onto each row for display and
+ * download. The ID is looked up at render time, never stored on the record;
+ * unknown people get an empty string, never someone else's number.
+ */
+export function attachIdNumbers<T extends { employee_id: string }>(
+  rows: T[], idOf: (employeeId: string) => string,
+): (T & { id_number: string })[] {
+  return rows.map(row => ({ ...row, id_number: idOf(row.employee_id) }));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterRequirements, normalizeSize, summarizeRequirements, type RainsuitFilters } from './calcRainsuit';
+import { filterRequirements, normalizeSize, resolveRainsuitName, summarizeRequirements, type RainsuitFilters } from './calcRainsuit';
 import type { PPERequirement } from './types';
 
 const row = (over: Partial<PPERequirement> = {}): PPERequirement => ({
@@ -55,5 +55,18 @@ describe('filterRequirements', () => {
   });
   it('can hide unmatched rows but never drops them silently', () => {
     expect(filterRequirements(rows, { ...NONE, showUnmatched: false }).map(r => r.id)).toEqual(['a', 'b']);
+  });
+});
+
+
+describe('resolveRainsuitName', () => {
+  const directory = [{ employee_id: 'C1002', employee_name: 'Tawanda Kapenzi' }];
+  const base = { employee_id: 'C1002', employee_name: 'T. Kapenzi', source_name: 'T. Kapenzi' };
+  it('prefers the register full name where the mine number links', () => {
+    expect(resolveRainsuitName(base, directory)).toBe('Tawanda Kapenzi');
+  });
+  it('keeps the requirement name when unlinked or unmatched', () => {
+    expect(resolveRainsuitName({ employee_id: null, employee_name: '', source_name: 'Togara' }, directory)).toBe('Togara');
+    expect(resolveRainsuitName({ employee_id: 'ZZ9', employee_name: 'Zed', source_name: 'Zed' }, directory)).toBe('Zed');
   });
 });

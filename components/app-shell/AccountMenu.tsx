@@ -71,7 +71,8 @@ export function AccountMenu({ onOpenSettings }: { onOpenSettings: () => void }) 
           <MenuItem icon="settings" onSelect={onOpenSettings}>Settings</MenuItem>
           <MenuItem icon="lock" onSelect={() => setSecurityOpen(true)}>Security and two-factor sign-in</MenuItem>
           <MenuSeparator />
-          <MenuItem icon="sign-out" tone="danger" onSelect={async () => { await signOut(); window.location.reload(); }}>Sign out</MenuItem>
+          <MenuItem icon="sign-out" tone="danger" onSelect={async () => { // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full load on purpose: sign-out must start from a clean page, like sign-in does.
+          await signOut(); window.location.href = '/login'; }}>Sign out</MenuItem>
         </MenuContent>
       </Menu>
       <Dialog open={securityOpen} onOpenChange={setSecurityOpen} title="Security" description="Manage two-factor sign-in." size="sm">

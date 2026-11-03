@@ -146,7 +146,7 @@ function PPEContent() {
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
   const filtered = unmatchedOnly || f.view !== 'all' || f.section !== ALL || f.search !== '';
-  const reload = () => { void recs.refetch(); void events.refetch(); };
+  const reload = () => { void recs.refetch(); void events.refetch(); if (!miningView) void requirements.refetch(); };
   const nameOf = useCallback((id: string) => holders.find(h => h.employee_id === id)?.employee_name ?? '', [holders]);
   // Mining bulk issues go through the same atomic event path as single issues (one event per person, quantity 1),
   // so the Issue Log stays complete; Engineering bulk keeps posting records directly.
@@ -314,7 +314,7 @@ function PPEContent() {
         {miningView && <TabsTrigger value="gaps" icon="search">Gaps</TabsTrigger>}
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
-          {!miningView && <TabsTrigger value="rainsuit" icon="ppe">Rainsuit</TabsTrigger>}
+          {!miningView && <TabsTrigger value="rainsuit" icon="ppe">Rainsuits</TabsTrigger>}
           {!miningView && <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>}
         </TabsList>
 
@@ -382,7 +382,7 @@ function PPEContent() {
         <TabsContent value="summary" className="mt-4">{recs.loaded ? <SummaryView records={visibleRecords} employeeCount={visibleHolders.length} /> : (recs.error ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded; see the Employees tab.</p> : <LoadingPulse compact label="Loading PPE records" />)}</TabsContent>
         {!miningView && (
           <TabsContent value="rainsuit" className="mt-4">
-            {requirements.loaded ? <RainsuitView rows={requirements.items} /> : (requirements.error
+            {requirements.loaded ? <RainsuitView rows={requirements.items} directory={roster.items} /> : (requirements.error
               ? <p className="font-sans text-body-sm text-ink-muted">The rainsuit requirements could not be loaded. <Button size="sm" icon="refresh" onClick={() => requirements.refetch()}>Try again</Button> {requirements.error}</p>
               : <LoadingPulse compact label="Loading rainsuit requirements" />)}
           </TabsContent>

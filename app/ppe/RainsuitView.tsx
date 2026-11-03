@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { Checkbox, DataTable, EmptyState, SearchField, Select, StatusBadge, type Column } from '@/components/ui-system';
 import { DownloadButton, type DLColumn } from '@/components/shared/DownloadButton';
 import { exportFilename } from '@/lib/exportUtils';
-import { CANONICAL_SIZES, NO_RAINSUIT_FILTERS, filterRequirements, summarizeRequirements, type RainsuitFilters } from './calcRainsuit';
+import { CANONICAL_SIZES, NO_RAINSUIT_FILTERS, filterRequirements, resolveRainsuitName, summarizeRequirements, type RainsuitFilters } from './calcRainsuit';
 import type { PPERequirement } from './types';
 
 const ALL = 'all';
@@ -17,8 +17,7 @@ const COLUMNS: Column<PPERequirement>[] = [
     id: 'who', header: 'Employee', sticky: true,
     cell: r => <div className="min-w-0"><p className="font-medium text-ink">{r.employee_name || r.source_name}</p><p className="text-caption text-ink-muted">{r.employee_id || 'Not linked yet'}</p></div>,
   },
-  { id: 'source', header: 'Source size', cell: r => r.size_source || 'Unknown' },
-  { id: 'size', header: 'Size', cell: r => r.size_canonical || 'Unknown' },
+  { id: 'size', header: 'Size', cell: r => <span>{r.size_canonical || 'Unknown'}{r.size_canonical && r.size_source && r.size_source !== r.size_canonical && <span className="block text-caption text-ink-muted">Source: {r.size_source}</span>}</span> },
   { id: 'qty', header: 'Qty', cell: r => <span className="tabular">{r.quantity}</span> },
   {
     id: 'fulfilled', header: 'Issued',
@@ -32,7 +31,6 @@ const COLUMNS: Column<PPERequirement>[] = [
 const DOWNLOAD: DLColumn[] = [
   { key: 'employee_id', label: 'Mine No.', width: 12 },
   { key: 'employee_name', label: 'Employee', width: 24 },
-  { key: 'size_source', label: 'Source Size', width: 13 },
   { key: 'size_canonical', label: 'Size', width: 9 },
   { key: 'quantity', label: 'Qty', width: 8 },
   { key: 'fulfilled', label: 'Issued', width: 13, format: v => (v ? 'Fulfilled' : 'Outstanding') },
@@ -44,18 +42,24 @@ const SUMMARY_DOWNLOAD: DLColumn[] = [
   { key: 'quantity', label: 'Rainsuits', width: 11 },
 ];
 
-export function RainsuitView({ rows }: { rows: PPERequirement[] }) {
+export function RainsuitView({ rows, directory }: { rows: PPERequirement[]; directory?: { employee_id: string; employee_name: string }[] }) {
+  // Register full names resolved up front, so the table, the search filter
+  // and the download all read the same names.
+  const viewRows = useMemo(
+    () => rows.map(r => ({ ...r, employee_name: resolveRainsuitName(r, directory ?? []) })),
+    [rows, directory],
+  );
   const [f, setF] = useState<RainsuitFilters>(NO_RAINSUIT_FILTERS);
   const set = (patch: Partial<RainsuitFilters>) => setF(prev => ({ ...prev, ...patch }));
   const reset = () => setF(NO_RAINSUIT_FILTERS);
 
-  const filtered = useMemo(() => filterRequirements(rows, f), [rows, f]);
+  const filtered = useMemo(() => filterRequirements(viewRows, f), [viewRows, f]);
   const summary = useMemo(() => summarizeRequirements(filtered), [filtered]);
   const scopeFiltered = f.search !== '' || f.size !== ALL || f.fulfilment !== ALL || !f.showUnmatched;
   const subtitle = `${filtered.length} of ${rows.length} requirements${scopeFiltered ? ' (filtered)' : ''} · ${summary.total} rainsuits${summary.unknown > 0 ? ` · ${summary.unknown} unknown size` : ''}`;
   const downloadable = useMemo(() => filtered.map(r => ({
     employee_id: r.employee_id || '', employee_name: r.employee_name || r.source_name,
-    size_source: r.size_source, size_canonical: r.size_canonical || 'Unknown',
+    size_canonical: r.size_canonical || 'Unknown',
     quantity: r.quantity, fulfilled: r.fulfilled, notes: r.notes,
   })), [filtered]);
 

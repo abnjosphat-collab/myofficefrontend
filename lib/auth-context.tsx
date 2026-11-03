@@ -4,7 +4,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { supabase, UserProfile, UserRole, roleAtLeast, upsertProfile, getProfile } from './supabase';
+import { supabase, UserProfile, UserRole, clearStoredSession, roleAtLeast, upsertProfile, getProfile } from './supabase';
 import { profileScope, profileDepartment, profileModules } from './scope';
 import { needsChallenge, MFA_REQUIRED_EVENT } from './mfa';
 import { clearInputHistoryForUser, setInputHistoryUser } from './inputHistory';
@@ -200,8 +200,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Typing history leaves the device with the user (F-13): clear their
     // key before the session (and the id) is gone.
     clearInputHistoryForUser(user?.id ?? '');
-    await supabase.auth.signOut();
-    setProfile(null);
+    // Local first, server second: when the revoke call fails (the usual
+    // flaky-network case) an awaited signOut() throws and the app would keep
+    // showing the user as signed in, with background refreshes 401ing into
+    // the sign-in toast forever. Clearing here makes sign-out unconditional;
+    // the stored session is purged too so it cannot resurrect on reload.
+    setSession(null); setUser(null); setProfile(null); setMfaPending(false);
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      clearStoredSession();
+    }
   };
 
   const isAtLeast = (role: UserRole): boolean => {

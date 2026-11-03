@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   GRADES,
+  attachIdNumbers,
   buildBulkPayload,
   bulkKey,
   distinctDesignations,
@@ -144,5 +145,17 @@ describe('splitResults and retryIds', () => {
   });
   it('retries nothing when everything is confirmed', () => {
     expect(retryIds([{ employee_id: 'C1165', outcome: 'created', uncertain: false }])).toEqual([]);
+  });
+});
+
+describe('attachIdNumbers', () => {
+  const idOf = (id: string) => (id === 'C1165' ? '63-1234567-A1' : '');
+  it('copies the register national ID onto each row without touching the record', () => {
+    const rows = [{ employee_id: 'C1165', certification_name: 'Safety Induction' }, { employee_id: 'ZZ9', certification_name: 'Other' }];
+    expect(attachIdNumbers(rows, idOf)).toEqual([
+      { employee_id: 'C1165', certification_name: 'Safety Induction', id_number: '63-1234567-A1' },
+      { employee_id: 'ZZ9', certification_name: 'Other', id_number: '' },
+    ]);
+    expect(rows[0]).not.toHaveProperty('id_number');
   });
 });

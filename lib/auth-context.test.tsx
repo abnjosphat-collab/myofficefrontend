@@ -25,6 +25,14 @@ vi.mock('@/lib/supabase', () => ({
   upsertProfile: (...args: unknown[]) => (upsertProfile as (...a: unknown[]) => unknown)(...args),
   getProfile: vi.fn(),
   roleAtLeast: () => true,
+  clearStoredSession: () => {
+    const doomed: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) doomed.push(key);
+    }
+    doomed.forEach(key => window.localStorage.removeItem(key));
+  },
 }));
 
 const toastError = vi.fn();
@@ -33,6 +41,7 @@ vi.mock('sonner', () => ({
 }));
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import { MFA_REQUIRED_EVENT } from '@/lib/mfa';
 import { getInputSuggestions, recordInput } from '@/lib/inputHistory';
 
@@ -120,5 +129,27 @@ describe('session-gate challenge-check failure', () => {
     window.dispatchEvent(new CustomEvent(MFA_REQUIRED_EVENT));
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('mfa'));
     expect(getAAL.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+});
+
+describe('sign-out always signs out locally', () => {
+  it('clears the user and purges the stored session even when the server revoke fails', async () => {
+    getAAL.mockResolvedValue({ data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null });
+    vi.mocked(supabase.auth.signOut).mockRejectedValueOnce(new Error('network down'));
+    function SignOutProbe() {
+      const { user, loading, signOut } = useAuth();
+      if (loading) return <div data-testid="probe2">loading</div>;
+      return <button data-testid="signout2" onClick={() => { void signOut(); }}>out:{user?.id ?? 'none'}</button>;
+    }
+    render(
+      <AuthProvider>
+        <SignOutProbe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('signout2')).toHaveTextContent('out:u-1'));
+    window.localStorage.setItem('sb-testref-auth-token', JSON.stringify({ access_token: 'stale' }));
+    fireEvent.click(screen.getByTestId('signout2'));
+    await waitFor(() => expect(screen.getByTestId('signout2')).toHaveTextContent('out:none'));
+    expect(window.localStorage.getItem('sb-testref-auth-token')).toBeNull();
   });
 });

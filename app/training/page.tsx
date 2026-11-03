@@ -16,7 +16,7 @@ import type { DataStatus } from '@/components/ui-system';
 import type { Certification, FormState } from './types';
 import { useTrainingData, createCertification, updateCertification, deleteCertification } from './useTrainingData';
 import { BulkCertificationForm } from './BulkCertificationForm';
-import { GRADES, normalizeEmployeeId, windowError } from './calcTrainingBulk';
+import { GRADES, attachIdNumbers, normalizeEmployeeId, windowError } from './calcTrainingBulk';
 import { useEmployees } from '@/hooks/useLookups';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
@@ -46,7 +46,7 @@ const complianceTone = (pct: number): 'success' | 'warning' | 'danger' => (pct >
 
 const EXPORT_TITLE = 'Tech Edge Winder training & Certification register';
 const dlCols: DLColumn[] = [
-  { key: 'employee_id', label: 'Employee ID' }, { key: 'employee_name', label: 'Employee Name' }, { key: 'department', label: 'Department' },
+  { key: 'employee_id', label: 'Employee ID' }, { key: 'id_number', label: 'National ID' }, { key: 'employee_name', label: 'Employee Name' }, { key: 'department', label: 'Department' },
   { key: 'certification_name', label: 'Certification' }, { key: 'details', label: 'Training Details' }, { key: 'provider', label: 'Provider' },
   { key: 'trainers', label: 'Trainers' }, { key: 'venue', label: 'Venue' }, { key: 'start_date', label: 'Start Date' },
   { key: 'completion_date', label: 'Completion Date' }, { key: 'grade', label: 'Result' },
@@ -219,13 +219,14 @@ function TrainingContent() {
   const hasFilters = !!search || statusFilter !== ALL || deptFilter !== ALL;
 
   const employees = useEmployees();
-  // The national ID comes from the live register on every render â€” it is shown
-  // on screen only, never written to exports, and later register changes show
-  // here while the frozen at-training snapshot on the record stays untouched.
+  // The national ID comes from the live register on every render - shown
+  // on screen and in downloads, but never stored on the record. Later register
+  // changes show here while the frozen at-training snapshot stays untouched.
   const idNumberOf = (employeeId: string) => {
     const found = employees.find(e => normalizeEmployeeId(e.employee_id) === normalizeEmployeeId(employeeId));
     return found?.id_number != null ? String(found.id_number) : '';
   };
+  const withIds = (rows: Certification[]) => attachIdNumbers(rows, idNumberOf);
   const COLUMNS: Column<Certification>[] = [
     { id: 'employee_name', header: 'Employee', sortable: true, sticky: true, cell: c => <span>{c.employee_name}<span className="block text-caption font-normal text-ink-muted">{[c.department, c.employee_id, idNumberOf(c.employee_id) ? `ID ${idNumberOf(c.employee_id)}` : ''].filter(Boolean).join(' · ')}</span></span> },
     { id: 'certification_name', header: 'Certification', sortable: true, cell: c => <span>{c.certification_name}{([c.provider, c.completion_date || c.training_date, c.grade].some(Boolean)) && <span className="block text-caption text-ink-muted">{[c.provider, (c.completion_date || c.training_date) ? `completed ${c.completion_date || c.training_date}` : '', c.grade].filter(Boolean).join(' · ')}</span>}{c.details && <span className="block text-caption text-ink-muted">{c.details}</span>}{c.trainers && <span className="block text-caption text-ink-muted">Trainers: {c.trainers}</span>}{c.venue && <span className="block text-caption text-ink-muted">Venue: {c.venue}</span>}{c.required_refresher && <span className="block text-caption text-ink-muted">Refresher: {c.required_refresher}</span>}{c.group_evidence_url && <span className="block text-caption text-ink-muted">Group evidence on file</span>}</span> },
@@ -267,13 +268,13 @@ function TrainingContent() {
 
         <TabsContent value="register" className="mt-5 flex flex-col gap-4">
           <Toolbar filtered={hasFilters}
-            trailing={<DownloadButton data={certs as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} />}
+            trailing={<DownloadButton data={withIds(certs) as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} />}
           >
             <SearchField value={search} onValueChange={setSearch} placeholder="Search employee, certification or ID" wrapperClassName="min-w-56 max-w-md flex-1" />
             <Select className="w-44" aria-label="Filter by status" value={statusFilter} onValueChange={setStatusFilter} options={[{ value: ALL, label: 'All statuses' }, { value: 'Valid', label: 'Valid' }, { value: 'Due Soon', label: 'Due soon' }, { value: 'Expired', label: 'Expired' }]} />
             <Select className="w-48" aria-label="Filter by department" value={deptFilter} onValueChange={setDeptFilter} options={[{ value: ALL, label: 'All departments' }, ...depts.map(d => ({ value: d, label: d }))]} />
           </Toolbar>
-          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={bulk.chosen as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
+          <BulkBar {...bulk.bar} actions={<><DownloadButton size="sm" label="Download selected" data={withIds(bulk.chosen) as unknown as Record<string, unknown>[]} columns={dlCols} filename={`TechEdge_Winder_Training_Certification_Register_${todayLocal()}`} title={EXPORT_TITLE} /><Button size="sm" variant="danger" icon="delete" pending={deleting} onClick={removeMany}>Delete selected</Button></>} />
           <DataRegion
             status={registerStatus}
             subject="certifications"

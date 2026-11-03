@@ -2,6 +2,7 @@
 // source size beside the canonical size, fulfilment is derived (an active rainsuit issue for the mine number), and
 // unmatched rows stay visible with no mine number instead of being dropped or guessed.
 import type { PPERequirement } from './types';
+import { normalizeEmployeeId } from './calcPPE';
 
 export const CANONICAL_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as const;
 export type CanonicalSize = (typeof CANONICAL_SIZES)[number];
@@ -35,6 +36,25 @@ export function summarizeRequirements(rows: readonly PPERequirement[]): Rainsuit
     }
   }
   return { counts, unknown, total, people: rows.length, bySize: size => counts[size as CanonicalSize] ?? 0 };
+}
+
+export interface DirectoryPerson { employee_id: string; employee_name: string; }
+
+/**
+ * The name a row shows: the live register full name wherever the row links by
+ * mine number, else the requirement name it arrived with. A near match is
+ * never coerced into someone else.
+ */
+export function resolveRainsuitName(
+  row: Pick<PPERequirement, 'employee_id' | 'employee_name' | 'source_name'>,
+  directory: readonly DirectoryPerson[],
+): string {
+  const id = normalizeEmployeeId(row.employee_id ?? '');
+  if (id) {
+    const found = directory.find(e => normalizeEmployeeId(e.employee_id) === id);
+    if (found?.employee_name?.trim()) return found.employee_name;
+  }
+  return row.employee_name || row.source_name;
 }
 
 export interface RainsuitFilters {
