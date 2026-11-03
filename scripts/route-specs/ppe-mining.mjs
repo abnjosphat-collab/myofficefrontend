@@ -82,6 +82,14 @@ const spec = {
     check(!!eventPost && eventPost.body?.kind === 'issue' && eventPost.body?.quantity === 3 && eventPost.body?.employee_id === 'M200' && typeof eventPost.body?.idempotency_key === 'string', 'the issue posts one atomic event with the quantity and a key', JSON.stringify(eventPost?.body));
     check(!!eventPost && eventPost.query.includes('department=Mining') && !('department' in (eventPost.body ?? {})), 'the event is scoped in the query, never the body', eventPost?.query);
 
+    // the temporary gaps tab surfaces the cleanup lists, Mining-only
+    await page.getByRole('tab', { name: 'Gaps' }).click();
+    check(await page.getByText('Temporary cleanup view').isVisible(), 'the gaps tab says it is temporary');
+    for (const heading of ['Implausible issue dates', 'Missing sizes', 'No PPE at all', 'No job title', 'Import quarantine', 'Also in Engineering']) {
+      check(await page.getByRole('heading', { name: new RegExp(heading) }).isVisible(), `the gaps tab lists ${heading}`);
+    }
+    await shot(page, 'mining-gaps@1440');
+
     // matrix saves from the Mining register stay inside Mining
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Replacement matrix' }).click();

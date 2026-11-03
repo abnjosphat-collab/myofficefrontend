@@ -21,6 +21,7 @@ import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListE
 import { DueItems } from './DueItems';
 import { RainsuitView } from './RainsuitView';
 import { IssueLogView } from './IssueLogView';
+import { GapsView } from './GapsView';
 import { MatrixDialog } from './MatrixDialog';
 import { OrderListView, type BasketAddables } from './OrderListView';
 import { PPEBulkIssueForm } from './PPEBulkIssueForm';
@@ -310,6 +311,7 @@ function PPEContent() {
           <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
           {miningView && <TabsTrigger value="log" icon="history">Issue log</TabsTrigger>}
+        {miningView && <TabsTrigger value="gaps" icon="search">Gaps</TabsTrigger>}
           <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
           <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
           {!miningView && <TabsTrigger value="rainsuit" icon="ppe">Rainsuit</TabsTrigger>}
@@ -360,6 +362,13 @@ function PPEContent() {
             {events.loaded ? <IssueLogView events={events.items} nameOf={nameOf} /> : (events.error
               ? <p className="font-sans text-body-sm text-ink-muted">The movements could not be loaded. <Button size="sm" icon="refresh" onClick={() => events.refetch()}>Try again</Button> {events.error}</p>
               : <LoadingPulse compact label="Loading movements" />)}
+          </TabsContent>
+        )}
+        {miningView && (
+          <TabsContent value="gaps" className="mt-4">
+            {recs.loaded ? <GapsView holders={activeHolders} /> : (recs.error
+              ? <p className="font-sans text-body-sm text-ink-muted">The PPE records could not be loaded.</p>
+              : <LoadingPulse compact label="Loading gaps" />)}
           </TabsContent>
         )}
         <TabsContent value="order" className="mt-4">
