@@ -9,6 +9,7 @@ export const PPE_TYPES: Record<string, { name: string; short: string }> = {
   harness: { name: 'Safety Harness', short: 'Harness' }, safety_chain_belt: { name: 'Safety Chain & Belt', short: 'Chain & belt' }, respirator: { name: 'Respirator', short: 'Respirator' },
   Cap_lamp_belt: { name: 'Cap Lamp Belt', short: 'Lamp belt' }, worksuit: { name: 'Protective Work Suit', short: 'Work suit' }, rainsuit: { name: 'Rain Suit', short: 'Rain suit' },
   overall: { name: 'Protective Overall', short: 'Overall' }, pneumo_jacket: { name: 'Pneumo Jacket', short: 'Pneumo jacket' },
+  safety_chain: { name: 'Safety Chain', short: 'Safety chain' }, sinking_suit: { name: 'Sinking Suit', short: 'Sinking suit' }, jacket: { name: 'Jackets', short: 'Jackets' },
 };
 export const typeName = (t: string) => PPE_TYPES[t]?.name ?? t;
 export const typeShort = (t: string) => PPE_TYPES[t]?.short ?? t;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NO_TYPE_FILTER, TYPE_FILTER_KEY, loadTypeFilter, matchesTypeFilter, normalizePpeType, saveTypeFilter, typeOptions, type TypeFilter } from './ppeTypes';
+import { TYPE_OPTIONS, typeName } from './ppeMeta';
 
 describe('normalizePpeType', () => {
   it('matches loosely: case and spacing do not matter', () => {
@@ -62,5 +63,22 @@ describe('typeOptions', () => {
   });
   it('skips blank codes', () => {
     expect(typeOptions([{ ppe_type: '' }, { ppe_type: '  ' }]).every(o => o.count === undefined)).toBe(true);
+  });
+});
+
+describe('Mining catalogue codes', () => {
+  it('names the three Mining-only codes without merging their Engineering cousins', () => {
+    expect(typeName('safety_chain')).toBe('Safety Chain');
+    expect(typeName('sinking_suit')).toBe('Sinking Suit');
+    expect(typeName('jacket')).toBe('Jackets');
+    expect(typeName('safety_chain_belt')).toBe('Safety Chain & Belt');
+    expect(typeName('rainsuit')).toBe('Rain Suit');
+    expect(typeName('pneumo_jacket')).toBe('Pneumo Jacket');
+  });
+
+  it('offers the Mining codes as lens options alongside the shared vocabulary', () => {
+    const values = TYPE_OPTIONS.map(o => o.value);
+    for (const code of ['safety_chain', 'sinking_suit', 'jacket']) expect(values).toContain(code);
+    expect(new Set(values).size).toBe(values.length);
   });
 });
