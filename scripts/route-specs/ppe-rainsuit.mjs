@@ -18,7 +18,7 @@ const spec = {
   route: '/ppe',
   h1: 'PPE',
   async mobile(page, { shot }) {
-    await page.getByRole('tab', { name: 'Rainsuit' }).click();
+    await page.getByRole('tab', { name: 'Rainsuits' }).click();
     await page.getByRole('table', { name: 'Rainsuit requirements' }).waitFor({ timeout: 5000 });
     await shot(page, 'rainsuit-register@390');
   },
@@ -31,7 +31,7 @@ const spec = {
     '/api/employees': EMPLOYEES,
   },
   async ready(page, calls, { check, shot }) {
-    await page.getByRole('tab', { name: 'Rainsuit' }).click();
+    await page.getByRole('tab', { name: 'Rainsuits' }).click();
     const table = page.getByRole('table', { name: 'Rainsuit requirements' });
     await table.waitFor({ timeout: 5000 });
     check(await table.getByRole('row').count() === 4, 'three requirements are listed', String(await table.getByRole('row').count()));

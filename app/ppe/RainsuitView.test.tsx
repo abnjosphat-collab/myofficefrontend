@@ -30,3 +30,25 @@ describe('RainsuitView', () => {
     expect(screen.getByText('No rainsuit requirements yet')).toBeInTheDocument();
   });
 });
+
+
+describe('RainsuitView register names and size column', () => {
+  const directory = [{ employee_id: 'C1002', employee_name: 'Tawanda Kapenzi' }];
+  it('shows the register full name where linked, keeps the requirement name otherwise', () => {
+    render(<RainsuitView rows={[
+      row({ id: 'b', employee_id: 'C1002', source_name: 'T. Kapenzi', employee_name: 'T. Kapenzi', size_source: 'S', size_canonical: 'S' }),
+      row({ id: 'c', employee_id: null, source_name: 'Togara', employee_name: 'Togara' }),
+    ]} directory={directory} />);
+    expect(screen.getByText('Tawanda Kapenzi')).toBeInTheDocument();
+    expect(screen.getByText('Togara')).toBeInTheDocument();
+    expect(screen.queryByText('T. Kapenzi')).not.toBeInTheDocument();
+  });
+  it('shows one size column with the source as subtext when different', () => {
+    render(<RainsuitView rows={[
+      row({ id: 'b', size_source: 'Extra Large', size_canonical: 'XL' }),
+    ]} />);
+    expect(screen.getByRole('columnheader', { name: 'Size' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Source size' })).not.toBeInTheDocument();
+    expect(screen.getByText('Source: Extra Large')).toBeInTheDocument();
+  });
+});
