@@ -42,6 +42,36 @@ describe('Issue a set', () => {
     expect(onViewSet).toHaveBeenCalledWith('s1');
   });
 
+  it('autofills the department from the ticked person and sends it', async () => {
+    const user = userEvent.setup();
+    const onIssue = vi.fn(async (_typeId: string, _input: unknown) => ({ set_type_id: 'type-1', issued: 1, failed: 0, idempotency_key: 'k', replayed: false, results: [] }));
+    render(<IssueSetForm setTypes={[type]} employees={people} tools={[]} setTypeLines={async () => lines} locationSuggestions={[]} onIssue={onIssue} onCancel={() => {}} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Issue to Tendai Moyo' }));
+    expect(screen.getByRole('combobox', { name: 'Department' })).toHaveTextContent('Engineering');
+    await user.type(screen.getByLabelText('Location'), 'Pit');
+    await user.click(screen.getByRole('button', { name: 'Issue 1 set' }));
+    expect(onIssue).toHaveBeenCalledOnce();
+    expect(onIssue.mock.calls[0][1]).toMatchObject({ department: 'Engineering' });
+  });
+
+  it('requires an explicit department when ticked people span departments', async () => {
+    const user = userEvent.setup();
+    const onIssue = vi.fn(async (_typeId: string, _input: unknown) => ({ set_type_id: 'type-1', issued: 1, failed: 0, idempotency_key: 'k', replayed: false, results: [] }));
+    const mixed = [...people, { id: 'e3', employeeNumber: 'M-9', name: 'Rudo Moyo', department: 'Mining', jobTitle: 'Fitter', active: true }];
+    render(<IssueSetForm setTypes={[type]} employees={mixed} tools={[]} setTypeLines={async () => lines} locationSuggestions={[]} onIssue={onIssue} onCancel={() => {}} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Issue to Tendai Moyo' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Issue to Rudo Moyo' }));
+    await user.type(screen.getByLabelText('Location'), 'Pit');
+    await user.click(screen.getByRole('button', { name: 'Issue 2 sets' }));
+    expect(onIssue).not.toHaveBeenCalled();
+    expect(await screen.findByText('Choose the department these sets belong to.')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Department' }));
+    await user.click(screen.getByRole('option', { name: 'Mining' }));
+    await user.click(screen.getByRole('button', { name: 'Issue 2 sets' }));
+    expect(onIssue).toHaveBeenCalledOnce();
+    expect(onIssue.mock.calls[0][1]).toMatchObject({ department: 'Mining' });
+  });
+
   it('marks piece exceptions per person and sends only those', async () => {
     const user = userEvent.setup();
     const onIssue = vi.fn(async (_typeId: string, _input: unknown) => ({ set_type_id: 'type-1', issued: 1, failed: 0, idempotency_key: 'k', replayed: false, results: [] }));

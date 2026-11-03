@@ -145,7 +145,7 @@ function PPEContent() {
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
   const filtered = unmatchedOnly || f.view !== 'all' || f.section !== ALL || f.search !== '';
-  const reload = () => { void recs.refetch(); void events.refetch(); };
+  const reload = () => { void recs.refetch(); void events.refetch(); if (!miningView) void requirements.refetch(); };
   const nameOf = useCallback((id: string) => holders.find(h => h.employee_id === id)?.employee_name ?? '', [holders]);
   // Mining bulk issues go through the same atomic event path as single issues (one event per person, quantity 1),
   // so the Issue Log stays complete; Engineering bulk keeps posting records directly.

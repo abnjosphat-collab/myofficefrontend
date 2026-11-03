@@ -276,7 +276,7 @@ export function useToolsWorkspace() {
       await reloadWorkspace(); setFeedback(count===1?'One set ready in store.':`${count} sets ready in store.`); notify.success('Sets made');
     } catch(error) { notify.error(error instanceof Error?error.message:'The sets could not be made.'); }
   }
-  async function issueSets(typeId:string,input:{employee_ids:string[];location:string;job_reference?:string;expected_return_at?:string;assigned_equipment?:string[];notes?:string;conditions?:Record<string,Record<string,string>>;override_due_checks?:boolean;override_reason?:string}) {
+  async function issueSets(typeId:string,input:{employee_ids:string[];location:string;department:string;job_reference?:string;expected_return_at?:string;assigned_equipment?:string[];notes?:string;conditions?:Record<string,Record<string,string>>;override_due_checks?:boolean;override_reason?:string}) {
     try {
       const response=await toolsApi.post<IssueSetsResponse>(`/set-types/${typeId}/issue`,requireToken(),{...input,idempotency_key:crypto.randomUUID()});
       await reloadWorkspace();

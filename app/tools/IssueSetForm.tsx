@@ -10,7 +10,7 @@ import type { IssueSetsResponse, ServerSetType, ServerSetTypeLine } from './useT
 import { PIECE_CONDITIONS } from './setTypes';
 
 export type IssueSetsInput = {
-  employee_ids: string[]; location: string; job_reference?: string; expected_return_at?: string;
+  employee_ids: string[]; location: string; department: string; job_reference?: string; expected_return_at?: string;
   assigned_equipment?: string[]; notes?: string;
   conditions?: Record<string, Record<string, string>>;
   override_due_checks?: boolean; override_reason?: string;
@@ -37,6 +37,7 @@ export function IssueSetForm({ setTypes, employees, tools, setTypeLines, initial
   const [exceptionsOpen, setExceptionsOpen] = useState<string | null>(null);
   const [conditions, setConditions] = useState<Record<string, Record<string, string>>>({});
   const [location, setLocation] = useState('');
+  const [department, setDepartment] = useState('');
   const [job, setJob] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,19 @@ export function IssueSetForm({ setTypes, employees, tools, setTypeLines, initial
     return names;
   }, [tools, typeId]);
   const tickedNames = ticked.map(id => employees.find(person => person.id === id)?.name ?? id);
+  // The register departments of the ticked people: one shared department fills
+  // the required field by itself; mixed departments leave the explicit choice.
+  const tickedDepartments = useMemo(() => {
+    const seen: string[] = [];
+    for (const id of ticked) {
+      const dept = (employees.find(person => person.id === id)?.department ?? '').trim();
+      if (dept && !seen.includes(dept)) seen.push(dept);
+    }
+    return seen;
+  }, [ticked, employees]);
+  useEffect(() => {
+    setDepartment(tickedDepartments.length === 1 ? tickedDepartments[0] ?? '' : '');
+  }, [tickedDepartments]);
   const alreadyHolding = tickedNames.filter(name => holders.has(name));
 
   useEffect(() => {
@@ -71,6 +85,7 @@ export function IssueSetForm({ setTypes, employees, tools, setTypeLines, initial
     if (!typeId) { setError('Choose a set type first.'); return; }
     if (!ticked.length) { setError('Tick at least one person.'); return; }
     if (!location.trim()) { setError('Say where the sets are going.'); return; }
+    if (!department.trim()) { setError('Choose the department these sets belong to.'); return; }
     setError(null); setIssuing(true);
     try {
       const nonDefault: Record<string, Record<string, string>> = {};
@@ -79,7 +94,7 @@ export function IssueSetForm({ setTypes, employees, tools, setTypeLines, initial
         if (Object.keys(marked).length) nonDefault[employeeId] = marked;
       }
       const result = await onIssue(typeId, {
-        employee_ids: ticked, location: location.trim(), job_reference: job.trim() || undefined, notes: notes.trim() || undefined,
+        employee_ids: ticked, location: location.trim(), department: department.trim(), job_reference: job.trim() || undefined, notes: notes.trim() || undefined,
         conditions: Object.keys(nonDefault).length ? nonDefault : undefined,
       });
       if (result) setResponse(result);
@@ -173,8 +188,15 @@ export function IssueSetForm({ setTypes, employees, tools, setTypeLines, initial
           })}
         </section>
       )}
+      {tickedDepartments.length > 1 && (
+        <Notice tone="info" title="People from several departments">Ticked people span {tickedDepartments.length} departments. Each set is stamped with the register department of its holder; the chosen department below decides whose store the sets come from.</Notice>
+      )}
       <FieldGroup label="Issue details">
         <Field label="Location"><Input aria-label="Location" value={location} onChange={event => setLocation(event.target.value)} placeholder="Pit" list="tools-location-suggestions" /></Field>
+        <Field label="Department" required description="From the register records of the ticked people.">
+          <Select aria-label="Department" value={department} onValueChange={setDepartment}
+            options={tickedDepartments.map(value => ({ value, label: value }))} placeholder={ticked.length ? 'Choose department' : 'Tick people first'} />
+        </Field>
         <Field label="Job reference"><Input aria-label="Job reference" value={job} onChange={event => setJob(event.target.value)} /></Field>
         <Field label="Notes"><Textarea aria-label="Notes" value={notes} rows={2} onChange={event => setNotes(event.target.value)} /></Field>
       </FieldGroup>
