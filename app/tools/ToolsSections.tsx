@@ -49,6 +49,7 @@ export function ToolsSections({ w }: { w: ToolsWorkspace }) {
         scopeLabel={`Showing ${w.departmentOptions.find(option => option.value === w.department)?.label ?? 'All departments'}`}
         onNavigate={(next, filter) => w.filterTo(filter, next)} onRetry={w.retryWorkspace}
         onIssue={() => w.openManageModal({ kind: 'bulk-issue' })} canIssue={w.counts.available > 0}
+        onIssueSet={() => w.openManageModal({ kind: 'issue-set' })} canIssueSet={w.setTypes.some(type => type.active)}
       />
       </div>
     );

@@ -26,7 +26,7 @@ const SECTION_DESCRIPTIONS: Partial<Record<ToolsTab, string>> = {
 
 const MOVEMENTS_OPEN_KEY = 'myoffice.tools.movementsOpen';
 
-export function ToolsHomepage({ stats, attention, movements, historyFailed, attentionFailed, historyLoading = false, attentionLoading = false, sections, scopeLabel, onNavigate, onRetry, onIssue, canIssue }: {
+export function ToolsHomepage({ stats, attention, movements, historyFailed, attentionFailed, historyLoading = false, attentionLoading = false, sections, scopeLabel, onNavigate, onRetry, onIssue, canIssue, onIssueSet, canIssueSet }: {
   stats: HomepageStat[];
   attention: HomepageAttention[];
   movements: HomepageMovement[];
@@ -42,6 +42,9 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
   /** Issuing is the workspace's central action, so the overview carries it too. */
   onIssue: () => void;
   canIssue: boolean;
+  /** Issuing a numbered set is the same central action for set types, so it sits beside Issue tools. */
+  onIssueSet: () => void;
+  canIssueSet: boolean;
 }) {
   const [movementsChosen, setMovementsChosen] = useState(() => { try { return typeof window !== 'undefined' && window.localStorage.getItem(MOVEMENTS_OPEN_KEY) === '1'; } catch { return false; } });
   const toggleMovements = () => setMovementsChosen(open => { const next = !open; try { window.localStorage.setItem(MOVEMENTS_OPEN_KEY, next ? '1' : '0'); } catch { /* storage unavailable */ } return next; });
@@ -52,7 +55,10 @@ export function ToolsHomepage({ stats, attention, movements, historyFailed, atte
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-sans text-body-sm text-ink-muted">{scopeLabel}</p>
-        <Button variant="primary" onClick={onIssue} disabled={!canIssue}>Issue tools</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={onIssueSet} disabled={!canIssueSet}>Issue tool set</Button>
+          <Button variant="primary" onClick={onIssue} disabled={!canIssue}>Issue tools</Button>
+        </div>
       </div>
       <MetricGrid compact>
         {stats.map(stat => (

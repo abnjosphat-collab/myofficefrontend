@@ -20,7 +20,7 @@ describe('ToolsHomepage', () => {
   it('navigates through stat cards and lists', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} onIssue={() => {}} canIssue />);
+    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} onIssue={() => {}} canIssue onIssueSet={() => {}} canIssueSet />);
     await user.click(screen.getByRole('button', { name: /Tools\s*12/ }));
     expect(onNavigate).toHaveBeenCalledWith('register', 'all');
     await user.click(screen.getByRole('button', { name: /Angle grinder overdue/ }));
@@ -33,7 +33,7 @@ describe('ToolsHomepage', () => {
   it('keeps recent movements closed until asked, shows how many there are, and remembers the choice', async () => {
     window.localStorage.removeItem('myoffice.tools.movementsOpen');
     const user = userEvent.setup();
-    const props = { stats, attention, movements, historyFailed: false, attentionFailed: false, sections, scopeLabel, onNavigate: vi.fn(), onRetry: vi.fn(), onIssue: vi.fn(), canIssue: true };
+    const props = { stats, attention, movements, historyFailed: false, attentionFailed: false, sections, scopeLabel, onNavigate: vi.fn(), onRetry: vi.fn(), onIssue: vi.fn(), canIssue: true, onIssueSet: vi.fn(), canIssueSet: true };
     const { unmount } = render(<ToolsHomepage {...props} />);
     const toggle = screen.getByRole('button', { name: /Recent movements/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -49,7 +49,7 @@ describe('ToolsHomepage', () => {
 
   it('leads with the stat tiles and shortcuts, and puts recent movements last', () => {
     window.localStorage.removeItem('myoffice.tools.movementsOpen');
-    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue />);
+    render(<ToolsHomepage stats={stats} attention={attention} movements={movements} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue onIssueSet={vi.fn()} canIssueSet />);
     const order = [screen.getByRole('button', { name: /Tools\s*12/ }), screen.getByRole('heading', { name: 'Needs attention' }), screen.getByRole('navigation', { name: 'Workspace shortcuts' }), screen.getByRole('button', { name: /Recent movements/ })];
     for (let i = 0; i < order.length - 1; i++) expect(order[i].compareDocumentPosition(order[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -58,7 +58,7 @@ describe('ToolsHomepage', () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     const onRetry = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={true} attentionFailed={false} sections={[]} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={onRetry} onIssue={() => {}} canIssue />);
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={true} attentionFailed={false} sections={[]} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={onRetry} onIssue={() => {}} canIssue onIssueSet={() => {}} canIssueSet />);
     expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Employees\s*0/ })).not.toBeInTheDocument();
     expect(screen.getByText('Everything is clear. No overdue returns, open incidents or due checks.')).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('ToolsHomepage', () => {
   });
 
   it('never reports everything clear when the attention source failed', () => {
-    render(<ToolsHomepage stats={stats} attention={[]} movements={movements} historyFailed={false} attentionFailed={true} sections={[]} scopeLabel={scopeLabel} onNavigate={() => {}} onRetry={() => {}} onIssue={() => {}} canIssue />);
+    render(<ToolsHomepage stats={stats} attention={[]} movements={movements} historyFailed={false} attentionFailed={true} sections={[]} scopeLabel={scopeLabel} onNavigate={() => {}} onRetry={() => {}} onIssue={() => {}} canIssue onIssueSet={() => {}} canIssueSet />);
     expect(screen.getByText('Needs-attention data is unavailable.')).toBeInTheDocument();
     expect(screen.queryByText(/Everything is clear/)).not.toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe('ToolsHomepage', () => {
   it('introduces the system and links every passed section', async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} onIssue={() => {}} canIssue />);
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={onNavigate} onRetry={() => {}} onIssue={() => {}} canIssue onIssueSet={() => {}} canIssueSet />);
     expect(screen.getByText(scopeLabel)).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Workspace shortcuts' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Open Employees' }));
@@ -87,7 +87,7 @@ describe('ToolsHomepage', () => {
 
   it('opens before the movements and needs-attention records arrive, and says they are loading instead of "clear"', () => {
     const loadingStats = [...stats.slice(0, 2), { ...stats[2], unavailable: false, loading: true }];
-    render(<ToolsHomepage stats={loadingStats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} historyLoading attentionLoading sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue />);
+    render(<ToolsHomepage stats={loadingStats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} historyLoading attentionLoading sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue onIssueSet={vi.fn()} canIssueSet />);
     expect(screen.getByRole('button', { name: /Tools\s*12/ })).toBeInTheDocument();
     expect(screen.getAllByText('Employees').length).toBeGreaterThan(0);
     expect(screen.getByText('Loading the latest records…')).toBeInTheDocument();
@@ -99,11 +99,21 @@ describe('ToolsHomepage', () => {
   it('carries the Issue tools action, disabled while nothing is available', async () => {
     const user = userEvent.setup();
     const onIssue = vi.fn();
-    const { unmount } = render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={onIssue} canIssue />);
+    const { unmount } = render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={onIssue} canIssue onIssueSet={onIssue} canIssueSet />);
     await user.click(screen.getByRole('button', { name: 'Issue tools' }));
     expect(onIssue).toHaveBeenCalledTimes(1);
     unmount();
-    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={onIssue} canIssue={false} />);
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={onIssue} canIssue={false} onIssueSet={onIssue} canIssueSet={false} />);
     expect(screen.getByRole('button', { name: 'Issue tools' })).toBeDisabled();
+  });
+  it('carries the Issue tool set action, disabled while no set types exist', async () => {
+    const user = userEvent.setup();
+    const onIssueSet = vi.fn();
+    const { unmount } = render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue onIssueSet={onIssueSet} canIssueSet />);
+    await user.click(screen.getByRole('button', { name: 'Issue tool set' }));
+    expect(onIssueSet).toHaveBeenCalledTimes(1);
+    unmount();
+    render(<ToolsHomepage stats={stats} attention={[]} movements={[]} historyFailed={false} attentionFailed={false} sections={sections} scopeLabel={scopeLabel} onNavigate={vi.fn()} onRetry={vi.fn()} onIssue={vi.fn()} canIssue onIssueSet={onIssueSet} canIssueSet={false} />);
+    expect(screen.getByRole('button', { name: 'Issue tool set' })).toBeDisabled();
   });
 });
