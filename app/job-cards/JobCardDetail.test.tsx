@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { ConfirmProvider } from '@/components/ui-system';
-import { JobCardDetail } from './page';
+import { JobCardDetail } from './PageContent';
 import type { JobCard } from './types';
 
 const jc: JobCard = {

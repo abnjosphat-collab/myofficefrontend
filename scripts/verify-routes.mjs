@@ -33,7 +33,7 @@ async function scenario(name, spec, data, run, viewport, storage = spec.storage)
   if (storage) await context.addInitScript(entries => { for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)); }, storage);
   const page = await context.newPage();
   const problems = [];
-  page.on('pageerror', error => problems.push(`pageerror: ${error.message}`));
+  page.on('pageerror', error => problems.push(`pageerror: ${error.stack ?? error.message}`));
   page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) problems.push(`console: ${message.text().slice(0, 160)}`); });
   try {
     await page.goto(`${BASE}${spec.route}`, { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => {});
@@ -85,7 +85,7 @@ for (const spec of specs) {
     // Create flow: validation, a failed save keeps the dialog and typed values, a good save closes and reloads.
     const c = spec.create;
     let mode = 'fail';
-    const data = { ...spec.data, [`POST ${c.path}`]: () => (mode === 'fail' ? { __status: 500, body: { detail: 'Save rejected (fixture)' } } : { id: 999 }) };
+    const data = { ...spec.data, [`POST ${c.path}`]: request => (mode === 'fail' ? { __status: 500, body: { detail: 'Save rejected (fixture)' } } : { ...(c.confirmedLocal ? { ...request.postDataJSON(), status: 'pending', created_at: new Date().toISOString(), applied_date: new Date().toISOString() } : {}), id: 999 }) };
     await scenario(`${spec.route} create`, spec, data, async (page, calls) => {
       await c.before?.(page); // optional per-route setup, e.g. dismissing an overlay that covers the opener
       await page.getByRole('button', { name: c.open }).first().click();
@@ -112,7 +112,8 @@ for (const spec of specs) {
       await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
       check(!(await dialog.isVisible().catch(() => false)), 'successful save closes the dialog');
       await page.waitForTimeout(600);
-      check(calls.filter(x => x.method === 'GET' && x.pathname === listPath).length > before, 'the list is reloaded after saving');
+      const after = calls.filter(x => x.method === 'GET' && x.pathname === listPath).length;
+      check(c.confirmedLocal ? after === before : after > before, c.confirmedLocal ? 'a confirmed save needs no whole-register reload' : 'the list is reloaded after saving');
       const post = calls.filter(x => x.method === 'POST' && x.pathname === c.path).pop();
       check(c.body(post?.body ?? {}), 'the saved record has the expected fields', JSON.stringify(post?.body).slice(0, 200));
     });

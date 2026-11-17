@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmProvider } from '@/components/ui-system';
-import { ListPane } from './page';
+import { ListPane } from './PageContent';
 
 const { getMock } = vi.hoisted(() => ({ getMock: vi.fn() }));
 vi.mock('@/lib/apiClient', () => ({ api: { get: getMock, post: vi.fn(), patch: vi.fn(), delete: vi.fn() } }));

@@ -41,13 +41,19 @@ export interface ApiListOptions<Raw> {
   refresh?: false | { every?: number };
 }
 
+/** Additional mutation-safe local updates returned by the live list hook. */
+export interface ConfirmedApiListState<T> extends ApiListState<T> {
+  /** Apply a confirmed write without allowing an older in-flight read to undo it. */
+  commitItems: React.Dispatch<React.SetStateAction<T[]>>;
+}
+
 /**
  * `paged`: the endpoint caps rows per request (see lib/paged.ts); fetch every page instead of just the first.
  * Use it for any list route that takes `limit`/`offset`, otherwise a long register is silently cut off.
  * `fetcher` replaces the request (for example to add a timeout and one retry); pass a stable reference.
  * `pick` unwraps a response such as `{ data: [...] }` (pass a stable reference, e.g. `unwrapRows`).
  */
-export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw) => T, options: ApiListOptions<Raw> = {}): ApiListState<T> {
+export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw) => T, options: ApiListOptions<Raw> = {}): ConfirmedApiListState<T> {
   const paged = options.paged ?? false;
   const enabled = options.enabled ?? true;
   const pick = options.pick;
@@ -70,10 +76,18 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
   const busyRef = useRef(false);
   /** Consecutive quiet failures; the error surfaces from the second one. */
   const quietFails = useRef(0);
+  const pendingCommits = useRef<React.SetStateAction<T[]>[]>([]);
+  const commitItems = useCallback<React.Dispatch<React.SetStateAction<T[]>>>(update => {
+    if (busyRef.current) pendingCommits.current.push(update);
+    setItems(update);
+  }, []);
 
   const doFetch = useCallback(async (quiet: boolean) => {
     if (timer.current) clearTimeout(timer.current);
     const request = ++latest.current;
+    // A new read starts after all prior confirmed writes. Only mutations that
+    // finish while THIS read is in flight need to be overlaid on its result.
+    pendingCommits.current = [];
     if (!enabled) { if (!quiet) setLoading(false); return; } // nothing is requested until the caller says so (for example, a folder is open)
     if (!quiet) quietFails.current = 0;
     busyRef.current = true;
@@ -83,7 +97,10 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
         const data = fetcher ? await fetcher(path) : paged ? await getAllPages<Raw>(path, { pick }) : await api.get<Raw[]>(path);
         if (request !== latest.current) return; // a newer request superseded this one
         if (!Array.isArray(data)) throw new Error('The server returned an unexpected response.');
-        setItems(mapRef.current ? data.map(mapRef.current) : (data as unknown as T[]));
+        let next = mapRef.current ? data.map(mapRef.current) : (data as unknown as T[]);
+        for (const update of pendingCommits.current) next = typeof update === 'function' ? update(next) : update;
+        pendingCommits.current = [];
+        setItems(next);
         setLoaded(true); setError(null); setErrorStatus(null);
         quietFails.current = 0;
         setUpdatedAt(new Date());
@@ -109,7 +126,14 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
 
   const refetch = useCallback(() => doFetch(false), [doFetch]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => () => {
+    // An in-flight failure after navigation must not start a new retry chain
+    // for a screen that no longer exists.
+    latest.current += 1;
+    busyRef.current = false;
+    pendingCommits.current = [];
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
 
   // A new path (another folder, another query) starts from nothing, so rows of the previous one are never shown under the new one.
   const scope = `${path}|${enabled}`;
@@ -124,5 +148,5 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
     isLoading: () => busyRef.current,
   });
 
-  return { items, loading, loaded, error, errorStatus, refetch, setItems, updatedAt };
+  return { items, loading, loaded, error, errorStatus, refetch, setItems, commitItems, updatedAt };
 }

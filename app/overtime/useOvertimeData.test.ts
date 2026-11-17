@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '@/lib/apiClient';
-import { fetchOT } from './useOvertimeData';
+import { fetchOT, deleteOT, mergeConfirmedOT, createOT } from './useOvertimeData';
 
-vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn() } }));
+vi.mock('@/lib/apiClient', async importOriginal => ({ ...(await importOriginal<typeof import('@/lib/apiClient')>()), api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }));
 
 describe('fetchOT', () => {
   beforeEach(() => { vi.mocked(api.get).mockReset(); });
@@ -34,6 +34,47 @@ describe('fetchOT', () => {
 
 import { buildOvertimePayload } from './useOvertimeData';
 import type { OTForm } from './types';
+import { ApiError } from '@/lib/apiClient';
+import type { OTRecord } from './types';
+
+describe('confirmed and uncertain overtime writes', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reconciles a lost DELETE response with one detail read and never repeats DELETE', async () => {
+    vi.mocked(api.delete).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    vi.mocked(api.get).mockRejectedValueOnce(new ApiError('Overtime not found', 404));
+    await expect(deleteOT(7)).resolves.toBeUndefined();
+    expect(api.delete).toHaveBeenCalledOnce();
+    expect(api.get).toHaveBeenCalledWith('/api/overtime/7');
+  });
+
+  it('does not claim delete success when the readback still finds the row', async () => {
+    const error = new TypeError('Failed to fetch');
+    vi.mocked(api.delete).mockRejectedValueOnce(error);
+    vi.mocked(api.get).mockResolvedValueOnce({ id: 7 });
+    await expect(deleteOT(7)).rejects.toBe(error);
+  });
+
+  it('preserves an explicit server refusal without a reconciliation read', async () => {
+    const error = new ApiError('Approved overtime cannot be deleted', 409);
+    vi.mocked(api.delete).mockRejectedValueOnce(error);
+    await expect(deleteOT(7)).rejects.toBe(error);
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('merges the confirmed ID exactly once even if IDs have different JS types', () => {
+    const old = { id: 7, employee_name: 'Before' } as OTRecord;
+    const saved = { id: '7', employee_name: 'After' } as OTRecord;
+    expect(mergeConfirmedOT([old], saved)).toEqual([saved]);
+  });
+
+  it('does not submit client approval or application stamps or replay uncertain creates', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const payload = { employee_id: 'C1', hours: 2 };
+    await expect(createOT(payload)).rejects.toThrow('Failed to fetch');
+    expect(api.post).toHaveBeenCalledExactlyOnceWith('/api/overtime', payload);
+  });
+});
 
 const form: OTForm = {
   employee_name: 'Jane', employee_id: 'C1', position: 'Fitter', department: '', cost_centre: 'Engineering', overtime_type: 'regular', planning_status: 'planned', payout_method: 'cash',

@@ -51,7 +51,12 @@ const verification = fs.existsSync(VERIFICATION) ? JSON.parse(fs.readFileSync(VE
 const files = walk(APP).sort((a, b) => routeOf(a).localeCompare(routeOf(b)));
 const rows = files.map(file => {
   const route = routeOf(file);
-  const source = fs.readFileSync(file, 'utf8');
+  let source = fs.readFileSync(file, 'utf8');
+  // Thin Next.js entrypoints keep their unchanged screen in the same folder.
+  // Classify the implementation, not the framework-only forwarding module.
+  if (/export \{ default \} from ['"]\.\/PageContent['"]/.test(source)) {
+    source = fs.readFileSync(path.join(path.dirname(file), 'PageContent.tsx'), 'utf8');
+  }
   const dir = path.dirname(file);
   const unitTests = fs.readdirSync(dir).filter(f => /\.test\.(ts|tsx)$/.test(f)).length;
   return { route, lines: source.split('\n').length, code: codeStatus(route, source), spec: specRoutes.has(route), unitTests, record: verification.routes?.[route] };

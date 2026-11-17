@@ -6,6 +6,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useConfirm } from '@/components/ui-system';
+import { isUnconfirmedMutation } from './mutationOutcome';
 
 export interface ConfirmDeleteOptions {
   /** The question, e.g. "Delete this work order?" */
@@ -30,6 +31,11 @@ export function useConfirmDelete() {
     try {
       await run();
     } catch (e) {
+      if (isUnconfirmedMutation(e)) {
+        toast.error(`Deletion could not be confirmed. ${e instanceof Error ? e.message : ''} Refresh the register before retrying; the record may already have been deleted.`);
+        try { await after?.(); } catch { /* keep the original uncertain outcome */ }
+        return false;
+      }
       toast.error(`${what} was not deleted: ${e instanceof Error ? e.message : 'the server did not accept it.'}`);
       return false;
     }

@@ -41,6 +41,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -81,6 +82,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
     if (saving) return;
     setSaving(true);
     setError(null);
+    setUnconfirmed(false);
     try {
       const result = await onSubmit();
       if (result === false) { refused(); return; }
@@ -92,6 +94,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
       onOpenChange(false);
       onSaved?.();
     } catch (e) {
+      setUnconfirmed(e instanceof Error && 'outcome' in e && e.outcome === 'unconfirmed');
       setError(e instanceof Error ? e.message : 'The changes could not be saved.');
     } finally {
       setSaving(false);
@@ -116,7 +119,7 @@ export function FormDialog({ open, onOpenChange, title, description, size = 'md'
       )}
     >
       <form id={formId} ref={formRef} noValidate onSubmit={submit} onChange={markIfData} className="flex flex-col gap-4">
-        {error && <div ref={errorRef}><Notice tone="danger" title="Could not save">{error}</Notice></div>}
+        {error && <div ref={errorRef}><Notice tone={unconfirmed ? 'warning' : 'danger'} title={unconfirmed ? 'Save not confirmed' : 'Could not save'}>{error}</Notice></div>}
         <MarkDirtyProvider value={markDirty}>{children}</MarkDirtyProvider>
       </form>
     </Dialog>

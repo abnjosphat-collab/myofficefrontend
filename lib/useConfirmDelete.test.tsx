@@ -21,6 +21,16 @@ const setup = (over: Partial<ConfirmDeleteOptions> = {}) => {
 describe('useConfirmDelete', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('does not claim a deletion failed when the response was lost', async () => {
+    const user = userEvent.setup();
+    const { after } = setup({ run: async () => { throw new TypeError('Failed to fetch'); } });
+    await user.click(screen.getByRole('button', { name: 'Delete it' }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Deletion could not be confirmed'));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('was not deleted'));
+    expect(after).toHaveBeenCalledOnce();
+  });
+
   it('deletes only after confirmation, then reports and refreshes', async () => {
     const user = userEvent.setup();
     const { run, after, onResult } = setup();

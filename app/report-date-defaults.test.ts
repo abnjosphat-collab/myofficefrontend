@@ -7,15 +7,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { todayLocal } from '@/lib/dates';
 import { exportFilename } from '@/lib/exportUtils';
 import { nowLocal } from '@/components/shared/utils';
-import { emptyForm as nearMissForm } from './near_miss/page';
-import { emptyForm as noticeboardForm } from './noticeboard/page';
-import { emptyForm as pacheduForm } from './pachedu/page';
-import { emptyForm as ptoForm } from './pto/page';
-import { emptyForm as requisitionForm } from './requisitions/page';
-import { emptyForm as safetyComplaintForm } from './safety_complaints/page';
-import { emptyForm as sheqInspectionForm } from './sheq_inspection/page';
-import { emptyForm as vflForm } from './vfl/page';
-import { emptyForm as workStoppageForm } from './work_stoppage/page';
+import { emptyForm as nearMissForm } from './near_miss/PageContent';
+import { emptyForm as noticeboardForm } from './noticeboard/PageContent';
+import { emptyForm as pacheduForm } from './pachedu/PageContent';
+import { emptyForm as ptoForm } from './pto/PageContent';
+import { emptyForm as requisitionForm } from './requisitions/PageContent';
+import { emptyForm as safetyComplaintForm } from './safety_complaints/PageContent';
+import { emptyForm as sheqInspectionForm } from './sheq_inspection/PageContent';
+import { emptyForm as vflForm } from './vfl/PageContent';
+import { emptyForm as workStoppageForm } from './work_stoppage/PageContent';
 
 beforeAll(() => { process.env.TZ = 'Africa/Johannesburg'; });
 beforeEach(() => {

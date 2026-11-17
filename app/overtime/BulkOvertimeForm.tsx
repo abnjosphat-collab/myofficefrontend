@@ -20,6 +20,7 @@ import { SELECTABLE_OT_TYPES, overtimeCostCentreOptions, type OTForm, type OTRec
 import { buildOvertimePayload, createOT } from './useOvertimeData';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
 import { ApiError } from '@/lib/apiClient';
+import { UnconfirmedMutationError } from '@/lib/mutationOutcome';
 
 type Shared = Omit<OTForm, 'employee_name' | 'employee_id' | 'position' | 'department' | 'contact_number'>;
 const sharedOf = (): Shared => {
@@ -31,7 +32,7 @@ const PLANNING = (Object.keys(PLANNING_LABELS) as PlanningStatus[]).map(value =>
 const PAYOUT = (Object.keys(PAYOUT_LABELS) as PayoutMethod[]).map(value => ({ value, label: PAYOUT_LABELS[value] }));
 
 export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreated }: {
-  open: boolean; initial: PickedPerson[]; records: OTRecord[]; onOpenChange: (open: boolean) => void; onCreated: () => void;
+  open: boolean; initial: PickedPerson[]; records: OTRecord[]; onOpenChange: (open: boolean) => void; onCreated: (saved: OTRecord[], unconfirmed: boolean) => void;
 }) {
   const employees = useEmployees();
   const [people, setPeople] = useState<PickedPerson[]>([]);
@@ -55,8 +56,9 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
     if (!useHours) recordShiftTimeUsage(form.start_time, form.end_time);
     const failed: { person: PickedPerson; reason: string; uncertain: boolean }[] = [];
     let ok = 0;
+    const saved: OTRecord[] = [];
     for (const p of people) {
-      try { await createOT(buildOvertimePayload({ ...form, employee_name: p.name, employee_id: p.employee_id, ...metaOf(p) }, useHours)); ok += 1; }
+      try { saved.push(await createOT(buildOvertimePayload({ ...form, employee_name: p.name, employee_id: p.employee_id, ...metaOf(p) }, useHours))); ok += 1; }
       catch (e) {
         // Only a received client-error refusal proves this attempt was not accepted.
         // A timeout, unreadable response or transport/server error may follow a commit.
@@ -65,14 +67,15 @@ export function BulkOvertimeForm({ open, initial, records, onOpenChange, onCreat
       }
     }
     const uncertain = failed.filter(f => f.uncertain).length;
-    if (ok || uncertain) onCreated();
+    if (ok || uncertain) onCreated(saved, uncertain > 0);
     if (form.reason.trim()) rememberChoice(REASON_HISTORY_KEY, form.reason);
     if (failed.length) {
       setPeople(failed.map(f => f.person));
       const outcome = uncertain ? `${uncertain} not confirmed${failed.length > uncertain ? `, ${failed.length - uncertain} not saved` : ''}` : `${failed.length} not saved`;
       const details = failed.map(f => `${f.person.name}: ${f.reason}`).join(' ');
       const followup = uncertain ? `${/[.!?]$/.test(details) ? ' ' : '. '}A response was lost or the server had a problem; some requests may already be saved. Check the refreshed overtime list before retrying.` : '';
-      throw new Error(`${ok} submitted, ${outcome}. ${details}${followup}`);
+      const message = `${ok} submitted, ${outcome}. ${details}${followup}`;
+      throw uncertain ? new UnconfirmedMutationError(message) : new Error(message);
     }
     return undefined;
   };

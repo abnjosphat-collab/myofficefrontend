@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ConfirmProvider } from '@/components/ui-system';
-import { ReportDialog } from './page';
+import { ReportDialog } from './PageContent';
 
 vi.mock('@/hooks/useLookups', () => ({ useEmployees: () => [] }));
 vi.mock('./usePacheduData', () => ({ createPacheduReport: vi.fn(), updatePacheduReport: vi.fn() }));

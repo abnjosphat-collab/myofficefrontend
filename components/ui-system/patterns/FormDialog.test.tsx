@@ -32,6 +32,17 @@ describe('FormDialog save failure', () => {
     expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
   });
 
+  it('preserves input and distinguishes an unconfirmed save from a refusal', async () => {
+    const uncertain = Object.assign(new Error('Check the refreshed register before trying again.'), { outcome: 'unconfirmed' });
+    failing(async () => { throw uncertain; });
+    await userEvent.type(screen.getByLabelText('Name'), 'Widget');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(await screen.findByText('Save not confirmed')).toBeInTheDocument();
+    expect(screen.queryByText('Could not save')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Widget');
+    expect(document.querySelector('[data-motion-swap]')).toBeNull();
+  });
+
   it('brings the failure into view instantly under reduced motion', async () => {
     const original = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({

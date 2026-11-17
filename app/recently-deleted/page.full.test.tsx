@@ -9,7 +9,7 @@ vi.mock('framer-motion', async (importOriginal) => {
   return await importOriginal<typeof import('framer-motion')>();
 });
 
-import { RecentlyDeletedContent } from './page';
+import { RecentlyDeletedContent } from './PageContent';
 import { useAuth } from '@/lib/auth-context';
 import { useApiList } from '@/lib/useApiList';
 

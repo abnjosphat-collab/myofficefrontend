@@ -224,7 +224,24 @@ const spec = {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.getByRole('button', { name: 'Download Excel' }).click()]);
     check(!!download && /OT_Weekly_Summary/.test(download.suggestedFilename()), 'Download Excel produces the workbook', download?.suggestedFilename());
   },
+  async extra(page, calls, { check, shot }) {
+    await page.getByRole('tab', { name: 'Records', exact: true }).click();
+    let deletes = 0; let detailReads = 0;
+    await page.route('**/api/overtime/3', async route => {
+      if (route.request().method() === 'DELETE') { deletes += 1; await route.abort('failed'); }
+      else { detailReads += 1; await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'Overtime not found' }) }); }
+    });
+    const before = calls.filter(c => c.method === 'GET' && c.pathname === '/api/overtime').length;
+    await page.getByRole('button', { name: /^Delete the request from Cy Wu/ }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByText('Request deleted.', { exact: true }).waitFor();
+    check(deletes === 1 && detailReads === 1, 'a lost delete response is reconciled by one detail read, without repeating DELETE');
+    check(await page.getByRole('button', { name: /^Delete the request from Cy Wu/ }).count() === 0, 'a confirmed missing request leaves the screen');
+    check(calls.filter(c => c.method === 'GET' && c.pathname === '/api/overtime').length === before, 'deletion needs no whole-register reload');
+    await shot(page, 'reconciled-delete@1440');
+  },
   create: {
+    confirmedLocal: true,
     open: 'New request', dialog: 'New overtime request', path: '/api/overtime', submit: 'Submit request',
     requiredText: 'Enter the employee name.',
     async fill(dialog, page) {
@@ -235,7 +252,7 @@ const spec = {
       await dialog.getByLabel(/^Reason/).fill('Replace conveyor belt');
     },
     async kept(dialog) { return (await dialog.getByLabel(/^Employee ID/).inputValue()) === 'C5' && (await dialog.getByLabel(/^Reason/).inputValue()) === 'Replace conveyor belt'; },
-    body: b => b.employee_id === 'C5' && b.employee_name === 'Eve Epsilon' && b.position === 'Welder' && b.reason === 'Replace conveyor belt' && b.start_time === '17:00' && b.end_time === '20:00' && !('hours' in b) && b.planning_status === 'planned' && b.payout_method === 'cash' && b.cost_centre === 'Engineering' && b.status === 'pending',
+    body: b => b.employee_id === 'C5' && b.employee_name === 'Eve Epsilon' && b.position === 'Welder' && b.reason === 'Replace conveyor belt' && b.start_time === '17:00' && b.end_time === '20:00' && !('hours' in b) && b.planning_status === 'planned' && b.payout_method === 'cash' && b.cost_centre === 'Engineering' && !('status' in b) && !('applied_date' in b),
   },
   empty: { data: { '/api/overtime': [] }, text: 'No overtime requests yet' },
   failing: { paths: ['/api/overtime'], text: 'Overtime requests could not be loaded', notShown: ['No overtime requests yet'], async recovered(page, { check }) { check(await page.getByRole('list', { name: 'Overtime requests' }).getByRole('button').first().isVisible(), 'Try again loads the register'); } },

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { Icon } from '@/components/ui-system/foundations/Icon';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfirmProvider } from '@/components/ui-system';
-import { DetailDialog, NoticeDialog } from './page';
+import { DetailDialog, NoticeDialog } from './PageContent';
 import type { Notice } from './types';
 
 /** The exact svg a state renders, for proving a swap shows the check. */

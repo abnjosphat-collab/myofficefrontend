@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/apiClient';
 import { useApiList } from '@/lib/useApiList';
 import { timeoutError } from '@/lib/transientRetry';
+import { isUnconfirmedMutation } from '@/lib/mutationOutcome';
 import type { OTAnalysisResult, OTRecord, OTForm } from './types';
 
 export async function fetchOT(timeoutMs = 20_000): Promise<OTRecord[]> {
@@ -60,7 +61,9 @@ export function buildOvertimePayload(form: OTForm, useHours: boolean, editing = 
 }
 
 export async function createOT(body: Record<string, unknown>): Promise<OTRecord> {
-  return api.post<OTRecord>('/api/overtime', { ...body, status: 'pending', applied_date: new Date().toISOString() });
+  // Status and application timestamp are server-owned. Never retry an
+  // uncertain POST automatically: it may have committed already.
+  return api.post<OTRecord>('/api/overtime', body);
 }
 export async function updateOT(id: number | string, body: object): Promise<OTRecord> {
   return api.patch<OTRecord>(`/api/overtime/${id}`, body);
@@ -99,7 +102,21 @@ export async function bulkEditOT(ids: (number | string)[], patch: Record<string,
   });
 }
 export async function deleteOT(id: number | string): Promise<void> {
-  await api.delete(`/api/overtime/${id}`);
+  try {
+    await api.delete(`/api/overtime/${id}`);
+  } catch (error) {
+    if (isUnconfirmedMutation(error)) {
+      try {
+        if (await fetchOTById(id) === null) return;
+      } catch { /* an unavailable read cannot prove either outcome */ }
+    }
+    throw error;
+  }
+}
+
+/** Merge a confirmed write without waiting for another complete register read. */
+export function mergeConfirmedOT(records: OTRecord[], record: OTRecord): OTRecord[] {
+  return [record, ...records.filter(row => String(row.id) !== String(record.id))];
 }
 
 export interface TakenLieuLeave { id: number; start_date: string; end_date: string; status: string }

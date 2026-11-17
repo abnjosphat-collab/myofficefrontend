@@ -12,6 +12,41 @@ const { ApiError } = await import('@/lib/apiClient');
 describe('useApiList', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('does not schedule retries when an in-flight read fails after navigation away', async () => {
+    vi.useFakeTimers();
+    try {
+      let fail!: (error: unknown) => void;
+      vi.mocked(api.get).mockImplementationOnce(() => new Promise((_, reject) => { fail = reject; }));
+      const hook = renderHook(() => useApiList('/api/x', undefined, { refresh: false }));
+      hook.unmount();
+      await act(async () => { fail(new TypeError('Failed to fetch')); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+      expect(api.get).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('does not resurrect a confirmed deletion when an older refresh finishes', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce([{ id: 1 }, { id: 2 }]);
+    const { result } = renderHook(() => useApiList<{ id: number }>('/api/x', undefined, { refresh: false }));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    let finish!: (rows: { id: number }[]) => void;
+    vi.mocked(api.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    let refresh!: Promise<void>;
+    act(() => { refresh = result.current.refetch(); });
+    act(() => result.current.commitItems(rows => rows.filter(row => row.id !== 1)));
+    await act(async () => { finish([{ id: 1 }, { id: 2 }]); await refresh; });
+    expect(result.current.items).toEqual([{ id: 2 }]);
+  });
+
+  it('keeps a confirmed create even when it finishes during the initial read', async () => {
+    let finish!: (rows: { id: number }[]) => void;
+    vi.mocked(api.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const { result } = renderHook(() => useApiList<{ id: number }>('/api/x', undefined, { refresh: false }));
+    act(() => result.current.commitItems(rows => [{ id: 2 }, ...rows]));
+    await act(async () => { finish([{ id: 1 }]); });
+    expect(result.current.items).toEqual([{ id: 2 }, { id: 1 }]);
+  });
+
   it('loads rows and maps them', async () => {
     vi.mocked(api.get).mockResolvedValue([{ id: 1 }, { id: 2 }]);
     const { result } = renderHook(() => useApiList<{ id: number }, string>('/api/x', r => `#${r.id}`));

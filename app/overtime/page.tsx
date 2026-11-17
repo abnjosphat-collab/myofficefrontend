@@ -33,6 +33,8 @@ import { TotalsStrip } from '@/components/shared/timesheet/TotalsStrip';
 import { useAuth } from '@/lib/auth-context';
 import { deepSignDecision } from '@/lib/deepSign';
 import { useRecordDeepLink } from '@/lib/useRecordDeepLink';
+import { isUnconfirmedMutation, UnconfirmedMutationError } from '@/lib/mutationOutcome';
+import { mergeConfirmedOT } from './useOvertimeData';
 import { readStatusParam } from '@/lib/useDeepLink';
 
 const EXPORT_COLUMNS: DLColumn[] = [
@@ -142,7 +144,7 @@ function OvertimeContent() {
     toast.success(same.length === 1 ? 'Only this request matches that person and day.' : `Selected ${same.length} requests from ${r.employee_name} on ${fmtDate(r.date)}.`);
   };
   const appliedBulkEdit = (updated: OTRecord[], result: { succeeded: number; failed: number; errors: string[] }) => {
-    list.setItems(prev => { const m = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => m.set(String(u.id), u)); return [...m.values()]; });
+    list.commitItems(prev => { const m = new Map(prev.map(r => [String(r.id), r])); updated.forEach(u => m.set(String(u.id), u)); return [...m.values()]; });
     if (result.failed > 0) toast.warning(result.errors[0] ?? `${result.failed} could not be changed.`);
     if (result.succeeded > 0) toast.success(`Updated ${result.succeeded} ${result.succeeded === 1 ? 'request' : 'requests'}.`);
     setSelected(new Set());
@@ -159,14 +161,26 @@ function OvertimeContent() {
   }, [people, records, filters.from, filters.to, order]);
   const togglePerson = (id: string, name: string) => { if (!id) return; setPeople(p => (p.some(x => x.employee_id === id) ? [] : [{ employee_id: id, name }])); setPage(1); };
 
-  const replace = (updated: OTRecord) => list.setItems(prev => prev.map(r => (r.id === updated.id ? updated : r)));
+  const replace = (updated: OTRecord) => list.commitItems(prev => prev.map(r => (String(r.id) === String(updated.id) ? updated : r)));
   const save = async (payload: Record<string, unknown>, id?: number | string) => {
     if (id) { replace(await updateOT(id, payload)); toast.success('Request updated.'); }
-    else { await createOT(payload); toast.success('Overtime request submitted.'); await list.refetch(); }
+    else {
+      try {
+        const created = await createOT(payload);
+        list.commitItems(prev => mergeConfirmedOT(prev, created));
+        toast.success('Overtime request submitted.');
+      } catch (error) {
+        if (isUnconfirmedMutation(error)) {
+          void list.refetch();
+          throw new UnconfirmedMutationError(`${error instanceof Error ? error.message : 'No save confirmation received.'} The request may already be saved. Check the refreshed register before retrying.`);
+        }
+        throw error;
+      }
+    }
   };
   const remove = async (r: OTRecord) => {
     if (r.status === 'approved' || r.status === 'paid') { toast.error('An approved request cannot be deleted: it may already have been counted in payroll. Use Cancel request instead; that keeps the history.'); return; }
-    await confirmDelete({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. This cannot be undone.`, what: 'The request', run: async () => { await deleteOT(r.id); setViewingId(null); }, done: 'Request deleted.', after: () => list.refetch() });
+    await confirmDelete({ title: 'Delete this overtime request?', message: `${r.employee_name}, ${fmtDate(r.date)}. The record is kept in Recently deleted.`, what: 'The request', run: async () => { await deleteOT(r.id); list.commitItems(prev => prev.filter(row => String(row.id) !== String(r.id))); setViewingId(null); }, done: 'Request deleted.' });
   };
   const removeUnmatched = () => {
     if (!deletableUnmatched.length) return;
@@ -198,7 +212,7 @@ function OvertimeContent() {
       toast.success(approve ? 'Overtime approved.' : 'Overtime rejected.');
     } else {
       const result = await bulkUpdateOTStatus({ ids: gate.ids, status: approve ? 'approved' : 'rejected', ...body });
-      list.setItems(prev => { const m = new Map(prev.map(r => [String(r.id), r])); result.updated.forEach(u => m.set(String(u.id), u)); return [...m.values()]; });
+      list.commitItems(prev => { const m = new Map(prev.map(r => [String(r.id), r])); result.updated.forEach(u => m.set(String(u.id), u)); return [...m.values()]; });
       if (result.failed > 0) toast.warning(`${result.failed} could not be ${approve ? 'approved' : 'rejected'} (already decided or missing).`);
       if (result.succeeded > 0) toast.success(`${approve ? 'Approved' : 'Rejected'} ${result.succeeded} ${result.succeeded === 1 ? 'request' : 'requests'}.`);
       setSelected(new Set());
@@ -401,7 +415,10 @@ function OvertimeContent() {
       <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} onCancelRequest={cancelRequest} />
       <TakeLieuLeaveDialog record={takeFor} open={!!takeFor} onOpenChange={o => { if (!o) setTakeFor(null); }} onTaken={taken} />
       <OvertimeForm open={!!formFor} record={formFor?.record ?? null} records={records} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
-      <BulkOvertimeForm open={bulkOpen} initial={people} records={records} onOpenChange={setBulkOpen} onCreated={() => list.refetch()} />
+      <BulkOvertimeForm open={bulkOpen} initial={people} records={records} onOpenChange={setBulkOpen} onCreated={(saved, unconfirmed) => {
+        list.commitItems(prev => saved.reduce((all, row) => mergeConfirmedOT(all, row), prev));
+        if (unconfirmed) void list.refetch();
+      }} />
       <OTBulkEditDialog open={bulkEditOpen} records={selectedRecords} onOpenChange={setBulkEditOpen} onApplied={appliedBulkEdit} />
       {gate && (
         <ApprovalGate

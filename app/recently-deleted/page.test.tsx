@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RecentlyDeletedContent } from './page';
+import { RecentlyDeletedContent } from './PageContent';
 import { useAuth } from '@/lib/auth-context';
 import { useApiList } from '@/lib/useApiList';
 import { api } from '@/lib/apiClient';

@@ -1,5 +1,7 @@
 # Current handoff: MyOffice redesign
 
+17 November 2026 overtime reliability release: [scope, evidence and release limits](./OVERTIME_RELIABILITY_2026-11-17.md). Owner authorized release; publishing underway on `fix/overtime-reliability-20261117`, live verification pending. Backend `38d23de` + dependency audit fix `883fb6b` pushed. Original checkout's unrelated Training work is untouched.
+
 **Status as of 10 Oct 2026** (sections 2, 4, 5 and 9 re-checked against git, the generated ledger and the live database that day). This is the one current handoff; any agent or developer, in any tool, should start here.
 It supersedes [`CLAUDE_HANDOFF_2026-09-30.md`](./CLAUDE_HANDOFF_2026-09-30.md), [`MUSE_HANDOFF_2026-10-01.md`](./MUSE_HANDOFF_2026-10-01.md),
 their prompt files, and is the summary of [`CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md`](./CLAUDE_REDESIGN_CHECKPOINT_2026-10-03.md)

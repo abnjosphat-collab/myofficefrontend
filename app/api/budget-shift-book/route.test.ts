@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { GET, bookPath } from './route';
+import { GET } from './route';
+import { bookPath } from './bookPath';
 
 const header = ['Code', 'Name', 'Surname', '13', '14', 'TOTAL HRS', 'T/M Hours', 'O/T 1.5', 'O/T  2.0'];
 
