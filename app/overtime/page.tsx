@@ -20,7 +20,7 @@ import { OvertimeDetail } from './OvertimeDetail';
 import { BudgetView } from './BudgetView';
 import { SummariesView } from './SummariesView';
 import { OvertimeForm } from './OvertimeForm';
-import { NO_FILTERS, filterRecords, isFiltered, monthOptions, recordHours, similarRecords, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
+import { NO_FILTERS, filterRecords, isFiltered, monthOptions, needsReview, recordHours, similarRecords, summarise, summarisePerson, timeSpan, type OTFilters } from './overtimeLogic';
 import { STATUS_LABELS, TYPE_LABELS, payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import { OT_TYPES, STATUSES, type OTRecord } from './types';
 import { WeeklySummary } from './WeeklySummary';
@@ -71,7 +71,7 @@ function PersonStatsStrip({ name, range, summary: s }: { name: string; range: st
 
 function Badges({ r }: { r: OTRecord }) {
   const type = typeMeta(r.overtime_type); const plan = planningMeta(r.planning_status); const pay = payoutMeta(r.payout_method);
-  return <>{<StatusBadge tone={type.tone}>{type.label}</StatusBadge>}{plan && <StatusBadge tone={plan.tone}>{plan.label}</StatusBadge>}{pay && <StatusBadge tone={pay.tone}>{pay.label}</StatusBadge>}</>;
+  return <>{<StatusBadge tone={type.tone}>{type.label}</StatusBadge>}{plan && <StatusBadge tone={plan.tone}>{plan.label}</StatusBadge>}{pay && <StatusBadge tone={pay.tone}>{pay.label}</StatusBadge>}{needsReview(r) && <StatusBadge tone="danger">Needs review</StatusBadge>}</>;
 }
 
 function OvertimeContent() {
@@ -132,6 +132,7 @@ function OvertimeContent() {
   const visible = pageSlice(rows, page, pageSize);
   const listCalm = JSON.stringify([effective, order, unmatchedOnly, sort, page, pageSize]);
   const stats = useMemo(() => summarise(records), [records]);
+  const reviewCount = useMemo(() => records.filter(needsReview).length, [records]);
   const months = useMemo(() => monthOptions(records), [records]);
   const activeMonth = months.find(m => m.from === filters.from && m.to === filters.to)?.key ?? null;
   const engineering = useMemo(() => recordsForEngineeringCostCentreExport(records), [records]);
@@ -290,6 +291,7 @@ function OvertimeContent() {
         <MetricTile compact label="Requests" value={stats.total} selected={filters.status === ALL} onClick={() => set({ status: ALL })} {...tile} />
         <MetricTile compact label="Pending" tone={stats.pending ? 'warning' : 'default'} value={stats.pending} selected={filters.status === 'pending'} onClick={() => set({ status: filters.status === 'pending' ? ALL : 'pending' })} {...tile} />
         <MetricTile compact label="Approved" tone="success" value={stats.approved} selected={filters.status === 'approved'} onClick={() => set({ status: filters.status === 'approved' ? ALL : 'approved' })} {...tile} />
+        <MetricTile compact label="Needs review" tone={reviewCount ? 'danger' : 'default'} value={reviewCount} selected={filters.reviewOnly} onClick={() => set({ reviewOnly: !filters.reviewOnly })} {...tile} />
         <MetricTile compact label="Total hours" value={`${Math.round(stats.hours)}h`} {...tile} />
       </MetricGrid>
 
@@ -412,7 +414,7 @@ function OvertimeContent() {
         </TabsContent>
       </Tabs>
 
-      <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} onCancelRequest={cancelRequest} />
+      <OvertimeDetail record={viewing} takenLeave={takenLeave} onClose={() => setViewingId(null)} onEdit={r => { setViewingId(null); setFormFor({ record: r }); }} onDelete={remove} onApprove={r => openGate('approve', [r])} onReject={r => openGate('reject', [r])} onTakeAsLeave={r => setTakeFor(r)} onCancelRequest={cancelRequest} onSelectSimilar={r => { setViewingId(null); selectSimilar(r); }} />
       <TakeLieuLeaveDialog record={takeFor} open={!!takeFor} onOpenChange={o => { if (!o) setTakeFor(null); }} onTaken={taken} />
       <OvertimeForm open={!!formFor} record={formFor?.record ?? null} records={records} onOpenChange={o => { if (!o) setFormFor(null); }} onSave={save} />
       <BulkOvertimeForm open={bulkOpen} initial={people} records={records} onOpenChange={setBulkOpen} onCreated={(saved, unconfirmed) => {

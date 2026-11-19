@@ -13,15 +13,25 @@ export const timeSpan = (r: Pick<OTRecord, 'start_time' | 'end_time'>): string =
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const idOf = (r: Pick<OTRecord, 'employee_id' | 'employee_name'>) => r.employee_id || r.employee_name;
 
-export interface OTFilters { search: string; status: string; type: string; from: string; to: string; employeeIds: string[] }
-export const NO_FILTERS: OTFilters = { search: '', status: 'all', type: 'all', from: '', to: '', employeeIds: [] };
-export const isFiltered = (f: OTFilters) => f.search.trim() !== '' || f.status !== 'all' || f.type !== 'all' || f.from !== '' || f.to !== '' || f.employeeIds.length > 0;
+/**
+ * Marker written into `notes` by the authorised Dallaglio import for claims
+ * still awaiting duplicate verification (owner decision Q1, Nov 2026). The
+ * flag is data, not UI state: it survives reloads and travels with exports.
+ */
+export const REVIEW_FLAG = 'Possible duplicate - verification required';
+/** Whether a record carries the persistent duplicate-verification flag. */
+export const needsReview = (r: Pick<OTRecord, 'notes'>): boolean => (r.notes ?? '').includes(REVIEW_FLAG);
+
+export interface OTFilters { search: string; status: string; type: string; from: string; to: string; employeeIds: string[]; reviewOnly: boolean }
+export const NO_FILTERS: OTFilters = { search: '', status: 'all', type: 'all', from: '', to: '', employeeIds: [], reviewOnly: false };
+export const isFiltered = (f: OTFilters) => f.search.trim() !== '' || f.status !== 'all' || f.type !== 'all' || f.from !== '' || f.to !== '' || f.employeeIds.length > 0 || f.reviewOnly;
 
 export function filterRecords(records: OTRecord[], f: OTFilters, order: 'asc' | 'desc' = 'desc'): OTRecord[] {
   const q = f.search.trim().toLowerCase();
   const ids = new Set(f.employeeIds);
   return records
     .filter(r => {
+      if (f.reviewOnly && !needsReview(r)) return false;
       if (f.status !== 'all' && r.status !== f.status) return false;
       if (f.type !== 'all' && r.overtime_type !== f.type) return false;
       if (f.from && r.date < f.from) return false;
