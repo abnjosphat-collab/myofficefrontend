@@ -2,17 +2,17 @@
 // apply to it (approve or reject while it is pending, edit, delete).
 'use client';
 
-import { Button, Dialog, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
+import { Button, Dialog, Notice, StatusBadge, Fact, FactList, DetailActions } from '@/components/ui-system';
 import { fmtDate, fmtDateTime, formatCurrency } from '@/components/shared/utils';
 import { overtimeCostCentre } from './calcOvertime';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
-import { recordHours, timeSpan } from './overtimeLogic';
+import { needsReview, recordHours, timeSpan } from './overtimeLogic';
 import { RecordHistory } from '@/components/shared/RecordHistory';
 import type { OTRecord } from './types';
 import type { TakenLieuLeave } from './useOvertimeData';
 
-export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, onApprove, onReject, onTakeAsLeave, onCancelRequest }: {
-  record: OTRecord | null; takenLeave?: TakenLieuLeave | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void; onTakeAsLeave?: (r: OTRecord) => void; /** Withdraws a pending or approved request without deleting it: it stays in the history as cancelled and no longer counts. */ onCancelRequest?: (r: OTRecord) => void;
+export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, onApprove, onReject, onTakeAsLeave, onCancelRequest, onSelectSimilar }: {
+  record: OTRecord | null; takenLeave?: TakenLieuLeave | null; onClose: () => void; onEdit: (r: OTRecord) => void; onDelete: (r: OTRecord) => void; onApprove: (r: OTRecord) => void; onReject: (r: OTRecord) => void; onTakeAsLeave?: (r: OTRecord) => void; /** Withdraws a pending or approved request without deleting it: it stays in the history as cancelled and no longer counts. */ onCancelRequest?: (r: OTRecord) => void; /** Selects the same person's other request(s) for the same day so the possible pair can be compared. */ onSelectSimilar?: (r: OTRecord) => void;
 }) {
   const r = record;
   const hours = r ? recordHours(r) : 0;
@@ -34,6 +34,11 @@ export function OvertimeDetail({ record, takenLeave, onClose, onEdit, onDelete, 
     >
       {r && status && type && (
         <div className="flex flex-col gap-4">
+          {needsReview(r) && (
+            <Notice tone="danger" title="Possible duplicate — verification required" action={onSelectSimilar ? <Button size="sm" variant="secondary" onClick={() => onSelectSimilar(r)}>Select possible pair</Button> : undefined}>
+              <span className="mt-0.5 block font-sans text-body-sm text-ink">This request is flagged because it may duplicate another claim for {r.employee_name} on {fmtDate(r.date)}{r.start_time && r.end_time ? ` (${r.start_time} to ${r.end_time})` : ' (no recorded times)'}. Compare it with the same person&apos;s other request for that day before approving. This flag is about duplication only and is separate from the approval status below.</span>
+            </Notice>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
             <StatusBadge tone={type.tone}>{type.label}</StatusBadge>

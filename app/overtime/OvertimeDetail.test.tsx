@@ -33,6 +33,35 @@ describe('OvertimeDetail notes', () => {
   });
 });
 
+describe('OvertimeDetail duplicate-verification flag', () => {
+  const flagged = (over: Partial<OTRecord> = {}) => record({ notes: 'Possible duplicate - verification required [pair: OTE-0003 / OTE-0016]', ...over });
+  it('renders a danger notice for a flagged record and names the window', () => {
+    render(<OvertimeDetail record={flagged()} {...handlers()} />);
+    expect(screen.getByText('Possible duplicate — verification required')).not.toBeNull();
+    expect(screen.getByText(/may duplicate another claim/)).not.toBeNull();
+    expect(screen.getByText(/separate from the approval status/)).not.toBeNull();
+  });
+  it('says when the flagged record has no recorded times', () => {
+    render(<OvertimeDetail record={flagged({ start_time: undefined, end_time: undefined })} {...handlers()} />);
+    expect(screen.getByText(/no recorded times/)).not.toBeNull();
+  });
+  it('offers to select the possible pair and calls back with the record', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const onSelectSimilar = vi.fn();
+    const r = flagged();
+    render(<OvertimeDetail record={r} onSelectSimilar={onSelectSimilar} {...handlers()} />);
+    await user.click(screen.getByRole('button', { name: 'Select possible pair' }));
+    expect(onSelectSimilar).toHaveBeenCalledOnce();
+    expect(onSelectSimilar).toHaveBeenCalledWith(r);
+  });
+  it('shows no notice for an unflagged record', () => {
+    render(<OvertimeDetail record={record({ notes: 'Gate 4 roster' })} {...handlers()} />);
+    expect(screen.queryByText('Possible duplicate — verification required')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Select possible pair' })).toBeNull();
+  });
+});
+
 describe('OvertimeDetail lieu', () => {
   const lieu = (over: Partial<OTRecord> = {}) => record({ status: 'approved', payout_method: 'lieu', ...over });
   it('offers to mark untaken lieu leave, and says it is still to be taken', async () => {

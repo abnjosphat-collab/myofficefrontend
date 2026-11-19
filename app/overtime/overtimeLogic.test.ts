@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EmployeeLookup } from '@/hooks/useLookups';
-import { NO_FILTERS, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, normalizeSection, recordHours, similarRecords, summarise, summarisePerson, tally, timeSpan, weeklyView } from './overtimeLogic';
+import { NO_FILTERS, REVIEW_FLAG, countDuplicates, filterRecords, findDuplicate, isFiltered, lastCompletedWeek, monthOptions, needsReview, normalizeSection, recordHours, similarRecords, summarise, summarisePerson, tally, timeSpan, weeklyView } from './overtimeLogic';
 import { payoutMeta, planningMeta, statusMeta, typeMeta } from './overtimeMeta';
 import type { OTRecord } from './types';
 
@@ -38,7 +38,27 @@ describe('filterRecords', () => {
     expect(ids({ search: 'projects' })).toEqual([2]);
     expect(ids({ search: 'zzz' })).toEqual([]);
   });
-  it('knows when a filter is on', () => { expect(isFiltered(NO_FILTERS)).toBe(false); expect(isFiltered({ ...NO_FILTERS, employeeIds: ['C1'] })).toBe(true); });
+  it('knows when a filter is on', () => { expect(isFiltered(NO_FILTERS)).toBe(false); expect(isFiltered({ ...NO_FILTERS, employeeIds: ['C1'] })).toBe(true); expect(isFiltered({ ...NO_FILTERS, reviewOnly: true })).toBe(true); });
+  it('keeps review-only off by default', () => {
+    expect(ids({})).toEqual([2, 1, 3]);
+    expect(ids({ reviewOnly: false })).toEqual([2, 1, 3]);
+  });
+});
+
+describe('duplicate-verification flag', () => {
+  const flagged = (over: Partial<OTRecord> = {}) => rec({ notes: `Possible duplicate - verification required [pair: A / B]`, ...over });
+  it('detects the marker in notes and ignores other notes', () => {
+    expect(needsReview(flagged())).toBe(true);
+    expect(needsReview(rec())).toBe(false);
+    expect(needsReview(rec({ notes: 'Gate 4 roster' }))).toBe(false);
+    expect(needsReview(rec({ notes: undefined }))).toBe(false);
+    expect(REVIEW_FLAG).toBe('Possible duplicate - verification required');
+  });
+  it('review-only keeps flagged records regardless of position in the list', () => {
+    const rows = [rec({ id: 1, date: '2026-09-01' }), flagged({ id: 2, date: '2026-09-05' }), flagged({ id: 3, date: '2026-08-20', start_time: undefined, end_time: undefined })];
+    expect(filterRecords(rows, { ...NO_FILTERS, reviewOnly: true }).map(r => r.id)).toEqual([2, 3]);
+    expect(filterRecords(rows, { ...NO_FILTERS, reviewOnly: true, status: 'pending' }).map(r => r.id)).toEqual([2, 3]);
+  });
 });
 
 describe('summaries', () => {
