@@ -5,7 +5,7 @@
 import { Button, Dialog, EmptyState, IconButton, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, StatusBadge, Fact, FactList, DetailActions, ZoomLink } from '@/components/ui-system';
 import { fmtDate } from '@/components/shared/utils';
 import { formatMineNumber } from '@/lib/registerMatch';
-import { normalizeSection } from '@/lib/sections';
+import { displaySection } from '@/lib/sections';
 import { STANDING_LABEL, standing, type Standing } from './ppeLogic';
 import { conditionMeta, statusMeta, typeName } from './ppeMeta';
 import type { EmployeeWithPPE, PPERecord } from './types';
@@ -47,7 +47,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
   const items = e ? [...e.records].sort((a, b) => (a.expiry_date ?? '9999').localeCompare(b.expiry_date ?? '9999')) : [];
   return (
     <Dialog
-      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={e ? `ppe:holder:${e.employee_id}` : undefined} title={e?.employee_name ?? 'Employee'} description={e ? [formatMineNumber(e.employee_id), e.position, e.section ? normalizeSection(e.section) : ''].filter(Boolean).join(', ') : undefined}
+      open={!!e} onOpenChange={o => { if (!o) onClose(); }} size="lg" zoomId={e ? `ppe:holder:${e.employee_id}` : undefined} title={e?.employee_name ?? 'Employee'} description={e ? [formatMineNumber(e.employee_id), e.position, e.section ? displaySection(e.section) : ''].filter(Boolean).join(', ') : undefined}
       footer={e && (readOnly ? (<DetailActions onClose={onClose} />) : (<DetailActions onClose={onClose}><ZoomLink zoomId="ppe:new" inline><Button variant="primary" icon="plus" onClick={() => onIssue(e)}>Issue PPE</Button></ZoomLink></DetailActions>))}
     >
       {e && (
@@ -58,7 +58,7 @@ export function EmployeePPEDetail({ employee, onClose, onIssue, actions, readOnl
             <li key={r.id} className="flex items-center gap-3 rounded-control border border-line bg-surface-subtle px-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="font-sans text-label font-medium text-ink [overflow-wrap:anywhere]">{typeName(r.ppe_type)}{r.size && <span className="font-normal text-ink-muted">, size {r.size}</span>}</p>
-                <p className="font-sans text-caption text-ink-muted tabular">{r.item_name}{r.item_name && ', '}issued {fmtDate(r.issue_date)}{r.expiry_date ? `, expires ${fmtDate(r.expiry_date)}` : ', no expiry'}</p>
+                <p className="font-sans text-caption text-ink-muted tabular">{r.item_name}{r.item_name && ', '}issued {fmtDate(r.issue_date)}{r.expiry_date ? `, due ${fmtDate(r.expiry_date)}` : ', no due date recorded'}</p>
                 {r.premature_failure === true && r.failure_reason && <p className="font-sans text-caption text-ink-muted [overflow-wrap:anywhere]">What failed: {r.failure_reason}</p>}
               </div>
               <PrematureBadge r={r} />

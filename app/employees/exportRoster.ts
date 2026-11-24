@@ -87,7 +87,7 @@ export function previewGroups(employees: Employee[], by: ExportGroupBy): { label
 
 export async function exportRosterExcel(employees: Employee[], by: ExportGroupBy): Promise<void> {
   const ExcelJS = (await import('exceljs')).default;
-  const { saveAs } = await import('file-saver');
+  const { default: saveAs } = await import('file-saver');
   const wb = new ExcelJS.Workbook();
   let dataRowIndex = 0;
   const addSheet = (label: string) => {

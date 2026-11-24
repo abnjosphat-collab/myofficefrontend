@@ -2,9 +2,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import ExcelJS from 'exceljs';
 
-vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
+vi.mock('file-saver', () => ({ default: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-import { saveAs } from 'file-saver';
+import saveAs from 'file-saver';
 import { exportPersonnelRegistryExcel } from './exportPersonnelRegistry';
 import type { Employee } from './types';
 

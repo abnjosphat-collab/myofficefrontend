@@ -109,7 +109,7 @@ export async function exportPersonnelRegistryExcel(employees: Employee[], filena
 
   try {
     const ExcelJS = (await import('exceljs')).default;
-    const { saveAs } = await import('file-saver');
+    const { default: saveAs } = await import('file-saver');
     const groups = groupByDesignation(employees);
 
     const wb = new ExcelJS.Workbook();

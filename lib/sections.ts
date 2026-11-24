@@ -24,6 +24,13 @@ export function normalizeSection(section?: string): string {
   return canonical ?? s;
 }
 
+/** Presentation only. Keep stored section values for filtering and access checks. */
+export function displaySection(section?: string): string {
+  const value = normalizeSection(section);
+  if (value !== value.toUpperCase()) return value;
+  return value.replace(/\b[A-Z]{4,}\b/g, word => word === 'SHEQ' ? word : word[0] + word.slice(1).toLowerCase());
+}
+
 /** Dropdown options for the Employees form. */
 export function sectionSelectOptions(current?: string | null): { value: string; label: string }[] {
   const normalized = normalizeSection(current ?? undefined);

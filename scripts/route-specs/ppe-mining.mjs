@@ -24,7 +24,7 @@ const EMPLOYEES = [
 
 const spec = {
   route: '/ppe',
-  h1: 'PPE',
+  h1: 'PPE · Mining',
   storage: { 'myoffice.department-view': 'Mining' },
   data: {
     '/api/ppe': RECS,
@@ -35,8 +35,14 @@ const spec = {
     '/api/employees': EMPLOYEES,
   },
   async ready(page, calls, { check, shot }) {
-    check(await page.getByText('Mining register').isVisible(), 'the Mining register badge shows');
-    check(await page.getByRole('button', { name: /^People\s*3/ }).isVisible(), 'all three Mining people are counted (one with no PPE yet)');
+    const register = page.getByRole('table', { name: 'Mining PPE register' });
+    await register.waitFor();
+    check(await register.getByRole('row').count() === 4, 'register includes all three Mining people');
+    check(await register.getByText('Overdue', { exact: true }).isVisible(), 'the register shows overdue PPE at a glance');
+    check(await register.getByText('No PPE recorded').isVisible(), 'a person without PPE remains discoverable');
+    await page.getByRole('button', { name: 'View PPE for Tendai Moyo' }).click();
+    check(await page.getByRole('dialog', { name: 'Tendai Moyo' }).getByText(/due /).count() === 2, 'person detail shows two exact item due dates');
+    await page.keyboard.press('Escape');
     await shot(page, 'mining-register@1440');
 
     // the Issue Log lists the newest movement first, with the opening record badged and its quantity unknown
@@ -66,7 +72,7 @@ const spec = {
     await page.getByRole('checkbox', { name: /Show opening records/ }).check();
 
     // a Mining issue posts one atomic event with the quantity, scoped to Mining
-    await page.getByRole('tab', { name: 'Employees' }).click();
+    await page.getByRole('tab', { name: 'Register' }).click();
     await page.getByRole('button', { name: 'Issue PPE' }).first().click();
     const iss = page.getByRole('dialog', { name: 'Issue PPE' });
     await iss.waitFor({ timeout: 5000 });
@@ -83,15 +89,18 @@ const spec = {
     check(!!eventPost && eventPost.query.includes('department=Mining') && !('department' in (eventPost.body ?? {})), 'the event is scoped in the query, never the body', eventPost?.query);
 
     // the temporary gaps tab surfaces the cleanup lists, Mining-only
-    await page.getByRole('tab', { name: 'Gaps' }).click();
+    await page.getByRole('button', { name: 'Options', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Gaps' }).click();
     check(await page.getByText('Temporary cleanup view').isVisible(), 'the gaps tab says it is temporary');
     for (const heading of ['Implausible issue dates', 'Missing sizes', 'No PPE at all', 'No job title', 'Import quarantine', 'Also in Engineering']) {
-      check(await page.getByRole('heading', { name: new RegExp(heading) }).isVisible(), `the gaps tab lists ${heading}`);
+      const group = page.getByRole('heading', { name: new RegExp(heading) });
+      await group.waitFor();
+      check(await group.isVisible(), `the gaps tab lists ${heading}`);
     }
     await shot(page, 'mining-gaps@1440');
 
     // matrix saves from the Mining register stay inside Mining
-    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Options', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Replacement matrix' }).click();
     const mx = page.getByRole('dialog', { name: 'Replacement matrix' });
     await mx.waitFor({ timeout: 5000 });
@@ -104,6 +113,8 @@ const spec = {
     await page.keyboard.press('Escape');
   },
   mobile: async (page, { check, shot }) => {
+    await page.getByRole('table', { name: 'Mining PPE register' }).waitFor();
+    await shot(page, 'mining-register@390');
     await page.getByRole('tab', { name: 'Issue log' }).click();
     await page.getByRole('table', { name: 'PPE movements' }).waitFor({ timeout: 5000 });
     await shot(page, 'issue-log@390');

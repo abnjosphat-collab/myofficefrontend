@@ -62,15 +62,23 @@ const spec = {
     check(await table.getByRole('row').count() === 3, 'hiding unmatched drops the unlinked row', String(await table.getByRole('row').count()));
     await page.getByRole('checkbox', { name: /Show unmatched/ }).check();
 
-    // the download carries the filtered register; keep the file for inspection
+    // Read the downloaded workbook before Playwright removes its temporary file.
     await page.getByRole('combobox', { name: 'Size' }).click();
     await page.getByRole('option', { name: /^L \(/ }).click();
     const download = page.waitForEvent('download', { timeout: 8000 });
     await page.getByRole('button', { name: 'Download', exact: true }).click();
     await page.getByRole('menuitem', { name: /Excel/ }).click();
     const file = await download;
-    await file.saveAs('C:/tmp/shots-tools-rainsuit/rainsuit-register.xlsx');
-    check((await file.path()) !== null, 'the rainsuit register downloads as a file');
+    const { default: ExcelJS } = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(await file.path());
+    const exported = [];
+    workbook.getWorksheet(1).eachRow(row => {
+      if (row.getCell(3).text === 'L') exported.push(row.getCell(2).text);
+    });
+    const contents = JSON.stringify(workbook.getWorksheet(1).getSheetValues());
+    check(exported.length === 2 && exported.includes('David Muronda') && exported.includes('Togara') && !contents.includes('Kapenzi'),
+      'the Excel workbook contains only the two filtered L requirements', JSON.stringify(exported));
   },
 };
 

@@ -12,6 +12,30 @@ const { ApiError } = await import('@/lib/apiClient');
 describe('useApiList', () => {
   beforeEach(() => vi.resetAllMocks());
 
+  it('keeps the PPE snapshot on a network failure and discards it when access is rejected', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce([{ id: 1 }]);
+    const { result } = renderHook(() => useApiList('/api/ppe?department=Mining', undefined, {
+      refresh: false,
+      retainOnTransientRefresh: true,
+    }));
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+    const confirmedAt = result.current.updatedAt;
+
+    vi.mocked(api.get).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => { await result.current.refetch(); });
+    expect(result.current.items).toEqual([{ id: 1 }]);
+    expect(result.current.error).toBe('Failed to fetch');
+    expect(result.current.updatedAt).toBe(confirmedAt);
+    expect(result.current.loading).toBe(false);
+
+    vi.mocked(api.get).mockRejectedValueOnce(new ApiError('Not allowed', 403));
+    await act(async () => { await result.current.refetch(); });
+    expect(result.current.items).toEqual([]);
+    expect(result.current.loaded).toBe(false);
+    expect(result.current.updatedAt).toBeNull();
+    expect(result.current.errorStatus).toBe(403);
+  });
+
   it('does not schedule retries when an in-flight read fails after navigation away', async () => {
     vi.useFakeTimers();
     try {

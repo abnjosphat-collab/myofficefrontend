@@ -20,6 +20,7 @@ export interface PPERecord {
 }
 
 export interface EmployeeRow {
+  id?: number | string;
   employee_id: string; employee_name: string;
   position: string; department: string; section: string;
   /** Left the company: hidden from live views, still on the register. */

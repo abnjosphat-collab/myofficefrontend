@@ -3,8 +3,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import ExcelJS from 'exceljs';
 
-vi.mock('file-saver', () => ({ saveAs: vi.fn() }));
-import { saveAs } from 'file-saver';
+vi.mock('file-saver', () => ({ default: vi.fn() }));
+import saveAs from 'file-saver';
 import { exportRosterExcel } from './exportRoster';
 import type { Employee } from './types';
 

@@ -72,7 +72,9 @@ export function DownloadButton({
   const downloadExcel = async (): Promise<boolean> => {
     try {
       const ExcelJS = (await import('exceljs')).default;
-      const { saveAs } = await import('file-saver');
+      // FileSaver's CommonJS entry exports the function directly. The
+      // default import also works when the production chunk omits named exports.
+      const { default: saveAs } = await import('file-saver');
 
       const wb = new ExcelJS.Workbook();
       wb.creator = 'Ozech MyOffice';

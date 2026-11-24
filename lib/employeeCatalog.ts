@@ -463,3 +463,14 @@ export function designationFilterOptions(legacyOnRoster: string[]): { value: str
     ...legacy.map(r => ({ value: r, label: `${normalizeDesignation(r) || r} (legacy)` })),
   ];
 }
+
+/** Mining options come from the department register and confirmed local designations. */
+export function miningDesignationOptions(current: string, roster: readonly (string | null | undefined)[]) {
+  const choices = new Map<string, string>();
+  for (const label of ['Lasher', 'Miner', 'Assistant Overseer Miner', 'Captain', 'Driller', ...roster, current]) {
+    const value = label?.trim().replace(/\s+/g, ' ');
+    if (value && !choices.has(value.toLowerCase())) choices.set(value.toLowerCase(), value);
+  }
+  if (current.trim()) choices.set(current.trim().replace(/\s+/g, ' ').toLowerCase(), current);
+  return [...choices.values()].sort((a, b) => a.localeCompare(b)).map(value => ({ value, label: value }));
+}

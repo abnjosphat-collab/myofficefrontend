@@ -62,6 +62,7 @@ export const fetchAllEmployees = async (department?: string | null): Promise<Emp
     const e = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     const designation = typeof e.designation === 'string' ? e.designation : '';
     return {
+      ...(typeof e.id === 'number' || typeof e.id === 'string' ? { id: e.id } : {}),
       employee_id: typeof e.employee_id === 'string' ? e.employee_id : '',
       employee_name: sanitizeDisplayName(`${e.first_name || ''} ${e.last_name || ''}`.trim()),
       position: normalizeDesignation(designation) || designation,
@@ -74,11 +75,11 @@ export const fetchAllEmployees = async (department?: string | null): Promise<Emp
 
 export function usePPERecords(department?: string | null) {
   const fetcher = useCallback(() => fetchPPERecords(department), [department]);
-  return useApiList<PPERecord>(withDepartment('/api/ppe', department), undefined, { fetcher });
+  return useApiList<PPERecord>(withDepartment('/api/ppe', department), undefined, { fetcher, retainOnTransientRefresh: true });
 }
 export function useRosterRows(department?: string | null) {
   const fetcher = useCallback(() => fetchAllEmployees(department), [department]);
-  return useApiList<EmployeeRow>(withDepartment('/api/employees/', department), undefined, { fetcher });
+  return useApiList<EmployeeRow>(withDepartment('/api/employees/', department), undefined, { fetcher, retainOnTransientRefresh: true });
 }
 
 export const createPPERecord = async (data: Partial<FormState>) => {

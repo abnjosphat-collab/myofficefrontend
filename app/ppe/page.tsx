@@ -4,7 +4,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import {
@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/auth-context';
 import { todayLocal } from '@/lib/dates';
 import { latestUpdated } from '@/lib/format';
 import { formatMineNumber } from '@/lib/registerMatch';
-import { normalizeSection } from '@/lib/sections';
+import { displaySection, normalizeSection } from '@/lib/sections';
 import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
 import { RainsuitView } from './RainsuitView';
@@ -39,16 +39,28 @@ import type { EmployeeWithPPE, FormState, PPERecord } from './types';
 import { useConfirmDelete } from '@/lib/useConfirmDelete';
 import { useDepartmentSwitch, type DepartmentView } from '@/lib/useDepartmentSwitch';
 import { summariseNames, useBulkDelete } from '@/lib/useBulkDelete';
-import { RegisterFlag, RegisterNotice, useRegisterCheck } from '@/components/shared/RegisterCheck';
+import { RegisterFlag, RegisterNotice } from '@/components/shared/RegisterCheck';
 
 const ALL = 'all';
 
+import { indexRegister, matchToRegister } from '@/lib/registerMatch';
+import { MiningRegister } from './MiningRegister';
+
 function PPEContent() {
+  const dept = useDepartmentSwitch();
+  const { user, scope, loading } = useAuth();
+  if (loading || !user) return <LoadingPulse compact label="Loading PPE register" />;
+  return <PPERegister key={JSON.stringify([user?.id, dept.param, scope])} dept={dept} />;
+}
+
+function PPERegister({ dept }: { dept: ReturnType<typeof useDepartmentSwitch> }) {
   const confirm = useConfirm();
   const confirmDelete = useConfirmDelete();
   const { confirmBulkDelete, deleting } = useBulkDelete();
-  const dept = useDepartmentSwitch();
+  const router = useRouter();
   const miningView = dept.param === 'Mining';
+  const [tab, setTab] = useState('employees');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const recs = usePPERecords(dept.param);
   const roster = useRosterRows(dept.param);
   // The matrix dialog edits the Mining policy when the Mining register is showing: a company save would recalculate
@@ -57,17 +69,20 @@ function PPEContent() {
   // The rainsuit register reads size requirements; it only exists for Engineering, so Mining makes no new request.
   const requirements = usePPERequirements(miningView ? undefined : dept.param, !miningView);
   // The Issue Log reads the durable event history; it only exists for Mining, so Engineering makes no new request.
-  const events = usePPEEvents(miningView ? 'Mining' : undefined, miningView);
+  const events = usePPEEvents(miningView ? 'Mining' : undefined, miningView && tab === 'log');
   const order = useOrderList(dept.param);
-  const [tab, setTab] = useState('employees');
   const [f, setF] = useState<EmployeeFilters>(NO_EMPLOYEE_FILTERS);
   const { scope, isAtLeast, department: accountDepartment } = useAuth();
   const [form, setForm] = useState<{ record: PPERecord | null; prefill: PPERecord | null; employee: EmployeeWithPPE | null; fulfils: string | null } | null>(null);
-  const [holderId, setHolderId] = useState<string | null>(null);
+  const [holderId, setHolderId] = useState<string | null>();
   const [itemId, setItemId] = useState<string | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const register = useRegisterCheck(dept.param);
+  const register = useMemo(() => {
+    const index = indexRegister(roster.items.map(e => ({ id: e.id, employee_id: e.employee_id, name: e.employee_name })));
+    return { matchOf: (person: { employee_id?: string; employee_name?: string }) =>
+      roster.loaded && roster.items.length ? matchToRegister(person, index) : 'linked' as const };
+  }, [roster.items, roster.loaded]);
   const [unmatchedOnly, setUnmatchedOnly] = useState(false);
   const [typeFilter, setTypeFilterState] = useState<TypeFilter>(() => (typeof window === 'undefined' ? NO_TYPE_FILTER : loadTypeFilter(k => window.localStorage.getItem(k))));
   // Patches merge functionally: the lens Reset fires two changes at once (clear the types, back to include), and two
@@ -102,7 +117,7 @@ function PPEContent() {
     nextWeek: { ...nextWeek, records: addableInWindow(visibleByType, basketRegister, covered, shutOut, nextWeek.from, nextWeek.to) },
     soon: addableSoon(visibleByType, basketRegister, covered, shutOut, today),
   }), [visibleByType, basketRegister, covered, shutOut, thisWeek, nextWeek, today]);
-  // ?person= from a Personnel link: the matching card is ringed and scrolled to, once, without opening it.
+  // Personnel links open the Mining detail directly and highlight the existing Engineering card.
   // Read once (a later navigation keeps its own URL); an unknown or filtered-out number is silently ignored.
   const params = useSearchParams();
   const [personParam] = useState(() => (params.get('person') || '').trim());
@@ -110,12 +125,12 @@ function PPEContent() {
   const personRef = useRef<HTMLLIElement | null>(null);
   const personScrolled = useRef(false);
   useEffect(() => {
-    if (personTarget && personRef.current && !personScrolled.current) {
+    if (!miningView && personTarget && personRef.current && !personScrolled.current) {
       personScrolled.current = true;
       const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       personRef.current.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
     }
-  }, [personTarget]);
+  }, [miningView, personTarget]);
   // Archived people are hidden from the browsing views by default but never from the data-quality notice
   // (unmatched), the issue form, the order list or the matrix (D17); due always excludes them (D18).
   const [showArchived, setShowArchived] = useState(false);
@@ -138,7 +153,8 @@ function PPEContent() {
   const scoped = useMemo(() => summarise(sectionRecords.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), inSection), [sectionRecords, inSection, typeFilter]);
   const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(h => normalizeEmployeeId(h.employee_id))); return records.filter(r => r.status === 'active' && !arch.has(normalizeEmployeeId(r.employee_id))); }, [records, holders]);
   const typeOpts = useMemo(() => typeOptions(lensPool), [lensPool]);
-  const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
+  const holder = holderId === undefined && miningView && recs.loaded
+    ? personTarget : holders.find(h => h.employee_id === holderId) ?? null;
   const item = useMemo(() => records.find(r => String(r.id) === itemId) ?? null, [records, itemId]);
   const itemReadOnly = item ? holders.find(h => h.employee_id === item.employee_id)?.archived === true : false;
   const hiddenAllArchived = !showArchived && archivedCount > 0 && visibleHolders.length === 0;
@@ -272,60 +288,74 @@ function PPEContent() {
     { value: 'premature', label: `Premature failures (${visibleHolders.filter(h => h.records.some(r => r.premature_failure === true)).length})` },
   ];
 
+  if ([recs.errorStatus, roster.errorStatus].some(code => code === 401 || code === 403)) {
+    return <DataRegion status="unauthorized" subject="PPE records">{null}</DataRegion>;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={[{ label: 'Core Management' }, { label: 'PPE' }]}
-        title="PPE"
-        description={miningView ? 'Who holds what, what is due, and what to order — the Mining register.' : scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
+        title={miningView ? 'PPE · Mining' : 'PPE'}
+        description={miningView ? undefined : scope ? `Who holds what, what is due, and what to order — showing ${scope} only.` : 'Who holds what, what is due, and what to order.'}
         actions={(
           <>
-            {!accountDepartment && <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />}
-            <ZoomLink zoomId="ppe:new-bulk" className="inline-block"><Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button></ZoomLink>
+            {miningView && <MoreMenu label="Options" iconOnly={false} items={[
+              { label: 'Issue to several people', icon: 'employees', disabled: !recs.loaded, onSelect: () => setBulkOpen(true) },
+              { label: 'Gaps', icon: 'search', onSelect: () => setTab('gaps') },
+              { label: 'Summary', icon: 'analytics', onSelect: () => setTab('summary') },
+              ...(!accountDepartment ? [{ label: 'Replacement matrix', icon: 'settings' as const, onSelect: () => setMatrixOpen(true) }] : []),
+            ]} />}
+            {!miningView && !accountDepartment && <MoreMenu items={[{ label: 'Replacement matrix', icon: 'settings', onSelect: () => setMatrixOpen(true) }]} />}
+            {!miningView && <ZoomLink zoomId="ppe:new-bulk" className="inline-block"><Button variant="secondary" icon="employees" disabled={!recs.loaded} onClick={() => setBulkOpen(true)}>Issue to several people</Button></ZoomLink>}
             <ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" disabled={!recs.loaded} onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>
           </>
         )}
       />
-      {roster.error && !roster.loaded && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} Names and sections come from saved records until the register loads.</Notice>}
+      {recs.error && recs.loaded && tab !== 'employees' && <Notice tone="warning" title="PPE records may be out of date" action={<Button size="sm" onClick={reload}>Retry</Button>}><UpdatedCaption at={recs.updatedAt} /></Notice>}
+      {roster.error && <Notice tone="warning" title="The personnel register could not be loaded" action={<Button size="sm" icon="refresh" onClick={() => roster.refetch()}>Try again</Button>}>{roster.error} {roster.loaded ? 'Showing the last loaded personnel register.' : 'Names and sections come from saved records until the register loads.'}</Notice>}
 
-      {(dept.canSwitch || dept.pinnedDepartment) && (
-        <div className="flex flex-wrap items-center gap-3" role="region" aria-label="Register">
-          {dept.canSwitch ? (
-            <Segmented<DepartmentView> label="Register" value={dept.active} onValueChange={dept.setActive} options={[{ value: 'Engineering', label: 'Engineering' }, { value: 'Mining', label: 'Mining' }]} />
-          ) : (
-            <StatusBadge tone="info">Mining register</StatusBadge>
-          )}
-          {miningView && <p className="font-sans text-caption text-ink-muted">Showing the Mining register. Issues, the order list and the summary cover Mining people only; the budget stays with Engineering.</p>}
-        </div>
-      )}
+      {dept.canSwitch && <Segmented<DepartmentView> label="Register department" value={dept.active} onValueChange={dept.setActive} options={[{ value: 'Engineering', label: 'Engineering' }, { value: 'Mining', label: 'Mining' }]} />}
 
-      <MetricGrid compact>
+      {(!miningView || tab === 'summary') && <MetricGrid compact>
         <MetricTile compact label="People" value={stats.employees} selected={tab === 'employees' && f.view === 'all'} onClick={() => { setTab('employees'); set({ view: 'all' }); }} {...tile} />
         <MetricTile compact label="Active items" value={stats.active} selected={tab === 'employees' && f.view === 'active'} onClick={() => { setTab('employees'); set({ view: 'active' }); }} {...tile} />
         <MetricTile compact label="Expiring soon" tone={stats.soon ? 'warning' : 'default'} value={stats.soon} detail={recs.loaded ? `${stats.employeesSoon} ${stats.employeesSoon === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'soon'} onClick={() => { setTab('employees'); set({ view: 'soon' }); }} {...tile} />
         <MetricTile compact label="Overdue" tone={stats.overdue ? 'danger' : 'default'} value={stats.overdue} detail={recs.loaded ? `${stats.employeesOverdue} ${stats.employeesOverdue === 1 ? 'person' : 'people'}` : undefined} selected={tab === 'employees' && f.view === 'overdue'} onClick={() => { setTab('employees'); set({ view: 'overdue' }); }} {...tile} />
-      </MetricGrid>
+      </MetricGrid>}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="PPE sections">
-          <TabsTrigger value="employees" icon="employees">Employees</TabsTrigger>
+          <TabsTrigger value="employees" icon="employees">{miningView ? 'Register' : 'Employees'}</TabsTrigger>
           <TabsTrigger value="due" icon="overdue">Due items</TabsTrigger>
           {miningView && <TabsTrigger value="log" icon="history">Issue log</TabsTrigger>}
-        {miningView && <TabsTrigger value="gaps" icon="search">Gaps</TabsTrigger>}
-          <TabsTrigger value="order" icon="cart" count={order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
-          <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>
+        {miningView && tab === 'gaps' && <TabsTrigger value="gaps" icon="search">Gaps</TabsTrigger>}
+          <TabsTrigger value="order" icon="cart" count={!miningView && order.loaded ? basketView.lines.length : undefined}>Order list</TabsTrigger>
+          {(!miningView || tab === 'summary') && <TabsTrigger value="summary" icon="analytics">Summary</TabsTrigger>}
           {!miningView && <TabsTrigger value="rainsuit" icon="ppe">Rainsuits</TabsTrigger>}
           {!miningView && <TabsTrigger value="budget" icon="cost">Budget</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="employees" className="mt-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <SearchField value={f.search} onValueChange={search => set({ search })} placeholder="Search name, ID or position" wrapperClassName="min-w-48 max-w-sm flex-1" />
-            {!scope && (<Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />)}
+            <SearchField value={f.search} onValueChange={search => set({ search })} placeholder={miningView ? 'Search name, mine number or designation' : 'Search name, ID or position'} wrapperClassName={miningView ? 'min-w-48 flex-1' : 'min-w-48 max-w-sm flex-1'} />
+            {miningView && <Button aria-expanded={filtersOpen} onClick={() => setFiltersOpen(open => !open)}>Filters</Button>}
+            {!miningView && !scope && (<Select aria-label="Section" className="w-44" value={f.section} onValueChange={v => set({ section: v })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([s, n]) => ({ value: s, label: `${s} (${n})` }))]} />)}
             {filtered && <Button variant="ghost" icon="close" onClick={() => { setF(NO_EMPLOYEE_FILTERS); setUnmatchedOnly(false); }}>Clear filters</Button>}
-            {archivedCount > 0 && <Button size="sm" variant="ghost" icon="archive" aria-pressed={showArchived} onClick={() => setShowArchived(v => !v)}>{showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}</Button>}
+            {!miningView && archivedCount > 0 && <Button size="sm" variant="ghost" icon="archive" aria-pressed={showArchived} onClick={() => setShowArchived(v => !v)}>{showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}</Button>}
           </div>
-          <Segmented label="Show" value={f.view} onValueChange={v => set({ view: v as EmployeeView })} options={VIEWS} />
+          {miningView && !filtersOpen && (f.view !== 'all' || f.section !== ALL || showArchived) && (
+            <p className="text-caption text-ink-muted">{[
+              f.section !== ALL ? displaySection(f.section) : '',
+              f.view !== 'all' ? VIEWS.find(view => view.value === f.view)?.label : '',
+              showArchived ? 'Including archived' : '',
+            ].filter(Boolean).join(' · ')}</p>
+          )}
+          {miningView ? filtersOpen && <div className="flex flex-wrap items-center gap-3">
+            {!scope && <Select aria-label="Section" value={f.section} onValueChange={section => set({ section })} options={[{ value: ALL, label: 'All sections' }, ...sections.map(([value]) => ({ value, label: displaySection(value) }))]} />}
+            <Select aria-label="PPE status" value={f.view} onValueChange={view => set({ view: view as EmployeeView })} options={VIEWS} />
+            {archivedCount > 0 && <Button size="sm" variant="ghost" aria-pressed={showArchived} onClick={() => setShowArchived(v => !v)}>{showArchived ? 'Hide archived' : 'Show archived'}</Button>}
+          </div> : <Segmented label="Show" value={f.view} onValueChange={v => set({ view: v as EmployeeView })} options={VIEWS} />}
           <RegisterNotice count={unmatchedRecordIds.length} noun="PPE record" only={unmatchedOnly} onToggle={() => setUnmatchedOnly(v => !v)} onDeleteAll={unmatchedRecordIds.length > 0 ? { count: unmatchedRecordIds.length, pending: deleting, run: removeUnmatched } : undefined} />
           <DataRegion
             status={status} subject="PPE records" error={recs.error} onRetry={reload}
@@ -336,7 +366,13 @@ function PPEContent() {
               : scope ? <EmptyState icon="ppe" title={`No ${scope} PPE issued yet`} description="Issue PPE to an employee to get started." action={<ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>} /> : <EmptyState icon="ppe" title="No PPE issued yet" description="Issue PPE to an employee to get started." action={<ZoomLink zoomId="ppe:new" className="inline-block"><Button variant="primary" icon="plus" onClick={() => openIssue()}>Issue PPE</Button></ZoomLink>} />}
           >
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}<UpdatedCaption at={latestUpdated(recs.updatedAt, roster.updatedAt)} /></p>
-            <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
+            {miningView ? <MiningRegister key={JSON.stringify([f, showArchived, unmatchedOnly])} people={shown} onOpen={h => setHolderId(h.employee_id)}
+              flags={h => <><RegisterFlag match={register.matchOf(h)} />{h.archived && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
+              actions={h => <MoreMenu label={`More actions for ${h.employee_name}`} items={[
+                { label: 'View Personnel', icon: 'employees', onSelect: () => router.push(`/employees?highlight=${encodeURIComponent(h.employee_id)}&department=Mining`) },
+                ...(!h.archived ? [{ label: 'Issue PPE', icon: 'plus' as const, onSelect: () => openIssue(h) }, ...cardMenuItems(h)] : []),
+              ]} />}
+            /> : <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
               {shown.map(h => (
                 <MotionListItem as="li" key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">
                   <ZoomLink zoomId={`ppe:holder:${h.employee_id}`}>
@@ -348,7 +384,7 @@ function PPEContent() {
                   </ZoomLink>
                 </MotionListItem>
               ))}
-            </MotionList>
+            </MotionList>}
           </DataRegion>
         </TabsContent>
 
@@ -399,7 +435,7 @@ function PPEContent() {
       <EmployeePPEDetail employee={holder} onClose={() => setHolderId(null)} onIssue={openIssue} actions={actions} readOnly={holder?.archived === true} />
       <PPEItemDetail item={item} onClose={() => setItemId(null)} onEdit={openEdit} readOnly={itemReadOnly} />
       <PPEIssueForm open={!!form} record={form?.record ?? null} prefill={form?.prefill ?? null} employee={form?.employee ?? null} matrix={matrix.matrix} onOpenChange={o => { if (!o) setForm(null); }} onSave={save} department={dept.param} />
-      <PPEBulkIssueForm open={bulkOpen} records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} department={dept.param} createOne={bulkCreateOne} />
+      {bulkOpen && <PPEBulkIssueForm open records={records} matrix={matrix.matrix} onOpenChange={setBulkOpen} onCreated={reload} department={dept.param} createOne={bulkCreateOne} />}
       <MatrixDialog open={matrixOpen} onOpenChange={setMatrixOpen} matrix={matrix.matrix} loading={matrix.loading} error={matrix.error} onRetry={matrix.refetch} records={records} onSetInterval={setInterval} onRecalculate={recalc} onRecalculateAll={recalcAll} />
     </div>
   );

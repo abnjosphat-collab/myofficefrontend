@@ -34,6 +34,8 @@ export interface ApiListState<T> {
 
 export interface ApiListOptions<Raw> {
   paged?: boolean;
+  /** Keep a valid snapshot through a temporary failure, with bounded retries and immediate access-error handling. */
+  retainOnTransientRefresh?: boolean;
   pick?: PagedOptions<Raw>['pick'];
   enabled?: boolean;
   fetcher?: (path: string) => Promise<Raw[]>;
@@ -54,6 +56,7 @@ export interface ConfirmedApiListState<T> extends ApiListState<T> {
  * `pick` unwraps a response such as `{ data: [...] }` (pass a stable reference, e.g. `unwrapRows`).
  */
 export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw) => T, options: ApiListOptions<Raw> = {}): ConfirmedApiListState<T> {
+  const retainOnTransientRefresh = options.retainOnTransientRefresh ?? false;
   const paged = options.paged ?? false;
   const enabled = options.enabled ?? true;
   const pick = options.pick;
@@ -108,7 +111,12 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
         if (request !== latest.current) return;
         const message = e instanceof Error ? e.message : 'The data could not be loaded.';
         const status = e instanceof ApiError ? e.status : null;
-        if (isTransientError(e)) {
+        if (retainOnTransientRefresh && (status === 401 || status === 403)) {
+          setItems([]); setLoaded(false); setUpdatedAt(null);
+          setError(message); setErrorStatus(status);
+        } else if (retainOnTransientRefresh && (loadedRef.current || n >= 1) && isTransientError(e)) {
+          setError(message); setErrorStatus(status);
+        } else if (isTransientError(e)) {
           // The service is slow, waking up or unreachable: keep loading and try again. Rows already on screen stay quiet; a first load
           // records what the service last said so the page can show it under "still loading".
           if (!loadedRef.current) { setError(message); setErrorStatus(status); }
@@ -122,7 +130,7 @@ export function useApiList<Raw = unknown, T = Raw>(path: string, map?: (raw: Raw
       if (request === latest.current) { busyRef.current = false; if (!quiet) setLoading(false); }
     };
     await attempt(0);
-  }, [path, paged, pick, enabled, fetcher]);
+  }, [path, paged, pick, enabled, fetcher, retainOnTransientRefresh]);
 
   const refetch = useCallback(() => doFetch(false), [doFetch]);
 

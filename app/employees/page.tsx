@@ -16,7 +16,7 @@ import { useDepartmentSwitch, type DepartmentView } from '@/lib/useDepartmentSwi
 import { ARTISAN_FILTER_VALUE, designationFilterOptions, normalizeDesignation } from '@/lib/employeeCatalog';
 import { formatPhoneDisplay } from '@/lib/phone';
 import { formatMineNumber } from '@/lib/registerMatch';
-import { SECTION_ORDER, normalizeSection } from '@/lib/sections';
+import { displaySection, SECTION_ORDER, normalizeSection } from '@/lib/sections';
 import { EmployeeDetail } from './EmployeeDetail';
 import { EmployeeForm } from './EmployeeForm';
 import { exportPersonnelRegistryExcel } from './exportPersonnelRegistry';
@@ -113,7 +113,7 @@ function EmployeesContent() {
   const badges = (e: Employee, withSection: boolean) => (
     <>
       {e.archived && <StatusBadge tone="neutral">Archived</StatusBadge>}
-      {withSection && e.section && <StatusBadge tone="info">{normalizeSection(e.section)}</StatusBadge>}
+      {withSection && e.section && <StatusBadge tone="info">{dept.active === 'Mining' ? displaySection(e.section) : normalizeSection(e.section)}</StatusBadge>}
       {e.employment_type ? <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge> : <StatusBadge tone="warning">Type not set</StatusBadge>}
       {e.employee_class && <StatusBadge tone={CLASS_TONE[e.employee_class] ?? 'neutral'}>{e.employee_class}</StatusBadge>}
     </>
@@ -131,7 +131,7 @@ function EmployeesContent() {
   const COLUMNS: Column<Employee>[] = [
     { id: 'name', header: 'Name', sticky: true, cell: e => <div className="min-w-0"><p className="font-medium text-ink">{fullName(e)}</p><p className="font-mono text-caption text-ink-muted">{formatMineNumber(e.employee_id)}</p></div> },
     { id: 'designation', header: 'Designation', hideBelow: 'md', cell: e => normalizeDesignation(e.designation) || <span className="text-ink-muted">None</span> },
-    { id: 'section', header: 'Section', hideBelow: 'md', cell: e => (e.section ? normalizeSection(e.section) : <span className="text-ink-muted">Unassigned</span>) },
+    { id: 'section', header: 'Section', hideBelow: 'md', cell: e => (e.section ? (dept.active === 'Mining' ? displaySection(e.section) : normalizeSection(e.section)) : <span className="text-ink-muted">Unassigned</span>) },
     { id: 'type', header: 'Type', hideBelow: 'lg', cell: e => (e.employment_type ? <StatusBadge tone={ETYPE_TONE[e.employment_type] ?? 'neutral'}>{ETYPE_LABEL[e.employment_type] ?? e.employment_type}</StatusBadge> : <StatusBadge tone="warning">Type not set</StatusBadge>) },
     { id: 'class', header: 'Class', cell: e => (e.employee_class ? <StatusBadge tone={CLASS_TONE[e.employee_class] ?? 'neutral'}>{e.employee_class}</StatusBadge> : <span className="text-ink-muted">Unclassified</span>) },
     { id: 'tenure', header: 'Time here', hideBelow: 'lg', cell: e => <span className="tabular">{tenure(e.date_of_engagement) || 'Not recorded'}</span> },

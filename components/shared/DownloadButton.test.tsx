@@ -13,7 +13,7 @@ import ExcelJS from 'exceljs';
 import { DownloadButton, type DLColumn } from './DownloadButton';
 
 let savedBlob: Blob | null = null;
-vi.mock('file-saver', () => ({ saveAs: (blob: Blob) => { savedBlob = blob; } }));
+vi.mock('file-saver', () => ({ default: (blob: Blob) => { savedBlob = blob; } }));
 
 afterEach(() => { savedBlob = null; cleanup(); });
 

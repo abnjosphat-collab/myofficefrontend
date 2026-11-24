@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 import { Checkbox, Combobox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { TagField } from '@/components/shared/TagField';
 import {
-  designationSelectOptions, driverLicenseSelectOptions, foremanSelectOptions, isStandardDesignation, normalizeEmployeeRoleFields, resolveDriverLicense, sectionForDesignation,
+  miningDesignationOptions, designationSelectOptions, driverLicenseSelectOptions, foremanSelectOptions, isStandardDesignation, normalizeEmployeeRoleFields, resolveDriverLicense, sectionForDesignation,
 } from '@/lib/employeeCatalog';
 import { normalizePhoneField } from '@/lib/phone';
-import { sectionSelectOptions } from '@/lib/sections';
+import { displaySection, sectionSelectOptions } from '@/lib/sections';
 import { CLASS_OPTIONS, formProblems, fullName, sectionImpliedNotice } from './roster';
 import type { Employee, EmployeeFormData } from './types';
 import { dialogKey, useResetOnOpen } from '@/lib/useResetOnOpen';
@@ -21,8 +21,9 @@ const EMPTY: EmployeeFormData = {
   employee_id: '', first_name: '', last_name: '', id_number: '', email: '', phone: '', address: '', date_of_engagement: '', designation: '', employee_class: '', employment_type: '', supervisor: '', section: '',
   department: '', grade: '', qualifications: [], drivers_license_class: '', offences: [], awards_recognition: [], other_positions: [], previous_employer: '', archived: false,
 };
-function fromEmployee(e: Employee): EmployeeFormData {
-  const role = normalizeEmployeeRoleFields(e.designation, e.section, e.first_name, e.last_name);
+function fromEmployee(e: Employee, mining: boolean): EmployeeFormData {
+  const role = mining ? { designation: e.designation || '', section: e.section || '' }
+    : normalizeEmployeeRoleFields(e.designation, e.section, e.first_name, e.last_name);
   return {
     employee_id: e.employee_id || '', first_name: e.first_name || '', last_name: e.last_name || '', id_number: e.id_number || '', email: e.email || '', phone: normalizePhoneField(e.phone) || '', address: e.address || '',
     date_of_engagement: e.date_of_engagement || '', designation: role.designation, employee_class: e.employee_class || '', employment_type: (e.employment_type as EmployeeFormData['employment_type']) || '',
@@ -38,13 +39,15 @@ const distinct = (values: (string | undefined)[]) => [...new Set(values.map(v =>
 export function EmployeeForm({ open, employee, all, onOpenChange, onSave, department }: {
   open: boolean; employee: Employee | null; all: Employee[]; onOpenChange: (open: boolean) => void; onSave: (data: EmployeeFormData, id?: number) => Promise<void>; department?: string | null;
 }) {
-  const { scope } = useAuth();
+  const { scope, department: accountDepartment } = useAuth();
+  const mining = (employee?.department || department || accountDepartment) === 'Mining';
+  const allowCustom = mining || !!scope;
   const [form, setForm] = useState<EmployeeFormData>(EMPTY);
   const [touched, setTouched] = useState(false);
   // Designations typed on a scoped account this session — they join the list at once and
   // rejoin it on the next load through the saved record (see the options memo below).
   const [customDesignations, setCustomDesignations] = useState<string[]>([]);
-  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}), ...(department ? { department } : {}) }); });
+  useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee, mining) : { ...EMPTY, ...(scope ? { section: scope } : {}), ...(department ? { department } : {}) }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
   const problems = formProblems(form, { requireEmploymentType: !employee });
   const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
@@ -53,13 +56,15 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
   // The list also carries every other designation already held on the register, so a typed custom
   // value saved on one record is offered again on the next. Scoped accounts may type a brand-new one.
   const designations = useMemo(
-    () => designationSelectOptions(
+    () => mining ? miningDesignationOptions(form.designation, all.map(e => e.designation)) : designationSelectOptions(
       form.designation,
       [...all.map(e => e.designation), ...customDesignations],
     ).filter(o => o.value),
-    [form.designation, all, customDesignations],
+    [form.designation, all, customDesignations, mining],
   );
-  const sections = useMemo(() => sectionSelectOptions(form.section), [form.section]);
+  const sections = useMemo(() => mining
+    ? [{ value: '', label: 'None' }, ...distinct([form.section, ...all.map(e => e.section)]).map(value => ({ value, label: displaySection(value) }))]
+    : sectionSelectOptions(form.section), [mining, form.section, all]);
   const supervisors = useMemo(() => foremanSelectOptions(all, form.supervisor), [all, form.supervisor]);
   const licences = useMemo(() => driverLicenseSelectOptions(form.drivers_license_class), [form.drivers_license_class]);
   const grades = useMemo(() => distinct(all.map(e => e.grade)), [all]);
@@ -68,7 +73,7 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
     if (v && scope && !isStandardDesignation(v)) {
       setCustomDesignations(prev => (prev.some(p => p.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]));
     }
-    const implied = sectionForDesignation(v);
+    const implied = mining ? undefined : sectionForDesignation(v);
     set({ designation: v, ...(implied && !scope ? { section: implied } : {}) });
   };
 
@@ -98,10 +103,10 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
         <section aria-labelledby="ef-emp" className="flex flex-col gap-3">
           <h3 id="ef-emp" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Employment</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Designation" required error={err('designation')} description={scope ? 'Choose a designation, or type a new one to add it; the section stays fixed.' : 'Choosing one fills in the section.'}><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." allowCustomValue={!!scope} /></Field>
+            <Field label="Designation" required error={err('designation')} description={scope ? 'Choose a designation, or type a new one to add it; the section stays fixed.' : mining ? 'Choose a Mining designation or type a new one.' : 'Choosing one fills in the section.'}><Combobox aria-label="Designation" value={form.designation} onValueChange={pickDesignation} options={designations} placeholder="Search or choose a designation" emptyMessage="No matching designation." allowCustomValue={allowCustom} /></Field>
             {scope
               ? <Field label="Section" description={editing ? 'The section stays as it is.' : `Your account adds people to ${scope}.`}><Input aria-label="Section" value={form.section || scope} disabled /></Field>
-              : <Field label="Section" optional description={sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>}
+              : <Field label="Section" optional description={mining ? undefined : sectionImpliedNotice(form.designation, form.section) ?? undefined}><Select aria-label="Section" value={form.section} onValueChange={v => set({ section: v })} options={sections} /></Field>}
             {!editing && department ? <Field label="Department" description={`This person joins the ${department} register.`}><Input aria-label="Department" value={form.department || department} disabled /></Field> : null}
             <Field label="Date of engagement" optional><Input type="date" value={form.date_of_engagement} onChange={e => set({ date_of_engagement: e.target.value })} /></Field>
             <Field label="Foreman or supervisor" optional><Select aria-label="Foreman or supervisor" value={form.supervisor} onValueChange={v => set({ supervisor: v })} options={supervisors} /></Field>
