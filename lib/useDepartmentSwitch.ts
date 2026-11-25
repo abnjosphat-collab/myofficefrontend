@@ -14,6 +14,13 @@ import { useAuth } from './auth-context';
 export const MINING_DEPARTMENT = 'Mining';
 const STORAGE_KEY = 'myoffice.department-view';
 
+/**
+ * Accounts that never see the Mining register: mine-side working belongs to
+ * Darlington Kureva's accounts. Matching is exact on the sign-in email
+ * (case-insensitive). Everyone else keeps today's behavior unchanged.
+ */
+const MINING_HIDDEN_FOR_ACCOUNTS = ['abcjosphat@gmail.com'];
+
 export type DepartmentView = 'Engineering' | 'Mining';
 
 function readUrlDepartment(): string | null {
@@ -22,10 +29,13 @@ function readUrlDepartment(): string | null {
 }
 
 export function useDepartmentSwitch() {
-  const { department: pinnedDepartment, isAtLeast } = useAuth();
+  const { department: pinnedDepartment, isAtLeast, user } = useAuth();
   const router = useRouter();
-  const canSwitch = isAtLeast('manager') && !pinnedDepartment;
-  const pinnedMining = pinnedDepartment === MINING_DEPARTMENT;
+  const miningHiddenForAccount = MINING_HIDDEN_FOR_ACCOUNTS.includes(
+    (user?.email ?? '').trim().toLowerCase(),
+  );
+  const canSwitch = isAtLeast('manager') && !pinnedDepartment && !miningHiddenForAccount;
+  const pinnedMining = pinnedDepartment === MINING_DEPARTMENT && !miningHiddenForAccount;
 
   const [view, setViewState] = useState<DepartmentView>(() => {
     if (typeof window === 'undefined') return 'Engineering';

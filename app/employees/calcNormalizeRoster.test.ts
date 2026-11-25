@@ -23,7 +23,7 @@ describe('normalizedEmployeeFields', () => {
     });
     expect(fields.designation).toBe('Electrician Class 1');
     expect(fields.section).toBe('Electrical');
-    expect(fields.phone).toBe('+263 77 123 4567 / +263 71 234 5678');
+    expect(fields.phone).toBe('+263 77 1234 567 / +263 71 2345 678');
   });
 
   it('remaps Class 4 Driver designation to Light Vehicle Driver', () => {
@@ -49,7 +49,7 @@ describe('planRosterNormalization', () => {
     const plan = planRosterNormalization([
       base,
       { ...base, id: 2, employee_id: 'C1002', first_name: 'Jane', designation: 'electrician', section: 'Electrical' },
-      { ...base, id: 3, employee_id: 'C1003', first_name: 'Bob', designation: 'Rigger Class 1', section: 'Mechanical', phone: '+263 77 111 1111' },
+      { ...base, id: 3, employee_id: 'C1003', first_name: 'Bob', designation: 'Rigger Class 1', section: 'Mechanical', phone: '+263 77 1111 111' },
     ]);
     expect(plan.total).toBe(3);
     expect(plan.affected).toBe(1);

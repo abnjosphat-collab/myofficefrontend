@@ -7,6 +7,10 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Checkbox, Combobox, Field, FormDialog, Input, Select, Textarea } from '@/components/ui-system';
 import { TagField } from '@/components/shared/TagField';
+import { FormattedPhoneField } from '@/components/shared/FormattedPhoneField';
+import { isLegacyPhoneValue, verifyPhoneField } from '@/lib/phone';
+import { normalizePersonName } from '@/lib/personName';
+import { normalizeNationalId } from '@/lib/nationalId';
 import {
   designationSelectOptions, driverLicenseSelectOptions, foremanSelectOptions, isStandardDesignation, normalizeEmployeeRoleFields, resolveDriverLicense, sectionForDesignation,
 } from '@/lib/employeeCatalog';
@@ -46,8 +50,17 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
   const [customDesignations, setCustomDesignations] = useState<string[]>([]);
   useResetOnOpen(dialogKey(open, employee?.id), () => { setTouched(false); setForm(employee ? fromEmployee(employee) : { ...EMPTY, ...(scope ? { section: scope } : {}), ...(department ? { department } : {}) }); });
   const set = (patch: Partial<EmployeeFormData>) => setForm(f => ({ ...f, ...patch }));
-  const problems = formProblems(form, { requireEmploymentType: !employee });
-  const err = (k: keyof typeof problems) => (touched ? problems[k] : undefined);
+  const problems = formProblems(form, { requireEmploymentType: !employee, requireMineNumber: false, requireIdNumber: false });
+  // Phone feedback matches the server verdicts — malformed new input is
+  // rejected with a field error, while an unchanged legacy value is preserved
+  // with a correction warning instead of an error.
+  const phoneError = verifyPhoneField(form.phone).error;
+  const legacyPhone = isLegacyPhoneValue(employee?.phone, form.phone);
+  const allProblems: Record<string, string | undefined> = {
+    ...problems,
+    ...(phoneError && !legacyPhone ? { phone: phoneError } : {}),
+  };
+  const err = (k: string) => (touched ? allProblems[k] : undefined);
   const editing = !!employee;
 
   // The list also carries every other designation already held on the register, so a typed custom
@@ -74,23 +87,40 @@ export function EmployeeForm({ open, employee, all, onOpenChange, onSave, depart
 
   const submit = async () => {
     setTouched(true);
-    if (Object.keys(problems).length > 0) return false;
-    await onSave(form, employee?.id);
+    // Names and IDs are canonicalised on save as well as on blur, so typing
+    // "mercy", "MERCY" or "mERCY mazarire" always stores "Mercy Mazarire".
+    const saving = {
+      ...form,
+      first_name: normalizePersonName(form.first_name),
+      last_name: normalizePersonName(form.last_name),
+      id_number: normalizeNationalId(form.id_number),
+    };
+    if (Object.keys(allProblems).length > 0 || (phoneError && !legacyPhone)) return false;
+    set(saving);
+    await onSave(saving, employee?.id);
     toast.success(editing ? 'Employee updated.' : 'Employee added.');
+  };
+  const blurName = (k: 'first_name' | 'last_name') => () => {
+    const next = normalizePersonName(form[k]);
+    if (next !== form[k]) set({ [k]: next } as Partial<EmployeeFormData>);
+  };
+  const blurId = () => {
+    const next = normalizeNationalId(form.id_number);
+    if (next !== form.id_number) set({ id_number: next });
   };
 
   return (
-    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id}` : 'Mine number, name, ID number, designation and employment type are required.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit} zoomId={editing ? undefined : 'employees:new'}>
+    <FormDialog open={open} onOpenChange={onOpenChange} size="xl" title={editing ? `Edit ${fullName(employee)}` : 'Add an employee'} description={editing ? `Mine number ${employee.employee_id || 'not yet issued'}` : 'Name, designation and employment type are required; the mine number and ID can wait until they are available.'} submitLabel={editing ? 'Save changes' : 'Add employee'} onSubmit={submit} zoomId={editing ? undefined : 'employees:new'}>
       <div className="flex flex-col gap-5">
         <section aria-labelledby="ef-personal" className="flex flex-col gap-3">
           <h3 id="ef-personal" className="border-b border-line pb-1.5 font-display text-section font-semibold text-ink">Personal</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Mine number" required error={err('employee_id')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value.toUpperCase() })} placeholder="C1165, PM365" autoComplete="off" /></Field>
-            <Field label="ID number" required error={err('id_number')}><Input value={form.id_number} onChange={e => set({ id_number: e.target.value })} placeholder="National ID or passport" autoComplete="off" /></Field>
-            <Field label="First name" required error={err('first_name')}><Input value={form.first_name} onChange={e => set({ first_name: e.target.value })} autoComplete="off" /></Field>
-            <Field label="Last name" required error={err('last_name')}><Input value={form.last_name} onChange={e => set({ last_name: e.target.value })} autoComplete="off" /></Field>
+            <Field label="Mine number" optional description="Issued later — leave blank at registration." error={err('employee_id')}><Input value={form.employee_id} onChange={e => set({ employee_id: e.target.value.toUpperCase() })} placeholder="C1165, PM365" autoComplete="off" /></Field>
+            <Field label="ID number" optional description="Record it when available." error={err('id_number')}><Input value={form.id_number} onChange={e => set({ id_number: e.target.value })} onBlur={blurId} placeholder="National ID or passport" autoComplete="off" /></Field>
+            <Field label="First name" required error={err('first_name')}><Input value={form.first_name} onChange={e => set({ first_name: e.target.value })} onBlur={blurName('first_name')} autoComplete="off" /></Field>
+            <Field label="Last name" required error={err('last_name')}><Input value={form.last_name} onChange={e => set({ last_name: e.target.value })} onBlur={blurName('last_name')} autoComplete="off" /></Field>
             <Field label="Email" optional error={err('email')}><Input type="email" value={form.email} onChange={e => set({ email: e.target.value })} /></Field>
-            <Field label="Phone" optional description="Use / between several numbers."><Input value={form.phone} onChange={e => set({ phone: e.target.value })} placeholder="+263 77 123 4567" /></Field>
+            <FormattedPhoneField label="Phone" optional description="Use / between several numbers." value={form.phone} onChange={v => set({ phone: v })} error={err('phone')} />
             <Field label="Address" optional className="sm:col-span-2"><Textarea rows={2} value={form.address} onChange={e => set({ address: e.target.value })} /></Field>
           </div>
         </section>
