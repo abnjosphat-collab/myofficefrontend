@@ -78,6 +78,10 @@ export function useFormattedPhoneField({ value, onChange, defaultCountry = 'ZW' 
     const appended = nextRawCapped.length > prev.length && nextRawCapped.startsWith(prev);
     const formatted = appended ? formatPhoneInput(nextRawCapped, defaultCountry) : nextRawCapped;
     lastSent.current = formatted;
+    // Keep the ref current in the handler itself: a commit landing in the
+    // same batch as the last keystroke (before the sync effect runs) must
+    // still read the latest text, never the previous render's.
+    displayRef.current = formatted;
     setDisplay(formatted);
     onChangeRef.current(formatted);
     if (cappedCaret == null) return null;
@@ -93,6 +97,7 @@ export function useFormattedPhoneField({ value, onChange, defaultCountry = 'ZW' 
     setError(null);
     if (canonical !== displayRef.current) {
       lastSent.current = canonical;
+      displayRef.current = canonical;
       setDisplay(canonical);
       onChangeRef.current(canonical);
     }
