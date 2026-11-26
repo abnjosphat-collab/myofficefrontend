@@ -102,6 +102,19 @@ describe('formProblems', () => {
     expect(formProblems({ ...base, employee_id: 'C1165' })).toEqual({});
   });
 
+  it('lets the register form skip the mine number and ID number until issued', () => {
+    const base = { first_name: 'A', last_name: 'B', designation: 'Fitter', email: '' };
+    expect(formProblems({ ...base, employee_id: '', id_number: '' }, { requireMineNumber: false, requireIdNumber: false })).toEqual({});
+    expect(formProblems({ ...base, employee_id: 'C1165', id_number: '21-275641-V21' }, { requireMineNumber: false, requireIdNumber: false })).toEqual({});
+    expect(formProblems({ ...base, employee_id: '...', id_number: '' }, { requireMineNumber: false, requireIdNumber: false })).toEqual({
+      employee_id: 'A mine number needs at least one letter or digit.',
+    });
+    // The defaults still require both (import flows use the mine number as identity).
+    expect(formProblems({ ...base, employee_id: '', id_number: '' })).toEqual({
+      employee_id: 'Enter the mine number.', id_number: 'Enter the national ID or passport number.',
+    });
+  });
+
   it('requires the employment type for new employees only', () => {
     const base = { employee_id: 'C1', first_name: 'A', last_name: 'B', id_number: '1', designation: 'Fitter', email: '' };
     expect(formProblems(base, { requireEmploymentType: true })).toEqual({ employment_type: 'Choose the employment type.' });

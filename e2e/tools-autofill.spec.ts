@@ -39,7 +39,9 @@ test('employee selection autofills the Tools movement form', async ({ page }) =>
   });
 
   await page.goto('/tools', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Equipment', exact: true }).first().click();
+  // The register tab was renamed Equipment -> Tools in the Oct 30 wording
+  // batch (37db13e); this spec kept the old name and timed out on the click.
+  await page.getByRole('button', { name: 'Tools', exact: true }).first().click();
   await page.getByRole('button', { name: 'View Torque wrench' }).click();
   await page.getByRole('button', { name: 'Issue tool' }).click();
   const employee = page.getByRole('combobox', { name: 'Employee' });

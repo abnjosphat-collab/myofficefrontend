@@ -9,7 +9,8 @@ import { Button, Checkbox, Field, FormDialog, Input, Notice, PersonPicker, Selec
 import { type EmployeeLookup } from '@/hooks/useLookups';
 import { calcCalendarLeaveDays, calcLeaveDays } from '@/lib/calcLeaveDays';
 import { normalizeDesignation } from '@/lib/employeeCatalog';
-import { hasContactPhone, primaryContactPhone } from '@/lib/phone';
+import { primaryContactPhone, verifyPhoneField } from '@/lib/phone';
+import { FormattedPhoneField } from '@/components/shared/FormattedPhoneField';
 import { fmtDate } from '@/components/shared/utils';
 import { overlappingLeave } from './leaveLogic';
 import { LEAVE_TYPES, defaultReasonFor, isDefaultReason } from './leaveTypes';
@@ -50,10 +51,13 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
   const counted = calcLeaveDays(form.start_date, form.end_date, { excludeWeekendsAndHolidays: exclude });
   const calendar = calcCalendarLeaveDays(form.start_date, form.end_date);
   const overlap = useMemo(() => overlappingLeave(leaves, form.employee_id, form.start_date, form.end_date, leave?.id), [leaves, form.employee_id, form.start_date, form.end_date, leave?.id]);
+  // Contact feedback matches the server verdicts — malformed new input is
+  // rejected with a field error naming the number.
+  const phoneError = verifyPhoneField(form.contact_number).error;
   const bad = {
     employee: !form.employee_name?.trim(), start: !form.start_date, end: !form.end_date,
     order: !!form.start_date && !!form.end_date && form.end_date < form.start_date,
-    reason: !form.reason?.trim(), phone: !hasContactPhone(form.contact_number),
+    reason: !form.reason?.trim(), phone: !!phoneError,
   };
   const err = (isBad: boolean, text: string) => (touched && isBad ? text : undefined);
   const overlapRef = useRef<HTMLDivElement>(null);
@@ -109,9 +113,7 @@ export function LeaveForm({ open, leave, leaves, onOpenChange, onSave }: {
           </div>
         )}
 
-        <Field label="Contact number during leave" required description="If the employee has several numbers on file only the primary one is used." error={err(bad.phone, 'Enter a contact number.')}>
-          <Input inputMode="tel" value={form.contact_number || ''} onChange={e => set({ contact_number: e.target.value })} placeholder="Phone number to reach them" />
-        </Field>
+        <FormattedPhoneField label="Contact number during leave" required description="If the employee has several numbers on file only the primary one is used." value={form.contact_number || ''} onChange={v => set({ contact_number: v })} error={err(bad.phone, phoneError ?? 'Enter a contact number.')} placeholder="Phone number to reach them" />
         <Field label="Reason for leave" required error={err(bad.reason, 'Enter a reason.')}>
           <Textarea rows={3} value={form.reason || ''} onChange={e => set({ reason: e.target.value })} placeholder="Type a reason or choose one below" />
         </Field>

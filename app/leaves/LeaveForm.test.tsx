@@ -15,6 +15,22 @@ const clash: Leave = {
   ...base, id: 'L2', start_date: '2026-10-21', end_date: '2026-10-23', status: 'approved',
 };
 
+describe('LeaveForm contact verdict', () => {
+  it('refuses a malformed contact number and saves nothing', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(async () => {});
+    const bad = { ...base, contact_number: 'call office' };
+    render(
+      <ConfirmProvider>
+        <LeaveForm open leave={bad} leaves={[base]} onOpenChange={() => {}} onSave={onSave} />
+      </ConfirmProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Update request' }));
+    expect(await screen.findByText(/is not a valid phone number/)).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
 describe('LeaveForm overlap', () => {
   it('focuses the overlap notice when it refuses the save', async () => {
     const user = userEvent.setup();
