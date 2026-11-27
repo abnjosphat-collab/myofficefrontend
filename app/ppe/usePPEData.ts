@@ -18,7 +18,7 @@ export { PPE_MATRIX_DEFAULTS };
 export const fetchPPERecords = async (department?: string | null) => {
   const data = await api.get<unknown>(withDepartment('/api/ppe', department));
   if (!Array.isArray(data)) throw new Error('PPE records returned an invalid response.');
-  return data as PPERecord[];
+  return (data as PPERecord[]).map(r => ({ ...r, employee_id: r.employee_id ?? '' }));
 };
 export const fetchPPERequirements = async (department?: string | null) => {
   const data = await api.get<unknown>(withDepartment('/api/ppe/requirements', department));
@@ -35,13 +35,15 @@ export function usePPERequirements(department?: string | null, enabled = true) {
 export const fetchPPEEvents = async (department?: string | null) => {
   const data = await api.get<unknown>(withDepartment('/api/ppe/events', department));
   if (!Array.isArray(data)) throw new Error('PPE events returned an invalid response.');
-  return data as PPEEvent[];
+  return (data as PPEEvent[]).map(r => ({ ...r, employee_id: r.employee_id ?? '' }));
 };
 /** One Mining issue as the single atomic server write: the event projects the register row, so cards, the log and
  * summaries all update from the same write and a retried tap returns the stored result instead of a second row. */
-export const toEventBody = (form: Pick<FormState, 'employee_id' | 'ppe_type' | 'issue_date'> & { quantity?: number }) => ({
+export const toEventBody = (form: Pick<FormState, 'employee_id' | 'employee_db_id' | 'ppe_type' | 'issue_date'> & { quantity?: number; size?: string }) => ({
   kind: 'issue' as const,
   employee_id: form.employee_id.trim(),
+  ...(form.employee_db_id ? { employee_db_id: form.employee_db_id } : {}),
+  ...(form.size ? { size: form.size } : {}),
   ppe_type: form.ppe_type,
   quantity: form.quantity ?? 1,
   issue_date: form.issue_date,
@@ -62,6 +64,7 @@ export const fetchAllEmployees = async (department?: string | null): Promise<Emp
     const e = value && typeof value === 'object' ? value as Record<string, unknown> : {};
     const designation = typeof e.designation === 'string' ? e.designation : '';
     return {
+      ...(Number(e.id) > 0 ? { employee_db_id: Number(e.id) } : {}),
       employee_id: typeof e.employee_id === 'string' ? e.employee_id : '',
       employee_name: sanitizeDisplayName(`${e.first_name || ''} ${e.last_name || ''}`.trim()),
       position: normalizeDesignation(designation) || designation,
@@ -82,7 +85,7 @@ export function useRosterRows(department?: string | null) {
 }
 
 export const createPPERecord = async (data: Partial<FormState>) => {
-  if (!data.employee_id?.trim()) throw new Error('Employee ID is required');
+  if (!data.employee_db_id && !data.employee_id?.trim()) throw new Error('Pick the person from the register.');
   if (!data.employee_name?.trim()) throw new Error('Employee name is required');
   return api.post('/api/ppe', { ...data, expiry_date: data.expiry_date || null });
 };

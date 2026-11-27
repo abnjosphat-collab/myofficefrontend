@@ -17,7 +17,7 @@ import { todayLocal } from '@/lib/dates';
 import { latestUpdated } from '@/lib/format';
 import { formatMineNumber } from '@/lib/registerMatch';
 import { normalizeSection } from '@/lib/sections';
-import { compareSections, enrichPPERecords, normalizeEmployeeId, type OrderListEntry } from './calcPPE';
+import { compareSections, enrichPPERecords, normalizeEmployeeId, ppePersonKey, type OrderListEntry } from './calcPPE';
 import { DueItems } from './DueItems';
 import { RainsuitView } from './RainsuitView';
 import { IssueLogView } from './IssueLogView';
@@ -80,7 +80,7 @@ function PPEContent() {
   const today = todayLocal();
   const basketRegister = useMemo<BasketRegister>(() => {
     const known = new Set<string>(); const archived = new Set<string>(); const sections = new Map<string, string>();
-    roster.items.forEach(e => { const id = normalizeEmployeeId(e.employee_id); if (!id) return; known.add(id); if (e.archived === true) archived.add(id); if (e.section) sections.set(id, e.section); });
+    roster.items.forEach(e => { const id = ppePersonKey(e); if (!id) return; known.add(id); if (e.archived === true) archived.add(id); if (e.section) sections.set(id, e.section); });
     return { known, archived, sections };
   }, [roster.items]);
   const registerSections = useMemo(() => [...new Set([...(basketRegister.sections?.values() ?? [])].map(s => normalizeSection(s)))].filter(s => s !== 'Unassigned').sort(compareSections), [basketRegister]);
@@ -130,34 +130,34 @@ function PPEContent() {
   const effF = useMemo(() => (scope ? { ...f, section: scope } : f), [f, scope]);
   const inSection = useMemo(() => (effF.section === ALL ? activeHolders : activeHolders.filter(h => normalizeSection(h.section) === effF.section)), [activeHolders, effF.section]);
   const sectionRecords = useMemo(() => inSection.flatMap(h => h.records), [inSection]);
-  const unmatched = useMemo(() => holders.filter(h => register.matchOf(h) !== 'linked'), [holders, register]);
+  const unmatched = useMemo(() => holders.filter(h => h.unmatched === true || (!h.employee_db_id && register.matchOf(h) !== 'linked')), [holders, register]);
   const unmatchedRecordIds = useMemo(() => unmatched.flatMap(h => h.records.map(r => r.id)), [unmatched]);
   const shown = useMemo(() => filterEmployees(unmatchedOnly ? unmatched : visibleHolders, effF), [visibleHolders, unmatched, unmatchedOnly, effF]);
   const listCalm = JSON.stringify([effF, unmatchedOnly, showArchived]);
   const stats = useMemo(() => summarise(visibleRecords, visibleHolders), [visibleRecords, visibleHolders]);
   const scoped = useMemo(() => summarise(sectionRecords.filter(r => matchesTypeFilter(r.ppe_type, typeFilter)), inSection), [sectionRecords, inSection, typeFilter]);
-  const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(h => normalizeEmployeeId(h.employee_id))); return records.filter(r => r.status === 'active' && !arch.has(normalizeEmployeeId(r.employee_id))); }, [records, holders]);
+  const lensPool = useMemo(() => { const arch = new Set(holders.filter(h => h.archived === true).map(ppePersonKey)); return records.filter(r => r.status === 'active' && !arch.has(ppePersonKey(r))); }, [records, holders]);
   const typeOpts = useMemo(() => typeOptions(lensPool), [lensPool]);
-  const holder = useMemo(() => holders.find(h => h.employee_id === holderId) ?? null, [holders, holderId]);
+  const holder = useMemo(() => holders.find(h => ppePersonKey(h) === holderId) ?? null, [holders, holderId]);
   const item = useMemo(() => records.find(r => String(r.id) === itemId) ?? null, [records, itemId]);
-  const itemReadOnly = item ? holders.find(h => h.employee_id === item.employee_id)?.archived === true : false;
+  const itemReadOnly = item ? holders.find(h => h.records.some(r => r.id === item.id))?.archived === true : false;
   const hiddenAllArchived = !showArchived && archivedCount > 0 && visibleHolders.length === 0;
   const status = deriveDataStatus({ loaded: recs.loaded, loading: recs.loading, error: recs.error, errorStatus: recs.errorStatus, count: shown.length, transient: isTransientStatus(recs.errorStatus) });
   const tile = { loading: recs.loading && !recs.loaded, unavailable: !recs.loaded && !recs.loading };
   const set = (patch: Partial<EmployeeFilters>) => setF(prev => ({ ...prev, ...patch }));
   const filtered = unmatchedOnly || f.view !== 'all' || f.section !== ALL || f.search !== '';
   const reload = () => { void recs.refetch(); void events.refetch(); if (!miningView) void requirements.refetch(); };
-  const nameOf = useCallback((id: string) => holders.find(h => h.employee_id === id)?.employee_name ?? '', [holders]);
+  const nameOf = useCallback((id: string, dbId?: number | null) => holders.find(h => dbId ? h.employee_db_id === dbId : !!id && h.employee_id === id)?.employee_name ?? '', [holders]);
   // Mining bulk issues go through the same atomic event path as single issues (one event per person, quantity 1),
   // so the Issue Log stays complete; Engineering bulk keeps posting records directly.
-  const bulkCreateOne = miningView ? async (d: Partial<FormState>) => { await postPPEEvent(toEventBody({ employee_id: d.employee_id ?? '', ppe_type: d.ppe_type ?? 'helmet', issue_date: d.issue_date ?? todayLocal(), quantity: 1 }), 'Mining'); } : undefined;
+  const bulkCreateOne = miningView ? async (d: Partial<FormState>) => { await postPPEEvent(toEventBody({ employee_id: d.employee_id ?? '', employee_db_id: d.employee_db_id, size: d.size, ppe_type: d.ppe_type ?? 'helmet', issue_date: d.issue_date ?? todayLocal(), quantity: 1 }), 'Mining'); } : undefined;
 
   const openIssue = (employee: EmployeeWithPPE | null = null) => { setHolderId(null); setForm({ record: null, prefill: null, employee, fulfils: null }); };
-  const openEdit = (r: PPERecord) => { setItemId(null); setHolderId(null); setForm({ record: r, prefill: null, employee: holders.find(h => h.employee_id === r.employee_id) ?? null, fulfils: null }); };
+  const openEdit = (r: PPERecord) => { setItemId(null); setHolderId(null); setForm({ record: r, prefill: null, employee: holders.find(h => h.records.some(item => item.id === r.id)) ?? null, fulfils: null }); };
   const issueFromOrder = (e: OrderListEntry) => {
-    const h = holders.find(x => x.employee_id === e.employee_id) ?? null;
     const old = records.find(r => String(r.id) === e.record_id);
-    setForm({ record: null, employee: h, fulfils: e.record_id, prefill: { id: '', employee_id: e.employee_id, employee_name: e.employee_name, position: h?.position ?? '', department: '', ppe_type: e.ppe_type, item_name: e.item_name, size: e.size, issue_date: todayLocal(), expiry_date: null, condition: 'good', status: 'active', notes: old?.notes ?? '', issued_by: old?.issued_by ?? '', location: old?.location ?? 'Workshop', mine_section: h?.section ?? '' } });
+    const h = holders.find(x => old ? x.records.some(r => r.id === old.id) : !!e.employee_id && x.employee_id === e.employee_id) ?? null;
+    setForm({ record: null, employee: h, fulfils: e.record_id, prefill: { id: '', employee_id: h?.employee_id ?? e.employee_id, employee_db_id: old?.employee_db_id ?? h?.employee_db_id, employee_name: e.employee_name, position: h?.position ?? '', department: '', ppe_type: e.ppe_type, item_name: e.item_name, size: e.size, issue_date: todayLocal(), expiry_date: null, condition: 'good', status: 'active', notes: old?.notes ?? '', issued_by: old?.issued_by ?? '', location: old?.location ?? 'Workshop', mine_section: h?.section ?? '' } });
   };
   const save = async (data: FormState, id?: string) => {
     // Issuing from the order list renews the item that was on it: that record is updated in place and reads "In date" again, with its next
@@ -168,10 +168,10 @@ function PPEContent() {
     // A fresh Mining issue is one atomic event: the server projects the register row from it, so the card, the log
     // and the summary all update from the same write and a retried tap cannot duplicate it. Order-list renewals and
     // Engineering issues keep the record path above.
-    else if (miningView) await postPPEEvent(toEventBody({ employee_id: data.employee_id, ppe_type: data.ppe_type, issue_date: data.issue_date, quantity: data.quantity ?? 1 }), 'Mining');
+    else if (miningView) await postPPEEvent(toEventBody({ employee_id: data.employee_id, employee_db_id: data.employee_db_id, size: data.size, ppe_type: data.ppe_type, issue_date: data.issue_date, quantity: data.quantity ?? 1 }), 'Mining');
     else await createPPERecord(data);
     if (form?.fulfils) order.remove(form.fulfils);
-    order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
+    if (data.employee_id) order.removeFulfilled(data.employee_id, data.ppe_type, data.size);
     reload();
   };
   const remove = async (r: PPERecord) => {
@@ -338,12 +338,12 @@ function PPEContent() {
             <p className="font-sans text-caption text-ink-muted" role="status">{shown.length} {shown.length === 1 ? 'person' : 'people'}{shown.length !== visibleHolders.length ? ` of ${visibleHolders.length}` : ''}<UpdatedCaption at={latestUpdated(recs.updatedAt, roster.updatedAt)} /></p>
             <MotionList as="ul" calmKey={listCalm} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Employees">
               {shown.map(h => (
-                <MotionListItem as="li" key={h.employee_id} ref={h === personTarget ? personRef : undefined} className="relative">
-                  <ZoomLink zoomId={`ppe:holder:${h.employee_id}`}>
+                <MotionListItem as="li" key={ppePersonKey(h) || h.records[0]?.id} ref={h === personTarget ? personRef : undefined} className="relative">
+                  <ZoomLink zoomId={`ppe:holder:${ppePersonKey(h)}`}>
                   <RecordCard
-                    eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(h.employee_id)} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
+                    eyebrow={formatMineNumber(h.employee_id)} title={h.employee_name} subtitle={h.position || undefined} openLabel={`Open the PPE held by ${h.employee_name}`} onOpen={() => setHolderId(ppePersonKey(h))} selected={h === personTarget} status={<>{badges(h)}<RegisterFlag match={h.employee_db_id && !h.unmatched ? 'linked' : register.matchOf(h)} />{h.archived === true && <StatusBadge tone="neutral">Archived</StatusBadge>}</>}
                     facts={[...(h.records.length > 0 ? [{ label: 'Items', value: `${h.records.filter(r => r.status === 'active').length} active of ${h.records.length}` }] : []), ...(h.section ? [{ label: 'Section', value: normalizeSection(h.section) }] : []), ...(h.records.some(r => r.premature_failure === true) ? [{ label: 'Premature failures', value: h.records.filter(r => r.premature_failure === true).map(r => typeName(r.ppe_type)).join(', ') }] : [])]}
-                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id)}${miningView ? '&department=Mining' : ''}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
+                    action={<div className="flex items-center gap-1"><Button asChild size="sm" variant="ghost" icon="employees"><Link href={`/employees?highlight=${encodeURIComponent(h.employee_id || h.employee_name)}${miningView ? '&department=Mining' : ''}`}>Personnel</Link></Button>{h.archived !== true && h.records.length > 0 && (<MoreMenu label={`More actions for ${h.employee_name}`} items={cardMenuItems(h)} />)}{h.archived !== true && <ZoomLink zoomId="ppe:new" inline><IconButton icon="plus" size="sm" variant="ghost" label={`Add PPE for ${h.employee_name}`} onClick={() => openIssue(h)} /></ZoomLink>}</div>}
                   />
                   </ZoomLink>
                 </MotionListItem>

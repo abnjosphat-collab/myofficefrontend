@@ -4,7 +4,7 @@
 // entry points may offer. The page builds the basket from records + stored lines
 // + the roster; the hook only moves stored lines (see useOrderList).
 import { normalizeSection } from '@/lib/sections';
-import { mondayOf, normalizeEmployeeId, toISODate, type OrderListEntry } from './calcPPE';
+import { mondayOf, normalizeEmployeeId, ppePersonKey, toISODate, type OrderListEntry } from './calcPPE';
 import type { PPERecord } from './types';
 
 /** Roster lookups, keyed by normalised id (see normalizeEmployeeId). Built by the page from the roster rows. */
@@ -47,8 +47,8 @@ export function dueNow(records: PPERecord[], register: BasketRegister, todayISO:
     r.status === 'active'
     && !!r.expiry_date
     && r.expiry_date <= todayISO
-    && register.known.has(normalizeEmployeeId(r.employee_id))
-    && !register.archived.has(normalizeEmployeeId(r.employee_id)),
+    && register.known.has(ppePersonKey(r))
+    && !register.archived.has(ppePersonKey(r)),
   );
 }
 
@@ -152,8 +152,8 @@ export function addableInWindow(records: PPERecord[], register: BasketRegister, 
   return records.filter(r =>
     r.status === 'active'
     && !!r.expiry_date && r.expiry_date >= from && r.expiry_date <= to
-    && register.known.has(normalizeEmployeeId(r.employee_id))
-    && !register.archived.has(normalizeEmployeeId(r.employee_id))
+    && register.known.has(ppePersonKey(r))
+    && !register.archived.has(ppePersonKey(r))
     && !coveredIds.has(String(r.id))
     && !excludedIds.has(String(r.id)),
   ).sort((a, b) => (a.expiry_date ?? '').localeCompare(b.expiry_date ?? ''));

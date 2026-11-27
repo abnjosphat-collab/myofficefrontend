@@ -6,6 +6,7 @@
 // etc.) stay in page.tsx; they're tightly coupled to their one component, not the
 // page's actual data contract.
 export interface PPERecord {
+  employee_db_id?: number | null;
   id: string; employee_id: string; employee_name: string;
   position: string; department: string;
   ppe_type: string; item_name: string; size: string;
@@ -20,6 +21,7 @@ export interface PPERecord {
 }
 
 export interface EmployeeRow {
+  employee_db_id?: number | null;
   employee_id: string; employee_name: string;
   position: string; department: string; section: string;
   /** Left the company: hidden from live views, still on the register. */
@@ -27,6 +29,7 @@ export interface EmployeeRow {
 }
 
 export interface EmployeeWithPPE {
+  employee_db_id?: number | null;
   employee_id: string; employee_name: string;
   position: string; records: PPERecord[];
   /** From the roster match; holders off the roster are never archived. */
@@ -52,6 +55,7 @@ export interface PPERequirement {
  * projection is derived from. Imported opening observations carry kind 'issue' with an unknown (null) quantity and a
  * source badge in evidence; actual issues always carry a positive quantity. */
 export interface PPEEvent {
+  employee_db_id?: number | null;
   id: string; kind: 'issue' | 'return' | 'correction';
   employee_id: string; ppe_type: string; quantity: number | null;
   department: string; record_id: number | null;
@@ -65,6 +69,7 @@ export interface PPEEvent {
 }
 
 export interface FormState {
+  employee_db_id?: number | null;
   employee_name: string; employee_id: string; position: string;
   ppe_type: string; item_name: string; size: string;
   issue_date: string; expiry_date: string;

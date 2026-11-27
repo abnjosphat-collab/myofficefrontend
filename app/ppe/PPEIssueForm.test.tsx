@@ -11,6 +11,7 @@ vi.mock('@/hooks/useLookups', () => ({
   useEmployees: () => [
     { id: 1, employee_id: 'C400', first_name: 'Dee', last_name: 'Delta', designation: 'Welder', department: 'MAINTENANCE', section: 'Mechanical' },
     { id: 2, employee_id: 'C100', first_name: 'Ann', last_name: 'Alpha', designation: 'Fitter', department: 'MAINTENANCE', section: 'Mechanical' },
+    { id: 95, first_name: 'Sam', last_name: 'Fixture', designation: 'Rigger Class 1', department: 'Engineering', section: 'Mechanical' },
   ],
 }));
 
@@ -25,6 +26,45 @@ const holder = (over: Partial<EmployeeWithPPE> = {}): EmployeeWithPPE => ({
 });
 
 describe('PPEIssueForm person-pick', () => {
+  it('issues an OSFA helmet from a numberless employee card', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(async () => {});
+    render(<ConfirmProvider><PPEIssueForm open record={null} prefill={null}
+      employee={holder({ employee_db_id: 95, employee_id: '', employee_name: 'Sam Fixture', records: [] })}
+      matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
+    expect(screen.getByText('No mine number')).toBeVisible();
+    expect(screen.getByLabelText(/^Size/)).toHaveValue('OSFA');
+    await user.type(screen.getByLabelText(/^Item or brand/), 'Hard hat');
+    await user.click(screen.getByRole('button', { name: 'Issue PPE' }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ employee_db_id: 95, employee_id: '', ppe_type: 'helmet', size: 'OSFA' }),
+      undefined,
+    );
+  });
+
+  it('selects a numberless person by name and applies the cap lamp belt default', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(async () => {});
+    render(<ConfirmProvider><PPEIssueForm open record={null} prefill={null} employee={null}
+      matrix={{}} onOpenChange={() => {}} onSave={onSave} /></ConfirmProvider>);
+    await user.type(screen.getByRole('combobox', { name: 'Pick an employee' }), 'Sam');
+    await user.click(screen.getByRole('option', { name: /Sam Fixture/ }));
+    await user.click(screen.getByRole('combobox', { name: 'PPE type' }));
+    await user.click(screen.getByRole('option', { name: 'Cap Lamp Belt' }));
+    expect(screen.getByLabelText(/^Size/)).toHaveValue('OSFA');
+    await user.click(screen.getByRole('combobox', { name: 'PPE type' }));
+    await user.click(screen.getByRole('option', { name: 'Safety Shoes' }));
+    expect(screen.getByLabelText(/^Size/)).toHaveValue('');
+    await user.click(screen.getByRole('combobox', { name: 'PPE type' }));
+    await user.click(screen.getByRole('option', { name: 'Cap Lamp Belt' }));
+    await user.type(screen.getByLabelText(/^Item or brand/), 'Lamp belt');
+    await user.click(screen.getByRole('button', { name: 'Issue PPE' }));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ employee_db_id: 95, employee_id: '', ppe_type: 'Cap_lamp_belt', size: 'OSFA' }),
+      undefined,
+    );
+  });
+
   it('offers no typed person inputs and names the picker on an empty submit', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn(async () => {});
