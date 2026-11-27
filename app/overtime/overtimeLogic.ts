@@ -159,15 +159,30 @@ export function lastCompletedWeek(now = new Date()): { from: string; to: string 
   return { from: toISODate(monday), to: toISODate(addDays(monday, 6)) };
 }
 
+// Mine numbers approved for exclusion from the weekly overtime report.
+const WEEKLY_OVERTIME_EXCLUDED_MINE_NUMBERS = new Set(['TBA00002', 'TBA03', 'TBA34', 'C1202']);
+const isExcludedWeeklyMineNumber = (id?: string) => WEEKLY_OVERTIME_EXCLUDED_MINE_NUMBERS.has(id?.trim().toUpperCase() ?? '');
+const normalizeWeeklyName = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
 export function weeklyView(records: OTRecord[], employees: EmployeeLookup[], from: string, to: string, sort: WeeklySort) {
   const engineering = recordsForEngineeringCostCentreExport(records);
-  const { rows: byName, days } = buildWeeklyRows(engineering, from, to, employees);
+  const excludedNames = new Set<string>();
+  const eligibleEmployees = employees.filter(employee => {
+    if (!isExcludedWeeklyMineNumber(employee.employee_id)) return true;
+    const name = employee.full_name || employee.name || `${employee.first_name || ''} ${employee.last_name || ''}`;
+    if (name.trim()) excludedNames.add(normalizeWeeklyName(name));
+    return false;
+  });
+  // Legacy records without a mine number can still match the excluded roster by full name.
+  const eligibleRecords = engineering.filter(record => !isExcludedWeeklyMineNumber(record.employee_id)
+    && (!!record.employee_id?.trim() || !excludedNames.has(normalizeWeeklyName(record.employee_name || ''))));
+  const { rows: byName, days } = buildWeeklyRows(eligibleRecords, from, to, eligibleEmployees);
   const rows = sort === 'total' ? [...byName].sort((a, b) => b.total - a.total) : sort === 'mineNumber' ? [...byName].sort((a, b) => a.employee_id.localeCompare(b.employee_id, undefined, { numeric: true })) : byName;
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((s, r) => s + pick(r), 0);
   // Records with no planning status are shown as Unplanned: "not known to be planned".
   const totals = { all: sum(r => r.total), r15: sum(r => r.total15), r20: sum(r => r.total20), planned: sum(r => r.plannedHours), unplanned: sum(r => r.unplannedHours + r.unclassifiedHours) };
   const dayTotals = days.map(d => { const ds = toISODate(d); return rows.reduce((s, r) => s + (r.byDate.get(ds) || 0), 0); });
-  const week = engineering.filter(r => r.date >= from && r.date <= to);
+  const week = eligibleRecords.filter(r => r.date >= from && r.date <= to);
   const people = byName.filter(r => r.total > 0).sort((a, b) => b.total - a.total).map(emp => {
     const instances = week.filter(r => idOf(r) === (emp.employee_id || emp.employee_name)).sort((a, b) => recordHours(b) - recordHours(a));
     return { ...emp, instances, mainCause: groupSimilarReasons(instances)[0] ?? null };
