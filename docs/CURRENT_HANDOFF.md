@@ -28,6 +28,9 @@ Rebuild MyOffice around the real Tools & Equipment (`/tools`) interface as one s
 without explicit authorisation. Preserve pre-existing uncommitted edits. Work inline; keep chat concise; never put
 credentials or private business records in docs.
 
+### 27 Nov 2026 weekly overtime report correction
+
+The Weekly summary and its Excel download apply the same four owner-approved personnel exclusions before building the roster, totals and detail. The employee register and overtime request history are unaffected. This is a frontend-only change. Production release is pending owner approval.
 ## 2. Git state (two separate repositories)
 
 | Repo | Branch | Commits | State |

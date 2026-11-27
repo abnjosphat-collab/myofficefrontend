@@ -168,3 +168,27 @@ describe('similarRecords', () => {
     expect(similarRecords(rows, rows[3]).map(r => r.id)).toEqual([1, 4]);
   });
 });
+
+describe('weekly overtime report employee exclusions', () => {
+  it('excludes the four mine numbers from the roster, hours and detail while retaining other people', () => {
+    const excludedEmployees = ['TBA00002', 'TBA03', 'TBA34', 'C1202'].map((employee_id, index) => ({
+      id: index + 2, employee_id, full_name: `Excluded Person ${index + 1}`,
+    }));
+    const employees: EmployeeLookup[] = [
+      { id: 1, employee_id: 'C1', full_name: 'Jane Doe' },
+      { id: 7, employee_id: 'C2', full_name: 'Eligible Person' },
+      ...excludedEmployees,
+    ];
+    const records = [
+      rec({ reason: 'Eligible repair' }),
+      rec({ id: 2, employee_id: ' tba03 ', employee_name: 'Previous name', hours: 7 }),
+      rec({ id: 3, employee_id: '', employee_name: '  EXCLUDED  PERSON 4 ', hours: 9 }),
+      rec({ id: 4, employee_id: 'TBA34', employee_name: 'Former label', hours: 5 }),
+    ];
+    const view = weeklyView(records, employees, '2026-09-07', '2026-09-13', 'total');
+    expect(view.rows.map(row => row.employee_id)).toEqual(['C1', 'C2']);
+    expect(view.totals.all).toBe(3);
+    expect(view.people.flatMap(person => person.instances.map(instance => instance.id))).toEqual([1]);
+    expect(view.excluded).toBe(0);
+  });
+});
