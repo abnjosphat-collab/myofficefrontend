@@ -2,7 +2,7 @@
 // filters, the headline counts, the expiry an issue gets from the replacement matrix, and what an issue form must have.
 import { addMonths } from '@/lib/dates';
 import { SECTION_ORDER, normalizeSection } from '@/lib/sections';
-import { isExpired, isExpiringSoon, normalizeEmployeeId } from './calcPPE';
+import { employeeRegisterById, isExpired, isExpiringSoon, normalizeEmployeeId, ppePersonKey } from './calcPPE';
 import { NO_TYPE_FILTER, matchesTypeFilter, normalizePpeType, type TypeFilter } from './ppeTypes';
 import type { EmployeeRow, EmployeeWithPPE, FormState, PPERecord } from './types';
 
@@ -23,27 +23,29 @@ const norm = (v?: string) => (v ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
  * 'pm453' and 'PM453' never split into two cards. Archived people appear only when they hold something. */
 export function groupByEmployee(records: PPERecord[], roster: EmployeeRow[]): EmployeeWithPPE[] {
   const rest = new Map<string, PPERecord[]>();
+  const register = employeeRegisterById(roster);
   for (const r of records) {
-    const key = normalizeEmployeeId(r.employee_id);
+    const linked = r.employee_db_id ? register.get(`row:${r.employee_db_id}`) : undefined;
+    const key = r.employee_db_id && !linked ? `row:${r.employee_db_id}` : ppePersonKey(linked ?? r) || `issue:${r.id}`;
     const list = rest.get(key);
     if (list) list.push(r); else rest.set(key, [r]);
   }
   const holders: EmployeeWithPPE[] = [];
   for (const e of roster) {
-    const key = normalizeEmployeeId(e.employee_id);
+    const key = ppePersonKey(e);
     const recs = rest.get(key) ?? [];
     rest.delete(key);
     if (e.archived === true && recs.length === 0) continue;
     const first = recs[0];
     holders.push({
-      employee_id: e.employee_id, employee_name: e.employee_name || first?.employee_name || '',
+      employee_db_id: e.employee_db_id, employee_id: e.employee_id, employee_name: e.employee_name || first?.employee_name || '',
       position: e.position || first?.position || '', section: e.section || first?.mine_section || '',
       archived: e.archived === true, records: recs,
     });
   }
   for (const recs of rest.values()) {
     const first = recs[0];
-    holders.push({ employee_id: first.employee_id, employee_name: first.employee_name, position: first.position, section: first.mine_section || '', archived: false, unmatched: true, records: recs });
+    holders.push({ employee_db_id: first.employee_db_id, employee_id: first.employee_id, employee_name: first.employee_name, position: first.position, section: first.mine_section || '', archived: false, unmatched: true, records: recs });
   }
   return holders.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
 }
@@ -115,11 +117,12 @@ export const sizeCounts = (items: PPERecord[]): [string, number][] => {
  * returned: an item that has worn out or reached its expiry is kept by the person, nobody hands it back. Due or not yet due makes no
  * difference. Anything else (no entry, a record that is gone or closed, another person or kind) is a plain new issue.
  */
-export function renewalTarget(records: PPERecord[], orderRecordId: string | null | undefined, issue: Pick<FormState, 'employee_id' | 'ppe_type'>): PPERecord | undefined {
+export function renewalTarget(records: PPERecord[], orderRecordId: string | null | undefined, issue: Pick<FormState, 'employee_id' | 'employee_db_id' | 'ppe_type'>): PPERecord | undefined {
   if (!orderRecordId) return undefined;
   const old = records.find(r => String(r.id) === String(orderRecordId));
   if (!old || old.status !== 'active') return undefined;
-  const samePerson = normalizeEmployeeId(old.employee_id) === normalizeEmployeeId(issue.employee_id);
+  const samePerson = old.employee_db_id && issue.employee_db_id
+    ? old.employee_db_id === issue.employee_db_id : !!ppePersonKey(old) && ppePersonKey(old) === ppePersonKey(issue);
   return samePerson && normalizePpeType(old.ppe_type) === normalizePpeType(issue.ppe_type) ? old : undefined;
 }
 
@@ -131,9 +134,9 @@ export function expiryFor(type: string, issued: string, matrix: Record<string, n
 }
 
 /** The person comes only from the register picker (name and position follow the pick; the server stamps them). */
-export function formProblems(f: Pick<FormState, 'employee_id' | 'item_name' | 'ppe_type' | 'issue_date' | 'expiry_date'>) {
+export function formProblems(f: Pick<FormState, 'employee_id' | 'employee_db_id' | 'item_name' | 'ppe_type' | 'issue_date' | 'expiry_date'>) {
   const out: Partial<Record<'employee_id' | 'item_name' | 'issue_date' | 'expiry_date', string>> = {};
-  if (!f.employee_id.trim()) out.employee_id = 'Pick the person from the register.';
+  if (!f.employee_db_id && !f.employee_id.trim()) out.employee_id = 'Pick the person from the register.';
   if (!f.item_name.trim()) out.item_name = 'Enter the item or brand.';
   if (!f.issue_date) out.issue_date = 'Choose the issue date.';
   if (f.expiry_date && f.issue_date && f.expiry_date < f.issue_date) out.expiry_date = 'The expiry cannot be before the issue date.';
@@ -148,10 +151,10 @@ export function countBulkIssueDupes(records: PPERecord[], ids: string[], ppeType
   const type = (ppeType || '').trim().toLowerCase();
   const day = (issueDay || '').slice(0, 10);
   if (!type || !day) return 0;
-  const want = new Set(ids.map(id => normalizeEmployeeId(id)));
+  const want = new Set(ids.map(id => id.startsWith('row:') ? id : normalizeEmployeeId(id)).filter(Boolean));
   const hit = new Set<string>();
   for (const r of records) {
-    const key = normalizeEmployeeId(r.employee_id);
+    const key = ppePersonKey(r);
     if (!want.has(key) || hit.has(key)) continue;
     if (CLOSED_ISSUE.has(String(r.status || 'active').toLowerCase())) continue;
     if ((r.ppe_type || '').trim().toLowerCase() === type && (r.issue_date || '').slice(0, 10) === day) hit.add(key);

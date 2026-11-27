@@ -14,10 +14,10 @@ import { OptionChecklist, type ChecklistOption } from './OptionChecklist';
 import { lookupName, type PickedPerson } from './PeoplePicker';
 import { NameTypeahead } from './NameTypeahead';
 
-const toPicked = (e: EmployeeLookup): PickedPerson => ({ employee_id: String(e.employee_id), name: lookupName(e) });
-const toOption = (e: EmployeeLookup): ChecklistOption => ({ value: String(e.employee_id), label: lookupName(e), description: [e.employee_id, e.designation].filter(Boolean).join(' · ') });
 
-export function PeopleChecklist({ label, value, onChange, hint, placeholder, department, autocomplete = false, keepFocusOnPick = false }: {
+
+
+export function PeopleChecklist({ label, value, onChange, hint, placeholder, department, autocomplete = false, keepFocusOnPick = false, includeWithoutMineNumber = false }: {
   label: string;
   value: PickedPerson[];
   onChange: (people: PickedPerson[]) => void;
@@ -28,22 +28,27 @@ export function PeopleChecklist({ label, value, onChange, hint, placeholder, dep
   autocomplete?: boolean;
   /** Keep autocomplete focused for the next person; empty Tab still advances. */
   keepFocusOnPick?: boolean;
+  includeWithoutMineNumber?: boolean;
 }) {
   const employees = useEmployees(department);
+  const keyOf = (e: EmployeeLookup) => e.employee_id || (includeWithoutMineNumber && e.id != null ? `row:${e.id}` : '');
+  const personOf = (e: EmployeeLookup): PickedPerson => ({ employee_id: keyOf(e), name: lookupName(e) });
+  const optionOf = (e: EmployeeLookup): ChecklistOption => ({
+    value: keyOf(e), label: lookupName(e), description: [e.employee_id || 'No mine number', e.designation].filter(Boolean).join(' · '),
+  });
   const [section, setSection] = useState('');
   const sections = useMemo(() => [...new Set(employees.map(e => e.section).filter((s): s is string => !!s))].sort(), [employees]);
-  const filtered = useMemo(() => employees.filter(e => e.employee_id && (section === '' || e.section === section)), [employees, section]);
-  const options = useMemo(() => filtered.map(toOption), [filtered]);
+  const options = employees.filter(e => keyOf(e) && (section === '' || e.section === section)).map(optionOf);
   const ids = useMemo(() => value.map(p => p.employee_id), [value]);
   const onIds = (next: string[]) => {
     const prev = new Set(ids);
     const added = next.filter(id => !prev.has(id));
-    added.forEach(id => { const e = employees.find(x => String(x.employee_id) === id); if (e) recordRecentPerson(String(e.id)); });
+    added.forEach(id => { const e = employees.find(x => keyOf(x) === id); if (e) recordRecentPerson(String(e.id)); });
     onChange(next.flatMap(id => {
       const kept = value.find(p => p.employee_id === id);
       if (kept) return [kept];
-      const e = employees.find(x => String(x.employee_id) === id);
-      return e ? [toPicked(e)] : [];
+      const e = employees.find(x => keyOf(x) === id);
+      return e ? [personOf(e)] : [];
     }));
   };
   return (

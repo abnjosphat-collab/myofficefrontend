@@ -11,6 +11,9 @@ export const PPE_TYPES: Record<string, { name: string; short: string }> = {
   overall: { name: 'Protective Overall', short: 'Overall' }, pneumo_jacket: { name: 'Pneumo Jacket', short: 'Pneumo jacket' },
   safety_chain: { name: 'Safety Chain', short: 'Safety chain' }, sinking_suit: { name: 'Sinking Suit', short: 'Sinking suit' }, jacket: { name: 'Jackets', short: 'Jackets' },
 };
+/** Stocked in one size. The display and both issue forms use the stored label. */
+export const oneSizeFor = (type: string) =>
+  ['helmet', 'cap_lamp_belt'].includes(type.trim().toLowerCase().replace(/ /g, '_')) ? 'OSFA' : undefined;
 export const typeName = (t: string) => PPE_TYPES[t]?.name ?? t;
 export const typeShort = (t: string) => PPE_TYPES[t]?.short ?? t;
 export const TYPE_OPTIONS = Object.entries(PPE_TYPES).map(([value, v]) => ({ value, label: v.name }));

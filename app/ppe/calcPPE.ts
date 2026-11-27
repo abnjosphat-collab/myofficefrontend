@@ -12,12 +12,18 @@ export function normalizeEmployeeId(id: string): string {
   return (id || '').trim().toUpperCase();
 }
 
+/** UI key for a holder, including rows whose mine number is still pending. */
+export function ppePersonKey(person: { employee_id: string; employee_db_id?: number | null }): string {
+  return normalizeEmployeeId(person.employee_id) || (person.employee_db_id ? `row:${person.employee_db_id}` : '');
+}
+
 /** Strip stray trailing backticks sometimes saved into free-text name fields. */
 export function sanitizeDisplayName(name: string): string {
   return (name || '').replace(/`+$/g, '').trim();
 }
 
 export interface EmployeeRegisterRow {
+  employee_db_id?: number | null;
   employee_id: string;
   employee_name: string;
   position?: string;
@@ -29,18 +35,20 @@ export function employeeRegisterById(rows: EmployeeRegisterRow[]): Map<string, E
   const map = new Map<string, EmployeeRegisterRow>();
   rows.forEach(r => {
     if (r.employee_id) map.set(normalizeEmployeeId(r.employee_id), r);
+    if (r.employee_db_id) map.set(`row:${r.employee_db_id}`, r);
   });
   return map;
 }
 
 /** Overlay live personnel-register name/position onto a PPE record for display/export. */
 export function enrichPPERecord(record: PPERecord, register: Map<string, EmployeeRegisterRow>): PPERecord {
-  const live = register.get(normalizeEmployeeId(record.employee_id));
+  const live = register.get(record.employee_db_id ? `row:${record.employee_db_id}` : normalizeEmployeeId(record.employee_id));
   if (!live) {
     return { ...record, employee_name: sanitizeDisplayName(record.employee_name) };
   }
   return {
     ...record,
+    employee_id: live.employee_id,
     employee_name: live.employee_name || sanitizeDisplayName(record.employee_name),
     position: live.position || record.position,
     mine_section: live.section || record.mine_section,

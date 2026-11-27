@@ -16,11 +16,11 @@ const ALL = 'all';
 
 const qtyText = (e: PPEEvent): string => (e.quantity === null || e.quantity === undefined ? 'Unknown' : String(e.quantity));
 
-const COLUMNS = (nameOf: (id: string) => string): Column<PPEEvent>[] => [
+const COLUMNS = (nameOf: (id: string, dbId?: number | null) => string): Column<PPEEvent>[] => [
   { id: 'date', header: 'Date', cell: e => <span className="whitespace-nowrap tabular">{formatDate(e.effective_date)}</span> },
   {
     id: 'who', header: 'Employee', sticky: true,
-    cell: e => <div className="min-w-0"><p className="font-medium text-ink">{nameOf(e.employee_id) || e.employee_id}</p><p className="text-caption text-ink-muted">{e.employee_id}</p></div>,
+    cell: e => <div className="min-w-0"><p className="font-medium text-ink">{nameOf(e.employee_id, e.employee_db_id) || e.employee_id}</p><p className="text-caption text-ink-muted">{e.employee_id || 'No mine number'}</p></div>,
   },
   { id: 'section', header: 'Cost centre at issue', cell: e => e.section || 'Unassigned' },
   { id: 'item', header: 'Item', cell: e => typeName(e.ppe_type) },
@@ -43,7 +43,7 @@ const DOWNLOAD: DLColumn[] = [
   { key: 'actor', label: 'Recorded By', width: 22 },
 ];
 
-export function IssueLogView({ events, nameOf }: { events: PPEEvent[]; nameOf: (id: string) => string }) {
+export function IssueLogView({ events, nameOf }: { events: PPEEvent[]; nameOf: (id: string, dbId?: number | null) => string }) {
   const [f, setF] = useState<IssueLogFilters>(NO_ISSUE_LOG_FILTERS);
   const set = (patch: Partial<IssueLogFilters>) => setF(prev => ({ ...prev, ...patch }));
   const reset = () => setF(NO_ISSUE_LOG_FILTERS);
@@ -57,7 +57,7 @@ export function IssueLogView({ events, nameOf }: { events: PPEEvent[]; nameOf: (
   const rows = useMemo(() => filterIssueLog(events, f), [events, f]);
   const filtered = f.from !== '' || f.to !== '' || f.kinds.length > 0 || f.item !== ALL || f.costCentre !== ALL || f.search !== '' || !f.showOpening;
   const downloadable = useMemo(() => rows.map(e => ({
-    effective_date: e.effective_date, employee_id: e.employee_id, employee_name: nameOf(e.employee_id) || e.employee_id,
+    effective_date: e.effective_date, employee_id: e.employee_id, employee_name: nameOf(e.employee_id, e.employee_db_id) || e.employee_id,
     section: e.section || 'Unassigned', ppe_type: e.ppe_type, quantity: e.quantity ?? '',
     kind: e.kind, opening: openingObservation(e), actor: e.actor,
   })), [rows, nameOf]);
